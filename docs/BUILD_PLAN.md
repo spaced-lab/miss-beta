@@ -57,15 +57,15 @@ function, not a later chore.
 Goal: the four planets orbit the star with correct periods; the time-warp controls work.
 
 - [x] Scaffold, render foundation, RNG, vec, stroke font, title screen (done 2026-10-17).
-- [ ] `src/physics/constants.ts`: every constant of GAME_PLAN 6.1 with units in comments. Mirror: `pymiss/physics/constants.py`.
-- [ ] `src/physics/kepler.ts`: `solveKepler(M, e)`, `propagate(elements, mu, t)` returning `{r, v}` (6.2). Vis-viva helper `speedAt(mu, r, a)`. Mirror + vectors.
-- [ ] `src/physics/elements.ts`: `stateToElements(r, v, mu, t)` (6.3) with the e≈0 guard and the prograde check. Mirror + vectors.
-- [ ] `src/config/bodies.json` + `src/config/knobs.ts`: the Sol-like table of 5.2, optional scale knobs.
-- [ ] `src/sim/world.ts`, `src/sim/body.ts`: World = star + planets with elements + sim clock `t`.
-- [ ] `src/render/views/system.ts`: star with radial ticks, dim orbit ellipses (sampled from elements), planets as circles with detail lines, LINEAR / COMPRESSED (sqrt radial) scale toggle, pan/zoom.
-- [ ] `src/ui/hud.ts`: T+ clock, warp level, keyboard `space`, `[`, `]`.
-- [ ] Title menu: NEW RUN opens the system view (threat comes in M1); attract sketch replaced by real propagation.
-- [ ] Tests (GAME_PLAN 16): KEPLER period 365.25 d within 0.01 d; ROUNDTRIP |dr| < 1 m, |dv| < 1e-6 m/s; energy constant to 1e-12 relative over one orbit; `tests/vectors/kepler.json` from pymiss.
+- [x] `src/physics/constants.ts`: every constant of GAME_PLAN 6.1 with units in comments. Mirror: `pymiss/physics/constants.py`.
+- [x] `src/physics/kepler.ts`: `solveKepler(M, e)`, `propagate(elements, mu, t)` returning `{r, v}` (6.2). Vis-viva helper `speedAt(mu, r, a)`. Mirror + vectors.
+- [x] `src/physics/elements.ts`: `stateToElements(r, v, mu, t)` (6.3) with the e≈0 guard and the prograde check. Mirror + vectors.
+- [x] `src/config/bodies.json` + `src/config/knobs.ts`: the Sol-like table of 5.2, optional scale knobs.
+- [x] `src/sim/world.ts`, `src/sim/body.ts`: World = star + planets with elements + sim clock `t`.
+- [x] `src/render/views/system.ts`: star with radial ticks, dim orbit ellipses (sampled from elements), planets as circles with detail lines, LINEAR / COMPRESSED (sqrt radial) scale toggle, pan/zoom.
+- [x] `src/ui/hud.ts`: T+ clock, warp level, keyboard `space`, `[`, `]`.
+- [x] Title menu: NEW RUN opens the system view (threat comes in M1); attract sketch replaced by real propagation.
+- [x] Tests (GAME_PLAN 16): KEPLER period 365.25 d within 0.01 d; ROUNDTRIP |dr| < 1 m, |dv| < 1e-6 m/s; energy constant to 1e-12 relative over one orbit; `tests/vectors/kepler.json` from pymiss.
 - Accept: planets complete one orbit in their correct periods; energy constant to 1e-12; state->elements->state to 1e-9.
 
 ## M1: A threat, and losing

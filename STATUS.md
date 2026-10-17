@@ -9,12 +9,13 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 |---|---|---|
 | Pre-M0 scaffold | done | Vite 8 / TS 5.9 / vitest 5, render foundation, RNG, font, title screen |
 | PERIMETER minigame (side mode) | done, tuning | playable at `#minigame`; knobs in `src/minigame/config.ts` |
-| M0 Skeleton and orbits | in progress | physics core next: constants, kepler, elements + pymiss mirror |
-| M1 .. M12 | todo | see docs/BUILD_PLAN.md |
+| M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
+| M1 A threat, and losing | todo | next: closeApproach.ts, roundGen.ts, threat path, RESOLVE NOW, RUN OVER |
+| M2 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
 
-None in the sim yet (no sim knobs exist before M0 lands). Minigame knobs are not in GAME_PLAN; their defaults
+Kepler solver tolerance 1e-14 instead of the plan's 1e-12 (one extra Newton step; lets the energy test hold at 1e-12 relative). Everything else at default. Minigame knobs are not in GAME_PLAN; their defaults
 are the values in `src/minigame/config.ts` and the 2026-10-17 tuning (FIELD_R 5.6, VIEW_R 6.2 so the planet
 reads larger on wide screens).
 

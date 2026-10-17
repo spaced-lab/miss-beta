@@ -25,7 +25,7 @@ export class TitleScreen implements Screen {
 
   constructor(private readonly s: Surface, private readonly keys: Input, router: Router) {
     this.items = [
-      { label: 'NEW RUN', hotkey: 'KeyN', action: null },
+      { label: 'NEW RUN  (SYSTEM VIEW, M0)', hotkey: 'KeyN', action: () => router.go('system') },
       { label: 'PERIMETER  (ARCADE MINIGAME)', hotkey: 'KeyP', action: () => router.go('minigame') },
       { label: 'LEARN', hotkey: 'KeyL', action: null },
       { label: 'OPTIONS', hotkey: 'KeyO', action: null },
@@ -33,7 +33,7 @@ export class TitleScreen implements Screen {
   }
 
   enter(): void {
-    this.sel = 1;
+    this.sel = 0;
   }
   exit(): void {}
 

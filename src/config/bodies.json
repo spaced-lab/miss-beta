@@ -1,0 +1,10 @@
+{
+  "_comment": "GAME_PLAN 5.2: Sol-like defaults so real numbers apply. mu in m^3/s^2, a in AU, radius in m. e and w are the orbit shape; M0 is randomized per round.",
+  "star": { "id": "STAR", "name": "SOL", "mu": 1.32712440018e20, "radius": 6.957e8 },
+  "planets": [
+    { "id": "INNER", "name": "INNER", "mu": 3.24859e14, "a_au": 0.723, "e": 0.007, "radius": 6.0518e6, "detailLines": 1, "note": "Venus-like, flyby target" },
+    { "id": "HOME",  "name": "HOME",  "mu": 3.986004418e14, "a_au": 1.0,   "e": 0.017, "radius": 6.371e6,  "detailLines": 2, "note": "the planet you defend" },
+    { "id": "OUTER", "name": "OUTER", "mu": 4.282837e13, "a_au": 1.524, "e": 0.093, "radius": 3.3895e6, "detailLines": 1, "note": "Mars-like, flyby target" },
+    { "id": "GIANT", "name": "GIANT", "mu": 1.26686534e17, "a_au": 5.203, "e": 0.049, "radius": 6.9911e7, "detailLines": 3, "note": "Jupiter-like, big flyby" }
+  ]
+}

@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M0: physics core (constants, Kepler propagation, state to elements) in TypeScript and Python with shared
+  test vectors; seeded World with per-round planet phases; SYSTEM VIEW with the warp ladder, COMPRESSED
+  (sqrt) scale, wheel zoom and drag pan; NEW RUN opens it from the title.
+
 - Scaffold: Vite 8, TypeScript 5.9, vitest 5; zero audit findings; `scripts/check.sh` quality gate.
 - Render foundation: DPR-aware Canvas 2D surface with three glow strategies, hand-built stroke font
   (A-Z, 0-9, punctuation, β, ∝), color-mode table from GAME_PLAN 24.1 as data.

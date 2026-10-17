@@ -10,6 +10,10 @@ export class Input {
   private readonly edge = new Set<string>();
   private typedBuffer = '';
   private readonly listeners: Array<(ch: string) => void> = [];
+  private wheelAcc = 0;
+  private dragAcc = { x: 0, y: 0 };
+  private dragging = false;
+  private lastMouse = { x: 0, y: 0 };
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
@@ -23,7 +27,43 @@ export class Input {
       }
     });
     target.addEventListener('keyup', (e) => this.down.delete(e.code));
-    target.addEventListener('blur', () => this.down.clear());
+    target.addEventListener('blur', () => {
+      this.down.clear();
+      this.dragging = false;
+    });
+    target.addEventListener('wheel', (e) => {
+      this.wheelAcc += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+    target.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      this.dragging = true;
+      this.lastMouse = { x: e.clientX, y: e.clientY };
+    });
+    target.addEventListener('mousemove', (e) => {
+      if (!this.dragging) return;
+      this.dragAcc.x += e.clientX - this.lastMouse.x;
+      this.dragAcc.y += e.clientY - this.lastMouse.y;
+      this.lastMouse = { x: e.clientX, y: e.clientY };
+    });
+    target.addEventListener('mouseup', () => {
+      this.dragging = false;
+    });
+  }
+
+  /** Accumulated wheel delta since the last call (positive = scroll down). Clears it. */
+  takeWheel(): number {
+    const v = this.wheelAcc;
+    this.wheelAcc = 0;
+    return v;
+  }
+
+  /** Accumulated left-drag motion in CSS px since the last call. Clears it. */
+  takeDrag(): { x: number; y: number } {
+    const v = { ...this.dragAcc };
+    this.dragAcc.x = 0;
+    this.dragAcc.y = 0;
+    return v;
   }
 
   held(code: string): boolean {
