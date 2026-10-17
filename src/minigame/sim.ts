@@ -185,6 +185,9 @@ export const baseSpeed = (level: number): number => Math.min(MG.AST_SPEED_MAX, M
 export const launcherCount = (level: number): number => byLevel(MG.LAUNCHERS_BY_LEVEL, level);
 export const streamCount = (level: number): number => byLevel(MG.STREAMS_BY_LEVEL, level);
 export const maxTier = (level: number): number => byLevel(MG.MAX_TIER_BY_LEVEL, level);
+/** Hull points one rock removes: DAMAGE_PER_R * r * (1 + 0.5 tier), clamped to the level's cap. */
+export const hullDamage = (level: number, r: number, tier: number): number =>
+  clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, byLevel(MG.DAMAGE_MAX_BY_LEVEL, level));
 export const moonActive = (level: number): boolean => level >= MG.MOON_LEVEL;
 export const moonAlive = (st: MinigameState): boolean => moonActive(st.level) && st.moonHp > 0;
 /** Sentry tier from level: one step per TURRET_TIER_LEVELS after TURRET_LEVEL, capped at 2. */
@@ -252,7 +255,7 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     heat: 0,
     overheated: false,
     spawnTimer: 1.2,
-    pressure: 1,
+    pressure: MG.PRESSURE_START,
     sinceHit: 0,
     nextId: 1,
     asteroids: [],
@@ -738,8 +741,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (d <= MG.MOON_R + a.r) {
         spawnParticles(st, a.x, a.y, 8, 2, a.tier);
         st.score += Math.floor(a.r * MG.SCORE_PER_R * 0.25);
-        const chip = clamp(Math.round(a.r * MG.DAMAGE_PER_R * (1 + 0.5 * a.tier)), MG.DAMAGE_MIN, MG.DAMAGE_MAX);
-        st.moonHp -= chip;
+        st.moonHp -= hullDamage(st.level, a.r, a.tier);
         emit(st, { type: 'moonhit' });
         if (st.moonHp <= 0) {
           st.moonHp = 0;
@@ -756,7 +758,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     a.rot += a.spin * dt;
     const d = Math.hypot(a.x, a.y);
     if (d - a.r <= MG.PLANET_R) {
-      const dmg = clamp(Math.round(a.r * MG.DAMAGE_PER_R * (1 + 0.5 * a.tier)), MG.DAMAGE_MIN, MG.DAMAGE_MAX);
+      const dmg = hullDamage(st.level, a.r, a.tier);
       if (!st.cheats.god) st.hp -= dmg;
       st.shake += dmg * MG.SHAKE_PER_HP;
       st.sinceHit = 0;

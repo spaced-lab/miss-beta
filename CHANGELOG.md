@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v2.3 tuning: gentler levels 1-2 (first rocks slower, first spawns sparser, pressure starts at
+  0.85, hull damage capped at 12 then 16 before 25) and a steeper ramp after (20 s levels, spawn interval
+  decays 0.78 per level, +0.12 speed per level); a headless scripted-player balance probe guards the curve.
+
 - M1: close approach with gravitational focusing (TS + Python, shared vectors), impact energy and
   category; seeded round generation with a guaranteed collision and the Section 10 ramp; the threat on the
   system view with its dashed orbit, impact ghost and THREAT BRIEF; T-MINUS clock; RESOLVE NOW (R); RUN

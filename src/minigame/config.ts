@@ -14,14 +14,15 @@ export const MG = {
   FIELD_R: 5.6,
   VIEW_R: 6.2,
 
-  /** Hull. Each rock hit removes DAMAGE_PER_R * r * (1 + 0.5 * tier), clamped. Game over at 0. */
+  /** Hull. Each rock hit removes DAMAGE_PER_R * r * (1 + 0.5 * tier), clamped between DAMAGE_MIN and the
+   *  level's entry in DAMAGE_MAX_BY_LEVEL (a gentler cap while the player learns). Game over at 0. */
   MAX_HP: 100,
   DAMAGE_PER_R: 30,
   DAMAGE_MIN: 3,
-  DAMAGE_MAX: 25,
+  DAMAGE_MAX_BY_LEVEL: [12, 16, 25] as readonly number[],
 
   /** Levels. */
-  LEVEL_SECONDS: 24,
+  LEVEL_SECONDS: 20,
   /** Index = level - 1; the last entry repeats. */
   STREAMS_BY_LEVEL: [1, 1, 2, 2, 3, 3, 4, 4, 5] as readonly number[],
   LAUNCHERS_BY_LEVEL: [1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 8] as readonly number[],
@@ -49,12 +50,14 @@ export const MG = {
   HEAT_COOL: 0.25,
   HEAT_UNLOCK: 0.35,
 
-  /** Spawning: base interval per level decays geometrically to a floor; speed ramps linearly to a cap. */
-  SPAWN_0: 1.8,
-  SPAWN_LEVEL_FACTOR: 0.84,
+  /** Spawning: base interval per level decays geometrically to a floor; speed ramps linearly to a cap.
+   *  Tuned 2026-10-17: a gentler level 1-2 (longer first interval, slower first rocks) and a steeper ramp
+   *  after (faster interval decay, more speed per level, 20 s levels). */
+  SPAWN_0: 2.2,
+  SPAWN_LEVEL_FACTOR: 0.78,
   SPAWN_MIN: 0.3,
-  AST_SPEED_0: 0.55,
-  AST_SPEED_PER_LEVEL: 0.08,
+  AST_SPEED_0: 0.45,
+  AST_SPEED_PER_LEVEL: 0.12,
   AST_SPEED_MAX: 2.2,
   AST_R_MIN: 0.14,
   AST_R_MAX: 0.42,
@@ -88,10 +91,11 @@ export const MG = {
   HARD_CORE_SCALE: 0.42,
   HARD_CORE_SCORE_MULT: 3,
 
-  /** Adaptive pressure multiplies spawn rate and speed. */
+  /** Adaptive pressure multiplies spawn rate and speed. Starts a little below 1 so the opening is calm. */
+  PRESSURE_START: 0.85,
   PRESSURE_MIN: 0.6,
   PRESSURE_MAX: 1.6,
-  PRESSURE_GAIN: 0.012,
+  PRESSURE_GAIN: 0.015,
   PRESSURE_HIT_DROP: 0.08,
   PRESSURE_CALM_SECONDS: 6,
   PRESSURE_LOW_HP: 0.35,
