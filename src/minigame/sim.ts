@@ -632,19 +632,44 @@ export function launchSeeker(st: MinigameState): boolean {
   return true;
 }
 
+/**
+ * Drone count range for a swarm released at `level`: both ends grow by floor(SWARM_GROWTH_PER_LEVEL * (level - 1))
+ * and are capped at SWARM_COUNT_CAP. Example: defaults give 5-8 at level 1, 9-12 at level 9, 16 flat from level 17.
+ */
+export function swarmCountRange(level: number): { min: number; max: number } {
+  const g = Math.floor(MG.SWARM_GROWTH_PER_LEVEL * Math.max(0, level - 1));
+  const max = Math.min(MG.SWARM_COUNT_CAP, MG.SWARM_COUNT_MAX + g);
+  const min = Math.min(max, MG.SWARM_COUNT_MIN + g);
+  return { min, max };
+}
+
+/** Burn-out life of a drone released at `level`: SWARM_LIFE + SWARM_LIFE_PER_LEVEL per level, capped. 10 s at level 1. */
+export const swarmLife = (level: number): number => Math.min(MG.SWARM_LIFE_MAX, MG.SWARM_LIFE + MG.SWARM_LIFE_PER_LEVEL * Math.max(0, level - 1));
+
+/** A circular zone to keep clear of (the moon plus a margin). */
+interface Zone {
+  x: number;
+  y: number;
+  r: number;
+}
+
+const inZone = (z: Zone | null, x: number, y: number): boolean => z !== null && Math.hypot(x - z.x, y - z.y) < z.r;
+
 /** Release a swarm of sentinels from the player's launcher; `>` key. Draws the count and slots from the Rng. */
 export function releaseSwarm(st: MinigameState): boolean {
   if (st.swarmStock <= 0) return false;
   st.swarmStock -= 1;
   const base = launcherAngleAt(st, 0);
   const muzzle = MG.PLANET_R * 1.3;
-  const n = st.rng.int(MG.SWARM_COUNT_MIN, MG.SWARM_COUNT_MAX);
+  const range = swarmCountRange(st.level);
+  const n = st.rng.int(range.min, range.max);
+  const life = swarmLife(st.level);
   for (let i = 0; i < n; i++) {
     const a = base + (n === 1 ? 0 : (i / (n - 1) - 0.5) * MG.SWARM_FAN);
     st.drones.push({
       x: Math.cos(base) * muzzle, y: Math.sin(base) * muzzle,
       vx: Math.cos(a) * MG.SWARM_SPEED, vy: Math.sin(a) * MG.SWARM_SPEED,
-      life: MG.SWARM_LIFE, maxLife: MG.SWARM_LIFE, cooldown: st.rng.float(0.2, 0.5), targetId: -1,
+      life, maxLife: life, cooldown: st.rng.float(0.2, 0.5), targetId: -1,
       slot: (i / n) * Math.PI * 2,
     });
   }
@@ -653,12 +678,15 @@ export function releaseSwarm(st: MinigameState): boolean {
   return true;
 }
 
-/** Closest rock to a point, non-passing rocks preferred (their distance counts as `passPenalty` longer). */
-function closestThreat(st: MinigameState, x: number, y: number, passPenalty: number): Asteroid | null {
+/**
+ * Closest rock to a point, non-passing rocks preferred (their distance counts as `passPenalty` longer) and
+ * rocks inside `avoid` (the moon's zone) counted MOON_AVOID_PENALTY longer: the moon is about to take those.
+ */
+function closestThreat(st: MinigameState, x: number, y: number, passPenalty: number, avoid: Zone | null = null): Asteroid | null {
   let best: Asteroid | null = null;
   let bestD = Infinity;
   for (const a of st.asteroids) {
-    const d = Math.hypot(a.x - x, a.y - y) + (a.passing ? passPenalty : 0);
+    const d = Math.hypot(a.x - x, a.y - y) + (a.passing ? passPenalty : 0) + (inZone(avoid, a.x, a.y) ? MG.MOON_AVOID_PENALTY : 0);
     if (d < bestD) {
       bestD = d;
       best = a;
@@ -694,6 +722,7 @@ function detonate(st: MinigameState, x: number, y: number): void {
 
 /** Seekers: lead pursuit with a turn-rate cap, blast on contact, fizzle at end of life. */
 function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: number; y: number }): void {
+  const zone: Zone | null = moonOn ? { x: moon.x, y: moon.y, r: MG.MOON_R + MG.SEEKER_MOON_MARGIN } : null;
   for (let i = st.seekers.length - 1; i >= 0; i--) {
     const s = st.seekers[i];
     if (!s) continue;
@@ -705,10 +734,25 @@ function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: 
     }
     let target = findRock(st, s.targetId);
     if (!target) {
-      target = closestThreat(st, s.x, s.y, 2.5);
+      target = closestThreat(st, s.x, s.y, 2.5, zone);
       s.targetId = target ? target.id : -1;
     }
-    if (target) steer(s, leadAngle(s.x, s.y, target, MG.SEEKER_SPEED), MG.SEEKER_TURN * dt, MG.SEEKER_SPEED);
+    if (target) {
+      let want = leadAngle(s.x, s.y, target, MG.SEEKER_SPEED);
+      // Moon avoidance: within 1.5 zone radii, blend an "away from the moon" direction into the pursuit,
+      // stronger the closer; skipped when the target itself sits in the zone (then the rock is worth it).
+      if (zone && !inZone(zone, target.x, target.y)) {
+        const ax = s.x - zone.x;
+        const ay = s.y - zone.y;
+        const ad = Math.hypot(ax, ay);
+        const reach = zone.r * 1.5;
+        if (ad < reach && ad > 1e-9) {
+          const w = ((reach - ad) / reach) * 2;
+          want = Math.atan2(Math.sin(want) + (ay / ad) * w, Math.cos(want) + (ax / ad) * w);
+        }
+      }
+      steer(s, want, MG.SEEKER_TURN * dt, MG.SEEKER_SPEED);
+    }
     if (++s.trailTick >= 2) {
       s.trailTick = 0;
       s.trail.push(s.x, s.y);
@@ -740,8 +784,9 @@ function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: 
   }
 }
 
-/** Drones: hunt the nearest rock, hold a slot around it, keep apart, fire weak fast bullets, burn out. */
+/** Drones: hunt the nearest rock, hold a slot around it, keep apart, keep off the moon, fire weak fast bullets, burn out. */
 function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: number; y: number }): void {
+  const zone: Zone | null = moonOn ? { x: moon.x, y: moon.y, r: MG.MOON_R + MG.SWARM_MOON_MARGIN } : null;
   for (let i = st.drones.length - 1; i >= 0; i--) {
     const d = st.drones[i];
     if (!d) continue;
@@ -753,8 +798,8 @@ function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: n
       continue;
     }
     let target = findRock(st, d.targetId);
-    if (!target || Math.hypot(target.x - d.x, target.y - d.y) > MG.SWARM_RANGE * 2) {
-      target = closestThreat(st, d.x, d.y, 0);
+    if (!target || Math.hypot(target.x - d.x, target.y - d.y) > MG.SWARM_RANGE * 2 || inZone(zone, target.x, target.y)) {
+      target = closestThreat(st, d.x, d.y, 0, zone);
       d.targetId = target ? target.id : -1;
     }
     // Where to go: a slot around the target at SWARM_STANDOFF, or outward when there is nothing to hunt.
@@ -784,10 +829,54 @@ function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: n
       gx += (d.x / rr) * (MG.SWARM_R_MIN - rr) * 4;
       gy += (d.y / rr) * (MG.SWARM_R_MIN - rr) * 4;
     }
+    if (zone) {
+      // Moon avoidance, two parts. A goal inside the zone is slid to the zone's edge on the drone's side...
+      let mx = gx - zone.x;
+      let my = gy - zone.y;
+      let md = Math.hypot(mx, my);
+      if (md < zone.r) {
+        if (md < 1e-9) {
+          mx = d.x - zone.x;
+          my = d.y - zone.y;
+          md = Math.hypot(mx, my) || 1;
+        }
+        gx = zone.x + (mx / md) * zone.r;
+        gy = zone.y + (my / md) * zone.r;
+      }
+      // ...and within 1.6 zone radii an away push grows until it dominates the goal.
+      const ax = d.x - zone.x;
+      const ay = d.y - zone.y;
+      const ad = Math.hypot(ax, ay);
+      const reach = zone.r * 1.6;
+      if (ad < reach && ad > 1e-9) {
+        const w = ((reach - ad) / reach) * 6;
+        gx += (ax / ad) * w;
+        gy += (ay / ad) * w;
+      }
+    }
     steer(d, Math.atan2(gy - d.y, gx - d.x), MG.SWARM_TURN * dt, MG.SWARM_SPEED);
     d.x += d.vx * dt;
     d.y += d.vy * dt;
+    if (zone) {
+      // The zone is impassable: a drone that ended the step inside (its own turn radius, or the moon moving
+      // into it) is slid back to the edge and loses its inward velocity. steer() restores the speed next step.
+      const ax = d.x - zone.x;
+      const ay = d.y - zone.y;
+      const ad = Math.hypot(ax, ay);
+      if (ad < zone.r) {
+        const ux = ad > 1e-9 ? ax / ad : 1;
+        const uy = ad > 1e-9 ? ay / ad : 0;
+        d.x = zone.x + ux * zone.r;
+        d.y = zone.y + uy * zone.r;
+        const vin = d.vx * ux + d.vy * uy;
+        if (vin < 0) {
+          d.vx -= vin * ux;
+          d.vy -= vin * uy;
+        }
+      }
+    }
     if (moonOn && Math.hypot(d.x - moon.x, d.y - moon.y) <= MG.MOON_R) {
+      // Unreachable while the zone holds; kept as the safety net the moon's absorption rule promises.
       swapRemove(st.drones, i);
       continue;
     }

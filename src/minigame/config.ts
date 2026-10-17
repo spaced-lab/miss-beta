@@ -183,7 +183,7 @@ export const MG = {
    *  SWARM_COUNT_MIN..MAX drones from the player's launcher fanned over SWARM_FAN rad; each hunts the nearest
    *  rock at SWARM_SPEED (turn rate SWARM_TURN), orbits it at SWARM_STANDOFF, keeps SWARM_SEPARATION from its
    *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
-   *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. */
+   *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. Count and life grow with level (below). */
   SWARM_KILLS: 22,
   SWARM_MAX: 2,
   SWARM_COUNT_MIN: 5,
@@ -200,6 +200,20 @@ export const MG = {
   SWARM_DAMAGE: 1,
   SWARM_LIFE: 10,
   SWARM_R_MIN: 1.35,
+  /** Growth with level: a release at level L adds floor(SWARM_GROWTH_PER_LEVEL * (L - 1)) drones to both ends
+   *  of the count range, capped at SWARM_COUNT_CAP (level 1: 5-8, level 9: 9-12, level 17+: 16 flat); the
+   *  burn-out life grows SWARM_LIFE_PER_LEVEL seconds per level up to SWARM_LIFE_MAX. */
+  SWARM_GROWTH_PER_LEVEL: 0.5,
+  SWARM_COUNT_CAP: 16,
+  SWARM_LIFE_PER_LEVEL: 0.25,
+  SWARM_LIFE_MAX: 14,
+  /** The moon's no-fly zone: MOON_R + margin. Drones are steered away from it and never cross it (one that
+   *  ends a step inside is slid back to the edge, so none parks where the moon eats its bullets); seekers
+   *  blend an away term into their pursuit within 1.5 zone radii. A rock inside the zone counts
+   *  MOON_AVOID_PENALTY radii farther when a drone or seeker picks a target: the moon will take it anyway. */
+  SWARM_MOON_MARGIN: 0.6,
+  SEEKER_MOON_MARGIN: 0.5,
+  MOON_AVOID_PENALTY: 2.5,
 
   /** Score: per planet-radius destroyed times tier multiplier, plus one per second survived. */
   SCORE_PER_R: 100,
