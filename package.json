@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bench": "vitest bench --run",
+    "bench": "MISS_BENCH=1 vitest run",
     "typecheck": "tsc --noEmit",
     "check": "bash scripts/check.sh"
   },

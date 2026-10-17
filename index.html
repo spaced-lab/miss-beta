@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The Content Security Policy is injected at build time by the csp() plugin in vite.config.ts,
+         so dev tooling (HMR client, browser extensions) keeps working while the shipped page is locked down. -->
+    <title>MISS β</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+      canvas#game { display: block; width: 100vw; height: 100vh; image-rendering: auto; }
+      noscript { color: #33ff33; font-family: monospace; padding: 2rem; display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" aria-label="MISS beta game canvas" role="img"></canvas>
+    <noscript>MISS β needs JavaScript. Nothing here runs without it.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
