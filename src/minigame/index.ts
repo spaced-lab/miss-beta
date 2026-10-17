@@ -3,11 +3,13 @@
 //       touches the DOM or the clock lives here so the other two files stay testable.
 // HOW:  Real time is accumulated and consumed in MG.DT steps (capped per frame so a background tab does
 //       not spiral). The pulse key is edge-triggered here and passed as a boolean; a replay could feed
-//       the same Input records back into `step` and reproduce the game exactly.
+//       the same Input records back into `step` and reproduce the game exactly. A game in progress is
+//       autosaved to sessionStorage (every level-up, every AUTOSAVE_SECONDS, and on leaving the screen) so
+//       the dev server's reload-on-change does not wipe it; the ready panel offers <R> RESUME / <SPACE> NEW.
 // LORE: G1 (how to play), C1 (how the game is built)
 
 import { CheatRegistry } from '../game/cheats';
-import { loadJson, loadNumber, saveJson } from '../game/persistence';
+import { loadJson, loadNumber, loadSessionJson, removeSessionJson, saveJson, saveSessionJson } from '../game/persistence';
 import type { Router, Screen } from '../game/screen';
 import type { GlowMode, Surface } from '../render/canvas';
 import type { Input as Keys } from '../ui/input';
@@ -15,11 +17,14 @@ import { MINIGAME_CHEATS } from './cheats';
 import { MG } from './config';
 import { renderMinigame } from './render';
 import { SfxPlayer } from './sfx';
-import { chaosLevel, createState, start, step, type Input, type MinigameState } from './sim';
+import { chaosLevel, createState, flash, fromSaved, isSavedGame, start, step, toSaved, type Input, type MinigameState } from './sim';
 
 const BEST_KEY = 'minigame.best';
 const SOUND_KEY = 'minigame.sound';
 const KIT_KEY = 'minigame.kit';
+/** sessionStorage: one tab, survives reloads, gone when the tab closes. */
+const SAVE_KEY = 'minigame.save';
+const AUTOSAVE_SECONDS = 5;
 const GLOW_CYCLE: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 
 export class MinigameScreen implements Screen {
@@ -29,6 +34,9 @@ export class MinigameScreen implements Screen {
   private best = loadNumber(BEST_KEY, 0);
   private frameMs = 0;
   private lastFrame = 0;
+  /** A game restored from sessionStorage, offered on the ready panel until the player picks RESUME or NEW. */
+  private saved: MinigameState | null = null;
+  private sinceSave = 0;
   private readonly cheats = new CheatRegistry<MinigameState>(MINIGAME_CHEATS);
   private readonly sfx = new SfxPlayer();
 
@@ -49,12 +57,18 @@ export class MinigameScreen implements Screen {
 
   enter(): void {
     this.st = createState(this.newSeed(), this.st.collision);
+    // NOTE: the save is validated by isSavedGame before anything is read from it; only a game still in
+    // progress is worth offering.
+    const saved = loadSessionJson(SAVE_KEY, isSavedGame, null);
+    this.saved = saved && saved.status === 'playing' ? fromSaved(saved) : null;
     this.acc = 0;
+    this.sinceSave = 0;
     this.keys.clearTyped();
   }
 
   exit(): void {
-    // nothing to tear down: the surface and listeners are shared
+    // The surface and listeners are shared; only the game in progress needs keeping.
+    if (this.st.status === 'playing') saveSessionJson(SAVE_KEY, toSaved(this.st));
   }
 
   update(dtMs: number): void {
@@ -80,8 +94,23 @@ export class MinigameScreen implements Screen {
     if (k.pressed('Digit2')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
     if (k.pressed('Digit3')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
 
-    if (st.status === 'ready' && k.pressed('Space')) start(st);
+    if (st.status === 'ready') {
+      if (this.saved && k.pressed('KeyR')) {
+        this.st = this.saved;
+        this.saved = null;
+        this.sinceSave = 0;
+        flash(this.st, 'RESUMED', 1.5);
+        k.clearTyped();
+        return;
+      }
+      if (k.pressed('Space')) {
+        this.saved = null;
+        removeSessionJson(SAVE_KEY);
+        start(st);
+      }
+    }
     if (st.status === 'over' && k.pressed('Space')) {
+      removeSessionJson(SAVE_KEY);
       this.st = createState(this.newSeed(), st.collision);
       start(this.st);
       return;
@@ -114,6 +143,17 @@ export class MinigameScreen implements Screen {
     }
     if (steps === MG.MAX_STEPS_PER_FRAME) this.acc = 0;
 
+    // Autosave: on every level-up and every AUTOSAVE_SECONDS while playing; the save goes when the game ends.
+    if (st.status === 'playing') {
+      this.sinceSave += Math.min(dtMs, 250) / 1000;
+      if (this.sinceSave >= AUTOSAVE_SECONDS || st.events.some((e) => e.type === 'levelup')) {
+        saveSessionJson(SAVE_KEY, toSaved(st));
+        this.sinceSave = 0;
+      }
+    } else if (st.events.some((e) => e.type === 'over')) {
+      removeSessionJson(SAVE_KEY);
+    }
+
     // Sound: the step emitted events; play them and clear the queue.
     this.sfx.play(st.events, performance.now() / 1000);
     st.events.length = 0;
@@ -129,6 +169,13 @@ export class MinigameScreen implements Screen {
     const now = performance.now();
     if (this.lastFrame) this.frameMs = this.frameMs * 0.9 + (now - this.lastFrame) * 0.1;
     this.lastFrame = now;
-    renderMinigame(this.s, this.st, { debug: this.debug, frameMs: this.frameMs, best: this.best, sound: this.soundLabel() });
+    const sv = this.st.status === 'ready' ? this.saved : null;
+    renderMinigame(this.s, this.st, {
+      debug: this.debug,
+      frameMs: this.frameMs,
+      best: this.best,
+      sound: this.soundLabel(),
+      resume: sv ? { level: sv.level, score: sv.score, t: sv.t } : null,
+    });
   }
 }

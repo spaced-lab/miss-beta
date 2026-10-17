@@ -73,6 +73,13 @@ export class Rng {
     return this.state;
   }
 
+  /** Resume a stream from a raw state captured with getState(): the next draw is the one that would have come. */
+  static fromState(state: number): Rng {
+    const r = new Rng(0);
+    r.state = state >>> 0;
+    return r;
+  }
+
   /** Derive a child generator (e.g. one per round) without disturbing this stream's determinism. */
   fork(): Rng {
     return new Rng(Math.floor(this.next() * 4294967296));

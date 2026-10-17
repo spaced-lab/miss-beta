@@ -6,7 +6,7 @@ import { byLevel, MG } from '../src/minigame/config';
 import { generateContinents } from '../src/minigame/planet';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, deployTurret, hullDamage, laserArmed, laserStage, moonAlive, rockMass, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, toSaved, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -505,6 +505,46 @@ describe('continents v2', () => {
       expect(c.length / 2).toBeGreaterThanOrEqual(8);
       for (let i = 0; i < c.length; i += 2) expect(Math.hypot(c[i] as number, c[i + 1] as number)).toBeLessThanOrEqual(0.9 + 1e-9);
     }
+  });
+});
+
+describe('save and resume', () => {
+  const TURN_FIRE: Input = { left: true, right: false, fire: true, pulse: false };
+  it('serialize / deserialize round-trips: both copies step identically for 10 s', () => {
+    const live = run(2026, 40, TURN_FIRE);
+    expect(live.status).toBe('playing');
+    expect(live.asteroids.length).toBeGreaterThan(0);
+    const json = serialize(live);
+    expect(isSavedGame(JSON.parse(json))).toBe(true);
+    const copy = deserialize(json);
+    if (!copy) throw new Error('deserialize returned null');
+    expect(snapshot(copy)).toBe(snapshot(live));
+    expect(copy.continents.map((c) => Array.from(c))).toEqual(live.continents.map((c) => Array.from(c)));
+    expect(copy.asteroids.map((a) => Array.from(a.shape))).toEqual(live.asteroids.map((a) => Array.from(a.shape)));
+    for (let i = 0; i < 10 / MG.DT; i++) {
+      const input = i % 240 < 120 ? TURN_FIRE : FIRE;
+      step(live, input, MG.DT);
+      step(copy, input, MG.DT);
+    }
+    expect(snapshot(copy)).toBe(snapshot(live));
+    expect(copy.particles.length).toBe(live.particles.length);
+    expect(copy.rng.getState()).toBe(live.rng.getState());
+  });
+  it('rejects anything that is not a valid save', () => {
+    expect(deserialize('not json')).toBeNull();
+    expect(deserialize('{"v":1}')).toBeNull();
+    expect(deserialize('[]')).toBeNull();
+    const good = toSaved(run(3, 5, FIRE));
+    expect(isSavedGame(good)).toBe(true);
+    expect(isSavedGame({ ...good, hp: '100' })).toBe(false);
+    expect(isSavedGame({ ...good, v: 2 })).toBe(false);
+    expect(isSavedGame({ ...good, collision: 'fast' })).toBe(false);
+    expect(isSavedGame({ ...good, asteroids: [{ x: 1 }] })).toBe(false);
+    expect(isSavedGame({ ...good, rng: Number.NaN })).toBe(false);
+    expect(isSavedGame({ ...good, cheats: { ...good.cheats, launchers: 'eight' } })).toBe(false);
+    // Optional cheat fields may be absent.
+    const { launchers: _l, streams: _s, ...rest } = good.cheats;
+    expect(isSavedGame({ ...good, cheats: rest })).toBe(true);
   });
 });
 

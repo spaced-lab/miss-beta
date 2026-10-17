@@ -54,6 +54,16 @@ describe('Rng (mulberry32)', () => {
     expect(sigma).toBeCloseTo(3, 1);
   });
 
+  it('fromState resumes a stream exactly where getState captured it', () => {
+    const a = new Rng(2026);
+    for (let i = 0; i < 37; i++) a.next();
+    const b = Rng.fromState(a.getState());
+    expect(b.getState()).toBe(a.getState());
+    for (let i = 0; i < 100; i++) expect(b.next()).toBe(a.next());
+    // Raw state is forced to uint32 like a seed.
+    expect(Rng.fromState(-1).getState()).toBe(0xffffffff);
+  });
+
   it('hashSeed is stable and differs between seeds', () => {
     expect(hashSeed('TUTORIAL-1')).toBe(hashSeed('TUTORIAL-1'));
     expect(hashSeed('TUTORIAL-1')).not.toBe(hashSeed('TUTORIAL-2'));

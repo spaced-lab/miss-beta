@@ -20,6 +20,8 @@ export interface RenderOpts {
   best: number;
   /** e.g. "SND ON  KIT DELICATE" */
   sound: string;
+  /** A saved game is waiting on the ready panel: its headline numbers, or null. */
+  resume?: { level: number; score: number; t: number } | null;
 }
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
@@ -182,7 +184,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   }
 
   drawHud(s, st, opts, stage);
-  if (st.status === 'ready') drawReady(s, st);
+  if (st.status === 'ready') drawReady(s, st, opts);
   if (st.status === 'over') drawOver(s, st, opts);
 }
 
@@ -297,7 +299,7 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
   return { x, y };
 }
 
-function drawReady(s: Surface, st: MinigameState): void {
+function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const { y } = drawPanel(s, Math.min(600, s.width - 32), 356);
   const cx = s.width / 2;
   drawText(s, 'PERIMETER', cx, y + 26, 34, { align: 'center', glow: 2, color: s.palette.hot });
@@ -325,7 +327,13 @@ function drawReady(s: Surface, st: MinigameState): void {
     ly += 18;
   }
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
-  if (blink) drawText(s, 'PRESS SPACE TO START', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  const r = opts.resume;
+  if (r) {
+    drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 276, 11, { align: 'center', color: s.palette.dim, glow: 0 });
+    if (blink) drawText(s, '<R> RESUME     <SPACE> NEW GAME', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  } else if (blink) {
+    drawText(s, 'PRESS SPACE TO START', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  }
   drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 330, 10, { align: 'center', color: s.palette.dim, glow: 0 });
 }
 

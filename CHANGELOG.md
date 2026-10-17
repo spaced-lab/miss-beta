@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER resume: a game in progress is autosaved to sessionStorage (every level-up, every 5 s, on leaving
+  the screen) and offered on the ready panel after a reload as <R> RESUME / <SPACE> NEW; the save is a
+  validated JSON snapshot of the whole sim including the Rng state (`Rng.fromState`), so play continues
+  exactly; cleared on game over or new game.
+
 - PERIMETER v2.3 tuning: gentler levels 1-2 (first rocks slower, first spawns sparser, pressure starts at
   0.85, hull damage capped at 12 then 16 before 25) and a steeper ramp after (20 s levels, spawn interval
   decays 0.78 per level, +0.12 speed per level); a headless scripted-player balance probe guards the curve.
