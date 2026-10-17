@@ -10,6 +10,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   local leaderboard, PLANNER overlay (P), spacecraft on their arcs, play-by-play log, DEBRIEF and NEXT
   ROUND, RUN OVER with leaderboard rank, LEADERBOARD screen. `npm run play` serves a stable build on 4173.
 
+- PERIMETER sound, bassier: a DynamicsCompressor on the synth master bus caps stacked hits; `bass()` adds a
+  30-45 Hz sub layer with a longer tail; hits, breakups and crashes lean on it; crunches lowpassed lower;
+  ticks stay bright blips, a notch quieter; chaos bass-static a touch fuller.
+
 - PERIMETER resume: a game in progress is autosaved to sessionStorage (every level-up, every 5 s, on leaving
   the screen) and offered on the ready panel after a reload as <R> RESUME / <SPACE> NEW; the save is a
   validated JSON snapshot of the whole sim including the Rng state (`Rng.fromState`), so play continues
