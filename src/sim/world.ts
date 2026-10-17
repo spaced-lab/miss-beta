@@ -12,6 +12,7 @@ import { KNOBS } from '../config/knobs';
 import { AU } from '../physics/constants';
 import { propagate, type Elements, type PropagatedState } from '../physics/kepler';
 import type { Planet, Star } from './body';
+import type { Threat } from './threat';
 import { roundRng, type Rng } from './rng';
 
 export interface World {
@@ -23,6 +24,8 @@ export interface World {
   t: number;
   /** Index into KNOBS.WARP_LEVELS. */
   warp: number;
+  /** The round's threat; null before roundGen runs (tests, title attract). */
+  threat: Threat | null;
 }
 
 interface PlanetRow {
@@ -50,7 +53,7 @@ export function createWorld(runSeed: string, round: number, rng: Rng = roundRng(
     };
     return { kind: 'PLANET', id: p.id, name: p.name, mu: p.mu, radius: p.radius, elements, detailLines: p.detailLines };
   });
-  return { runSeed, round, star, planets, t: 0, warp: KNOBS.WARP_DEFAULT };
+  return { runSeed, round, star, planets, t: 0, warp: KNOBS.WARP_DEFAULT, threat: null };
 }
 
 export function planetById(w: World, id: string): Planet {

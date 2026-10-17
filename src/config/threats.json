@@ -1,0 +1,9 @@
+{
+  "_comment": "GAME_PLAN 5.3 threat types. density kg/m^3; vInf range km/s; weight is the relative draw weight once fromRound is reached.",
+  "types": [
+    { "id": "RUBBLE", "label": "RUBBLE PILE", "density": 1300, "strengthMult": 0.5, "vInfMin": 6,  "vInfMax": 20, "albedo": 0.06, "fromRound": 1, "weight": 0.3, "kind": "asteroid" },
+    { "id": "STONY",  "label": "STONY (S)",   "density": 2700, "strengthMult": 1.0, "vInfMin": 8,  "vInfMax": 25, "albedo": 0.20, "fromRound": 1, "weight": 0.5, "kind": "asteroid" },
+    { "id": "IRON",   "label": "IRON (M)",    "density": 5300, "strengthMult": 5.0, "vInfMin": 8,  "vInfMax": 25, "albedo": 0.15, "fromRound": 1, "weight": 0.2, "kind": "asteroid" },
+    { "id": "ICY",    "label": "COMET",       "density": 600,  "strengthMult": 0.3, "vInfMin": 25, "vInfMax": 60, "albedo": 0.04, "fromRound": 4, "weight": 0.25, "kind": "comet" }
+  ]
+}

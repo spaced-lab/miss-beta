@@ -70,13 +70,13 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M1: A threat, and losing
 
-- [ ] `src/physics/closeApproach.ts` (6.4): coarse 1 h scan over ±90 d, golden-section refine to 1 s, `bCrit`, `MARGIN`, `vImpact`, energy and category. Mirror + vectors.
-- [ ] `src/sim/roundGen.ts` (Section 10): the collision construction, acceptance tests, name generator, type table from `src/config/threats.json`. Fallback lead-time draw (the detection model arrives in M5).
-- [ ] Threat in the system view: polyline predicted path to `t_i`, ghost markers at `t_i`, seeded 8-12 vertex outline.
-- [ ] THREAT BRIEF panel (type, D, energy Mt, years to impact, P(impact) placeholder 1.0).
-- [ ] RESOLVE NOW (`R`) and the warp ladder up to 1 yr/s.
-- [ ] RUN OVER screen with energy in Mt and the category line.
-- [ ] Tests: FOCUSING b_crit ≈ 1.50 R at v_inf 10 km/s; ROUNDGEN 1000 seeds all bound, prograde, impacting; 100/100 seeds `d_min < b_crit` unperturbed.
+- [x] `src/physics/closeApproach.ts` (6.4): coarse 1 h scan over ±90 d, golden-section refine to 1 s, `bCrit`, `MARGIN`, `vImpact`, energy and category. Mirror + vectors.
+- [x] `src/sim/roundGen.ts` (Section 10): the collision construction, acceptance tests, name generator, type table from `src/config/threats.json`. Fallback lead-time draw (the detection model arrives in M5).
+- [x] Threat in the system view: predicted path drawn as the dashed orbit loop (a ten-year time polyline aliases), ghost crosshair at `t_i`, seeded 8-12 vertex outline.
+- [x] THREAT BRIEF panel (type, D, energy Mt, years to impact, P(impact) placeholder 1.0).
+- [x] RESOLVE NOW (`R`) and the warp ladder up to 1 yr/s.
+- [x] RUN OVER screen with energy in Mt and the category line.
+- [x] Tests: FOCUSING b_crit ≈ 1.50 R at v_inf 10 km/s; ROUNDGEN 1000 seeds all bound, prograde, impacting; 100/100 seeds `d_min < b_crit` unperturbed.
 - Accept: every generated threat impacts when unperturbed.
 
 ## M2: First playable: direct kinetic

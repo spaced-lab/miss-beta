@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M1: close approach with gravitational focusing (TS + Python, shared vectors), impact energy and
+  category; seeded round generation with a guaranteed collision and the Section 10 ramp; the threat on the
+  system view with its dashed orbit, impact ghost and THREAT BRIEF; T-MINUS clock; RESOLVE NOW (R); RUN
+  OVER panel with megatons, category, closest approach and b_crit.
+
 - PERIMETER v2.2: rock-on-rock gravity, bounces and crash chips, binary pairs that orbit each other;
   continents from layered sines with islands; moon further out with craters, 600 hit points chipped only by
   rocks, cracks, and loss; sentries with tiers by level, SUPER sentries (3-way, double rate, hue-cycling)
