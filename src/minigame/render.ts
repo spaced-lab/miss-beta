@@ -437,7 +437,7 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
 }
 
 function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
-  const { y } = drawPanel(s, Math.min(600, s.width - 32), 400);
+  const { y } = drawPanel(s, Math.min(820, s.width - 32), 400);
   const cx = s.width / 2;
   drawText(s, 'PERIMETER', cx, y + 26, 34, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, 'BETA ARCADE MODE', cx, y + 74, 13, { align: 'center', color: s.palette.dim, glow: 0 });
@@ -451,8 +451,8 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   ];
   let ly = y + 128;
   for (const [key, what] of rows) {
-    drawText(s, key, cx - 250, ly, 12, { color: s.palette.hot, glow: 1 });
-    drawText(s, what, cx + 10, ly, 12);
+    drawText(s, key, cx - 350, ly, 12, { color: s.palette.hot, glow: 1 });
+    drawText(s, what, cx - 90, ly, 12);
     ly += 22;
   }
   const notes = [
