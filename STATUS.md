@@ -11,8 +11,9 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | PERIMETER minigame (side mode) | v2.3 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts`; 2026-10-17 retune: easier open, steeper ramp, guarded by the balance probe in `tests/minigame.test.ts`; sessionStorage autosave + RESUME across dev reloads (`serialize`/`deserialize` in sim.ts, `Rng.fromState`) |
 | M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
 | M1 A threat, and losing | done | closeApproach.ts (+ pymiss mirror, vectors), roundGen.ts with guaranteed collision (1000 seeds sane, 200 seeds impact), threat orbit + ghost + brief in the system view, RESOLVE NOW, RUN OVER with Mt and category |
-| M2 First playable: direct kinetic | todo | next: stumpff/lambert, launchers, porkchop worker, KINETIC archetype, resolver v1, scoring, leaderboard |
-| M3 .. M12 | todo | see docs/BUILD_PLAN.md |
+| M2 First playable: direct kinetic | done | Lambert (+ mirror, vectors, Hohmann check), kinetic (DART), launcher tables, porkchop grid in a worker, KINETIC candidates ranked and resolved, resolver v1 with per-mission beta and terminal guidance, economy per year, Section 12 scoring, validated leaderboard, PLANNER overlay, craft in flight, play-by-play, DEBRIEF, next round |
+| M3 Breaking things | todo | next: fragment.ts (Q*, largest remnant, Pareto shards, Rayleigh ejection), fragment segments, Monte Carlo P(miss), HAMMER_SWEEP/SWARM, planet view |
+| M4 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
 
@@ -24,6 +25,11 @@ quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55
 DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Decisions where the plan was silent
+
+- IMPACTOR_KG tier 1 is 1500 kg (plan table says 1 t) so the Section 17 Round-1 worked example (1500 kg at U 10 km/s) is the actual I1 capability. [knob]
+- Terminal guidance: an impactor still hits a threat displaced up to 5e7 m from its planned intercept by an earlier impact (TERMINAL_GUIDANCE_RANGE); beyond that it misses. Autonomy (M6) will re-target.
+- Planner P(miss) is 1/0 from a mid-beta resolve until Monte Carlo lands in M3.
+- No launch-cadence cap yet (HEAVY_LAUNCH_CADENCE in Section 19 implies one); two impactors may share a window. Added to BUILD_PLAN M6.
 
 - Sound is fully synthesized (src/audio/synth.ts: tick, 303 sweep, S&H LFO tone, 8-bit crunch, grains, thud);
   no audio assets in the repo. The sim emits SimEvents; only the screen touches audio.

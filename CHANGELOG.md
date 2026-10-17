@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M2: first playable round. Lambert targeting (universal variables, TS + Python), DART-calibrated kinetic
+  deflection, launcher payload tables, porkchop grid in a Web Worker, KINETIC plan ranking with printed
+  readouts, resolver with per-mission beta and terminal guidance, budget per year, Section 12 scoring,
+  local leaderboard, PLANNER overlay (P), spacecraft on their arcs, play-by-play log, DEBRIEF and NEXT
+  ROUND, RUN OVER with leaderboard rank, LEADERBOARD screen. `npm run play` serves a stable build on 4173.
+
 - PERIMETER resume: a game in progress is autosaved to sessionStorage (every level-up, every 5 s, on leaving
   the screen) and offered on the ready panel after a reload as <R> RESUME / <SPACE> NEW; the save is a
   validated JSON snapshot of the whole sim including the Rng state (`Rng.fromState`), so play continues

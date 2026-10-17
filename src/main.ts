@@ -8,6 +8,7 @@ import type { Router, Screen, ScreenId } from './game/screen';
 import { MinigameScreen } from './minigame/index';
 import { createSurface } from './render/canvas';
 import { PALETTES } from './render/palettes';
+import { LeaderboardScreen } from './render/views/leaderboard';
 import { SystemScreen } from './render/views/system';
 import { TitleScreen } from './render/views/title';
 import { Input } from './ui/input';
@@ -33,13 +34,14 @@ function boot(): void {
   screens.set('title', new TitleScreen(surface, keys, router));
   screens.set('minigame', new MinigameScreen(surface, keys, router));
   screens.set('system', new SystemScreen(surface, keys, router));
+  screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
 
   const onResize = (): void => surface.resize();
   window.addEventListener('resize', onResize);
 
   // Deep link for quick testing: index.html#minigame
   const hash = location.hash.slice(1);
-  router.go(hash === 'minigame' || hash === 'system' ? hash : 'title');
+  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' ? hash : 'title');
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.

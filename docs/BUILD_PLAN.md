@@ -81,15 +81,15 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M2: First playable: direct kinetic
 
-- [ ] `src/physics/stumpff.ts`, `src/physics/lambert.ts` (6.5). Mirror + vectors. Test: Hohmann 1.0 -> 1.524 AU, dt 259 d: dep v_inf ≈ 2.94 km/s, arr ≈ 2.65 km/s within 2%.
-- [ ] `src/config/launchers.json` + `src/physics/estimates.ts`: payload-vs-C3 interpolation in log(mass); the 3 dv T rule; miss estimate.
-- [ ] `src/physics/kinetic.ts` (6.9): `impulseFromImpact(m, M, U_vec, beta)`. Mirror + vectors. Test DART: 580 kg, 6.14 km/s, 4.3e9 kg, beta 3.6 -> ≈ 3.0 mm/s.
-- [ ] `src/worker/planner.worker.ts` + `src/planner/porkchop.ts`: the grid of 6.6 as a worker job with progress messages; vector contour render.
-- [ ] `src/sim/mission.ts` (7.1), `src/planner/candidates.ts` and `ranking.ts` for the KINETIC archetype only; `src/sim/resolver.ts` v1: launches, Lambert coast, impact impulse, close-approach re-run; `src/sim/eventLog.ts`.
-- [ ] PLANNER screen (13.4) with COMMIT / CLEAR; missions committable whenever paused.
-- [ ] `src/game/economy.ts` (budget per year), `scoring.ts` (Section 12), leaderboard in localStorage (validated), next round.
-- [ ] DEBRIEF v1: event list + score breakdown + NEXT ROUND.
-- [ ] Tests: RESOLVER determinism (byte-equal event logs); 3DV RULE within 25%; a 100 m stony, 10 yr threat beaten by one Tier 1 launch (balance target Round 1).
+- [x] `src/physics/stumpff.ts`, `src/physics/lambert.ts` (6.5). Mirror + vectors. Test: Hohmann 1.0 -> 1.524 AU, dt 259 d: dep v_inf ≈ 2.94 km/s, arr ≈ 2.65 km/s within 2%.
+- [x] `src/config/launchers.json` + `src/physics/estimates.ts`: payload-vs-C3 interpolation in log(mass); the 3 dv T rule; miss estimate.
+- [x] `src/physics/kinetic.ts` (6.9): `impulseFromImpact(m, M, U_vec, beta)`. Mirror + vectors. Test DART: 580 kg, 6.14 km/s, 4.3e9 kg, beta 3.6 -> ≈ 3.0 mm/s.
+- [x] `src/worker/planner.worker.ts` + `src/planner/porkchop.ts`: the grid of 6.6 as a worker job with progress messages; vector contour render.
+- [x] `src/sim/mission.ts` (7.1), `src/planner/candidates.ts` and `ranking.ts` for the KINETIC archetype only; `src/sim/resolver.ts` v1: launches, Lambert coast, impact impulse, close-approach re-run; `src/sim/eventLog.ts`.
+- [x] PLANNER screen (13.4) with COMMIT / CLEAR; missions committable whenever paused.
+- [x] `src/game/economy.ts` (budget per year), `scoring.ts` (Section 12), leaderboard in localStorage (validated), next round.
+- [x] DEBRIEF v1: event list + score breakdown + NEXT ROUND.
+- [x] Tests: RESOLVER determinism (byte-equal event logs); 3DV RULE within 25%; a 100 m stony, 10 yr threat beaten by one Tier 1 launch (balance target Round 1).
 - Accept: round loop works end to end.
 
 ## M3: Breaking things
@@ -119,7 +119,7 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M6: The full tree
 
-- [ ] `src/config/tech.json` + TECH TREE screen; `src/game/tech.ts`.
+- [ ] `src/config/tech.json` + TECH TREE screen; `src/game/tech.ts`. Launch cadence cap (2/yr, HEAVY_LAUNCH_CADENCE raises it) enforced at commit.
 - [ ] Autonomy tiers and the rules DSL (`src/planner/rules.ts`: JSON validated against a schema in code, no eval) and `autonomy.ts`; split impactors.
 - [ ] `src/physics/nuclear.ts` (6.11 incl. HAIV, pulse train) with C_m calibration test (1 Mt standoff on 1 km stony -> 2..6 cm/s). Mirror + vectors.
 - [ ] `src/physics/slowPush.ts`: tractor, enhanced tractor, ion beam, laser, mirrors, mass driver, tugboat, tether, electrostatic (NOT VIABLE), e-sail, Yarkovsky readout. Mirror + vectors.
