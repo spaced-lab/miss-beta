@@ -6,7 +6,7 @@ import { byLevel, MG } from '../src/minigame/config';
 import { generateContinents } from '../src/minigame/planet';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, toSaved, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, densestSector, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -475,7 +475,7 @@ describe('sentries', () => {
     st.cheats.god = true;
     st.t = (MG.TURRET_LEVEL + 7) * MG.LEVEL_SECONDS;
     step(st, NO_INPUT, MG.DT);
-    deployTurret(st, true);
+    deployTurret(st, true, 'orbiter');
     const tr = st.turrets[0];
     if (!tr) throw new Error('no sentry');
     expect(tr.superb).toBe(true);
@@ -487,6 +487,128 @@ describe('sentries', () => {
     expect(auto.length).toBe(3);
     expect(auto[0]?.damage).toBe(strengthLevel(st.streamCount) + 2);
     expect(tr.cooldown).toBeLessThan(MG.TURRET_COOLDOWN / 2);
+  });
+  const field = (seed: number) => {
+    const st = createState(seed);
+    start(st);
+    st.spawnTimer = 1e9;
+    st.cheats.god = true;
+    st.t = MG.TURRET_LEVEL * MG.LEVEL_SECONDS;
+    step(st, NO_INPUT, MG.DT);
+    st.turrets.length = 0; // the level-up may have gifted a SUPER sentry; tests want a clean slate
+    return st;
+  };
+  it('deploys draw an archetype from the Rng; all four exist and the draw is deterministic', () => {
+    const kinds = (seed: number) => {
+      const st = field(seed);
+      const out: string[] = [];
+      for (let i = 0; i < 40; i++) {
+        deployTurret(st);
+        out.push(st.turrets[0]?.kind ?? '?');
+        st.turrets.length = 0;
+      }
+      return out;
+    };
+    const a = kinds(90);
+    expect(a).toEqual(kinds(90));
+    expect(new Set(a)).toEqual(new Set(SENTRY_KINDS));
+  });
+  it('SWEEPER oscillates within its arc about its home, faces outward and fires in bursts', () => {
+    const st = field(91);
+    deployTurret(st, false, 'sweeper');
+    const tr = st.turrets[0];
+    if (!tr) throw new Error('no sentry');
+    const home = tr.home;
+    // A rock outward of the sentry, at rest.
+    rock(st, 3.2 * Math.cos(home), 3.2 * Math.sin(home), 0, 0, 0.3, 0);
+    let lo = Infinity;
+    let hi = -Infinity;
+    const shotTimes: number[] = [];
+    for (let i = 0; i < 5 / MG.DT; i++) {
+      const before = st.bullets.filter((b) => b.auto).length;
+      step(st, NO_INPUT, MG.DT);
+      const after = st.bullets.filter((b) => b.auto).length;
+      if (after > before) shotTimes.push(st.t);
+      const d = wrapAngle(tr.angle - home);
+      const sd = d > Math.PI ? d - 2 * Math.PI : d;
+      lo = Math.min(lo, sd);
+      hi = Math.max(hi, sd);
+      expect(tr.radius).toBeCloseTo(MG.TURRET_ORBIT_R, 9);
+    }
+    expect(lo).toBeLessThan(-MG.SENTRY_SWEEP_ARC * 0.8);
+    expect(hi).toBeGreaterThan(MG.SENTRY_SWEEP_ARC * 0.8);
+    expect(Math.abs(lo)).toBeLessThanOrEqual(MG.SENTRY_SWEEP_ARC + 1e-9);
+    // Bursts: gaps inside a burst are short, gaps between bursts are long.
+    const gaps = shotTimes.slice(1).map((t, i) => t - (shotTimes[i] ?? 0));
+    expect(gaps.some((g) => g < MG.SENTRY_BURST_GAP * 2)).toBe(true);
+    expect(gaps.some((g) => g > MG.SENTRY_BURST_REST * 0.5)).toBe(true);
+    // A rock inward of the sentry is not a target for it.
+    st.asteroids.length = 0;
+    rock(st, 1.3 * Math.cos(home), 1.3 * Math.sin(home), 0, 0, 0.2, 0);
+    step(st, NO_INPUT, MG.DT);
+    expect(tr.targetId).toBe(-1);
+  });
+  it('PICKET turns to the densest incoming sector and holds there', () => {
+    const st = field(92);
+    deployTurret(st, false, 'picket');
+    const tr = st.turrets[0];
+    if (!tr) throw new Error('no sentry');
+    tr.angle = tr.home = Math.PI; // start on the far side
+    // A cluster just above bearing 0 (east, inside the first sector), plus one lonely rock north: east must win.
+    for (let i = 0; i < 4; i++) rock(st, 4 + i * 0.3, 0.1 + i * 0.2, 0, 0, 0.3, 0);
+    rock(st, 0, 4.5, 0, 0, 0.3, 0);
+    const want = densestSector(st);
+    expect(want).not.toBeNull();
+    expect(Math.abs((want ?? 0) - Math.PI / MG.SENTRY_PICKET_SECTORS)).toBeLessThan(1e-9);
+    for (let i = 0; i < 4 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    const diff = wrapAngle(tr.angle - (want ?? 0));
+    expect(Math.min(diff, 2 * Math.PI - diff)).toBeLessThan(0.02);
+    expect(tr.radius).toBeCloseTo(MG.TURRET_ORBIT_R, 9);
+    expect(st.bullets.filter((b) => b.auto).length).toBeGreaterThan(0);
+  });
+  it('CHASER drifts toward the most threatening rock and stays on its leash', () => {
+    const st = field(93);
+    deployTurret(st, false, 'chaser');
+    const tr = st.turrets[0];
+    if (!tr) throw new Error('no sentry');
+    tr.angle = tr.home = 0;
+    // Far up, well outside the leash; massive and unbreakable so the chaser's own shots barely move it.
+    const a = rock(st, 0, 4.5, 0, 0, 0.42, 3);
+    a.hp = a.maxHp = 1e6;
+    const d0 = Math.hypot(turretPosition(tr).x - a.x, turretPosition(tr).y - a.y);
+    const hx = MG.TURRET_ORBIT_R;
+    for (let i = 0; i < 3 / MG.DT; i++) {
+      step(st, NO_INPUT, MG.DT);
+      const p = turretPosition(tr);
+      expect(Math.hypot(p.x - hx, p.y)).toBeLessThanOrEqual(MG.SENTRY_CHASE_LEASH + 1e-6);
+      expect(tr.radius).toBeGreaterThanOrEqual(MG.SENTRY_CHASE_R_MIN - 1e-9);
+    }
+    const p = turretPosition(tr);
+    expect(Math.hypot(p.x - a.x, p.y - a.y)).toBeLessThan(d0 - 0.5);
+    expect(Math.hypot(p.x - hx, p.y)).toBeCloseTo(MG.SENTRY_CHASE_LEASH, 2); // parked at the end of the leash
+    expect(p.y).toBeGreaterThan(1);
+    expect(st.bullets.filter((b) => b.auto).length).toBeGreaterThan(0);
+    // With nothing left it returns home.
+    st.asteroids.length = 0;
+    st.bullets.length = 0;
+    for (let i = 0; i < 3 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    const q = turretPosition(tr);
+    expect(Math.hypot(q.x - hx, q.y)).toBeLessThan(0.05);
+  });
+  it('sentries of every kind survive a save and resume', () => {
+    const st = field(94);
+    for (const kind of SENTRY_KINDS) deployTurret(st, false, kind);
+    expect(st.turrets.length).toBe(MG.TURRET_MAX);
+    for (let i = 0; i < 6; i++) rock(st, 3.5 * Math.cos(i), 3.5 * Math.sin(i), -0.2 * Math.cos(i), -0.2 * Math.sin(i), 0.3, 1);
+    for (let i = 0; i < 1 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    const copy = deserialize(serialize(st));
+    if (!copy) throw new Error('deserialize returned null');
+    expect(snapshot(copy)).toBe(snapshot(st));
+    for (let i = 0; i < 3 / MG.DT; i++) {
+      step(st, NO_INPUT, MG.DT);
+      step(copy, NO_INPUT, MG.DT);
+    }
+    expect(snapshot(copy)).toBe(snapshot(st));
   });
   it('chaos level is bounded', () => {
     const st = createState(82);
@@ -537,7 +659,8 @@ describe('save and resume', () => {
     const good = toSaved(run(3, 5, FIRE));
     expect(isSavedGame(good)).toBe(true);
     expect(isSavedGame({ ...good, hp: '100' })).toBe(false);
-    expect(isSavedGame({ ...good, v: 2 })).toBe(false);
+    expect(isSavedGame({ ...good, v: 1 })).toBe(false);
+    expect(isSavedGame({ ...good, turrets: [{ ...good.turrets[0], kind: 'drone' }] })).toBe(false);
     expect(isSavedGame({ ...good, collision: 'fast' })).toBe(false);
     expect(isSavedGame({ ...good, asteroids: [{ x: 1 }] })).toBe(false);
     expect(isSavedGame({ ...good, rng: Number.NaN })).toBe(false);

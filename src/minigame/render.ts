@@ -9,11 +9,11 @@
 //       fine on purpose (1 px dust and sentry shots, sub-pixel outlines that sharpen at DPR 2).
 // LORE: G2 (screens and HUD), G8 (the look)
 
-import type { Surface } from '../render/canvas';
+import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, spectrumStage, streamDamage, strengthLevel, type MinigameState } from './sim';
+import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, spectrumStage, streamDamage, strengthLevel, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -58,6 +58,72 @@ const PX = {
 } as const;
 
 const scratch: number[] = [];
+
+/** Push a point rotated by `rot` about (cx, cy) onto `scratch`. */
+function pt(cx: number, cy: number, dx: number, dy: number, rot: number): void {
+  const c = Math.cos(rot);
+  const si = Math.sin(rot);
+  scratch.push(cx + dx * c - dy * si, cy + dx * si + dy * c);
+}
+
+/**
+ * Sentry silhouettes, radius r px, `facing` is the screen angle the shape points along:
+ *   orbiter  slowly turning hexagon with an inner ring;
+ *   sweeper  chevron, apex forward, with a short tail bar;
+ *   picket   a bar across the facing with a dish (half ring) opening forward;
+ *   chaser   two triangles nose to tail along the facing.
+ */
+function drawSentry(s: Surface, kind: SentryKind, cx: number, cy: number, r: number, facing: number, t: number, style: StrokeStyle): void {
+  const detail = { ...style, glow: 0.6, width: PX.sentryDetail };
+  scratch.length = 0;
+  switch (kind) {
+    case 'orbiter':
+      for (let i = 0; i < 6; i++) {
+        const a = t * 0.8 + (i / 6) * Math.PI * 2;
+        scratch.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+      s.stroke(scratch, { ...style, closed: true });
+      s.circle(cx, cy, r * 0.45, detail);
+      break;
+    case 'sweeper':
+      pt(cx, cy, -r * 0.6, -r, facing);
+      pt(cx, cy, r, 0, facing);
+      pt(cx, cy, -r * 0.6, r, facing);
+      pt(cx, cy, -r * 0.2, 0, facing);
+      s.stroke(scratch, { ...style, closed: true });
+      scratch.length = 0;
+      pt(cx, cy, -r * 0.9, -r * 0.45, facing);
+      pt(cx, cy, -r * 0.9, r * 0.45, facing);
+      s.stroke(scratch, detail);
+      break;
+    case 'picket':
+      pt(cx, cy, -r * 0.3, -r, facing);
+      pt(cx, cy, -r * 0.3, r, facing);
+      s.stroke(scratch, style);
+      scratch.length = 0;
+      pt(cx, cy, -r * 0.3, 0, facing);
+      pt(cx, cy, r * 0.3, 0, facing);
+      s.stroke(scratch, detail);
+      scratch.length = 0;
+      for (let i = 0; i <= 8; i++) {
+        const a = -Math.PI / 2 + (i / 8) * Math.PI;
+        pt(cx, cy, r * 0.3 + Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7, facing);
+      }
+      s.stroke(scratch, style);
+      break;
+    case 'chaser':
+      pt(cx, cy, r, 0, facing);
+      pt(cx, cy, 0, -r * 0.55, facing);
+      pt(cx, cy, 0, r * 0.55, facing);
+      s.stroke(scratch, { ...style, closed: true });
+      scratch.length = 0;
+      pt(cx, cy, -r * 0.1, 0, facing);
+      pt(cx, cy, -r, -r * 0.45, facing);
+      pt(cx, cy, -r, r * 0.45, facing);
+      s.stroke(scratch, { ...detail, closed: true });
+      break;
+  }
+}
 
 function tierColor(s: Surface, tier: number, stage: number): string {
   return stage >= 1 ? (NEON.tier[tier] ?? s.palette.ink) : s.palette.ink;
@@ -141,21 +207,20 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     s.stroke([X(tip * Math.cos(a)), Y(tip * Math.sin(a)), X(1.34 * Math.cos(a)), Y(1.34 * Math.sin(a))], { color: hot, glow: 1 });
   }
 
-  // Sentries: a hexagon with an inner ring and a barrel toward the target; colour by tier, SUPER cycles hue.
+  // Sentries: one vector shape per archetype (drawSentry), a barrel toward the target, a life arc;
+  // colour by tier, SUPER cycles hue.
   for (const tr of st.turrets) {
-    const tx = X(MG.TURRET_ORBIT_R * Math.cos(tr.angle));
-    const ty = Y(MG.TURRET_ORBIT_R * Math.sin(tr.angle));
+    const pos = turretPosition(tr);
+    const tx = X(pos.x);
+    const ty = Y(pos.y);
     const r = tr.superb ? 9 : 7;
     const tc = tr.superb ? `hsl(${Math.floor((st.t * 140) % 360)}, 100%, 65%)` : stage >= 3 ? (NEON.turret[tr.tier] ?? p.hot) : p.hot;
     const fading = tr.life < 3 ? 0.4 + 0.6 * Math.abs(Math.sin(tr.life * 8)) : 1;
-    scratch.length = 0;
-    for (let i = 0; i < 6; i++) {
-      const a = st.t * 0.8 + (i / 6) * Math.PI * 2;
-      scratch.push(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
-    }
-    s.stroke(scratch, { closed: true, color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: PX.sentryW });
-    s.circle(tx, ty, r * 0.45, { color: tc, glow: 0.6, width: PX.sentryDetail, alpha: fading });
     const target = st.asteroids.find((a) => a.id === tr.targetId);
+    // Facing on screen (y down): outward along the radial, or at the target for the chaser.
+    const outward = -tr.angle;
+    const facing = tr.kind === 'chaser' && target ? Math.atan2(Y(target.y) - ty, X(target.x) - tx) : outward;
+    drawSentry(s, tr.kind, tx, ty, r, facing, st.t, { color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: PX.sentryW });
     if (target) {
       const ang = Math.atan2(Y(target.y) - ty, X(target.x) - tx);
       s.stroke([tx + Math.cos(ang) * r * 0.5, ty + Math.sin(ang) * r * 0.5, tx + Math.cos(ang) * (r + 7), ty + Math.sin(ang) * (r + 7)], { color: tc, glow: 0.8, width: tr.superb ? PX.sentryBarrel * 1.6 : PX.sentryBarrel });

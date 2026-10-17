@@ -24,7 +24,11 @@ export const MINIGAME_CHEATS: readonly Cheat<MinigameState>[] = [
   { code: 'SKIP', message: 'next level now', apply: (st) => { st.t = st.level * MG.LEVEL_SECONDS; assisted(st, 'LEVEL SKIP'); } },
   { code: 'REPAIR', message: 'hull restored', apply: (st) => { st.hp = MG.MAX_HP; assisted(st, 'HULL REPAIRED'); } },
   { code: 'COOL', message: 'heat off', apply: (st) => { st.cheats.noHeat = !st.cheats.noHeat; st.heat = 0; st.overheated = false; assisted(st, st.cheats.noHeat ? 'COOLANT UNLIMITED' : 'HEAT ON'); } },
-  { code: 'TURRET', message: 'deploy a sentry', apply: (st) => { deployTurret(st, false); assisted(st, 'SENTRY'); } },
+  { code: 'TURRET', message: 'deploy a sentry of a random archetype', apply: (st) => { deployTurret(st, false); assisted(st, 'SENTRY'); } },
   { code: 'SUPER', message: 'deploy a SUPER sentry', apply: (st) => { deployTurret(st, true); assisted(st, 'SUPER SENTRY'); } },
+  { code: 'ORBITER', message: 'deploy an ORBITER sentry', apply: (st) => { deployTurret(st, false, 'orbiter'); assisted(st, 'ORBITER'); } },
+  { code: 'SWEEPER', message: 'deploy a SWEEPER sentry', apply: (st) => { deployTurret(st, false, 'sweeper'); assisted(st, 'SWEEPER'); } },
+  { code: 'PICKET', message: 'deploy a PICKET sentry', apply: (st) => { deployTurret(st, false, 'picket'); assisted(st, 'PICKET'); } },
+  { code: 'CHASER', message: 'deploy a CHASER sentry', apply: (st) => { deployTurret(st, false, 'chaser'); assisted(st, 'CHASER'); } },
   { code: 'KARDASHEV', message: 'everything maxed', apply: (st) => { st.cheats.launchers = 8; st.cheats.streams = 5; st.pulses = MG.PULSE_MAX; st.cheats.god = true; st.cheats.noHeat = true; assisted(st, 'KARDASHEV'); } },
 ];

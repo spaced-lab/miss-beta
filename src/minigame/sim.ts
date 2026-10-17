@@ -13,7 +13,8 @@
 //       Heat: each trigger pull adds heat; at 1.0 fire locks until it cools below HEAT_UNLOCK.
 //       Laser: from 3 streams the first pull after a break fires a beam down the centre stream (sim.fireLaser);
 //       the step emits SimEvents (shots, hits, breaks, ...) that the host turns into sound; the sim never
-//       imports audio.
+//       imports audio. Sentries (Turret) come in four archetypes (SentryKind) with their own motion,
+//       targeting and fire schedule, all in stepTurret; the kind is drawn from the Rng at deploy.
 // LORE: G1 (how to play), G5 (scoring), O14 (randomness), D3 (kinetic push, toy version)
 
 import { Rng } from '../sim/rng';
@@ -76,8 +77,27 @@ export interface Particle {
   tier: number;
 }
 
+/**
+ * Sentry behaviour archetypes, one drawn per deploy (knobs SENTRY_* in config.ts):
+ *   orbiter  rides the ring at TURRET_ANGULAR_SPEED and shoots the most threatening rock (the classic);
+ *   sweeper  oscillates along an arc around its home angle, faces outward, fires in short bursts;
+ *   picket   parks at the angle of the densest incoming sector and holds there, re-reading the field;
+ *   chaser   leaves the ring and drifts toward the most threatening rock within a leash of its home.
+ */
+export type SentryKind = 'orbiter' | 'sweeper' | 'picket' | 'chaser';
+export const SENTRY_KINDS: readonly SentryKind[] = ['orbiter', 'sweeper', 'picket', 'chaser'];
+
 export interface Turret {
+  kind: SentryKind;
+  /** Polar position: angle (rad) and radius (planet radii). Ring riders stay at TURRET_ORBIT_R. */
   angle: number;
+  radius: number;
+  /** Home angle: the sweeper's arc centre, the chaser's leash anchor (on the ring). */
+  home: number;
+  /** Kind-specific clock: sweeper oscillation phase, picket retarget timer. */
+  phase: number;
+  /** Shots fired in the current burst (sweeper). */
+  burst: number;
   life: number;
   maxLife: number;
   cooldown: number;
@@ -231,6 +251,16 @@ export function displayTier(a: Asteroid): number {
 export function moonPosition(st: MinigameState): { x: number; y: number } {
   return { x: MG.MOON_ORBIT_R * Math.cos(st.moonAngle), y: MG.MOON_ORBIT_R * Math.sin(st.moonAngle) };
 }
+
+export function turretPosition(tr: Turret): { x: number; y: number } {
+  return { x: tr.radius * Math.cos(tr.angle), y: tr.radius * Math.sin(tr.angle) };
+}
+
+/** Signed angle difference wrapped into (-pi, pi]. */
+const signedAngle = (t: number): number => {
+  const w = wrapAngle(t);
+  return w > Math.PI ? w - 2 * Math.PI : w;
+};
 
 // --- construction ----------------------------------------------------------------------------------------
 
@@ -548,12 +578,18 @@ function fire(st: MinigameState): void {
   emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
 }
 
-export function deployTurret(st: MinigameState, forceSuper?: boolean): void {
+/**
+ * Deploy a sentry. Draw order from the Rng (fixed, so saves and replays agree): angle, then SUPER unless
+ * forced, then kind unless forced.
+ */
+export function deployTurret(st: MinigameState, forceSuper?: boolean, forceKind?: SentryKind): void {
   if (st.turrets.length >= MG.TURRET_MAX) return;
+  const angle = st.rng.float(0, Math.PI * 2);
   const superb = forceSuper ?? st.rng.chance(MG.TURRET_SUPER_PROB);
+  const kind = forceKind ?? st.rng.pick(SENTRY_KINDS);
   const life = MG.TURRET_LIFE * (superb ? MG.TURRET_SUPER_LIFE_MULT : 1);
-  st.turrets.push({ angle: st.rng.float(0, Math.PI * 2), life, maxLife: life, cooldown: 0.5, targetId: -1, tier: turretTier(st.level), superb });
-  flash(st, superb ? 'SUPER SENTRY' : 'SENTRY DEPLOYED', 1.6);
+  st.turrets.push({ kind, angle, radius: MG.TURRET_ORBIT_R, home: angle, phase: 0, burst: 0, life, maxLife: life, cooldown: 0.5, targetId: -1, tier: turretTier(st.level), superb });
+  flash(st, `${superb ? 'SUPER ' : ''}${kind.toUpperCase()} SENTRY`, 1.6);
   emit(st, { type: 'turret' });
 }
 
@@ -569,6 +605,151 @@ function pickTarget(st: MinigameState): Asteroid | null {
     }
   }
   return best;
+}
+
+/** Nearest rock to a point, optionally only those on the outward side of it (dot with the radial > 0). */
+function nearestRock(st: MinigameState, x: number, y: number, outwardOnly: boolean): Asteroid | null {
+  let best: Asteroid | null = null;
+  let bestD = Infinity;
+  const len = Math.hypot(x, y) || 1;
+  for (const a of st.asteroids) {
+    const dx = a.x - x;
+    const dy = a.y - y;
+    if (outwardOnly && (dx * x + dy * y) / len < -a.r) continue;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) {
+      bestD = d;
+      best = a;
+    }
+  }
+  return best;
+}
+
+/** Angle of the densest incoming sector: rocks binned by bearing, weighted by 1 / distance, passers ignored. */
+export function densestSector(st: MinigameState): number | null {
+  const n = MG.SENTRY_PICKET_SECTORS;
+  const bins = new Array<number>(n).fill(0);
+  let any = false;
+  for (const a of st.asteroids) {
+    if (a.passing) continue;
+    const d = Math.hypot(a.x, a.y);
+    const i = Math.floor((wrapAngle(Math.atan2(a.y, a.x)) / (Math.PI * 2)) * n) % n;
+    bins[i] = (bins[i] ?? 0) + (a.r + 0.1) / Math.max(1, d);
+    any = true;
+  }
+  if (!any) return null;
+  let best = 0;
+  for (let i = 1; i < n; i++) if ((bins[i] ?? 0) > (bins[best] ?? 0)) best = i;
+  return ((best + 0.5) / n) * Math.PI * 2;
+}
+
+/** Aim at a target from (tx, ty) with lead for the bullet's travel time, then push one or three bullets. */
+function sentryFire(st: MinigameState, tr: Turret, tx: number, ty: number, target: Asteroid): void {
+  const lead = Math.hypot(target.x - tx, target.y - ty) / MG.BULLET_SPEED;
+  const ang = Math.atan2(target.y + target.vy * lead - ty, target.x + target.vx * lead - tx);
+  const dmg = strengthLevel(st.streamCount) + tr.tier;
+  if (tr.superb) {
+    for (const off of [-0.12, 0, 0.12]) pushBullet(st, tx, ty, ang + off, dmg, true);
+  } else {
+    pushBullet(st, tx, ty, ang, dmg, true);
+  }
+}
+
+/** One sentry's tick: move by archetype, choose a target, fire on its own schedule. */
+function stepTurret(st: MinigameState, tr: Turret, dt: number): void {
+  const rate = (1 + 0.35 * tr.tier) * (tr.superb ? 2 : 1);
+  let target: Asteroid | null;
+  switch (tr.kind) {
+    case 'orbiter':
+      tr.angle = wrapAngle(tr.angle + MG.TURRET_ANGULAR_SPEED * dt);
+      tr.radius = MG.TURRET_ORBIT_R;
+      target = pickTarget(st);
+      break;
+    case 'sweeper': {
+      tr.phase += MG.SENTRY_SWEEP_RATE * dt;
+      tr.angle = wrapAngle(tr.home + MG.SENTRY_SWEEP_ARC * Math.sin(tr.phase));
+      tr.radius = MG.TURRET_ORBIT_R;
+      const p = turretPosition(tr);
+      target = nearestRock(st, p.x, p.y, true);
+      break;
+    }
+    case 'picket': {
+      tr.phase -= dt;
+      if (tr.phase <= 0) {
+        tr.phase = MG.SENTRY_PICKET_RETARGET;
+        const want = densestSector(st);
+        if (want !== null) tr.home = want;
+      }
+      const diff = signedAngle(tr.home - tr.angle);
+      const turn = MG.SENTRY_PICKET_TURN * dt;
+      tr.angle = wrapAngle(tr.angle + clamp(diff, -turn, turn));
+      tr.radius = MG.TURRET_ORBIT_R;
+      const p = turretPosition(tr);
+      target = nearestRock(st, p.x, p.y, false);
+      break;
+    }
+    case 'chaser': {
+      target = pickTarget(st);
+      const p = turretPosition(tr);
+      const hx = MG.TURRET_ORBIT_R * Math.cos(tr.home);
+      const hy = MG.TURRET_ORBIT_R * Math.sin(tr.home);
+      // Goal: a standoff point short of the target, or home when there is nothing to chase.
+      let gx = hx;
+      let gy = hy;
+      if (target) {
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const d = Math.hypot(dx, dy);
+        if (d > MG.SENTRY_CHASE_STANDOFF) {
+          const f = (d - MG.SENTRY_CHASE_STANDOFF) / d;
+          gx = p.x + dx * f;
+          gy = p.y + dy * f;
+        } else {
+          gx = p.x;
+          gy = p.y;
+        }
+      }
+      // Leash: pull the goal back toward home if it strays too far.
+      const lx = gx - hx;
+      const ly = gy - hy;
+      const ld = Math.hypot(lx, ly);
+      if (ld > MG.SENTRY_CHASE_LEASH) {
+        gx = hx + (lx / ld) * MG.SENTRY_CHASE_LEASH;
+        gy = hy + (ly / ld) * MG.SENTRY_CHASE_LEASH;
+      }
+      const mx = gx - p.x;
+      const my = gy - p.y;
+      const md = Math.hypot(mx, my);
+      const stepLen = Math.min(md, MG.SENTRY_CHASE_SPEED * dt);
+      let nx = p.x;
+      let ny = p.y;
+      if (md > 1e-9) {
+        nx += (mx / md) * stepLen;
+        ny += (my / md) * stepLen;
+      }
+      const nr = Math.hypot(nx, ny);
+      tr.radius = Math.max(MG.SENTRY_CHASE_R_MIN, nr);
+      tr.angle = nr > 1e-9 ? wrapAngle(Math.atan2(ny, nx)) : tr.angle;
+      break;
+    }
+  }
+  tr.targetId = target ? target.id : -1;
+  tr.cooldown -= dt;
+  if (!target || tr.cooldown > 0) return;
+  const p = turretPosition(tr);
+  sentryFire(st, tr, p.x, p.y, target);
+  if (tr.kind === 'sweeper') {
+    // Bursts: a few quick shots, then a rest.
+    tr.burst += 1;
+    if (tr.burst < MG.SENTRY_BURST) {
+      tr.cooldown = MG.SENTRY_BURST_GAP;
+    } else {
+      tr.burst = 0;
+      tr.cooldown = MG.SENTRY_BURST_REST / rate;
+    }
+  } else {
+    tr.cooldown = MG.TURRET_COOLDOWN / rate;
+  }
 }
 
 // --- the step ----------------------------------------------------------------------------------------------
@@ -670,7 +851,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   if (moonActive(st.level)) st.moonAngle = wrapAngle(st.moonAngle + MG.MOON_ANGULAR_SPEED * dt);
   const moon = moonPosition(st);
 
-  // Turrets: orbit, pick a target, fire.
+  // Sentries: each archetype moves, targets and fires its own way (stepTurret).
   for (let i = st.turrets.length - 1; i >= 0; i--) {
     const tr = st.turrets[i];
     if (!tr) continue;
@@ -679,24 +860,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       swapRemove(st.turrets, i);
       continue;
     }
-    tr.angle = wrapAngle(tr.angle + MG.TURRET_ANGULAR_SPEED * dt);
-    tr.cooldown -= dt;
-    const target = pickTarget(st);
-    tr.targetId = target ? target.id : -1;
-    if (target && tr.cooldown <= 0) {
-      const tx = MG.TURRET_ORBIT_R * Math.cos(tr.angle);
-      const ty = MG.TURRET_ORBIT_R * Math.sin(tr.angle);
-      // Lead the target by its travel time at bullet speed.
-      const lead = Math.hypot(target.x - tx, target.y - ty) / MG.BULLET_SPEED;
-      const ang = Math.atan2(target.y + target.vy * lead - ty, target.x + target.vx * lead - tx);
-      const dmg = strengthLevel(st.streamCount) + tr.tier;
-      if (tr.superb) {
-        for (const off of [-0.12, 0, 0.12]) pushBullet(st, tx, ty, ang + off, dmg, true);
-      } else {
-        pushBullet(st, tx, ty, ang, dmg, true);
-      }
-      tr.cooldown = (MG.TURRET_COOLDOWN / (1 + 0.35 * tr.tier)) * (tr.superb ? 0.5 : 1);
-    }
+    stepTurret(st, tr, dt);
   }
 
   // Spawning.
@@ -831,9 +995,9 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
 // NOTE: a game is (seed, inputs), but mid-game resume needs the whole state: the Rng's raw state stands in for
 // the draw history, typed arrays become plain arrays, and transient queues (events, stats) are not saved.
 
-/** JSON shape of a saved game. Everything `step` reads, in plain JSON types. */
+/** JSON shape of a saved game. Everything `step` reads, in plain JSON types. v2: sentry archetypes. */
 export interface SavedGame {
-  v: 1;
+  v: 2;
   seed: number;
   rng: number;
   status: Status;
@@ -889,13 +1053,13 @@ const shaped = (spec: Record<string, Pred>): Pred => (v) => isRecord(v) && Objec
 const ASTEROID = shaped({ id: num, x: num, y: num, vx: num, vy: num, r: num, tier: num, hp: num, maxHp: num, core: bool, passing: bool, shape: numArr, rot: num, spin: num });
 const BULLET = shaped({ x: num, y: num, vx: num, vy: num, life: num, r: num, damage: num, auto: bool });
 const PARTICLE = shaped({ x: num, y: num, vx: num, vy: num, life: num, max: num, tier: num });
-const TURRET = shaped({ angle: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool });
+const TURRET = shaped({ kind: oneOf(...SENTRY_KINDS), angle: num, radius: num, home: num, phase: num, burst: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool });
 const FLASH = shaped({ text: str, t: num });
 const BEAM = shaped({ angle: num, t: num });
 const CRATER: Pred = (v) => numArr(v) && (v as number[]).length === 3;
 const CHEATS = shaped({ god: bool, launchers: opt(num), streams: opt(num), timeScale: num, assisted: bool, noHeat: bool });
 const SAVED = shaped({
-  v: oneOf(1), seed: num, rng: num, status: oneOf('ready', 'playing', 'over'),
+  v: oneOf(2), seed: num, rng: num, status: oneOf('ready', 'playing', 'over'),
   t: num, level: num, hp: num, score: num, kills: num, hits: num, shots: num,
   continents: arrOf(numArr),
   launcherAngle: num, launcherCount: num, streamCount: num, fireCooldown: num,
@@ -911,7 +1075,7 @@ export const isSavedGame = (v: unknown): v is SavedGame => SAVED(v);
 
 export function toSaved(st: MinigameState): SavedGame {
   return {
-    v: 1,
+    v: 2,
     seed: st.seed,
     rng: st.rng.getState(),
     status: st.status,
@@ -1028,7 +1192,7 @@ export function snapshot(st: MinigameState): string {
     rng: st.rng.getState(),
     a: st.asteroids.map((a) => [a.id, a.x, a.y, a.vx, a.vy, a.hp, a.tier]),
     b: st.bullets.length,
-    tr: st.turrets.length,
+    tr: st.turrets.map((t) => [t.kind, t.angle, t.radius, t.life, t.targetId]),
     p: st.pulses,
     status: st.status,
   });

@@ -125,6 +125,27 @@ export const MG = {
   TURRET_GIFT_PROB: 0.35,
   TURRET_SUPER_LIFE_MULT: 1.5,
 
+  /** Sentry archetypes (sim.SentryKind), one drawn per deploy. ORBITER is the classic ring rider.
+   *  SWEEPER oscillates +-SENTRY_SWEEP_ARC around its home angle (phase advances SENTRY_SWEEP_RATE rad/s),
+   *  faces outward and fires SENTRY_BURST shots SENTRY_BURST_GAP apart, then rests SENTRY_BURST_REST. */
+  SENTRY_SWEEP_ARC: 0.85,
+  SENTRY_SWEEP_RATE: 1.3,
+  SENTRY_BURST: 4,
+  SENTRY_BURST_GAP: 0.07,
+  SENTRY_BURST_REST: 1.0,
+  /** PICKET re-reads the field every SENTRY_PICKET_RETARGET s, splits it into SENTRY_PICKET_SECTORS sectors
+   *  weighted by 1 / distance of the incoming rocks, and turns toward the densest at SENTRY_PICKET_TURN rad/s. */
+  SENTRY_PICKET_RETARGET: 1.5,
+  SENTRY_PICKET_SECTORS: 12,
+  SENTRY_PICKET_TURN: 2.2,
+  /** CHASER leaves the ring and drifts toward the most threatening rock at SENTRY_CHASE_SPEED (radii/s),
+   *  stopping SENTRY_CHASE_STANDOFF short of it, never further than SENTRY_CHASE_LEASH from its home point
+   *  and never inside SENTRY_CHASE_R_MIN of the planet's centre. With nothing to chase it drifts home. */
+  SENTRY_CHASE_SPEED: 1.6,
+  SENTRY_CHASE_LEASH: 1.7,
+  SENTRY_CHASE_STANDOFF: 0.9,
+  SENTRY_CHASE_R_MIN: 1.45,
+
   /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
    *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the
    *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied. */

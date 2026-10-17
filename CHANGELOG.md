@@ -10,6 +10,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   local leaderboard, PLANNER overlay (P), spacecraft on their arcs, play-by-play log, DEBRIEF and NEXT
   ROUND, RUN OVER with leaderboard rank, LEADERBOARD screen. `npm run play` serves a stable build on 4173.
 
+- PERIMETER sentry archetypes: each deploy draws ORBITER (ring rider), SWEEPER (arc oscillation, outward,
+  bursts), PICKET (parks at the densest incoming sector) or CHASER (drifts toward the biggest threat on a
+  leash), each with its own vector shape (hexagon, chevron, bar + dish, triangle pair); cheats ORBITER /
+  SWEEPER / PICKET / CHASER; save format v2 (sentry kind, radius, home, phase, burst).
+
 - PERIMETER finer detail: sentry bullets 1 px, player bullets 1.3-1.9 px by damage, dust 1 px, rock width
   ladder 0.55 + 0.22 per tier, thinner moon, sentry and continent outlines; sizes in the `PX` table in render.ts.
 
