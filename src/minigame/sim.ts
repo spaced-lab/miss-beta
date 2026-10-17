@@ -15,6 +15,9 @@
 //       the step emits SimEvents (shots, hits, breaks, ...) that the host turns into sound; the sim never
 //       imports audio. Sentries (Turret) come in four archetypes (SentryKind) with their own motion,
 //       targeting and fire schedule, all in stepTurret; the kind is drawn from the Rng at deploy.
+//       Earned weapons: pulses (kills), seeker missiles (direct hits, `<`, lead pursuit + area blast in
+//       stepSeekers / detonate) and swarms of sentinel drones (kills, `>`, stepDrones); each has a stock and a
+//       0..1 charge toward the next one.
 // LORE: G1 (how to play), G5 (scoring), O14 (randomness), D3 (kinetic push, toy version)
 
 import { Rng } from '../sim/rng';
@@ -29,9 +32,13 @@ export interface Input {
   fire: boolean;
   /** Edge-triggered by the caller: true only on the frame the key went down. */
   pulse: boolean;
+  /** Edge-triggered: launch a seeker missile (`<`). */
+  seeker: boolean;
+  /** Edge-triggered: release a swarm of sentinels (`>`). */
+  swarm: boolean;
 }
 
-export const NO_INPUT: Readonly<Input> = Object.freeze({ left: false, right: false, fire: false, pulse: false });
+export const NO_INPUT: Readonly<Input> = Object.freeze({ left: false, right: false, fire: false, pulse: false, seeker: false, swarm: false });
 
 export interface Asteroid {
   id: number;
@@ -109,6 +116,34 @@ export interface Turret {
   superb: boolean;
 }
 
+/** A seeker missile: lead pursuit toward `targetId`, area blast on contact. */
+export interface Seeker {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  targetId: number;
+  /** Recent positions, flat [x0, y0, x1, y1, ...], newest last; the renderer's exhaust trail. */
+  trail: number[];
+  /** Steps since the trail was last sampled. */
+  trailTick: number;
+}
+
+/** A sentinel drone: hunts the nearest rock with weak fast bullets, burns out after SWARM_LIFE. */
+export interface Drone {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  cooldown: number;
+  targetId: number;
+  /** Fixed angle around its target this drone prefers, so a swarm spreads instead of stacking. */
+  slot: number;
+}
+
 export interface Flash {
   text: string;
   t: number;
@@ -136,6 +171,10 @@ export type SimEvent =
   | { type: 'moonhit' }
   | { type: 'moonlost' }
   | { type: 'crash'; speed: number }
+  | { type: 'seeker' }
+  | { type: 'blast' }
+  | { type: 'swarm'; count: number }
+  | { type: 'burnout' }
   | { type: 'over' };
 
 export type Status = 'ready' | 'playing' | 'over';
@@ -185,6 +224,14 @@ export interface MinigameState {
   pulses: number;
   pulseCharge: number;
   pulseR: number;
+  seekers: Seeker[];
+  seekerStock: number;
+  /** Direct hits counted toward the next seeker (0..SEEKER_HITS-1). Integers, so the meter fills exactly. */
+  seekerProgress: number;
+  drones: Drone[];
+  swarmStock: number;
+  /** Kills counted toward the next swarm (0..SWARM_KILLS-1). */
+  swarmProgress: number;
   flashes: Flash[];
   beams: Beam[];
   events: SimEvent[];
@@ -299,6 +346,12 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     pulses: 0,
     pulseCharge: 0,
     pulseR: -1,
+    seekers: [],
+    seekerStock: 0,
+    seekerProgress: 0,
+    drones: [],
+    swarmStock: 0,
+    swarmProgress: 0,
     flashes: [],
     beams: [],
     events: [],
@@ -494,11 +547,19 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
   st.score += Math.floor(a.r * MG.SCORE_PER_R * tierMult * (a.core ? MG.HARD_CORE_SCORE_MULT : 1) * scoreMult);
   st.kills += 1;
   st.pulseCharge += 1 / MG.PULSE_KILLS;
-  if (st.pulseCharge >= 1) {
+  // NOTE: 14 * (1 / 14) is 0.9999999999999997 in floats; without the epsilon the pulse arrived one kill late.
+  if (st.pulseCharge >= 1 - 1e-9) {
     st.pulseCharge -= 1;
     if (st.pulses < MG.PULSE_MAX) {
       st.pulses += 1;
       flash(st, 'PULSE READY', 1.2);
+    }
+  }
+  if (++st.swarmProgress >= MG.SWARM_KILLS) {
+    st.swarmProgress = 0;
+    if (st.swarmStock < MG.SWARM_MAX) {
+      st.swarmStock += 1;
+      flash(st, 'SWARM READY  >', 1.2);
     }
   }
   spawnParticles(st, a.x, a.y, MG.PARTICLES_PER_HIT + a.tier * 4, 2.5, a.tier);
@@ -522,9 +583,221 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
   }
 }
 
-function pushBullet(st: MinigameState, x: number, y: number, angle: number, damage: number, auto: boolean): void {
+function pushBullet(st: MinigameState, x: number, y: number, angle: number, damage: number, auto: boolean, speed: number = MG.BULLET_SPEED, life: number = MG.BULLET_LIFE): void {
   if (st.bullets.length >= MG.MAX_BULLETS) return;
-  st.bullets.push({ x, y, vx: Math.cos(angle) * MG.BULLET_SPEED, vy: Math.sin(angle) * MG.BULLET_SPEED, life: MG.BULLET_LIFE, r: MG.BULLET_R, damage, auto });
+  st.bullets.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life, r: MG.BULLET_R, damage, auto });
+}
+
+/** A direct hit by the player (bullet or laser): counts for stats and charges the next seeker. */
+function creditHit(st: MinigameState): void {
+  st.hits += 1;
+  if (++st.seekerProgress >= MG.SEEKER_HITS) {
+    st.seekerProgress = 0;
+    if (st.seekerStock < MG.SEEKER_MAX) {
+      st.seekerStock += 1;
+      flash(st, 'SEEKER READY  <', 1.2);
+    }
+  }
+}
+
+/** Aim angle from (x, y) at a rock, leading it by its travel time at `speed`. */
+function leadAngle(x: number, y: number, a: Asteroid, speed: number): number {
+  const lead = Math.hypot(a.x - x, a.y - y) / speed;
+  return Math.atan2(a.y + a.vy * lead - y, a.x + a.vx * lead - x);
+}
+
+/** Turn a velocity of fixed speed toward `want` by at most `maxTurn` radians. */
+function steer(v: { vx: number; vy: number }, want: number, maxTurn: number, speed: number): void {
+  const heading = Math.atan2(v.vy, v.vx);
+  const next = heading + clamp(signedAngle(want - heading), -maxTurn, maxTurn);
+  v.vx = Math.cos(next) * speed;
+  v.vy = Math.sin(next) * speed;
+}
+
+function findRock(st: MinigameState, id: number): Asteroid | null {
+  if (id < 0) return null;
+  for (const a of st.asteroids) if (a.id === id) return a;
+  return null;
+}
+
+/** Launch a seeker from the player's launcher; `<` key. Returns false when the stock is empty. */
+export function launchSeeker(st: MinigameState): boolean {
+  if (st.seekerStock <= 0) return false;
+  st.seekerStock -= 1;
+  const a = launcherAngleAt(st, 0);
+  const muzzle = MG.PLANET_R * 1.3;
+  st.seekers.push({ x: Math.cos(a) * muzzle, y: Math.sin(a) * muzzle, vx: Math.cos(a) * MG.SEEKER_SPEED, vy: Math.sin(a) * MG.SEEKER_SPEED, life: MG.SEEKER_LIFE, targetId: -1, trail: [], trailTick: 0 });
+  flash(st, 'SEEKER', 0.8);
+  emit(st, { type: 'seeker' });
+  return true;
+}
+
+/** Release a swarm of sentinels from the player's launcher; `>` key. Draws the count and slots from the Rng. */
+export function releaseSwarm(st: MinigameState): boolean {
+  if (st.swarmStock <= 0) return false;
+  st.swarmStock -= 1;
+  const base = launcherAngleAt(st, 0);
+  const muzzle = MG.PLANET_R * 1.3;
+  const n = st.rng.int(MG.SWARM_COUNT_MIN, MG.SWARM_COUNT_MAX);
+  for (let i = 0; i < n; i++) {
+    const a = base + (n === 1 ? 0 : (i / (n - 1) - 0.5) * MG.SWARM_FAN);
+    st.drones.push({
+      x: Math.cos(base) * muzzle, y: Math.sin(base) * muzzle,
+      vx: Math.cos(a) * MG.SWARM_SPEED, vy: Math.sin(a) * MG.SWARM_SPEED,
+      life: MG.SWARM_LIFE, maxLife: MG.SWARM_LIFE, cooldown: st.rng.float(0.2, 0.5), targetId: -1,
+      slot: (i / n) * Math.PI * 2,
+    });
+  }
+  flash(st, `SWARM X${n}`, 1);
+  emit(st, { type: 'swarm', count: n });
+  return true;
+}
+
+/** Closest rock to a point, non-passing rocks preferred (their distance counts as `passPenalty` longer). */
+function closestThreat(st: MinigameState, x: number, y: number, passPenalty: number): Asteroid | null {
+  let best: Asteroid | null = null;
+  let bestD = Infinity;
+  for (const a of st.asteroids) {
+    const d = Math.hypot(a.x - x, a.y - y) + (a.passing ? passPenalty : 0);
+    if (d < bestD) {
+      bestD = d;
+      best = a;
+    }
+  }
+  return best;
+}
+
+/** Area blast at (x, y): damage and an outward push on every rock within SEEKER_BLAST_R, then the kills. */
+function detonate(st: MinigameState, x: number, y: number): void {
+  const dead: number[] = [];
+  for (let j = 0; j < st.asteroids.length; j++) {
+    const a = st.asteroids[j];
+    if (!a) continue;
+    const dx = a.x - x;
+    const dy = a.y - y;
+    const d = Math.hypot(dx, dy);
+    if (d - a.r > MG.SEEKER_BLAST_R) continue;
+    a.hp -= MG.SEEKER_BLAST_DAMAGE;
+    const k = MG.SEEKER_BLAST_IMPULSE / rockMass(a);
+    const ux = d > 1e-9 ? dx / d : 1;
+    const uy = d > 1e-9 ? dy / d : 0;
+    a.vx += ux * k;
+    a.vy += uy * k;
+    emit(st, { type: 'hit', tier: a.tier });
+    if (a.hp <= 0) dead.push(j);
+  }
+  spawnParticles(st, x, y, 18, 3, 2);
+  emit(st, { type: 'blast' });
+  dead.sort((p, q) => q - p);
+  for (const j of dead) destroyAsteroid(st, j, 1, true);
+}
+
+/** Seekers: lead pursuit with a turn-rate cap, blast on contact, fizzle at end of life. */
+function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: number; y: number }): void {
+  for (let i = st.seekers.length - 1; i >= 0; i--) {
+    const s = st.seekers[i];
+    if (!s) continue;
+    s.life -= dt;
+    if (s.life <= 0) {
+      spawnParticles(st, s.x, s.y, 4, 1, -1);
+      swapRemove(st.seekers, i);
+      continue;
+    }
+    let target = findRock(st, s.targetId);
+    if (!target) {
+      target = closestThreat(st, s.x, s.y, 2.5);
+      s.targetId = target ? target.id : -1;
+    }
+    if (target) steer(s, leadAngle(s.x, s.y, target, MG.SEEKER_SPEED), MG.SEEKER_TURN * dt, MG.SEEKER_SPEED);
+    if (++s.trailTick >= 2) {
+      s.trailTick = 0;
+      s.trail.push(s.x, s.y);
+      if (s.trail.length > MG.SEEKER_TRAIL * 2) s.trail.splice(0, 2);
+    }
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    if (moonOn && Math.hypot(s.x - moon.x, s.y - moon.y) <= MG.MOON_R) {
+      swapRemove(st.seekers, i);
+      continue;
+    }
+    if (Math.hypot(s.x, s.y) > MG.FIELD_R + 1) {
+      swapRemove(st.seekers, i);
+      continue;
+    }
+    let contact = false;
+    for (const a of st.asteroids) {
+      if (Math.hypot(a.x - s.x, a.y - s.y) <= a.r + MG.SEEKER_R) {
+        contact = true;
+        break;
+      }
+    }
+    if (contact) {
+      const x = s.x;
+      const y = s.y;
+      swapRemove(st.seekers, i);
+      detonate(st, x, y);
+    }
+  }
+}
+
+/** Drones: hunt the nearest rock, hold a slot around it, keep apart, fire weak fast bullets, burn out. */
+function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: number; y: number }): void {
+  for (let i = st.drones.length - 1; i >= 0; i--) {
+    const d = st.drones[i];
+    if (!d) continue;
+    d.life -= dt;
+    if (d.life <= 0) {
+      spawnParticles(st, d.x, d.y, 3, 0.8, -1);
+      emit(st, { type: 'burnout' });
+      swapRemove(st.drones, i);
+      continue;
+    }
+    let target = findRock(st, d.targetId);
+    if (!target || Math.hypot(target.x - d.x, target.y - d.y) > MG.SWARM_RANGE * 2) {
+      target = closestThreat(st, d.x, d.y, 0);
+      d.targetId = target ? target.id : -1;
+    }
+    // Where to go: a slot around the target at SWARM_STANDOFF, or outward when there is nothing to hunt.
+    let gx: number;
+    let gy: number;
+    if (target) {
+      gx = target.x + Math.cos(d.slot) * (target.r + MG.SWARM_STANDOFF);
+      gy = target.y + Math.sin(d.slot) * (target.r + MG.SWARM_STANDOFF);
+    } else {
+      const r = Math.hypot(d.x, d.y) || 1;
+      gx = (d.x / r) * (r + 1);
+      gy = (d.y / r) * (r + 1);
+    }
+    // Separation from siblings and the planet.
+    for (const o of st.drones) {
+      if (o === d) continue;
+      const ox = d.x - o.x;
+      const oy = d.y - o.y;
+      const od = Math.hypot(ox, oy);
+      if (od < MG.SWARM_SEPARATION && od > 1e-9) {
+        gx += (ox / od) * (MG.SWARM_SEPARATION - od) * 3;
+        gy += (oy / od) * (MG.SWARM_SEPARATION - od) * 3;
+      }
+    }
+    const rr = Math.hypot(d.x, d.y);
+    if (rr < MG.SWARM_R_MIN && rr > 1e-9) {
+      gx += (d.x / rr) * (MG.SWARM_R_MIN - rr) * 4;
+      gy += (d.y / rr) * (MG.SWARM_R_MIN - rr) * 4;
+    }
+    steer(d, Math.atan2(gy - d.y, gx - d.x), MG.SWARM_TURN * dt, MG.SWARM_SPEED);
+    d.x += d.vx * dt;
+    d.y += d.vy * dt;
+    if (moonOn && Math.hypot(d.x - moon.x, d.y - moon.y) <= MG.MOON_R) {
+      swapRemove(st.drones, i);
+      continue;
+    }
+    d.cooldown -= dt;
+    if (target && d.cooldown <= 0 && Math.hypot(target.x - d.x, target.y - d.y) <= MG.SWARM_RANGE) {
+      const speed = MG.BULLET_SPEED * MG.SWARM_BULLET_SPEED;
+      pushBullet(st, d.x, d.y, leadAngle(d.x, d.y, target, speed), MG.SWARM_DAMAGE, true, speed, MG.SWARM_BULLET_LIFE);
+      d.cooldown = MG.SWARM_COOLDOWN;
+    }
+  }
 }
 
 /** Instant beam along `angle` from the muzzle to LASER_RANGE: damages and pushes every rock it crosses. */
@@ -544,7 +817,7 @@ function fireLaser(st: MinigameState, angle: number): void {
     const k = (MG.BULLET_IMPULSE * MG.LASER_IMPULSE_MULT * damage) / rockMass(a);
     a.vx += ca * k;
     a.vy += sa * k;
-    st.hits += 1;
+    creditHit(st);
     spawnParticles(st, a.x - ca * a.r, a.y - sa * a.r, 5, 2, a.tier);
     emit(st, { type: 'hit', tier: a.tier });
     if (a.hp <= 0) dead.push(j);
@@ -845,11 +1118,17 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     flash(st, 'PULSE', 0.8);
     emit(st, { type: 'pulse' });
   }
+  if (input.seeker) launchSeeker(st);
+  if (input.swarm) releaseSwarm(st);
 
   // Moon.
   const moonOn = moonAlive(st);
   if (moonActive(st.level)) st.moonAngle = wrapAngle(st.moonAngle + MG.MOON_ANGULAR_SPEED * dt);
   const moon = moonPosition(st);
+
+  // Earned weapons in flight.
+  stepSeekers(st, dt, moonOn, moon);
+  stepDrones(st, dt, moonOn, moon);
 
   // Sentries: each archetype moves, targets and fires its own way (stepTurret).
   for (let i = st.turrets.length - 1; i >= 0; i--) {
@@ -973,7 +1252,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       a.vx += b.vx * k;
       a.vy += b.vy * k;
       if (!b.auto) {
-        st.hits += 1;
+        creditHit(st);
         if (st.level >= MG.TURRET_LEVEL) {
           st.turretProgress += 1;
           if (st.turretProgress >= MG.TURRET_HITS) {
@@ -995,9 +1274,9 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
 // NOTE: a game is (seed, inputs), but mid-game resume needs the whole state: the Rng's raw state stands in for
 // the draw history, typed arrays become plain arrays, and transient queues (events, stats) are not saved.
 
-/** JSON shape of a saved game. Everything `step` reads, in plain JSON types. v2: sentry archetypes. */
+/** JSON shape of a saved game. Everything `step` reads, in plain JSON types. v2: sentry archetypes; v3: seekers and swarms. */
 export interface SavedGame {
-  v: 2;
+  v: 3;
   seed: number;
   rng: number;
   status: Status;
@@ -1030,6 +1309,12 @@ export interface SavedGame {
   pulses: number;
   pulseCharge: number;
   pulseR: number;
+  seekers: Seeker[];
+  seekerStock: number;
+  seekerProgress: number;
+  drones: Drone[];
+  swarmStock: number;
+  swarmProgress: number;
   flashes: Flash[];
   beams: Beam[];
   sinceShot: number;
@@ -1054,19 +1339,23 @@ const ASTEROID = shaped({ id: num, x: num, y: num, vx: num, vy: num, r: num, tie
 const BULLET = shaped({ x: num, y: num, vx: num, vy: num, life: num, r: num, damage: num, auto: bool });
 const PARTICLE = shaped({ x: num, y: num, vx: num, vy: num, life: num, max: num, tier: num });
 const TURRET = shaped({ kind: oneOf(...SENTRY_KINDS), angle: num, radius: num, home: num, phase: num, burst: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool });
+const SEEKER = shaped({ x: num, y: num, vx: num, vy: num, life: num, targetId: num, trail: numArr, trailTick: num });
+const DRONE = shaped({ x: num, y: num, vx: num, vy: num, life: num, maxLife: num, cooldown: num, targetId: num, slot: num });
 const FLASH = shaped({ text: str, t: num });
 const BEAM = shaped({ angle: num, t: num });
 const CRATER: Pred = (v) => numArr(v) && (v as number[]).length === 3;
 const CHEATS = shaped({ god: bool, launchers: opt(num), streams: opt(num), timeScale: num, assisted: bool, noHeat: bool });
 const SAVED = shaped({
-  v: oneOf(2), seed: num, rng: num, status: oneOf('ready', 'playing', 'over'),
+  v: oneOf(3), seed: num, rng: num, status: oneOf('ready', 'playing', 'over'),
   t: num, level: num, hp: num, score: num, kills: num, hits: num, shots: num,
   continents: arrOf(numArr),
   launcherAngle: num, launcherCount: num, streamCount: num, fireCooldown: num,
   heat: num, overheated: bool, spawnTimer: num, pressure: num, sinceHit: num, nextId: num,
   asteroids: arrOf(ASTEROID), bullets: arrOf(BULLET), particles: arrOf(PARTICLE), turrets: arrOf(TURRET),
   turretProgress: num, moonAngle: num, moonHp: num, craters: arrOf(CRATER),
-  pulses: num, pulseCharge: num, pulseR: num, flashes: arrOf(FLASH), beams: arrOf(BEAM),
+  pulses: num, pulseCharge: num, pulseR: num,
+  seekers: arrOf(SEEKER), seekerStock: num, seekerProgress: num, drones: arrOf(DRONE), swarmStock: num, swarmProgress: num,
+  flashes: arrOf(FLASH), beams: arrOf(BEAM),
   sinceShot: num, shake: num, secAccum: num, cheats: CHEATS, collision: oneOf('auto', 'naive', 'grid'),
 });
 
@@ -1075,7 +1364,7 @@ export const isSavedGame = (v: unknown): v is SavedGame => SAVED(v);
 
 export function toSaved(st: MinigameState): SavedGame {
   return {
-    v: 2,
+    v: 3,
     seed: st.seed,
     rng: st.rng.getState(),
     status: st.status,
@@ -1108,6 +1397,12 @@ export function toSaved(st: MinigameState): SavedGame {
     pulses: st.pulses,
     pulseCharge: st.pulseCharge,
     pulseR: st.pulseR,
+    seekers: st.seekers.map((s) => ({ ...s, trail: [...s.trail] })),
+    seekerStock: st.seekerStock,
+    seekerProgress: st.seekerProgress,
+    drones: st.drones.map((d) => ({ ...d })),
+    swarmStock: st.swarmStock,
+    swarmProgress: st.swarmProgress,
     flashes: st.flashes.map((f) => ({ ...f })),
     beams: st.beams.map((b) => ({ ...b })),
     sinceShot: st.sinceShot,
@@ -1153,6 +1448,12 @@ export function fromSaved(s: SavedGame): MinigameState {
     pulses: s.pulses,
     pulseCharge: s.pulseCharge,
     pulseR: s.pulseR,
+    seekers: s.seekers.map((k) => ({ ...k, trail: [...k.trail] })),
+    seekerStock: s.seekerStock,
+    seekerProgress: s.seekerProgress,
+    drones: s.drones.map((d) => ({ ...d })),
+    swarmStock: s.swarmStock,
+    swarmProgress: s.swarmProgress,
     flashes: s.flashes.map((f) => ({ ...f })),
     beams: s.beams.map((b) => ({ ...b })),
     events: [],
@@ -1193,6 +1494,9 @@ export function snapshot(st: MinigameState): string {
     a: st.asteroids.map((a) => [a.id, a.x, a.y, a.vx, a.vy, a.hp, a.tier]),
     b: st.bullets.length,
     tr: st.turrets.map((t) => [t.kind, t.angle, t.radius, t.life, t.targetId]),
+    sk: st.seekers.map((s) => [s.x, s.y, s.vx, s.vy, s.targetId]),
+    dr: st.drones.map((d) => [d.x, d.y, d.vx, d.vy, d.targetId, d.cooldown]),
+    stock: [st.pulses, st.seekerStock, st.seekerProgress, st.swarmStock, st.swarmProgress],
     p: st.pulses,
     status: st.status,
   });

@@ -163,6 +163,44 @@ export const MG = {
   PULSE_SPEED: 9,
   PULSE_SCORE_MULT: 0.5,
 
+  /** Seeker missiles (`<`): earned every SEEKER_HITS direct hits, stock capped at SEEKER_MAX. Launched from
+   *  the player's launcher at SEEKER_SPEED, a seeker turns toward the closest threatening rock (lead pursuit,
+   *  turn rate capped at SEEKER_TURN rad/s), detonates on contact with a blast of radius SEEKER_BLAST_R that
+   *  deals SEEKER_BLAST_DAMAGE and pushes rocks outward (SEEKER_BLAST_IMPULSE / mass), or fizzles after
+   *  SEEKER_LIFE seconds. */
+  SEEKER_HITS: 35,
+  SEEKER_MAX: 3,
+  SEEKER_SPEED: 4.2,
+  SEEKER_TURN: 4.5,
+  SEEKER_LIFE: 4.5,
+  SEEKER_R: 0.06,
+  SEEKER_BLAST_R: 0.9,
+  SEEKER_BLAST_DAMAGE: 4,
+  SEEKER_BLAST_IMPULSE: 1.4,
+  SEEKER_TRAIL: 6,
+
+  /** Swarm of sentinels (`>`): earned every SWARM_KILLS kills, stock capped at SWARM_MAX. Releases
+   *  SWARM_COUNT_MIN..MAX drones from the player's launcher fanned over SWARM_FAN rad; each hunts the nearest
+   *  rock at SWARM_SPEED (turn rate SWARM_TURN), orbits it at SWARM_STANDOFF, keeps SWARM_SEPARATION from its
+   *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
+   *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. */
+  SWARM_KILLS: 22,
+  SWARM_MAX: 2,
+  SWARM_COUNT_MIN: 5,
+  SWARM_COUNT_MAX: 8,
+  SWARM_FAN: 2.0,
+  SWARM_SPEED: 2.4,
+  SWARM_TURN: 6,
+  SWARM_STANDOFF: 0.7,
+  SWARM_SEPARATION: 0.3,
+  SWARM_RANGE: 2.2,
+  SWARM_COOLDOWN: 0.2,
+  SWARM_BULLET_SPEED: 1.3,
+  SWARM_BULLET_LIFE: 0.6,
+  SWARM_DAMAGE: 1,
+  SWARM_LIFE: 10,
+  SWARM_R_MIN: 1.35,
+
   /** Score: per planet-radius destroyed times tier multiplier, plus one per second survived. */
   SCORE_PER_R: 100,
   SCORE_PER_SEC: 1,

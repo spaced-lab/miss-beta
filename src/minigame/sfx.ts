@@ -125,6 +125,30 @@ export class SfxPlayer {
         case 'pulse':
           this.synth.sweep({ wave: 'sawtooth', freq: 55, freqEnd: 440, cutoff: 300, cutoffEnd: 6000, q: 10, dur: 0.6, gain: 0.25 });
           break;
+        case 'seeker':
+          // Soft bass whoosh: a low triangle sliding down under a closing filter, with the sub beneath.
+          this.synth.sweep({ wave: 'triangle', freq: 150, freqEnd: 48, cutoff: 900, cutoffEnd: 120, q: 2, dur: 0.35, gain: 0.2 });
+          this.synth.bass(48, 0.2, 0.18, 0.9, 1.8);
+          break;
+        case 'blast':
+          // Area blast: a thud with a longer crunch than a breakup.
+          this.synth.thud(60, 0.4, 0.4);
+          this.synth.crunch({ rate: 3000, bits: 3, dur: 0.22, cutoff: 1200, gain: 0.18, pitch: 0.8 });
+          break;
+        case 'swarm': {
+          // A cluster of tiny blips, one per drone, scattered over a fifth of a second and rising.
+          for (let i = 0; i < e.count; i++) {
+            this.synth.tick({ wave: 'triangle', freq: 1800 + i * 160 + Math.random() * 120, dur: 0.012, gain: 0.035, delay: i * 0.028 + Math.random() * 0.01 });
+          }
+          this.synth.bass(58, 0.06, 0.1, 0.6, 1.5);
+          break;
+        }
+        case 'burnout':
+          if (now - this.lastTick > 0.03) {
+            this.lastTick = now;
+            this.synth.tick({ wave: 'sine', freq: 700, dur: 0.03, gain: 0.03 });
+          }
+          break;
         case 'levelup':
           this.synth.lfoTone({ base: 660, spread: 1.2, stepDur: 0.035, dur: 0.4, wave: 'square', gain: 0.1 });
           break;

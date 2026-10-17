@@ -238,6 +238,44 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   // Bullets: sentry shots are single pixels; player shots size by damage, colour by damage.
   for (const b of st.bullets) s.dot(X(b.x), Y(b.y), b.auto ? PX.autoBullet : PX.bullet + b.damage * PX.bulletStep, bulletColor(s, b.damage, stage));
 
+  // Seekers: a small dart along the velocity with a short fading exhaust trail.
+  for (const sk of st.seekers) {
+    const sc = stage >= 2 ? NEON.bullet[2] : p.hot;
+    if (sk.trail.length >= 4) {
+      scratch.length = 0;
+      for (let i = 0; i < sk.trail.length; i += 2) scratch.push(X(sk.trail[i] as number), Y(sk.trail[i + 1] as number));
+      scratch.push(X(sk.x), Y(sk.y));
+      s.stroke(scratch, { color: sc, width: PX.sentryDetail, glow: 0.4, alpha: 0.45 });
+    }
+    const facing = Math.atan2(-sk.vy, sk.vx);
+    const dx = X(sk.x);
+    const dy = Y(sk.y);
+    scratch.length = 0;
+    pt(dx, dy, 5, 0, facing);
+    pt(dx, dy, -3, -2, facing);
+    pt(dx, dy, -1.5, 0, facing);
+    pt(dx, dy, -3, 2, facing);
+    s.stroke(scratch, { closed: true, color: sc, width: PX.sentryW, glow: 1.4 });
+    s.dot(dx - Math.cos(facing) * 4, dy - Math.sin(facing) * 4, 1, p.hot, 0.6 + 0.4 * Math.abs(Math.sin(st.t * 60)));
+  }
+
+  // Sentinel drones: a tiny three-fin mark along the velocity, blinking in the last second.
+  for (const d of st.drones) {
+    const dc = stage >= 3 ? NEON.turret[0] : p.ink;
+    const blink = d.life < 1 ? 0.3 + 0.7 * Math.abs(Math.sin(d.life * 20)) : 1;
+    const facing = Math.atan2(-d.vy, d.vx);
+    const dx = X(d.x);
+    const dy = Y(d.y);
+    scratch.length = 0;
+    pt(dx, dy, 3, 0, facing);
+    pt(dx, dy, 0, 0, facing);
+    pt(dx, dy, -2.2, -2.2, facing);
+    pt(dx, dy, 0, 0, facing);
+    pt(dx, dy, -2.2, 2.2, facing);
+    s.stroke(scratch, { color: dc, width: PX.sentryDetail, glow: 0.8, alpha: blink });
+    s.dot(dx, dy, 1, dc, blink);
+  }
+
   // Asteroids: jagged polygons; width by tier, double outline for cores.
   for (const a of st.asteroids) {
     const n = a.shape.length;
@@ -289,6 +327,23 @@ function bar(s: Surface, x: number, y: number, w: number, h: number, frac: numbe
   if (f > 0) s.stroke([x + 3, y + h / 2, x + 3 + (w - 6) * f, y + h / 2], { color, width: h - 6, glow });
 }
 
+/** An earned-weapon row: label, `max` stock diamonds (lit up to `have`), and a 0..1 charge bar after them. */
+function stockRow(s: Surface, bx: number, by: number, bw: number, bh: number, fs: number, label: string, have: number, max: number, charge: number, color: string): void {
+  const p = s.palette;
+  drawText(s, label, bx, by - fs - 6, fs);
+  for (let i = 0; i < max; i++) {
+    const dx = bx + 10 + i * 22;
+    const dy = by + bh / 2;
+    const r = 6;
+    const lit = i < have;
+    s.stroke([dx, dy - r, dx + r, dy, dx, dy + r, dx - r, dy], { closed: true, color: lit ? color : p.dim, glow: lit ? 1.5 : 0 });
+  }
+  const cbx = bx + 10 + max * 22 + 6;
+  const cbw = bw - (cbx - bx);
+  s.stroke([cbx, by + bh / 2, cbx + cbw, by + bh / 2], { color: p.dim, glow: 0 });
+  if (charge > 0) s.stroke([cbx, by + bh / 2, cbx + cbw * Math.min(1, charge), by + bh / 2], { width: 4, glow: 0.8 });
+}
+
 function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number): void {
   const p = s.palette;
   const W = s.width;
@@ -318,19 +373,13 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     drawText(s, armed ? 'LASER READY' : 'LASER', bx + bw, by - fs - 6, 11, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
   }
 
+  // Earned weapons: stock diamonds plus a charge bar, one row each.
   by += bh + 28;
-  drawText(s, 'PULSE', bx, by - fs - 6, fs);
-  for (let i = 0; i < MG.PULSE_MAX; i++) {
-    const dx = bx + 10 + i * 22;
-    const dy = by + bh / 2;
-    const r = 6;
-    const have = i < st.pulses;
-    s.stroke([dx, dy - r, dx + r, dy, dx, dy + r, dx - r, dy], { closed: true, color: have ? p.hot : p.dim, glow: have ? 1.5 : 0 });
-  }
-  const cbx = bx + 10 + MG.PULSE_MAX * 22 + 6;
-  const cbw = bw - (cbx - bx);
-  s.stroke([cbx, by + bh / 2, cbx + cbw, by + bh / 2], { color: p.dim, glow: 0 });
-  if (st.pulseCharge > 0) s.stroke([cbx, by + bh / 2, cbx + cbw * Math.min(1, st.pulseCharge), by + bh / 2], { width: 4, glow: 0.8 });
+  stockRow(s, bx, by, bw, bh, fs, 'PULSE', st.pulses, MG.PULSE_MAX, st.pulseCharge, p.hot);
+  by += bh + 28;
+  stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, MG.SEEKER_MAX, st.seekerProgress / MG.SEEKER_HITS, stage >= 2 ? NEON.bullet[2] : p.hot);
+  by += bh + 28;
+  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, MG.SWARM_MAX, st.swarmProgress / MG.SWARM_KILLS, stage >= 3 ? NEON.turret[0] : p.hot);
 
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {
@@ -364,7 +413,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     const acc = st.shots > 0 ? ((st.hits / Math.max(1, st.shots * st.launcherCount * st.streamCount)) * 100).toFixed(0) : '0';
     const lines = [
       `FRAME ${opts.frameMs.toFixed(2)} MS`,
-      `AST ${st.asteroids.length}  BUL ${st.bullets.length}  PRT ${st.particles.length}  TUR ${st.turrets.length}`,
+      `AST ${st.asteroids.length}  BUL ${st.bullets.length}  PRT ${st.particles.length}  TUR ${st.turrets.length}  SKR ${st.seekers.length}  DRN ${st.drones.length}`,
       `PRESSURE ${st.pressure.toFixed(2)}  HITS ${st.hits}  ACC ${acc}%`,
       `COLLISION ${st.collision.toUpperCase()}  CHECKS ${st.stats.collisionChecksLastStep}`,
       `GLOW ${s.glowMode.toUpperCase()}  DPR ${s.dpr}  STAGE ${stage}`,

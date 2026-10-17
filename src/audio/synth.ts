@@ -17,6 +17,8 @@ export interface TickOpts {
   dur?: number;
   wave?: OscillatorType;
   gain?: number;
+  /** Seconds from now to start; lets a caller schedule a cluster of blips in one go. */
+  delay?: number;
 }
 
 export interface SweepOpts {
@@ -114,7 +116,7 @@ export class Synth {
     const io = this.out();
     if (!io) return;
     const { ctx, master } = io;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + (o.delay ?? 0);
     const dur = o.dur ?? 0.018;
     const osc = ctx.createOscillator();
     osc.type = o.wave ?? 'square';
