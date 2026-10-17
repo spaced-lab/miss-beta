@@ -131,13 +131,13 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const py = by + bh + 14;
   drawText(s, 'PULSE', bx, py, fs);
   for (let i = 0; i < MG.PULSE_MAX; i++) {
-    const dx = bx + 62 + i * 22;
+    const dx = bx + 80 + i * 22;
     const dy = py + fs / 2;
     const r = 6;
     const have = i < st.pulses;
     s.stroke([dx, dy - r, dx + r, dy, dx, dy + r, dx - r, dy], { closed: true, color: have ? p.hot : p.dim, glow: have ? 1.5 : 0 });
   }
-  const cbx = bx + 62 + MG.PULSE_MAX * 22;
+  const cbx = bx + 80 + MG.PULSE_MAX * 22;
   const cbw = bw - (cbx - bx);
   s.stroke([cbx, py + fs / 2, cbx + cbw, py + fs / 2], { color: p.dim, glow: 0 });
   if (st.pulseCharge > 0) s.stroke([cbx, py + fs / 2, cbx + cbw * Math.min(1, st.pulseCharge), py + fs / 2], { width: 4, glow: 0.8 });
@@ -189,18 +189,19 @@ function drawReady(s: Surface, st: MinigameState): void {
   const cx = s.width / 2;
   drawText(s, 'PERIMETER', cx, y + 28, 34, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, 'BETA ARCADE MODE', cx, y + 76, 13, { align: 'center', color: s.palette.dim, glow: 0 });
-  const lines = [
-    'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.',
-    'LEFT / RIGHT  OR  A / D   MOVE THE LAUNCHER',
-    'SPACE                      FIRE',
-    'ENTER OR SHIFT             PULSE (CLEARS THE FIELD)',
-    'LAUNCHERS AND STREAMS MULTIPLY AS TIME GOES ON.',
+  drawText(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + 104, 12, { align: 'center' });
+  const rows: Array<[string, string]> = [
+    ['LEFT / RIGHT  OR  A / D', 'MOVE THE LAUNCHER'],
+    ['SPACE', 'FIRE'],
+    ['ENTER OR SHIFT', 'PULSE (CLEARS THE FIELD)'],
   ];
-  let ly = y + 110;
-  for (const l of lines) {
-    drawText(s, l, cx, ly, 12, { align: 'center' });
+  let ly = y + 132;
+  for (const [key, what] of rows) {
+    drawText(s, key, cx - 230, ly, 12, { color: s.palette.hot, glow: 1 });
+    drawText(s, what, cx + 10, ly, 12);
     ly += 22;
   }
+  drawText(s, 'LAUNCHERS AND STREAMS MULTIPLY AS TIME GOES ON.', cx, ly + 4, 12, { align: 'center' });
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
   if (blink) drawText(s, 'PRESS SPACE TO START', cx, y + 240, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   drawText(s, `ESC TITLE    B DEBUG    G GLOW    C COLLISION    SEED ${st.seed}`, cx, y + 272, 10, { align: 'center', color: s.palette.dim, glow: 0 });
