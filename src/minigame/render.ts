@@ -447,7 +447,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
     ['<SHIFT>', 'PULSE  (CLEARS THE FIELD, EARNED PER 14 KILLS)'],
     ['<  (COMMA)', 'SEEKER MISSILE  (HOMES AND BLASTS, PER 35 HITS)'],
-    ['>  (PERIOD)', 'SWARM OF SENTINELS  (5-8 DRONES, PER 22 KILLS)'],
+    ['>  (PERIOD)', 'SWARM OF SENTINELS  (5-8 DRONES, MORE EACH LEVEL, PER 22 KILLS)'],
   ];
   let ly = y + 128;
   for (const [key, what] of rows) {

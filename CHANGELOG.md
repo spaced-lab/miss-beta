@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER swarm growth and moon avoidance: a release fields more drones per level (`SWARM_GROWTH_PER_LEVEL`,
+  capped by `SWARM_COUNT_CAP` 16) with a longer burn (`SWARM_LIFE_PER_LEVEL`, `SWARM_LIFE_MAX`); drones and
+  seekers keep out of the moon's zone (`SWARM_MOON_MARGIN`, `SEEKER_MOON_MARGIN`) and prefer rocks the moon
+  is not about to take (`MOON_AVOID_PENALTY`).
+
 - PERIMETER resume keys: with a save on the ready panel, <SPACE> (or R) RESUMES and only <BACKSPACE> starts a
   NEW GAME, so a hand still on the fire key after a reload cannot wipe a run; screen-level test in node.
 

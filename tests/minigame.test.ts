@@ -9,7 +9,7 @@ import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, densestSector, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, densestSector, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmLife, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -416,6 +416,62 @@ describe('swarm of sentinels', () => {
     for (let i = 0; i < (MG.SWARM_LIFE - 3 + 0.2) / MG.DT; i++) step(st, NO_INPUT, MG.DT);
     expect(st.drones.length).toBe(0);
     expect(st.events.filter((e) => e.type === 'burnout').length).toBe(n);
+  });
+  it('drone count and life grow with level and are capped', () => {
+    expect(swarmCountRange(1)).toEqual({ min: MG.SWARM_COUNT_MIN, max: MG.SWARM_COUNT_MAX });
+    const mid = swarmCountRange(9);
+    expect(mid.min).toBeGreaterThan(MG.SWARM_COUNT_MIN);
+    expect(mid.max).toBeGreaterThan(MG.SWARM_COUNT_MAX);
+    expect(mid.max).toBeLessThanOrEqual(MG.SWARM_COUNT_CAP);
+    expect(swarmCountRange(60)).toEqual({ min: MG.SWARM_COUNT_CAP, max: MG.SWARM_COUNT_CAP });
+    expect(swarmLife(1)).toBe(MG.SWARM_LIFE);
+    expect(swarmLife(9)).toBeGreaterThan(MG.SWARM_LIFE);
+    expect(swarmLife(60)).toBe(MG.SWARM_LIFE_MAX);
+    // A release deep in the game fields the cap, every drone with the long life.
+    const st = createState(115);
+    start(st);
+    lane(st);
+    st.t = 59 * MG.LEVEL_SECONDS + 1;
+    step(st, NO_INPUT, MG.DT);
+    expect(st.level).toBe(60);
+    st.swarmStock = 1;
+    step(st, { ...NO_INPUT, swarm: true }, MG.DT);
+    expect(st.drones.length).toBe(MG.SWARM_COUNT_CAP);
+    for (const d of st.drones) expect(d.maxLife).toBe(MG.SWARM_LIFE_MAX);
+  });
+  it('drones released at the moon stay outside MOON_R + SWARM_MOON_MARGIN and keep hunting', () => {
+    const st = createState(116);
+    start(st);
+    lane(st);
+    st.t = (MG.MOON_LEVEL - 1) * MG.LEVEL_SECONDS + 1;
+    step(st, NO_INPUT, MG.DT);
+    expect(moonAlive(st)).toBe(true);
+    // Moon straight ahead of the launcher, a hard rock just behind it: the direct path runs through the moon.
+    st.moonAngle = 0;
+    st.launcherAngle = 0;
+    const m = moonPosition(st);
+    const wall = rock(st, m.x + MG.MOON_R + 0.9, 0, 0, 0, 0.4, 3);
+    wall.hp = wall.maxHp = 1e9;
+    st.swarmStock = 1;
+    step(st, { ...NO_INPUT, swarm: true }, MG.DT);
+    const n = st.drones.length;
+    expect(n).toBeGreaterThan(0);
+    const zone = MG.MOON_R + MG.SWARM_MOON_MARGIN;
+    let shots = 0;
+    for (let i = 0; i < 6 / MG.DT; i++) {
+      wall.x = m.x + MG.MOON_R + 0.9; // hold the rock still behind the moon's starting point
+      wall.y = 0;
+      wall.vx = wall.vy = 0;
+      const before = st.bullets.length;
+      step(st, NO_INPUT, MG.DT);
+      shots += Math.max(0, st.bullets.length - before);
+      st.events.length = 0;
+      const moon = moonPosition(st);
+      expect(st.drones.length, `step ${i}: no drone lost to the moon`).toBe(n);
+      for (const d of st.drones) expect(Math.hypot(d.x - moon.x, d.y - moon.y), `step ${i}`).toBeGreaterThanOrEqual(zone - 1e-6);
+    }
+    expect(shots).toBeGreaterThan(n * 3);
+    expect(st.moonHp).toBe(MG.MOON_HP);
   });
   it('seekers and drones in flight survive a save and resume', () => {
     const st = createState(113);
