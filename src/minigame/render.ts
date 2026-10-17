@@ -400,7 +400,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
   if (st.status === 'playing') drawText(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
   drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
-  if (st.cheats.assisted) drawText(s, 'ASSISTED', W / 2, bottom, fs, { align: 'center', color: p.dim, glow: 0 });
+  if (st.cheats.assisted) drawText(s, 'ASSISTED', m, m + fs * 5.1, 11, { color: p.dim, glow: 0 });
 
   let fy = s.height / 2 - MG.PLANET_R * (Math.min(W, H) / 2 / MG.VIEW_R) - 70;
   for (const f of st.flashes) {
