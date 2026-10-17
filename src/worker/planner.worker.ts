@@ -1,0 +1,65 @@
+// WHAT: The planner worker: porkchop grids (and, from M3, Monte Carlo and discovery searches) off the UI thread.
+// WHY:  GAME_PLAN 14: "The worker receives plain JSON (world snapshot + missions) and returns plain JSON."
+//       A 110 x 110 Lambert grid takes tens of milliseconds to a second; the screen must not stall.
+// HOW:  One message type per job with an incrementing id. Typed arrays are transferred, not copied.
+//       The request shape is validated before use (it crosses a trust boundary in principle).
+// LORE: C1 (how the game is built)
+
+import { launcherTier } from '../physics/estimates';
+import { computePorkchop, type PorkchopGrid } from '../planner/porkchop';
+import type { Elements } from '../physics/kepler';
+
+export interface PorkchopJob {
+  id: number;
+  type: 'porkchop';
+  home: Elements;
+  threat: Elements;
+  muSun: number;
+  tMin: number;
+  tImpact: number;
+  tier: number;
+}
+
+export type WorkerJob = PorkchopJob;
+
+export interface PorkchopReply {
+  id: number;
+  type: 'porkchop';
+  grid: PorkchopGrid;
+}
+
+export type WorkerReply = PorkchopReply | { id: number; type: 'error'; message: string };
+
+function isElements(v: unknown): v is Elements {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return ['a', 'e', 'w', 'M0', 't0'].every((k) => typeof o[k] === 'number' && Number.isFinite(o[k]));
+}
+
+function isPorkchopJob(v: unknown): v is PorkchopJob {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return o['type'] === 'porkchop' && Number.isInteger(o['id']) && isElements(o['home']) && isElements(o['threat']) &&
+    typeof o['muSun'] === 'number' && typeof o['tMin'] === 'number' && typeof o['tImpact'] === 'number' && Number.isInteger(o['tier']);
+}
+
+/** Runs a job synchronously; exported so the main thread can fall back to it when Workers are unavailable. */
+export function runJob(job: WorkerJob): WorkerReply {
+  if (!isPorkchopJob(job)) return { id: (job as { id?: number }).id ?? -1, type: 'error', message: 'bad porkchop job' };
+  const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier) });
+  return { id: job.id, type: 'porkchop', grid };
+}
+
+// Worker entry (ignored when this module is imported on the main thread for the fallback).
+const scope = globalThis as unknown as { onmessage?: ((e: MessageEvent) => void) | null; postMessage?: (m: unknown, t?: Transferable[]) => void; document?: unknown };
+if (typeof scope.document === 'undefined' && typeof scope.postMessage === 'function') {
+  scope.onmessage = (e: MessageEvent): void => {
+    const reply = runJob(e.data as WorkerJob);
+    if (reply.type === 'porkchop') {
+      const g = reply.grid;
+      scope.postMessage?.(reply, [g.c3.buffer, g.payload.buffer, g.U.buffer, g.v1x.buffer, g.v1y.buffer, g.v2x.buffer, g.v2y.buffer, g.rx.buffer, g.ry.buffer]);
+    } else {
+      scope.postMessage?.(reply);
+    }
+  };
+}
