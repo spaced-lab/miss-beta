@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "play": "vite build && vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "MISS_BENCH=1 vitest run",

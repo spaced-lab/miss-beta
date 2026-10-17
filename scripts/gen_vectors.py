@@ -20,6 +20,10 @@ sys.path.insert(0, ROOT)
 
 from pymiss.physics.close_approach import b_crit, close_approach, impact_energy  # noqa: E402
 from pymiss.physics.constants import AU, DAY, MU_HOME, MU_SUN, R_HOME, YEAR  # noqa: E402
+from pymiss.physics.estimates import LAUNCHERS, miss_from_impulse, miss_from_push, payload_for_c3  # noqa: E402
+from pymiss.physics.kinetic import kinetic_impact  # noqa: E402
+from pymiss.physics.lambert import lambert  # noqa: E402
+from pymiss.physics.stumpff import stumpff_c, stumpff_s  # noqa: E402
 from pymiss.physics.elements import OrbitError, state_to_elements  # noqa: E402
 from pymiss.physics.kepler import Elements, propagate, solve_kepler  # noqa: E402
 from pymiss.sim.rng import Rng, hash_seed  # noqa: E402
@@ -89,7 +93,39 @@ def close_approach_vectors() -> dict:
     return {"closeApproach": cases, "bCrit": bc, "energy": en}
 
 
+def lambert_vectors() -> dict:
+    rng = Rng(hash_seed("vectors:lambert"))
+    st = [{"z": z, "S": stumpff_s(z), "C": stumpff_c(z)} for z in (-30.0, -2.5, -1e-7, 0.0, 1e-7, 0.5, 4.0, 20.0, 38.0)]
+    cases = []
+    tries = 0
+    while len(cases) < 30 and tries < 400:
+        tries += 1
+        r1 = rng.float(0.7, 1.5) * AU
+        t1 = rng.float(0, 2 * math.pi)
+        r2 = rng.float(0.5, 5.5) * AU
+        t2 = t1 + rng.float(0.1, 2 * math.pi - 0.1)
+        dt = rng.float(30, 900) * DAY
+        res = lambert(r1 * math.cos(t1), r1 * math.sin(t1), r2 * math.cos(t2), r2 * math.sin(t2), dt, MU_SUN)
+        if res is None:
+            continue
+        cases.append({"r1x": r1 * math.cos(t1), "r1y": r1 * math.sin(t1), "r2x": r2 * math.cos(t2), "r2y": r2 * math.sin(t2), "dt": dt, "mu": MU_SUN,
+                      "v1x": res.v1x, "v1y": res.v1y, "v2x": res.v2x, "v2y": res.v2y, "z": res.z, "dtheta": res.dtheta})
+    kin = []
+    for _ in range(10):
+        m = rng.float(300, 20000)
+        M = rng.float(1e8, 1e12)
+        vix, viy, vtx, vty = rng.float(-4e4, 4e4), rng.float(-4e4, 4e4), rng.float(-3e4, 3e4), rng.float(-3e4, 3e4)
+        beta = rng.float(1, 5)
+        dvx, dvy, U, Q = kinetic_impact(m, M, vix, viy, vtx, vty, beta)
+        kin.append({"m": m, "M": M, "vix": vix, "viy": viy, "vtx": vtx, "vty": vty, "beta": beta, "dvx": dvx, "dvy": dvy, "U": U, "Q": Q})
+    est = {"impulse": [{"dv": dv, "T": T, "miss": miss_from_impulse(dv, T)} for dv, T in ((0.01, 10 * YEAR), (0.0019, 6 * YEAR), (1.0, DAY))],
+           "push": [{"a": a, "tau": tau, "tRem": tr, "miss": miss_from_push(a, tau, tr)} for a, tau, tr in ((1e-9, YEAR, 2 * YEAR), (5e-10, 0.5 * YEAR, 0.0))],
+           "payload": [{"tier": t["tier"], "c3": c3, "kg": payload_for_c3(t, c3)} for t in LAUNCHERS for c3 in (0, 10, 25, 55, 85, 120, 200)]}
+    return {"stumpff": st, "lambert": cases, "kinetic": kin, "estimates": est}
+
+
 if __name__ == "__main__":
     write("kepler.json", kepler_vectors())
     write("closeApproach.json", close_approach_vectors())
+    write("lambert.json", lambert_vectors())
     write("rng.json", rng_vectors())

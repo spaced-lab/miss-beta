@@ -1,0 +1,8 @@
+{
+  "_comment": "GAME_PLAN 6.6 launcher capability: payload kg vs C3 km^2/s^2 per tier. Interpolate linearly in log(mass) between points; zero beyond the last point.",
+  "tiers": [
+    { "tier": 1, "name": "BASIC",      "cost": 2,  "points": [[0, 4000],  [20, 2000],  [40, 900],   [60, 300],  [80, 0]] },
+    { "tier": 2, "name": "HEAVY",      "cost": 5,  "points": [[0, 16000], [20, 9000],  [40, 4500],  [60, 2000], [90, 700],  [110, 0]] },
+    { "tier": 3, "name": "SUPERHEAVY", "cost": 12, "points": [[0, 50000], [20, 30000], [40, 17000], [60, 9000], [90, 4000], [130, 1000]] }
+  ]
+}
