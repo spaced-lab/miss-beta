@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { CheatRegistry } from '../src/game/cheats';
 import { MINIGAME_CHEATS } from '../src/minigame/cheats';
 import { findHitsGrid, findHitsNaive, type Circle } from '../src/minigame/collision';
-import { MG } from '../src/minigame/config';
+import { byLevel, MG } from '../src/minigame/config';
 import { generateContinents } from '../src/minigame/planet';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, deployTurret, laserArmed, laserStage, moonAlive, rockMass, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, toSaved, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
+import { wrapAngle } from '../src/util/vec';
 
 const FIRE: Input = { left: false, right: false, fire: true, pulse: false };
 
@@ -162,7 +163,7 @@ describe('adaptive pressure', () => {
     st.asteroids.length = 0;
     st.spawnTimer = 1e9; // no spawns
     for (let i = 0; i < 20 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
-    expect(st.pressure).toBeGreaterThan(1);
+    expect(st.pressure).toBeGreaterThan(MG.PRESSURE_START);
     const before = st.pressure;
     rock(st, 1.2, 0, -2, 0); // about to hit the planet
     for (let i = 0; i < 0.5 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
@@ -504,5 +505,84 @@ describe('continents v2', () => {
       expect(c.length / 2).toBeGreaterThanOrEqual(8);
       for (let i = 0; i < c.length; i += 2) expect(Math.hypot(c[i] as number, c[i + 1] as number)).toBeLessThanOrEqual(0.9 + 1e-9);
     }
+  });
+});
+
+describe('save and resume', () => {
+  const TURN_FIRE: Input = { left: true, right: false, fire: true, pulse: false };
+  it('serialize / deserialize round-trips: both copies step identically for 10 s', () => {
+    const live = run(2026, 40, TURN_FIRE);
+    expect(live.status).toBe('playing');
+    expect(live.asteroids.length).toBeGreaterThan(0);
+    const json = serialize(live);
+    expect(isSavedGame(JSON.parse(json))).toBe(true);
+    const copy = deserialize(json);
+    if (!copy) throw new Error('deserialize returned null');
+    expect(snapshot(copy)).toBe(snapshot(live));
+    expect(copy.continents.map((c) => Array.from(c))).toEqual(live.continents.map((c) => Array.from(c)));
+    expect(copy.asteroids.map((a) => Array.from(a.shape))).toEqual(live.asteroids.map((a) => Array.from(a.shape)));
+    for (let i = 0; i < 10 / MG.DT; i++) {
+      const input = i % 240 < 120 ? TURN_FIRE : FIRE;
+      step(live, input, MG.DT);
+      step(copy, input, MG.DT);
+    }
+    expect(snapshot(copy)).toBe(snapshot(live));
+    expect(copy.particles.length).toBe(live.particles.length);
+    expect(copy.rng.getState()).toBe(live.rng.getState());
+  });
+  it('rejects anything that is not a valid save', () => {
+    expect(deserialize('not json')).toBeNull();
+    expect(deserialize('{"v":1}')).toBeNull();
+    expect(deserialize('[]')).toBeNull();
+    const good = toSaved(run(3, 5, FIRE));
+    expect(isSavedGame(good)).toBe(true);
+    expect(isSavedGame({ ...good, hp: '100' })).toBe(false);
+    expect(isSavedGame({ ...good, v: 2 })).toBe(false);
+    expect(isSavedGame({ ...good, collision: 'fast' })).toBe(false);
+    expect(isSavedGame({ ...good, asteroids: [{ x: 1 }] })).toBe(false);
+    expect(isSavedGame({ ...good, rng: Number.NaN })).toBe(false);
+    expect(isSavedGame({ ...good, cheats: { ...good.cheats, launchers: 'eight' } })).toBe(false);
+    // Optional cheat fields may be absent.
+    const { launchers: _l, streams: _s, ...rest } = good.cheats;
+    expect(isSavedGame({ ...good, cheats: rest })).toBe(true);
+  });
+});
+
+describe('balance probe', () => {
+  // A scripted player: fires continuously and turns toward the rock nearest the planet that is not passing.
+  // It is deliberately naive (overheats, no lead, never pulses), so it is a floor under a careful human.
+  function scripted(st: MinigameState): Input {
+    let best: Asteroid | null = null;
+    let bestD = Infinity;
+    for (const a of st.asteroids) {
+      if (a.passing) continue;
+      const d = Math.hypot(a.x, a.y);
+      if (d < bestD) {
+        bestD = d;
+        best = a;
+      }
+    }
+    if (!best) return FIRE;
+    const diff = wrapAngle(Math.atan2(best.y, best.x) - st.launcherAngle);
+    return { left: diff > 0.02, right: diff < -0.02, fire: true, pulse: false };
+  }
+  it('a naive scripted player survives the opening but is losing hull by 150 s (god off)', () => {
+    // Guard rail for tuning: if the opening gets harder the first assertion fails; if the ramp gets softer
+    // the second does. Measured 2026-10-17: seeds 1..4 lose at 149.6, 80.4, 105.9 and 132.1 s.
+    for (const seed of [1, 2, 3, 4]) {
+      const st = createState(seed);
+      start(st);
+      const n = Math.round(150 / MG.DT);
+      for (let i = 0; i < n && st.status === 'playing'; i++) step(st, scripted(st), MG.DT);
+      expect(st.t, `seed ${seed} survival`).toBeGreaterThanOrEqual(60);
+      expect(st.hp, `seed ${seed} hull at 150 s`).toBeLessThan(MG.MAX_HP);
+    }
+  });
+  it('the hull damage cap is gentler in the first levels', () => {
+    expect(hullDamage(1, 0.42, 0)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1));
+    expect(hullDamage(1, 0.42, 3)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1));
+    expect(hullDamage(3, 0.42, 3)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 3));
+    expect(hullDamage(3, 0.05, 0)).toBe(MG.DAMAGE_MIN);
+    expect(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1)).toBeLessThan(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1000));
   });
 });

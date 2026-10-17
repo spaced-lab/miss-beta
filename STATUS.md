@@ -8,7 +8,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | Milestone | State | Notes |
 |---|---|---|
 | Pre-M0 scaffold | done | Vite 8 / TS 5.9 / vitest 5, render foundation, RNG, font, title screen |
-| PERIMETER minigame (side mode) | v2.2 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts` |
+| PERIMETER minigame (side mode) | v2.3 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts`; 2026-10-17 retune: easier open, steeper ramp, guarded by the balance probe in `tests/minigame.test.ts`; sessionStorage autosave + RESUME across dev reloads (`serialize`/`deserialize` in sim.ts, `Rng.fromState`) |
 | M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
 | M1 A threat, and losing | done | closeApproach.ts (+ pymiss mirror, vectors), roundGen.ts with guaranteed collision (1000 seeds sane, 200 seeds impact), threat orbit + ghost + brief in the system view, RESOLVE NOW, RUN OVER with Mt and category |
 | M2 First playable: direct kinetic | todo | next: stumpff/lambert, launchers, porkchop worker, KINETIC archetype, resolver v1, scoring, leaderboard |
@@ -18,7 +18,10 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 
 Kepler solver tolerance 1e-14 instead of the plan's 1e-12 (one extra Newton step; lets the energy test hold at 1e-12 relative). Everything else at default. Minigame knobs are not in GAME_PLAN; their defaults
 are the values in `src/minigame/config.ts` and the 2026-10-17 tuning (FIELD_R 5.6, VIEW_R 6.2 so the planet
-reads larger on wide screens).
+reads larger on wide screens). Balance retune the same day (owner: "a tiny bit too hard, accelerate more
+quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55 -> 0.45, AST_SPEED_PER_LEVEL
+0.08 -> 0.12, LEVEL_SECONDS 24 -> 20, PRESSURE_GAIN 0.012 -> 0.015, new PRESSURE_START 0.85, DAMAGE_MAX 25 ->
+DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Decisions where the plan was silent
 

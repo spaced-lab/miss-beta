@@ -185,6 +185,9 @@ export const baseSpeed = (level: number): number => Math.min(MG.AST_SPEED_MAX, M
 export const launcherCount = (level: number): number => byLevel(MG.LAUNCHERS_BY_LEVEL, level);
 export const streamCount = (level: number): number => byLevel(MG.STREAMS_BY_LEVEL, level);
 export const maxTier = (level: number): number => byLevel(MG.MAX_TIER_BY_LEVEL, level);
+/** Hull points one rock removes: DAMAGE_PER_R * r * (1 + 0.5 tier), clamped to the level's cap. */
+export const hullDamage = (level: number, r: number, tier: number): number =>
+  clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, byLevel(MG.DAMAGE_MAX_BY_LEVEL, level));
 export const moonActive = (level: number): boolean => level >= MG.MOON_LEVEL;
 export const moonAlive = (st: MinigameState): boolean => moonActive(st.level) && st.moonHp > 0;
 /** Sentry tier from level: one step per TURRET_TIER_LEVELS after TURRET_LEVEL, capped at 2. */
@@ -252,7 +255,7 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     heat: 0,
     overheated: false,
     spawnTimer: 1.2,
-    pressure: 1,
+    pressure: MG.PRESSURE_START,
     sinceHit: 0,
     nextId: 1,
     asteroids: [],
@@ -738,8 +741,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (d <= MG.MOON_R + a.r) {
         spawnParticles(st, a.x, a.y, 8, 2, a.tier);
         st.score += Math.floor(a.r * MG.SCORE_PER_R * 0.25);
-        const chip = clamp(Math.round(a.r * MG.DAMAGE_PER_R * (1 + 0.5 * a.tier)), MG.DAMAGE_MIN, MG.DAMAGE_MAX);
-        st.moonHp -= chip;
+        st.moonHp -= hullDamage(st.level, a.r, a.tier);
         emit(st, { type: 'moonhit' });
         if (st.moonHp <= 0) {
           st.moonHp = 0;
@@ -756,7 +758,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     a.rot += a.spin * dt;
     const d = Math.hypot(a.x, a.y);
     if (d - a.r <= MG.PLANET_R) {
-      const dmg = clamp(Math.round(a.r * MG.DAMAGE_PER_R * (1 + 0.5 * a.tier)), MG.DAMAGE_MIN, MG.DAMAGE_MAX);
+      const dmg = hullDamage(st.level, a.r, a.tier);
       if (!st.cheats.god) st.hp -= dmg;
       st.shake += dmg * MG.SHAKE_PER_HP;
       st.sinceHit = 0;
@@ -822,6 +824,193 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     for (const i of used) swapRemove(st.bullets, i);
     dead.sort((p, q) => q - p);
     for (const j of dead) destroyAsteroid(st, j, 1, true);
+  }
+}
+
+// --- save and resume ---------------------------------------------------------------------------------------
+// NOTE: a game is (seed, inputs), but mid-game resume needs the whole state: the Rng's raw state stands in for
+// the draw history, typed arrays become plain arrays, and transient queues (events, stats) are not saved.
+
+/** JSON shape of a saved game. Everything `step` reads, in plain JSON types. */
+export interface SavedGame {
+  v: 1;
+  seed: number;
+  rng: number;
+  status: Status;
+  t: number;
+  level: number;
+  hp: number;
+  score: number;
+  kills: number;
+  hits: number;
+  shots: number;
+  continents: number[][];
+  launcherAngle: number;
+  launcherCount: number;
+  streamCount: number;
+  fireCooldown: number;
+  heat: number;
+  overheated: boolean;
+  spawnTimer: number;
+  pressure: number;
+  sinceHit: number;
+  nextId: number;
+  asteroids: Array<Omit<Asteroid, 'shape'> & { shape: number[] }>;
+  bullets: Bullet[];
+  particles: Particle[];
+  turrets: Turret[];
+  turretProgress: number;
+  moonAngle: number;
+  moonHp: number;
+  craters: Array<[number, number, number]>;
+  pulses: number;
+  pulseCharge: number;
+  pulseR: number;
+  flashes: Flash[];
+  beams: Beam[];
+  sinceShot: number;
+  shake: number;
+  secAccum: number;
+  cheats: Cheats;
+  collision: CollisionStrategy;
+}
+
+type Pred = (v: unknown) => boolean;
+const num: Pred = (v) => typeof v === 'number' && Number.isFinite(v);
+const bool: Pred = (v) => typeof v === 'boolean';
+const str: Pred = (v) => typeof v === 'string';
+const numArr: Pred = (v) => Array.isArray(v) && v.every(num);
+const opt = (p: Pred): Pred => (v) => v === undefined || p(v);
+const oneOf = (...opts: readonly unknown[]): Pred => (v) => opts.includes(v);
+const arrOf = (p: Pred): Pred => (v) => Array.isArray(v) && v.every(p);
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const shaped = (spec: Record<string, Pred>): Pred => (v) => isRecord(v) && Object.entries(spec).every(([k, p]) => p(v[k]));
+
+const ASTEROID = shaped({ id: num, x: num, y: num, vx: num, vy: num, r: num, tier: num, hp: num, maxHp: num, core: bool, passing: bool, shape: numArr, rot: num, spin: num });
+const BULLET = shaped({ x: num, y: num, vx: num, vy: num, life: num, r: num, damage: num, auto: bool });
+const PARTICLE = shaped({ x: num, y: num, vx: num, vy: num, life: num, max: num, tier: num });
+const TURRET = shaped({ angle: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool });
+const FLASH = shaped({ text: str, t: num });
+const BEAM = shaped({ angle: num, t: num });
+const CRATER: Pred = (v) => numArr(v) && (v as number[]).length === 3;
+const CHEATS = shaped({ god: bool, launchers: opt(num), streams: opt(num), timeScale: num, assisted: bool, noHeat: bool });
+const SAVED = shaped({
+  v: oneOf(1), seed: num, rng: num, status: oneOf('ready', 'playing', 'over'),
+  t: num, level: num, hp: num, score: num, kills: num, hits: num, shots: num,
+  continents: arrOf(numArr),
+  launcherAngle: num, launcherCount: num, streamCount: num, fireCooldown: num,
+  heat: num, overheated: bool, spawnTimer: num, pressure: num, sinceHit: num, nextId: num,
+  asteroids: arrOf(ASTEROID), bullets: arrOf(BULLET), particles: arrOf(PARTICLE), turrets: arrOf(TURRET),
+  turretProgress: num, moonAngle: num, moonHp: num, craters: arrOf(CRATER),
+  pulses: num, pulseCharge: num, pulseR: num, flashes: arrOf(FLASH), beams: arrOf(BEAM),
+  sinceShot: num, shake: num, secAccum: num, cheats: CHEATS, collision: oneOf('auto', 'naive', 'grid'),
+});
+
+/** Type guard for anything read back from storage (persistence.ts convention). */
+export const isSavedGame = (v: unknown): v is SavedGame => SAVED(v);
+
+export function toSaved(st: MinigameState): SavedGame {
+  return {
+    v: 1,
+    seed: st.seed,
+    rng: st.rng.getState(),
+    status: st.status,
+    t: st.t,
+    level: st.level,
+    hp: st.hp,
+    score: st.score,
+    kills: st.kills,
+    hits: st.hits,
+    shots: st.shots,
+    continents: st.continents.map((c) => Array.from(c)),
+    launcherAngle: st.launcherAngle,
+    launcherCount: st.launcherCount,
+    streamCount: st.streamCount,
+    fireCooldown: st.fireCooldown,
+    heat: st.heat,
+    overheated: st.overheated,
+    spawnTimer: st.spawnTimer,
+    pressure: st.pressure,
+    sinceHit: st.sinceHit,
+    nextId: st.nextId,
+    asteroids: st.asteroids.map((a) => ({ ...a, shape: Array.from(a.shape) })),
+    bullets: st.bullets.map((b) => ({ ...b })),
+    particles: st.particles.map((p) => ({ ...p })),
+    turrets: st.turrets.map((t) => ({ ...t })),
+    turretProgress: st.turretProgress,
+    moonAngle: st.moonAngle,
+    moonHp: st.moonHp,
+    craters: st.craters.map((c) => [c[0], c[1], c[2]]),
+    pulses: st.pulses,
+    pulseCharge: st.pulseCharge,
+    pulseR: st.pulseR,
+    flashes: st.flashes.map((f) => ({ ...f })),
+    beams: st.beams.map((b) => ({ ...b })),
+    sinceShot: st.sinceShot,
+    shake: st.shake,
+    secAccum: st.secAccum,
+    cheats: { ...st.cheats },
+    collision: st.collision,
+  };
+}
+
+/** Rebuild a live state from a validated save. The Rng resumes mid-stream, so the game continues exactly. */
+export function fromSaved(s: SavedGame): MinigameState {
+  return {
+    seed: s.seed,
+    rng: Rng.fromState(s.rng),
+    status: s.status,
+    t: s.t,
+    level: s.level,
+    hp: s.hp,
+    score: s.score,
+    kills: s.kills,
+    hits: s.hits,
+    shots: s.shots,
+    continents: s.continents.map((c) => Float64Array.from(c)),
+    launcherAngle: s.launcherAngle,
+    launcherCount: s.launcherCount,
+    streamCount: s.streamCount,
+    fireCooldown: s.fireCooldown,
+    heat: s.heat,
+    overheated: s.overheated,
+    spawnTimer: s.spawnTimer,
+    pressure: s.pressure,
+    sinceHit: s.sinceHit,
+    nextId: s.nextId,
+    asteroids: s.asteroids.map((a) => ({ ...a, shape: Float64Array.from(a.shape) })),
+    bullets: s.bullets.map((b) => ({ ...b })),
+    particles: s.particles.map((p) => ({ ...p })),
+    turrets: s.turrets.map((t) => ({ ...t })),
+    turretProgress: s.turretProgress,
+    moonAngle: s.moonAngle,
+    moonHp: s.moonHp,
+    craters: s.craters.map((c) => [c[0], c[1], c[2]]),
+    pulses: s.pulses,
+    pulseCharge: s.pulseCharge,
+    pulseR: s.pulseR,
+    flashes: s.flashes.map((f) => ({ ...f })),
+    beams: s.beams.map((b) => ({ ...b })),
+    events: [],
+    sinceShot: s.sinceShot,
+    shake: s.shake,
+    secAccum: s.secAccum,
+    cheats: { ...s.cheats },
+    collision: s.collision,
+    stats: { collisionChecksLastStep: 0 },
+  };
+}
+
+/** JSON text of a game, for storage. */
+export const serialize = (st: MinigameState): string => JSON.stringify(toSaved(st));
+
+/** Parse JSON text back into a live state, or null if it is not a valid save. */
+export function deserialize(json: string): MinigameState | null {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return isSavedGame(parsed) ? fromSaved(parsed) : null;
+  } catch {
+    return null;
   }
 }
 
