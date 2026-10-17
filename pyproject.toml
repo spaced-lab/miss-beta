@@ -1,0 +1,9 @@
+[project]
+name = "pymiss"
+version = "0.1.0"
+description = "Python mirror of the MISS beta physics, for teaching notebooks and shared test vectors"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["pymiss/tests"]
