@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v3.1: Space resumes a saved game (Backspace starts new), swarms grow with level and avoid the
+  moon, bullet hits are a slighter hull-thud (70 Hz pop + tiny crunch), shots are a soft low blip over a sub pop.
+
 - PERIMETER swarm growth and moon avoidance: a release fields more drones per level (`SWARM_GROWTH_PER_LEVEL`,
   capped by `SWARM_COUNT_CAP` 16) with a longer burn (`SWARM_LIFE_PER_LEVEL`, `SWARM_LIFE_MAX`); drones and
   seekers keep out of the moon's zone (`SWARM_MOON_MARGIN`, `SEEKER_MOON_MARGIN`) and prefer rocks the moon

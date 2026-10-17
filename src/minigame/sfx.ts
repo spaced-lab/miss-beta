@@ -23,9 +23,10 @@ export interface Kit {
 }
 
 export const KITS: readonly Kit[] = [
-  { name: 'DELICATE', tickWave: 'triangle', tickFreq: 2600, crunchRate: 7000, crunchBits: 4, laserWave: 'sawtooth' },
-  { name: 'SQUARE', tickWave: 'square', tickFreq: 1900, crunchRate: 5000, crunchBits: 3, laserWave: 'square' },
-  { name: 'GLASS', tickWave: 'sine', tickFreq: 3400, crunchRate: 9000, crunchBits: 5, laserWave: 'sawtooth' },
+  // tickFreq is the soft high component of a shot; the sub pop under it carries the weight (owner: less clicky, more bassy).
+  { name: 'DELICATE', tickWave: 'triangle', tickFreq: 1200, crunchRate: 7000, crunchBits: 4, laserWave: 'sawtooth' },
+  { name: 'SQUARE', tickWave: 'square', tickFreq: 900, crunchRate: 5000, crunchBits: 3, laserWave: 'square' },
+  { name: 'GLASS', tickWave: 'sine', tickFreq: 1400, crunchRate: 9000, crunchBits: 5, laserWave: 'sawtooth' },
 ];
 
 export class SfxPlayer {
@@ -73,9 +74,10 @@ export class SfxPlayer {
         case 'shot':
           if (now - this.lastTick > 0.045) {
             this.lastTick = now;
-            // The blip stays bright, just a notch quieter than before; the bass under it does the weight.
-            this.synth.tick({ wave: k.tickWave, freq: k.tickFreq * (1 + 0.18 * (e.strength - 1)), dur: 0.014 + 0.004 * e.strength, gain: 0.04 });
-            this.synth.bass(62 + 8 * e.strength, 0.03, 0.09, 0.5, 1.5);
+            // Shot: a soft-attack low blip (10 ms, ~1 kHz) under which a 55-75 Hz sub pop carries the sound.
+            // Tune here: tick gain for click, bass gain for weight.
+            this.synth.tick({ wave: k.tickWave, freq: k.tickFreq * (1 + 0.12 * (e.strength - 1)), dur: 0.012, gain: 0.022, attack: 0.004 });
+            this.synth.bass(55 + 7 * e.strength, 0.035, 0.12, 0.6, 1.6);
           }
           break;
         case 'laser':
@@ -84,15 +86,18 @@ export class SfxPlayer {
           this.synth.bass(55, 0.08, 0.12);
           break;
         case 'hit':
-          // Bullet hit: a little dust on top, a sub pop underneath on every second hit (rate limited).
-          if (now - this.lastGrain > 0.03) {
-            this.lastGrain = now;
-            this.synth.grains({ count: 2, spread: 0.04, grainDur: 0.008, cutoff: 2600 + e.tier * 500, gain: 0.03 });
-          }
-          if (++this.hitCount % 2 === 0 && now - this.lastBass > 0.045) {
+          // Bullet-on-rock hit: a slighter cousin of the hull thud: a 70 Hz sine with a quick pitch drop (50 ms)
+          // over a tiny low crunch, rate limited so a volley does not stack into mud; a whisper of dust on top.
+          if (now - this.lastBass > 0.04) {
             this.lastBass = now;
-            this.synth.bass(44 + e.tier * 5, 0.045, 0.11, 0.8, 2);
+            this.synth.bass(72 - e.tier * 3, 0.05, 0.16, 0.8, 1.6);
+            this.synth.crunch({ rate: 3000, bits: 3, dur: 0.04, cutoff: 520, gain: 0.05 });
           }
+          if (now - this.lastGrain > 0.05) {
+            this.lastGrain = now;
+            this.synth.grains({ count: 1, spread: 0.02, grainDur: 0.006, cutoff: 2200 + e.tier * 400, gain: 0.012 });
+          }
+          this.hitCount++;
           break;
         case 'break':
           // Breakup: crunch lowpassed low, dust, and a long sub thump that grows with size and tier.

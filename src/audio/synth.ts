@@ -19,6 +19,8 @@ export interface TickOpts {
   gain?: number;
   /** Seconds from now to start; lets a caller schedule a cluster of blips in one go. */
   delay?: number;
+  /** Soft attack, s: the gain ramps up over this time instead of starting at full level (less click). */
+  attack?: number;
 }
 
 export interface SweepOpts {
@@ -123,7 +125,13 @@ export class Synth {
     osc.frequency.setValueAtTime(o.freq ?? 2200, t);
     osc.frequency.exponentialRampToValueAtTime((o.freq ?? 2200) * 0.6, t + dur);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(o.gain ?? 0.12, t);
+    const attack = Math.min(o.attack ?? 0, dur * 0.6);
+    if (attack > 0) {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(o.gain ?? 0.12, t + attack);
+    } else {
+      g.gain.setValueAtTime(o.gain ?? 0.12, t);
+    }
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(g).connect(master);
     osc.start(t);
