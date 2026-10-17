@@ -6,8 +6,11 @@
 // LORE: C1 (how the game is built)
 
 import { launcherTier } from '../physics/estimates';
-import { computePorkchop, type PorkchopGrid } from '../planner/porkchop';
 import type { Elements } from '../physics/kepler';
+import { monteCarlo, type MonteCarloResult } from '../planner/monteCarlo';
+import { computePorkchop, type PorkchopGrid } from '../planner/porkchop';
+import type { Mission } from '../sim/mission';
+import type { World } from '../sim/world';
 
 export interface PorkchopJob {
   id: number;
@@ -20,7 +23,15 @@ export interface PorkchopJob {
   tier: number;
 }
 
-export type WorkerJob = PorkchopJob;
+export interface MonteCarloJob {
+  id: number;
+  type: 'montecarlo';
+  world: World;
+  missions: Mission[];
+  n: number;
+}
+
+export type WorkerJob = PorkchopJob | MonteCarloJob;
 
 export interface PorkchopReply {
   id: number;
@@ -28,7 +39,13 @@ export interface PorkchopReply {
   grid: PorkchopGrid;
 }
 
-export type WorkerReply = PorkchopReply | { id: number; type: 'error'; message: string };
+export interface MonteCarloReply {
+  id: number;
+  type: 'montecarlo';
+  result: MonteCarloResult;
+}
+
+export type WorkerReply = PorkchopReply | MonteCarloReply | { id: number; type: 'error'; message: string };
 
 function isElements(v: unknown): v is Elements {
   if (typeof v !== 'object' || v === null) return false;
@@ -43,11 +60,25 @@ function isPorkchopJob(v: unknown): v is PorkchopJob {
     typeof o['muSun'] === 'number' && typeof o['tMin'] === 'number' && typeof o['tImpact'] === 'number' && Number.isInteger(o['tier']);
 }
 
+function isMonteCarloJob(v: unknown): v is MonteCarloJob {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  const w = o['world'] as Record<string, unknown> | undefined;
+  return o['type'] === 'montecarlo' && Number.isInteger(o['id']) && Array.isArray(o['missions']) && Number.isInteger(o['n']) && (o['n'] as number) >= 0 && (o['n'] as number) <= 5000 &&
+    typeof w === 'object' && w !== null && typeof w['runSeed'] === 'string' && Array.isArray(w['planets']) && typeof w['threat'] === 'object' && w['threat'] !== null;
+}
+
 /** Runs a job synchronously; exported so the main thread can fall back to it when Workers are unavailable. */
 export function runJob(job: WorkerJob): WorkerReply {
-  if (!isPorkchopJob(job)) return { id: (job as { id?: number }).id ?? -1, type: 'error', message: 'bad porkchop job' };
-  const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier) });
-  return { id: job.id, type: 'porkchop', grid };
+  if (isPorkchopJob(job)) {
+    const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier) });
+    return { id: job.id, type: 'porkchop', grid };
+  }
+  if (isMonteCarloJob(job)) {
+    // NOTE: the world crosses postMessage by structured clone; Float64Array shapes and plain records survive.
+    return { id: job.id, type: 'montecarlo', result: monteCarlo(job.world, job.missions, job.n) };
+  }
+  return { id: (job as { id?: number }).id ?? -1, type: 'error', message: 'bad job' };
 }
 
 // Worker entry (ignored when this module is imported on the main thread for the fallback).

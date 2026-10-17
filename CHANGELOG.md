@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M3: fragmentation (Benz-Asphaug Q*, largest remnant, Pareto shards, Rayleigh ejection, exact momentum; TS +
+  Python, shared vectors); resolver tracks remnant and fragments with per-body close approaches, the 3-D
+  correction and the PARTIAL outcome; Monte Carlo P(MISS) in the worker; planner targets fragments (Tab),
+  SWARM bundles, DISRUPT flags; PLANET VIEW (V) with the cloud cross-section and the focusing ring.
+
 - M2: first playable round. Lambert targeting (universal variables, TS + Python), DART-calibrated kinetic
   deflection, launcher payload tables, porkchop grid in a Web Worker, KINETIC plan ranking with printed
   readouts, resolver with per-mission beta and terminal guidance, budget per year, Section 12 scoring,

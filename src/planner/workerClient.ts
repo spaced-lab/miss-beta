@@ -4,7 +4,10 @@
 // HOW:  Vite builds the worker from the `new URL(..., import.meta.url)` form. Replies are matched by id.
 // LORE: C1 (how the game is built)
 
-import { runJob, type PorkchopJob, type WorkerReply } from '../worker/planner.worker';
+import type { Mission } from '../sim/mission';
+import type { World } from '../sim/world';
+import { runJob, type MonteCarloJob, type PorkchopJob, type WorkerReply } from '../worker/planner.worker';
+import type { MonteCarloResult } from './monteCarlo';
 import type { PorkchopGrid } from './porkchop';
 
 export class PlannerClient {
@@ -37,16 +40,10 @@ export class PlannerClient {
     }
   }
 
-  porkchop(job: Omit<PorkchopJob, 'id' | 'type'>): Promise<PorkchopGrid> {
-    const id = this.nextId++;
-    const full: PorkchopJob = { id, type: 'porkchop', ...job };
-    const unwrap = (r: WorkerReply): PorkchopGrid => {
-      if (r.type === 'error') throw new Error(r.message);
-      return r.grid;
-    };
+  private submit<T>(full: PorkchopJob | MonteCarloJob, unwrap: (r: WorkerReply) => T): Promise<T> {
     if (!this.worker) return Promise.resolve(unwrap(runJob(full)));
     return new Promise((resolve, reject) => {
-      this.pending.set(id, (r) => {
+      this.pending.set(full.id, (r) => {
         try {
           resolve(r.type === 'error' ? unwrap(runJob(full)) : unwrap(r));
         } catch (e) {
@@ -54,6 +51,22 @@ export class PlannerClient {
         }
       });
       this.worker?.postMessage(full);
+    });
+  }
+
+  porkchop(job: Omit<PorkchopJob, 'id' | 'type'>): Promise<PorkchopGrid> {
+    const full: PorkchopJob = { id: this.nextId++, type: 'porkchop', ...job };
+    return this.submit(full, (r) => {
+      if (r.type !== 'porkchop') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.grid;
+    });
+  }
+
+  monteCarlo(world: World, missions: readonly Mission[], n: number): Promise<MonteCarloResult> {
+    const full: MonteCarloJob = { id: this.nextId++, type: 'montecarlo', world, missions: [...missions], n };
+    return this.submit(full, (r) => {
+      if (r.type !== 'montecarlo') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.result;
     });
   }
 }

@@ -40,6 +40,27 @@ export const KNOBS = {
   /** 6.9: beta ranges per threat type, drawn per impact. */
   BETA_RANGE: { RUBBLE: [2.5, 5.0], STONY: [2.0, 4.0], IRON: [1.2, 2.0], ICY: [1.5, 3.5] } as Readonly<Record<string, readonly [number, number]>>,
 
+  /** 6.10: disruption. Benz and Asphaug (1999) coefficients in cgs; [unverified] against the paper to three digits. */
+  QSTAR_BASALT: { Q0: 9.0e7, a: -0.36, B: 0.5, b: 1.36 },
+  QSTAR_ICE: { Q0: 1.6e7, a: -0.39, B: 1.2, b: 1.26 },
+  /** Fragment count range and Pareto slope for the cumulative size distribution N(>D) ~ D^-PARETO_ALPHA. */
+  FRAG_N_MIN: 8,
+  FRAG_N_MAX: 40,
+  FRAG_PARETO_ALPHA: 2.5,
+  /** Ejection speed scale factor: |v_ej| ~ Rayleigh(K_EJ * v_esc * sqrt(Q/Q*)). */
+  K_EJ: 1.0,
+  /** Fragments below the airburst threshold are harmless (6.4): stony 25 m, iron 10 m. */
+  FRAG_HARMLESS_D: 25,
+  FRAG_HARMLESS_D_IRON: 10,
+  /** Fragment close-approach search window, s (the cloud spreads hours to days, not months). */
+  FRAG_CA_WINDOW: 10 * DAY,
+  /** 6.10 3-D correction: each fragment's hit probability is multiplied by min(1, b_crit / (F3D_K v_ej T)). */
+  F3D_K: 0.6,
+  /** A hit that delivers less than this fraction of the original threat energy counts as PARTIAL (Section 12). */
+  PARTIAL_ENERGY_FRACTION: 0.1,
+  /** Monte Carlo samples per plan. */
+  MC_SAMPLES: 120,
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 

@@ -12,7 +12,7 @@ import { YEAR } from '../physics/constants';
 export interface ScoreInput {
   round: number;
   energyMt: number;
-  outcome: 'HIT' | 'MISS';
+  outcome: 'HIT' | 'MISS' | 'PARTIAL';
   marginRadii: number;
   budgetUnspent: number;
   budgetAvailable: number;
@@ -36,7 +36,7 @@ export interface ScoreBreakdown {
 
 export function scoreRound(s: ScoreInput): ScoreBreakdown {
   const base = Math.log10(s.energyMt + 1) * 100 * (1 + 0.15 * s.round);
-  const outcome = s.outcome === 'HIT' ? 0 : s.marginRadii >= 1 ? 1.0 : 0.8;
+  const outcome = s.outcome === 'HIT' ? 0 : s.outcome === 'PARTIAL' ? 0.35 : s.marginRadii >= 1 ? 1.0 : 0.8;
   const efficiency = s.budgetAvailable > 0 ? 0.5 * Math.max(0, Math.min(1, s.budgetUnspent / s.budgetAvailable)) : 0;
   const timing = 0.3 * Math.max(0, Math.min(1, s.marginSeconds / Math.max(1, s.leadSeconds)));
   const style = (s.usedWarhead ? 0 : 0.2) + (s.producedFragments ? 0 : 0.2) + (s.netCapture ? 0.3 : 0);

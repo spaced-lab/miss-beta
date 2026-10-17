@@ -39,17 +39,27 @@ function gridFor(w: World, tier = 1): PorkchopGrid {
 function ctxFor(w: World, g: PorkchopGrid, budget = 100): CandidateContext {
   const th = w.threat;
   if (!th) throw new Error('no threat');
+  void g;
   return {
-    threatMass: th.mass,
+    targetId: 'THREAT',
+    targetMass: th.mass,
+    targetD: th.D,
     threatType: th.type.id,
+    threatDensity: th.type.density,
+    threatStrength: th.type.strengthMult,
+    threatMaterial: 'basalt',
+    threatEnergyMt: 100,
     tImpact: th.tImpact,
     rHome: R_HOME,
     launcherTier: 1,
     impactorTier: 1,
     budget,
     committedAt: w.t,
-    threatVelocity: (t) => propagate(th.elements, w.star.mu, t).v,
-    resolveMargin: (m) => resolveRound(w, [m], { betaOverride: 3 }).ca.marginRadii,
+    targetVelocity: (t) => propagate(th.elements, w.star.mu, t).v,
+    resolve: (ms) => {
+      const r = resolveRound(w, ms, { betaOverride: 3 });
+      return { outcome: r.outcome, marginRadii: r.ca.marginRadii, hitEnergyMt: r.hitEnergyMt, producedFragments: r.producedFragments };
+    },
   };
 }
 
@@ -92,29 +102,35 @@ describe('resolver v1 and the Round-1 balance target', () => {
   it('a 100 m stony threat with ~10 years warning is beaten by one Tier 1 launch', () => {
     // Try a few seeds: the generated geometry varies; at least most should be beatable with one I1 impactor.
     let wins = 0;
+    let swarms = 0;
     const seeds = ['BAL-1', 'BAL-2', 'BAL-3', 'BAL-4', 'BAL-5'];
     for (const seed of seeds) {
       const w = balanceWorld(seed);
       const g = gridFor(w);
       const cands = rankCandidates(g, ctxFor(w, g));
       expect(cands.length).toBeGreaterThan(0);
-      const best = cands[0];
+      // The single-impactor plans only (SWARM bundles also rank; the target is a single Tier 1 launch).
+      const best = cands.find((c) => c.archetype === 'KINETIC');
       if (!best) continue;
-      const res = resolveRound(w, [best.mission]);
+      const mission = best.missions[0]!;
+      const res = resolveRound(w, [mission]);
       if (res.outcome === 'MISS') wins++;
       expect(res.events.some((e) => e.kind === 'IMPACT')).toBe(true);
       expect(res.segments.length).toBe(2);
       expect(elementsAt(res.segments, 0)).toBe(w.threat?.elements);
-      expect(elementsAt(res.segments, best.mission.arrivalTime + 1)).not.toBe(w.threat?.elements);
+      expect(elementsAt(res.segments, mission.arrivalTime + 1)).not.toBe(w.threat?.elements);
+      swarms += cands.filter((c) => c.archetype === 'SWARM').length;
     }
     expect(wins).toBeGreaterThanOrEqual(4);
+    // SWARM bundles (2-3 staggered launches) are offered on at least some seeds.
+    expect(swarms).toBeGreaterThan(0);
   });
 
   it('is deterministic (byte-equal logs) and beta is per mission, order independent', () => {
     const w = balanceWorld('DET');
     const g = gridFor(w);
     const cands = rankCandidates(g, ctxFor(w, g));
-    const ms = cands.slice(0, 2).map((c) => c.mission);
+    const ms = cands.slice(0, 2).flatMap((c) => c.missions);
     const a = JSON.stringify(resolveRound(w, ms).events);
     const b = JSON.stringify(resolveRound(w, ms).events);
     expect(a).toBe(b);
@@ -131,7 +147,7 @@ describe('resolver v1 and the Round-1 balance target', () => {
     const w = balanceWorld('TG');
     const g = gridFor(w);
     const cands = rankCandidates(g, ctxFor(w, g));
-    const first = cands[0]?.mission;
+    const first = cands.find((c) => c.archetype === 'KINETIC')?.missions[0];
     if (!first) throw new Error('no candidate');
     // A huge beta on the first impact moves the threat a lot; a second mission to the same cell arriving later misses.
     const later: Mission = { ...first, id: 'IMPACTOR-LATE', arrivalTime: first.arrivalTime + 300 * DAY, interceptR: propagate(w.threat!.elements, w.star.mu, first.arrivalTime + 300 * DAY).r };

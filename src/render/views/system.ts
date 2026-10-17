@@ -18,10 +18,11 @@ import type { Router, Screen } from '../../game/screen';
 import { AU, DAY, YEAR } from '../../physics/constants';
 import { stateToElements } from '../../physics/elements';
 import { orbitPoints, propagate, type Elements } from '../../physics/kepler';
+import type { MonteCarloResult } from '../../planner/monteCarlo';
 import { PlannerClient } from '../../planner/workerClient';
 import { formatEvent } from '../../sim/eventLog';
 import type { Mission } from '../../sim/mission';
-import { elementsAt, resolveRound, type RoundResult } from '../../sim/resolver';
+import { bodyAlive, elementsAt, resolveRound, type RoundResult } from '../../sim/resolver';
 import { roundRng } from '../../sim/rng';
 import { generateThreat } from '../../sim/roundGen';
 import { advance, createWorld, planetById, planetState, setWarp, warpLabel, type World } from '../../sim/world';
@@ -30,6 +31,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
 import { drawText } from '../vectorFont';
+import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
 
 export type ScaleMode = 'LINEAR' | 'COMPRESSED';
@@ -51,12 +53,31 @@ export class SystemScreen implements Screen {
   private threatOrbitCache: { el: Elements; pts: Float64Array } | null = null;
   private readonly craftCache = new Map<string, Elements>();
   private ghost: { x: number; y: number } | null = null;
+  private readonly client = new PlannerClient();
   private readonly planner: PlannerOverlay;
+  private readonly planet: PlanetOverlay;
+  private planetOpen = false;
+  private mc: MonteCarloResult | null = null;
+  private mcToken = 0;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {
     this.world = createWorld('DEV', 1);
     this.run = createRun('DEV');
-    this.planner = new PlannerOverlay(s, keys, new PlannerClient());
+    this.planner = new PlannerOverlay(s, keys, this.client);
+    this.planet = new PlanetOverlay(s);
+  }
+
+  /** Monte Carlo for the committed mission set, shown in the brief. */
+  private requestMc(): void {
+    const token = ++this.mcToken;
+    this.mc = null;
+    if (this.missions.length === 0) return;
+    this.client
+      .monteCarlo(this.world, this.missions, KNOBS.MC_SAMPLES)
+      .then((r) => {
+        if (token === this.mcToken) this.mc = r;
+      })
+      .catch(() => undefined);
   }
 
   enter(): void {
@@ -77,6 +98,8 @@ export class SystemScreen implements Screen {
     this.world.threat = generateThreat(roundRng(seed, round), this.world, round);
     this.missions = [];
     this.result = resolveRound(this.world, this.missions);
+    this.requestMc();
+    this.planetOpen = false;
     this.phase = 'planning';
     this.score = null;
     this.rank = -1;
@@ -92,16 +115,20 @@ export class SystemScreen implements Screen {
   }
 
   private plannerSession() {
+    if (!this.result) throw new Error('no result');
     return {
       world: this.world,
       missions: this.missions,
+      result: this.result,
       launcherTier: this.run.launcherTier,
       impactorTier: this.run.impactorTier,
       budget: budgetAt(this.run.economy, this.world.t),
-      onCommit: (m: Mission): boolean => {
-        if (!spend(this.run.economy, this.world.t, m.cost)) return false;
-        this.missions.push(m);
+      onCommit: (ms: Mission[]): boolean => {
+        const cost = ms.reduce((a, m) => a + m.cost, 0);
+        if (!spend(this.run.economy, this.world.t, cost)) return false;
+        this.missions.push(...ms);
         this.result = resolveRound(this.world, this.missions);
+        this.requestMc();
         this.planner.refresh(this.plannerSession());
         return true;
       },
@@ -125,10 +152,10 @@ export class SystemScreen implements Screen {
       marginSeconds: th.tImpact - (res.tLastAction || 0),
       leadSeconds: th.tImpact,
       usedWarhead: false,
-      producedFragments: false,
+      producedFragments: res.producedFragments,
       netCapture: false,
     });
-    if (res.outcome === 'MISS') {
+    if (res.outcome !== 'HIT') {
       this.run.score += this.score.roundScore;
       this.run.research += this.score.research;
       this.phase = 'debrief';
@@ -160,8 +187,10 @@ export class SystemScreen implements Screen {
       if (k.pressed('Space') || k.pressed('Enter')) this.newRun();
       return;
     }
+    if (k.pressed('KeyV')) this.planetOpen = !this.planetOpen;
     if (k.pressed('KeyP')) {
       setWarp(w, 0);
+      this.planetOpen = false;
       this.planner.show(this.plannerSession());
       return;
     }
@@ -241,7 +270,8 @@ export class SystemScreen implements Screen {
 
     this.drawCraft();
     this.drawThreat();
-    if (!this.planner.isOpen) this.drawHud();
+    if (!this.planner.isOpen && !this.planetOpen) this.drawHud();
+    if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     if (this.phase === 'debrief') this.drawDebrief();
     if (this.phase === 'over') this.drawOver();
     this.planner.render();
@@ -310,18 +340,30 @@ export class SystemScreen implements Screen {
       }
     }
 
-    const st = propagate(el, w.star.mu, w.t);
-    const [tx, ty] = this.project(st.r.x, st.r.y);
-    const n = th.shape.length;
-    const size = 6;
+    // Every body alive now: the threat (or its remnant) as the seeded polygon, fragments as small ones.
+    const bodies = this.result ? this.result.bodies.filter((b) => bodyAlive(b, w.t)) : [];
     const buf: number[] = [];
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + w.t * 1e-7;
-      const rr = size * (th.shape[i] as number);
-      buf.push(tx + rr * Math.cos(a), ty + rr * Math.sin(a));
+    for (const b of bodies) {
+      const bel = elementsAt(b.segments, w.t);
+      const st = propagate(bel, w.star.mu, w.t);
+      const [tx, ty] = this.project(st.r.x, st.r.y);
+      const n = th.shape.length;
+      const size = b.role === 'THREAT' ? 6 : b.role === 'REMNANT' ? 4.5 : Math.max(1.5, Math.min(3.5, b.D / 30));
+      buf.length = 0;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + w.t * 1e-7;
+        const rr = size * (th.shape[i] as number);
+        buf.push(tx + rr * Math.cos(a), ty + rr * Math.sin(a));
+      }
+      const col = b.harmless ? p.dim : p.hot;
+      s.stroke(buf, { closed: true, color: col, glow: b.role === 'FRAGMENT' ? 0.6 : 1.5, width: b.role === 'FRAGMENT' ? 0.8 : 1.25 });
+      if (b.role !== 'FRAGMENT') drawText(s, b.role === 'THREAT' ? th.name : `${th.name} ${b.id}`, tx + 10, ty - 14, 10, { color: p.hot, glow: 0.5 });
     }
-    s.stroke(buf, { closed: true, color: p.hot, glow: 1.5, width: 1.25 });
-    drawText(s, th.name, tx + 10, ty - 14, 10, { color: p.hot, glow: 0.5 });
+    if (bodies.length === 0) {
+      const st = propagate(el, w.star.mu, w.t);
+      const [tx, ty] = this.project(st.r.x, st.r.y);
+      drawText(s, th.name, tx + 10, ty - 14, 10, { color: p.dim, glow: 0 });
+    }
   }
 
   private drawHud(): void {
@@ -342,8 +384,10 @@ export class SystemScreen implements Screen {
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
     drawText(s, `THREAT BRIEF  ${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}`, s.width / 2, m, 12, { align: 'center' });
     const margin = res.ca.marginRadii;
-    const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
-    drawText(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${res.outcome === 'HIT' ? '1.00' : '0.00'}`, s.width / 2, m + 18, 12, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
+    const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
+    const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : res.outcome === 'MISS' ? '0.00' : '1.00';
+    const frag = res.producedFragments ? `   BODIES ${res.outcomes.length}` : '';
+    drawText(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${pImpact}${this.mc ? ` (N ${this.mc.n})` : ''}${frag}`, s.width / 2, m + 18, 12, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
 
     // Play-by-play: the last six events whose time has passed.
     const passed = res.events.filter((e) => e.t <= w.t).slice(-6);
@@ -353,7 +397,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <SPACE> PAUSE   [ ] WARP   R RESOLVE NOW   S SCALE   WHEEL ZOOM   DRAG PAN   Z RESET   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<P> PLANNER   <V> PLANET VIEW   <SPACE> PAUSE   [ ] WARP   R RESOLVE NOW   S SCALE   WHEEL ZOOM   DRAG PAN   Z RESET   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
@@ -376,7 +420,7 @@ export class SystemScreen implements Screen {
     const events = res.events.slice(-8);
     const { x, y } = this.panel(Math.min(760, s.width - 32), 150 + events.length * 15 + 80);
     const cx = s.width / 2;
-    drawText(s, `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, { align: 'center', color: p.hot, glow: 2 });
+    drawText(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, { align: 'center', color: p.hot, glow: 2 });
     drawText(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, { align: 'center' });
     let ly = y + 92;
     for (const e of events) {

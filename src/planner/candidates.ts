@@ -1,44 +1,67 @@
-// WHAT: KINETIC plan candidates from a porkchop grid, ranked (GAME_PLAN 7.2, 7.3).
-// WHY:  The player should see the few cells that matter, with the planner's work printed. Two passes:
-//       a cheap estimate (the 3 dv T rule with the mid-range beta) over every feasible cell, then a full
-//       deterministic resolve of the top few, then the score of 7.3 (Monte Carlo P(miss) arrives in M3;
-//       until then P(miss) is 1 for a positive margin and 0 otherwise).
+// WHAT: Plan candidates from a porkchop grid, ranked (GAME_PLAN 7.2, 7.3): KINETIC singles and SWARM bundles,
+//       each flagged DISRUPT when the hit would exceed Q*.
+// WHY:  The player should see the few cells that matter, with the planner's work printed. Two passes: a
+//       cheap estimate (the 3 dv T rule with the mid-range beta) over every feasible cell, then a full
+//       deterministic resolve of the top few (with the missions already committed, so margins are totals),
+//       then the score of 7.3. P(miss) here is the deterministic verdict (1 MISS, 0.35 PARTIAL, 0 HIT);
+//       the Monte Carlo of monteCarlo.ts refines it for the selected plan in the overlay.
 // HOW:  Pure: (grid, context) -> Candidate[]. The resolve callback is injected so this module does not
-//       depend on the resolver's world type (and so tests can stub it).
-// LORE: G3 (the planner), D2 (early beats big), D3 (kinetic and beta)
+//       depend on the resolver's world type. A SWARM takes the best single cell and adds k-1 launches on
+//       the next grid steps (staggered windows, GAME_PLAN 7.2 "k small impactors on staggered windows").
+// LORE: G3 (the planner), D2 (early beats big), D3 (kinetic and beta), D4 (fragmentation)
 
 import { KNOBS } from '../config/knobs';
 import { missFromImpulse } from '../physics/estimates';
+import { qStar, specificEnergy } from '../physics/fragment';
 import type { Mission } from '../sim/mission';
 import type { Vec2 } from '../util/vec';
 import { cellTimes, type PorkchopGrid } from './porkchop';
 
+export interface ResolveVerdict {
+  outcome: 'HIT' | 'MISS' | 'PARTIAL';
+  marginRadii: number;
+  hitEnergyMt: number;
+  producedFragments: boolean;
+}
+
 export interface CandidateContext {
-  threatMass: number;
+  /** Target body (the threat or a fragment). */
+  targetId: string;
+  targetMass: number;
+  targetD: number;
   threatType: string;
+  threatDensity: number;
+  threatStrength: number;
+  threatMaterial: 'basalt' | 'ice';
+  /** Original threat energy, Mt, for the residual term. */
+  threatEnergyMt: number;
   tImpact: number;
   rHome: number;
   launcherTier: number;
   impactorTier: number;
   budget: number;
   committedAt: number;
-  /** Threat velocity at a given time, for the along-track projection. */
-  threatVelocity: (t: number) => Vec2;
-  /** Resolve the mission deterministically with the mid beta; returns the margin in planet radii. */
-  resolveMargin: (m: Mission) => number;
+  /** Target velocity at a given time, for the along-track projection. */
+  targetVelocity: (t: number) => Vec2;
+  /** Resolve the candidate's missions together with the committed ones. */
+  resolve: (ms: Mission[]) => ResolveVerdict;
+  /** Allow SWARM bundles (k = 2, 3). */
+  swarm?: boolean;
 }
 
 export interface Candidate {
-  mission: Mission;
+  archetype: 'KINETIC' | 'SWARM';
+  missions: Mission[];
   iL: number;
   iA: number;
-  /** Quick estimate of the miss in planet radii (mid beta). */
   missEstRadii: number;
-  /** Resolved margin in planet radii, or null if not resolved. */
-  marginRadii: number | null;
+  verdict: ResolveVerdict | null;
   pMiss: number;
   score: number;
   betaRange: readonly [number, number];
+  /** Predicted Q/Q* of the first hit. */
+  qRatio: number;
+  cost: number;
 }
 
 export function missionCost(launcherTier: number, impactorTier: number): number {
@@ -46,6 +69,7 @@ export function missionCost(launcherTier: number, impactorTier: number): number 
 }
 
 export function missionFromCell(g: PorkchopGrid, iL: number, iA: number, ctx: CandidateContext, id: string): Mission | null {
+  if (iL < 0 || iA < 0 || iL >= g.nL || iA >= g.nA) return null;
   const i = iL * g.nA + iA;
   const payload = g.payload[i] ?? NaN;
   if (!(payload > 0)) return null;
@@ -66,43 +90,80 @@ export function missionFromCell(g: PorkchopGrid, iL: number, iA: number, ctx: Ca
     U: g.U[i] ?? NaN,
     cost: missionCost(ctx.launcherTier, ctx.impactorTier),
     committedAt: ctx.committedAt,
+    targetId: ctx.targetId,
   };
 }
 
 /** Along-track dv estimate for a mission with the given beta: beta (m/M) U cos(angle to the track). */
 export function estimateDvAlong(m: Mission, ctx: CandidateContext, beta: number): number {
-  const vt = ctx.threatVelocity(m.arrivalTime);
+  const vt = ctx.targetVelocity(m.arrivalTime);
   const ux = m.arrivalV.x - vt.x;
   const uy = m.arrivalV.y - vt.y;
   const vm = Math.hypot(vt.x, vt.y);
   const along = vm > 0 ? (ux * vt.x + uy * vt.y) / vm : 0;
-  return (beta * m.impactorKg * along) / ctx.threatMass;
+  return (beta * m.impactorKg * along) / ctx.targetMass;
+}
+
+export function qRatioFor(m: Mission, ctx: CandidateContext): number {
+  const Qs = qStar(ctx.targetD / 2, ctx.threatDensity, ctx.threatStrength, ctx.threatMaterial);
+  return specificEnergy(m.impactorKg, ctx.targetMass, m.U) / Qs;
+}
+
+function scoreOf(v: ResolveVerdict, cost: number, ctx: CandidateContext): { pMiss: number; score: number } {
+  const pMiss = v.outcome === 'MISS' ? 1 : v.outcome === 'PARTIAL' ? 0.35 : 0;
+  const affordable = cost <= ctx.budget + 1e-9;
+  const score =
+    KNOBS.W_MISS * pMiss -
+    KNOBS.W_RES * (ctx.threatEnergyMt > 0 ? v.hitEnergyMt / ctx.threatEnergyMt : 0) -
+    KNOBS.W_COST * (cost / Math.max(1, ctx.budget)) +
+    KNOBS.W_MARGIN * Math.max(0, Math.min(1, v.marginRadii / 3)) -
+    (affordable ? 0 : 10);
+  return { pMiss, score };
 }
 
 export function rankCandidates(g: PorkchopGrid, ctx: CandidateContext): Candidate[] {
   const range = KNOBS.BETA_RANGE[ctx.threatType] ?? ([2, 4] as const);
   const betaMid = (range[0] + range[1]) / 2;
   const all: Candidate[] = [];
-  let n = 0;
   for (let iL = 0; iL < g.nL; iL++) {
     for (let iA = 0; iA < g.nA; iA++) {
-      const m = missionFromCell(g, iL, iA, ctx, `IMPACTOR-${++n}`);
+      const m = missionFromCell(g, iL, iA, ctx, 'CAND');
       if (!m) continue;
       const dvAlong = estimateDvAlong(m, ctx, betaMid);
       const missEst = Math.abs(missFromImpulse(dvAlong, ctx.tImpact - m.arrivalTime)) / ctx.rHome;
-      all.push({ mission: m, iL, iA, missEstRadii: missEst, marginRadii: null, pMiss: 0, score: 0, betaRange: range });
+      all.push({ archetype: 'KINETIC', missions: [m], iL, iA, missEstRadii: missEst, verdict: null, pMiss: 0, score: 0, betaRange: range, qRatio: qRatioFor(m, ctx), cost: m.cost });
     }
   }
   all.sort((a, b) => b.missEstRadii - a.missEstRadii);
   const top = all.slice(0, KNOBS.PLANNER_RESOLVE_TOP);
-  let k = 0;
+
+  // SWARM bundles from the best single cells: k launches on consecutive grid steps.
+  if (ctx.swarm !== false) {
+    for (const base of top.slice(0, 2)) {
+      for (const k of [2, 3]) {
+        const ms: Mission[] = [];
+        for (let j = 0; j < k; j++) {
+          const m = missionFromCell(g, base.iL + j, base.iA + j, ctx, `CAND-${j}`);
+          if (m) ms.push(m);
+        }
+        if (ms.length === k) {
+          top.push({ archetype: 'SWARM', missions: ms, iL: base.iL, iA: base.iA, missEstRadii: base.missEstRadii * k, verdict: null, pMiss: 0, score: 0, betaRange: range, qRatio: base.qRatio, cost: ms.reduce((a, m) => a + m.cost, 0) });
+        }
+      }
+    }
+  }
+
+  let n = 0;
   for (const c of top) {
-    c.mission.id = `IMPACTOR-${++k}`;
-    const margin = ctx.resolveMargin(c.mission);
-    c.marginRadii = margin;
-    c.pMiss = margin > 0 ? 1 : 0;
-    const affordable = c.mission.cost <= ctx.budget;
-    c.score = KNOBS.W_MISS * c.pMiss - KNOBS.W_COST * (c.mission.cost / Math.max(1, ctx.budget)) + KNOBS.W_MARGIN * Math.max(0, Math.min(1, margin / 3)) - (affordable ? 0 : 10);
+    c.missions.forEach((m, j) => {
+      m.id = `${c.archetype === 'SWARM' ? 'SWARM' : 'IMPACTOR'}-${n + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`;
+    });
+    n++;
+    const v = ctx.resolve(c.missions);
+    c.verdict = v;
+    const sc = scoreOf(v, c.cost, ctx);
+    c.pMiss = sc.pMiss;
+    c.score = sc.score;
   }
   top.sort((a, b) => b.score - a.score);
   return top.slice(0, KNOBS.PLANNER_SHOW_TOP);

@@ -12,8 +12,9 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
 | M1 A threat, and losing | done | closeApproach.ts (+ pymiss mirror, vectors), roundGen.ts with guaranteed collision (1000 seeds sane, 200 seeds impact), threat orbit + ghost + brief in the system view, RESOLVE NOW, RUN OVER with Mt and category |
 | M2 First playable: direct kinetic | done | Lambert (+ mirror, vectors, Hohmann check), kinetic (DART), launcher tables, porkchop grid in a worker, KINETIC candidates ranked and resolved, resolver v1 with per-mission beta and terminal guidance, economy per year, Section 12 scoring, validated leaderboard, PLANNER overlay, craft in flight, play-by-play, DEBRIEF, next round |
-| M3 Breaking things | todo | next: fragment.ts (Q*, largest remnant, Pareto shards, Rayleigh ejection), fragment segments, Monte Carlo P(miss), HAMMER_SWEEP/SWARM, planet view |
-| M4 .. M12 | todo | see docs/BUILD_PLAN.md |
+| M3 Breaking things | done | fragment.ts (+ mirror, vectors): Q*, largest remnant, Pareto shards, Rayleigh ejection with exact momentum; resolver v2 tracks bodies, disrupts above Q*, per-body close approach with the 3-D correction draw, PARTIAL outcome; Monte Carlo in the worker; planner targets any live body (Tab), SWARM bundles, DISRUPT flag, P(MISS) per plan; PLANET VIEW (V) |
+| M4 Going faster | todo | next: integrate.ts (RK4), sail.ts, flyby.ts, KINETIC_FLYBY and SAIL_KINETIC, flyby windows |
+| M5 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
 
@@ -25,6 +26,11 @@ quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55
 DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Decisions where the plan was silent
+
+- Fragment close approaches use a +/-10 day window (FRAG_CA_WINDOW): the cloud spreads hours to days along track, and
+  the full +/-90 day scan per fragment would make Monte Carlo too slow. The 3-D correction f3D is applied as a
+  seeded Bernoulli per fragment in the deterministic resolve (so ground truth does not over-count 2-D hits).
+- MC_SAMPLES 120 per plan, run in the worker, debounced 250 ms behind the selection.
 
 - IMPACTOR_KG tier 1 is 1500 kg (plan table says 1 t) so the Section 17 Round-1 worked example (1500 kg at U 10 km/s) is the actual I1 capability. [knob]
 - Terminal guidance: an impactor still hits a threat displaced up to 5e7 m from its planned intercept by an earlier impact (TERMINAL_GUIDANCE_RANGE); beyond that it misses. Autonomy (M6) will re-target.
@@ -45,5 +51,8 @@ DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Unverified
 
-None yet. (Benz-Asphaug Q* coefficients and the detection network parameters will be tagged here in M3/M5
-until checked against the sources in GAME_PLAN Appendix B.)
+- `[unverified]` Benz and Asphaug (1999) Q* coefficients (KNOBS.QSTAR_BASALT / QSTAR_ICE): the GAME_PLAN 6.10 sanity ladder
+  (R = 100 m -> ~360 J/kg, 500 m -> ~510, 5 km -> ~7600) reproduces to within the stated tolerances (364 / 433 / 7.6k),
+  but the coefficients have not been checked against the paper to three digits.
+- HAMMER_SWEEP is not a separate archetype: any plan with Q/Q* >= 1 is flagged DISRUPT, and the sweep is the player
+  re-planning against fragment bodies (Tab in the planner) after the breakup. Autonomy (M6) will automate the sweep.

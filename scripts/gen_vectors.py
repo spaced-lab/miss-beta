@@ -20,6 +20,7 @@ sys.path.insert(0, ROOT)
 
 from pymiss.physics.close_approach import b_crit, close_approach, impact_energy  # noqa: E402
 from pymiss.physics.constants import AU, DAY, MU_HOME, MU_SUN, R_HOME, YEAR  # noqa: E402
+from pymiss.physics.fragment import disrupt, f_3d, fragment_masses, largest_remnant_fraction, q_star, specific_energy  # noqa: E402
 from pymiss.physics.estimates import LAUNCHERS, miss_from_impulse, miss_from_push, payload_for_c3  # noqa: E402
 from pymiss.physics.kinetic import kinetic_impact  # noqa: E402
 from pymiss.physics.lambert import lambert  # noqa: E402
@@ -124,8 +125,31 @@ def lambert_vectors() -> dict:
     return {"stumpff": st, "lambert": cases, "kinetic": kin, "estimates": est}
 
 
+def fragment_vectors() -> dict:
+    qs = [{"R": R, "rho": rho, "mult": mult, "material": mat, "Qstar": q_star(R, rho, mult, mat)}
+          for R, rho, mult, mat in ((100, 2700, 1.0, "basalt"), (500, 2700, 1.0, "basalt"), (5000, 2700, 1.0, "basalt"), (50, 1300, 0.5, "basalt"), (300, 600, 0.3, "ice"), (1000, 5300, 5.0, "basalt"))]
+    lr = [{"Q": Q, "Qs": Qs, "f": largest_remnant_fraction(Q, Qs)} for Q, Qs in ((100, 400), (400, 400), (800, 400), (2000, 400), (0, 400))]
+    rng = Rng(hash_seed("vectors:fragment:masses"))
+    masses = {"seed": rng.get_state(), "total": 1e9, "n": 12, "masses": fragment_masses(Rng(rng.get_state()), 1e9, 12)}
+    seed = hash_seed("vectors:fragment:disrupt")
+    M = 1.4e9
+    R = 50.0
+    rho = 2700.0
+    m = 1500.0
+    ux, uy = 9000.0, -3000.0
+    U = math.hypot(ux, uy)
+    Q = specific_energy(m, M, U)
+    Qs = q_star(R, rho)
+    frags = disrupt(Rng(seed), M, R, rho, Q, Qs, m, ux, uy, 20000.0, 15000.0, 10)
+    d = {"seed": seed, "M": M, "R": R, "rho": rho, "Q": Q, "Qstar": Qs, "m": m, "ux": ux, "uy": uy, "vtx": 20000.0, "vty": 15000.0, "n": 10,
+         "fragments": [{"mass": f.mass, "D": f.D, "vx": f.vx, "vy": f.vy, "lr": f.largest_remnant} for f in frags]}
+    f3 = [{"bCrit": b, "vEj": v, "T": T, "f": f_3d(b, v, T)} for b, v, T in ((9.5e6, 1.0, 3e8), (9.5e6, 0.01, 3e8), (9.5e6, 5.0, 6e7))]
+    return {"qStar": qs, "largestRemnant": lr, "masses": masses, "disrupt": d, "f3D": f3}
+
+
 if __name__ == "__main__":
     write("kepler.json", kepler_vectors())
     write("closeApproach.json", close_approach_vectors())
     write("lambert.json", lambert_vectors())
+    write("fragment.json", fragment_vectors())
     write("rng.json", rng_vectors())

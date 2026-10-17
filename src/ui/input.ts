@@ -18,7 +18,7 @@ export class Input {
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
       // Keep the page from scrolling or triggering browser shortcuts on game keys.
-      if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+      if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
       if (!this.down.has(e.code)) this.edge.add(e.code);
       this.down.add(e.code);
       if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {

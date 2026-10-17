@@ -94,12 +94,12 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M3: Breaking things
 
-- [ ] `src/physics/fragment.ts` (6.10): Q, Q* (Benz-Asphaug, `[knob]` coefficients, `[unverified]` until checked against the paper), largest remnant, Pareto fragment masses, Rayleigh ejection, COM momentum conservation, 3-D correction factor. Mirror + vectors. Tests Q_STAR 300..400 J/kg at R = 100 m; FRAGMENT masses sum to 1e-9, momentum to 1e-6.
-- [ ] Resolver: fragment bodies as `ElementSegment[]`, per-fragment close approach, residual energy.
-- [ ] `src/planner/monteCarlo.ts` in the worker (N = 200): P(miss), E_res.
-- [ ] HAMMER_SWEEP and SWARM archetypes; the 4.1 R / 2.2 R style readouts.
-- [ ] PLANET VIEW (13.3): disc with procedural continents (reuse `minigame/planet.ts` generator, moved to `render/continents.ts`), b_crit ring, corridor, cloud cross-section.
-- [ ] Tests: seeded A/B: disrupting at T-2 months produces more hits than at T-2 years.
+- [x] `src/physics/fragment.ts` (6.10): Q, Q* (Benz-Asphaug, `[knob]` coefficients, `[unverified]` until checked against the paper), largest remnant, Pareto fragment masses, Rayleigh ejection, COM momentum conservation, 3-D correction factor. Mirror + vectors. Tests Q_STAR 300..400 J/kg at R = 100 m; FRAGMENT masses sum to 1e-9, momentum to 1e-6.
+- [x] Resolver: fragment bodies as `ElementSegment[]`, per-fragment close approach, residual energy.
+- [x] `src/planner/monteCarlo.ts` in the worker (N = 200): P(miss), E_res.
+- [x] HAMMER_SWEEP and SWARM archetypes; the 4.1 R / 2.2 R style readouts.
+- [x] PLANET VIEW (13.3): disc with procedural continents (reuse `minigame/planet.ts` generator, moved to `render/continents.ts`), b_crit ring, corridor, cloud cross-section.
+- [x] Tests: seeded A/B: disrupting at T-2 months produces more hits than at T-2 years.
 
 ## M4: Going faster
 

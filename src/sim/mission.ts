@@ -29,4 +29,6 @@ export interface Mission {
   U: number;
   cost: number;
   committedAt: number;
+  /** Body id this mission targets ('THREAT' by default; a fragment id after a breakup). */
+  targetId?: string;
 }
