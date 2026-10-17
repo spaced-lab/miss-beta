@@ -7,8 +7,10 @@
 
 import { launcherTier } from '../physics/estimates';
 import type { Elements } from '../physics/kepler';
+import { flybySearch, type FlybyPlanet, type FlybyResult } from '../planner/flybySearch';
 import { monteCarlo, type MonteCarloResult } from '../planner/monteCarlo';
 import { computePorkchop, type PorkchopGrid } from '../planner/porkchop';
+import { sailSearch, type SailResult } from '../planner/sailSearch';
 import type { Mission } from '../sim/mission';
 import type { World } from '../sim/world';
 
@@ -31,7 +33,33 @@ export interface MonteCarloJob {
   n: number;
 }
 
-export type WorkerJob = PorkchopJob | MonteCarloJob;
+export interface FlybyJob {
+  id: number;
+  type: 'flyby';
+  home: Elements;
+  threat: Elements;
+  planets: FlybyPlanet[];
+  muSun: number;
+  tMin: number;
+  tImpact: number;
+  tier: number;
+  dsmBudget: number;
+}
+
+export interface SailJob {
+  id: number;
+  type: 'sail';
+  home: Elements;
+  threat: Elements;
+  muSun: number;
+  tMin: number;
+  tImpact: number;
+  tier: number;
+  sailTier: number;
+  dsmBudget: number;
+}
+
+export type WorkerJob = PorkchopJob | MonteCarloJob | FlybyJob | SailJob;
 
 export interface PorkchopReply {
   id: number;
@@ -45,7 +73,19 @@ export interface MonteCarloReply {
   result: MonteCarloResult;
 }
 
-export type WorkerReply = PorkchopReply | MonteCarloReply | { id: number; type: 'error'; message: string };
+export interface FlybyReply {
+  id: number;
+  type: 'flyby';
+  result: FlybyResult;
+}
+
+export interface SailReply {
+  id: number;
+  type: 'sail';
+  result: SailResult;
+}
+
+export type WorkerReply = PorkchopReply | MonteCarloReply | FlybyReply | SailReply | { id: number; type: 'error'; message: string };
 
 function isElements(v: unknown): v is Elements {
   if (typeof v !== 'object' || v === null) return false;
@@ -68,8 +108,28 @@ function isMonteCarloJob(v: unknown): v is MonteCarloJob {
     typeof w === 'object' && w !== null && typeof w['runSeed'] === 'string' && Array.isArray(w['planets']) && typeof w['threat'] === 'object' && w['threat'] !== null;
 }
 
+function isFlybyJob(v: unknown): v is FlybyJob {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return o['type'] === 'flyby' && Number.isInteger(o['id']) && isElements(o['home']) && isElements(o['threat']) && Array.isArray(o['planets']) &&
+    typeof o['muSun'] === 'number' && typeof o['tMin'] === 'number' && typeof o['tImpact'] === 'number' && Number.isInteger(o['tier']) && typeof o['dsmBudget'] === 'number';
+}
+
+function isSailJob(v: unknown): v is SailJob {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return o['type'] === 'sail' && Number.isInteger(o['id']) && isElements(o['home']) && isElements(o['threat']) &&
+    typeof o['muSun'] === 'number' && typeof o['tMin'] === 'number' && typeof o['tImpact'] === 'number' && Number.isInteger(o['tier']) && Number.isInteger(o['sailTier']) && typeof o['dsmBudget'] === 'number';
+}
+
 /** Runs a job synchronously; exported so the main thread can fall back to it when Workers are unavailable. */
 export function runJob(job: WorkerJob): WorkerReply {
+  if (isFlybyJob(job)) {
+    return { id: job.id, type: 'flyby', result: flybySearch({ home: job.home, threat: job.threat, planets: job.planets, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), dsmBudget: job.dsmBudget }) };
+  }
+  if (isSailJob(job)) {
+    return { id: job.id, type: 'sail', result: sailSearch({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), sailTier: job.sailTier, dsmBudget: job.dsmBudget }) };
+  }
   if (isPorkchopJob(job)) {
     const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier) });
     return { id: job.id, type: 'porkchop', grid };

@@ -50,7 +50,7 @@ export interface CandidateContext {
 }
 
 export interface Candidate {
-  archetype: 'KINETIC' | 'SWARM';
+  archetype: 'KINETIC' | 'SWARM' | 'KINETIC_FLYBY' | 'SAIL_KINETIC';
   missions: Mission[];
   iL: number;
   iA: number;
@@ -62,6 +62,31 @@ export interface Candidate {
   /** Predicted Q/Q* of the first hit. */
   qRatio: number;
   cost: number;
+}
+
+/** Score pre-built missions (flyby and sail plans) with the same verdict and score as grid candidates. */
+export function rankMissions(list: { archetype: Candidate['archetype'] | 'KINETIC_FLYBY' | 'SAIL_KINETIC'; missions: Mission[] }[], ctx: CandidateContext): Candidate[] {
+  const range = KNOBS.BETA_RANGE[ctx.threatType] ?? ([2, 4] as const);
+  const betaMid = (range[0] + range[1]) / 2;
+  const out: Candidate[] = [];
+  for (const item of list) {
+    const first = item.missions[0];
+    if (!first) continue;
+    const dvAlong = estimateDvAlong(first, ctx, betaMid);
+    const missEst = Math.abs(missFromImpulse(dvAlong, ctx.tImpact - first.arrivalTime)) / ctx.rHome;
+    const cost = item.missions.reduce((a, m) => a + m.cost, 0);
+    out.push({ archetype: item.archetype as Candidate['archetype'], missions: item.missions, iL: -1, iA: -1, missEstRadii: missEst, verdict: null, pMiss: 0, score: 0, betaRange: range, qRatio: qRatioFor(first, ctx), cost });
+  }
+  out.sort((a, b) => b.missEstRadii - a.missEstRadii);
+  const top = out.slice(0, KNOBS.PLANNER_RESOLVE_TOP);
+  for (const c of top) {
+    const v = ctx.resolve(c.missions);
+    c.verdict = v;
+    const sc = scoreOf(v, c.cost, ctx);
+    c.pMiss = sc.pMiss;
+    c.score = sc.score;
+  }
+  return top;
 }
 
 export function missionCost(launcherTier: number, impactorTier: number): number {

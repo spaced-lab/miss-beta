@@ -6,9 +6,11 @@
 
 import type { Mission } from '../sim/mission';
 import type { World } from '../sim/world';
-import { runJob, type MonteCarloJob, type PorkchopJob, type WorkerReply } from '../worker/planner.worker';
+import { runJob, type FlybyJob, type MonteCarloJob, type PorkchopJob, type SailJob, type WorkerReply } from '../worker/planner.worker';
+import type { FlybyResult } from './flybySearch';
 import type { MonteCarloResult } from './monteCarlo';
 import type { PorkchopGrid } from './porkchop';
+import type { SailResult } from './sailSearch';
 
 export class PlannerClient {
   private worker: Worker | null = null;
@@ -40,7 +42,7 @@ export class PlannerClient {
     }
   }
 
-  private submit<T>(full: PorkchopJob | MonteCarloJob, unwrap: (r: WorkerReply) => T): Promise<T> {
+  private submit<T>(full: PorkchopJob | MonteCarloJob | FlybyJob | SailJob, unwrap: (r: WorkerReply) => T): Promise<T> {
     if (!this.worker) return Promise.resolve(unwrap(runJob(full)));
     return new Promise((resolve, reject) => {
       this.pending.set(full.id, (r) => {
@@ -59,6 +61,22 @@ export class PlannerClient {
     return this.submit(full, (r) => {
       if (r.type !== 'porkchop') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
       return r.grid;
+    });
+  }
+
+  flyby(job: Omit<FlybyJob, 'id' | 'type'>): Promise<FlybyResult> {
+    const full: FlybyJob = { id: this.nextId++, type: 'flyby', ...job };
+    return this.submit(full, (r) => {
+      if (r.type !== 'flyby') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.result;
+    });
+  }
+
+  sail(job: Omit<SailJob, 'id' | 'type'>): Promise<SailResult> {
+    const full: SailJob = { id: this.nextId++, type: 'sail', ...job };
+    return this.submit(full, (r) => {
+      if (r.type !== 'sail') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.result;
     });
   }
 

@@ -13,8 +13,9 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M1 A threat, and losing | done | closeApproach.ts (+ pymiss mirror, vectors), roundGen.ts with guaranteed collision (1000 seeds sane, 200 seeds impact), threat orbit + ghost + brief in the system view, RESOLVE NOW, RUN OVER with Mt and category |
 | M2 First playable: direct kinetic | done | Lambert (+ mirror, vectors, Hohmann check), kinetic (DART), launcher tables, porkchop grid in a worker, KINETIC candidates ranked and resolved, resolver v1 with per-mission beta and terminal guidance, economy per year, Section 12 scoring, validated leaderboard, PLANNER overlay, craft in flight, play-by-play, DEBRIEF, next round |
 | M3 Breaking things | done | fragment.ts (+ mirror, vectors): Q*, largest remnant, Pareto shards, Rayleigh ejection with exact momentum; resolver v2 tracks bodies, disrupts above Q*, per-body close approach with the 3-D correction draw, PARTIAL outcome; Monte Carlo in the worker; planner targets any live body (Tab), SWARM bundles, DISRUPT flag, P(MISS) per plan; PLANET VIEW (V) |
-| M4 Going faster | todo | next: integrate.ts (RK4), sail.ts, flyby.ts, KINETIC_FLYBY and SAIL_KINETIC, flyby windows |
-| M5 .. M12 | todo | see docs/BUILD_PLAN.md |
+| M4 Going faster | done | integrate.ts (RK4 + Euler for the lab), sail.ts (force model, SPIRAL/COAST/TARGET_STEER, arcs), flyby.ts (patched conic), two-leg flyby search and sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with legs drawn, FLYBY WINDOWS; all mirrored in pymiss with vectors |
+| M5 Seeing it coming | todo | next: photometry.ts, detection.ts, networks.json, discovery search, civil defense, PROGRAMS, SAVE.md, codex |
+| M6 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
 
@@ -26,6 +27,16 @@ quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55
 DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Decisions where the plan was silent
+
+- Sail dv: GAME_PLAN 16 expects a Tier 3 sail to build 8..11 km/s in a year of SPIRAL OUT. That figure holds the
+  sail at 1 AU (0.385 a_c x 1 yr = 9.97 km/s). The honest integral of tangential acceleration along the spiral is
+  6.7 km/s because flux falls as (AU/r)^2 while it climbs past 1.2 AU. The test window is 6..11 km/s and the
+  1 AU figure is asserted separately; constants unchanged (within 2x, physically explained).
+- Until the tech tree (M6), a run starts with NAV 1 (single flyby), SL1 sail and P1 chemical kick (1 km/s DSM
+  budget) so every M4 plan type is reachable. The tech tree will gate them.
+- The flyby search uses coarse axes (step max(15 d, lead/40)) with leg tables so the three-axis combination is
+  arithmetic; the best cell per (launch, arrival) is kept. SAIL_KINETIC: 12 launch dates x 4 arc lengths, TARGET
+  STEER from SL2, departure v_inf 1.5 km/s, the best closing speed per arc that fits the DSM budget.
 
 - Fragment close approaches use a +/-10 day window (FRAG_CA_WINDOW): the cloud spreads hours to days along track, and
   the full +/-90 day scan per fragment would make Monte Carlo too slow. The 3-D correction f3D is applied as a

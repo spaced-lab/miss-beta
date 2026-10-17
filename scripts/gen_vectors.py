@@ -20,6 +20,9 @@ sys.path.insert(0, ROOT)
 
 from pymiss.physics.close_approach import b_crit, close_approach, impact_energy  # noqa: E402
 from pymiss.physics.constants import AU, DAY, MU_HOME, MU_SUN, R_HOME, YEAR  # noqa: E402
+from pymiss.physics.flyby import flyby, soi_radius, turn_angle  # noqa: E402
+from pymiss.physics.integrate import gravity_deriv, integrate  # noqa: E402
+from pymiss.physics.sail import characteristic_accel, integrate_sail, sail_accel  # noqa: E402
 from pymiss.physics.fragment import disrupt, f_3d, fragment_masses, largest_remnant_fraction, q_star, specific_energy  # noqa: E402
 from pymiss.physics.estimates import LAUNCHERS, miss_from_impulse, miss_from_push, payload_for_c3  # noqa: E402
 from pymiss.physics.kinetic import kinetic_impact  # noqa: E402
@@ -147,9 +150,31 @@ def fragment_vectors() -> dict:
     return {"qStar": qs, "largestRemnant": lr, "masses": masses, "disrupt": d, "f3D": f3}
 
 
+def m4_vectors() -> dict:
+    # RK4 two-body: one quarter orbit at 1 AU with 6 h steps, compare against Kepler in the TS test.
+    from pymiss.physics.kepler import vis_viva
+    vc = vis_viva(MU_SUN, AU, AU)
+    s = integrate(gravity_deriv(MU_SUN), (AU, 0.0, 0.0, vc), 0.0, 0.25 * YEAR, 6 * 3600)
+    rk4 = {"t1": 0.25 * YEAR, "h": 6 * 3600, "x": s[0], "y": s[1], "vx": s[2], "vy": s[3]}
+    # Sail: tier 3 SPIRAL_OUT for one year from 1 AU circular.
+    a_c = characteristic_accel(0.01, 0.9)
+    st, dv = integrate_sail((AU, 0.0, 0.0, vc), 0.0, YEAR, a_c, MU_SUN, "SPIRAL_OUT")
+    sail = {"aC": a_c, "law": "SPIRAL_OUT", "t1": YEAR, "x": st[0], "y": st[1], "vx": st[2], "vy": st[3], "dvEquiv": dv,
+            "accel": [{"x": x, "y": y, "alpha": al, "ax": sail_accel(x, y, al, a_c)[0], "ay": sail_accel(x, y, al, a_c)[1]} for x, y, al in ((AU, 0.0, 0.6155), (0.0, 1.5 * AU, -0.3), (AU, AU, 0.0), (AU, 0.0, 1.6))]}
+    mu_giant = 1.26686534e17
+    R_giant = 6.9911e7
+    cases = [{"rP": 10 * R_giant, "vInf": 1e4, "mu": mu_giant, "delta": turn_angle(10 * R_giant, 1e4, mu_giant)},
+             {"rP": 3 * R_giant, "vInf": 2e4, "mu": mu_giant, "delta": turn_angle(3 * R_giant, 2e4, mu_giant)},
+             {"rP": 6.0518e6 + 3e5, "vInf": 8e3, "mu": 3.24859e14, "delta": turn_angle(6.0518e6 + 3e5, 8e3, 3.24859e14)}]
+    fb = flyby(1e4, 2e3, 0.0, 13000.0, cases[0]["delta"], 1, mu_giant)
+    fly = {"turn": cases, "soi": soi_radius(5.203 * AU, mu_giant, MU_SUN), "flyby": {"vsx": 1e4, "vsy": 2e3, "vpx": 0.0, "vpy": 13000.0, "delta": cases[0]["delta"], "side": 1, "mu": mu_giant, "outx": fb[0], "outy": fb[1], "voutx": fb[2], "vouty": fb[3], "dvHelio": fb[4], "rP": fb[5]}}
+    return {"rk4": rk4, "sail": sail, "flyby": fly}
+
+
 if __name__ == "__main__":
     write("kepler.json", kepler_vectors())
     write("closeApproach.json", close_approach_vectors())
     write("lambert.json", lambert_vectors())
     write("fragment.json", fragment_vectors())
+    write("m4.json", m4_vectors())
     write("rng.json", rng_vectors())

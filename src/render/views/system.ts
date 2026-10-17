@@ -18,6 +18,7 @@ import type { Router, Screen } from '../../game/screen';
 import { AU, DAY, YEAR } from '../../physics/constants';
 import { stateToElements } from '../../physics/elements';
 import { orbitPoints, propagate, type Elements } from '../../physics/kepler';
+import { craftPosition } from '../../planner/legs';
 import type { MonteCarloResult } from '../../planner/monteCarlo';
 import { PlannerClient } from '../../planner/workerClient';
 import { formatEvent } from '../../sim/eventLog';
@@ -122,6 +123,9 @@ export class SystemScreen implements Screen {
       result: this.result,
       launcherTier: this.run.launcherTier,
       impactorTier: this.run.impactorTier,
+      navTier: this.run.navTier,
+      sailTier: this.run.sailTier,
+      dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       budget: budgetAt(this.run.economy, this.world.t),
       onCommit: (ms: Mission[]): boolean => {
         const cost = ms.reduce((a, m) => a + m.cost, 0);
@@ -277,13 +281,17 @@ export class SystemScreen implements Screen {
     this.planner.render();
   }
 
-  /** Spacecraft on their Lambert arcs: a faint planned arc, a triangle and a short trail while in flight. */
+  /** Spacecraft: a faint planned path (every leg), a triangle and a short trail while in flight. */
   private drawCraft(): void {
     const s = this.s;
     const p = s.palette;
     const w = this.world;
     const home = planetById(w, 'HOME');
     for (const m of this.missions) {
+      if (m.legs) {
+        this.drawLegs(m);
+        continue;
+      }
       let el = this.craftCache.get(m.id);
       if (!el) {
         const hs = planetState(w, home, m.launchTime);
@@ -320,6 +328,53 @@ export class SystemScreen implements Screen {
       this.polyline(trail, { color: p.ink, glow: 0.4, width: 1, alpha: 0.7 });
       drawText(s, m.id, cx + 8, cy - 12, 9, { color: p.dim, glow: 0 });
     }
+  }
+
+  /** Missions with legs: coast arcs from their elements, sail arcs from samples, a flyby marker at the planet. */
+  private drawLegs(m: Mission): void {
+    const s = this.s;
+    const p = s.palette;
+    const w = this.world;
+    if (!m.legs) return;
+    for (const leg of m.legs) {
+      if (leg.kind === 'COAST') {
+        const n = 40;
+        const arc = new Float64Array(n * 2);
+        for (let i = 0; i < n; i++) {
+          const t = leg.tFrom + ((leg.tTo - leg.tFrom) * i) / (n - 1);
+          const st = propagate(leg.elements, w.star.mu, t);
+          arc[i * 2] = st.r.x;
+          arc[i * 2 + 1] = st.r.y;
+        }
+        this.polyline(arc, { color: p.ink, glow: 0, width: 1, alpha: 0.35, dash: [2, 5] });
+      } else if (leg.kind === 'SAIL') {
+        // Every 8th sample keeps the stroke cheap; the arc is smooth anyway.
+        const n = Math.floor(leg.samples.length / 2);
+        const pts: number[] = [];
+        for (let i = 0; i < n; i += 8) pts.push(leg.samples[i * 2] as number, leg.samples[i * 2 + 1] as number);
+        this.polyline(Float64Array.from(pts), { color: p.ink, glow: 0.3, width: 1, alpha: 0.5 });
+      } else if (leg.kind === 'FLYBY') {
+        const pl = planetById(w, leg.planetId);
+        const ps = planetState(w, pl, leg.t);
+        const [x, y] = this.project(ps.r.x, ps.r.y);
+        s.circle(x, y, 10, { color: p.hot, glow: 0.6, width: 1, dash: [2, 3], alpha: w.t < leg.t ? 0.7 : 0.3 });
+      }
+    }
+    if (w.t < m.launchTime || w.t >= m.arrivalTime) return;
+    const pos = craftPosition(m, w.star.mu, w.t);
+    if (!pos) return;
+    const [cx, cy] = this.project(pos.x, pos.y);
+    const prev = craftPosition(m, w.star.mu, Math.max(m.launchTime, w.t - 2 * DAY));
+    const ang = prev ? Math.atan2(-(pos.y - prev.y), pos.x - prev.x) : 0;
+    const r = 5;
+    s.stroke([cx + Math.cos(ang) * r * 1.6, cy + Math.sin(ang) * r * 1.6, cx + Math.cos(ang + 2.5) * r, cy + Math.sin(ang + 2.5) * r, cx + Math.cos(ang - 2.5) * r, cy + Math.sin(ang - 2.5) * r], { closed: true, color: p.hot, glow: 1.2 });
+    const trail: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      const q = craftPosition(m, w.star.mu, Math.max(m.launchTime, w.t - i * 20 * DAY));
+      if (q) trail.push(q.x, q.y);
+    }
+    if (trail.length >= 4) this.polyline(Float64Array.from(trail), { color: p.ink, glow: 0.4, width: 1, alpha: 0.7 });
+    drawText(s, m.id, cx + 8, cy - 12, 9, { color: p.dim, glow: 0 });
   }
 
   private drawThreat(): void {

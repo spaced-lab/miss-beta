@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M4: RK4 integration, solar sail arcs (SPIRAL OUT/IN, COAST, TARGET STEER), patched-conic flybys, the
+  two-leg flyby search and the sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with their
+  legs drawn on the system view, FLYBY WINDOWS in the planner; Python mirrors and shared vectors. The dev
+  server no longer reloads the page on a source save (hot updates are accepted; a notice asks for a refresh).
+
 - M3: fragmentation (Benz-Asphaug Q*, largest remnant, Pareto shards, Rayleigh ejection, exact momentum; TS +
   Python, shared vectors); resolver tracks remnant and fragments with per-body close approaches, the 3-D
   correction and the PARTIAL outcome; Monte Carlo P(MISS) in the worker; planner targets fragments (Tab),

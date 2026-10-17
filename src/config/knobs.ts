@@ -61,6 +61,34 @@ export const KNOBS = {
   /** Monte Carlo samples per plan. */
   MC_SAMPLES: 120,
 
+  /** 6.8: sail tiers: loading sigma (kg/m^2), reflectivity eta; a_c follows. Sail mass fraction of the payload. */
+  SAIL_TIERS: [
+    { tier: 1, sigma: 0.1, eta: 0.9, massFraction: 0.4, name: 'SL1 NEA-SCOUT CLASS' },
+    { tier: 2, sigma: 0.025, eta: 0.9, massFraction: 0.35, name: 'SL2' },
+    { tier: 3, sigma: 0.01, eta: 0.9, massFraction: 0.3, name: 'SL3' },
+    { tier: 4, sigma: 0.003, eta: 0.9, massFraction: 0.2, name: 'SL4 GRAPHENE' },
+  ] as readonly { tier: number; sigma: number; eta: number; massFraction: number; name: string }[],
+  /** RK4 step for thrust arcs, s. */
+  SAIL_DT: 6 * 3600,
+  /** Optimal cone angle for tangential thrust, rad (35.26 deg). */
+  SAIL_ALPHA_OPT: Math.atan(1 / Math.SQRT2),
+  /** TARGET STEER: candidate cone angles evaluated each step, rad. */
+  SAIL_STEER_ANGLES: [-70, -45, -20, 0, 20, 45, 70].map((d) => (d * Math.PI) / 180) as readonly number[],
+  /** Sail search grid: launch steps and arc durations (years), plus the departure v_inf used, m/s. */
+  SAIL_SEARCH_LAUNCH_STEPS: 12,
+  SAIL_ARC_YEARS: [0.5, 1, 1.5, 2] as readonly number[],
+  SAIL_DEPARTURE_VINF: 1500,
+  /** Max flight mismatch a sail plan may leave for the onboard dv at the arc's end, m/s (dsm budget applies). */
+
+  /** 6.7: flyby minimum periapsis altitude above the surface, m: rocky planets 300 km; GIANT 2 radii. */
+  FLYBY_HMIN_ROCKY: 3e5,
+  FLYBY_HMIN_GIANT_RADII: 2,
+  /** Flyby search: axis step is the larger of this and lead / FLYBY_MAX_AXIS. */
+  FLYBY_STEP: 15 * DAY,
+  FLYBY_MAX_AXIS: 40,
+  /** Onboard dv (DSM / powered flyby / sail-end match) by propulsion tier, m/s: P1 chemical kick, P2 ion, P3 NEP. */
+  DSM_BUDGET: [1000, 5000, 15000] as readonly number[],
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 

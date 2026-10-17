@@ -103,9 +103,9 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M4: Going faster
 
-- [ ] `src/physics/integrate.ts` (RK4, plus Euler for the lab), `src/physics/sail.ts` (6.8 force model, control laws, tiers), drop-sail. Mirror + vectors. Test SAIL: Tier 3 builds 8..11 km/s in one year of SPIRAL OUT.
-- [ ] `src/physics/flyby.ts` (6.7) and the two-leg search over t_F. Mirror + vectors. Test FLYBY: GIANT, r_p = 10 R, v_inf 10 km/s -> delta ≈ 80.2 deg; |v_inf| preserved to 1e-9.
-- [ ] KINETIC_FLYBY and SAIL_KINETIC archetypes; FLYBY WINDOWS panel; sail arcs rendered from sampled tables.
+- [x] `src/physics/integrate.ts` (RK4, plus Euler for the lab), `src/physics/sail.ts` (6.8 force model, control laws, tiers), drop-sail. Mirror + vectors. Test SAIL: Tier 3 builds 8..11 km/s in one year of SPIRAL OUT.
+- [x] `src/physics/flyby.ts` (6.7) and the two-leg search over t_F. Mirror + vectors. Test FLYBY: GIANT, r_p = 10 R, v_inf 10 km/s -> delta ≈ 80.2 deg; |v_inf| preserved to 1e-9.
+- [x] KINETIC_FLYBY and SAIL_KINETIC archetypes; FLYBY WINDOWS panel; sail arcs rendered from sampled tables.
 - Accept: a GIANT flyby raises U by > 10 km/s in at least one seeded configuration.
 
 ## M5: Seeing it coming

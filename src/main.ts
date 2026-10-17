@@ -8,6 +8,7 @@ import type { Router, Screen, ScreenId } from './game/screen';
 import { MinigameScreen } from './minigame/index';
 import { createSurface } from './render/canvas';
 import { PALETTES } from './render/palettes';
+import { drawText } from './render/vectorFont';
 import { LeaderboardScreen } from './render/views/leaderboard';
 import { SystemScreen } from './render/views/system';
 import { TitleScreen } from './render/views/title';
@@ -45,8 +46,16 @@ function boot(): void {
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.
-  const stats = { cpuMs: 0, frameMs: 0 };
+  const stats = { cpuMs: 0, frameMs: 0, stale: false };
   if (import.meta.env.DEV) (window as unknown as { __miss: typeof stats }).__miss = stats;
+  // NOTE: accept hot updates here without re-booting, so a source save on the dev server never reloads
+  // the page under a running game. The running code is simply stale until the player refreshes; a notice
+  // is drawn over every screen so nobody tests old code by accident.
+  if (import.meta.hot) {
+    import.meta.hot.accept(() => {
+      stats.stale = true;
+    });
+  }
 
   let last = performance.now();
   const frame = (now: number): void => {
@@ -56,6 +65,7 @@ function boot(): void {
     current?.update(dt);
     keys.endFrame();
     current?.render();
+    if (stats.stale) drawText(surface, 'NEW BUILD AVAILABLE: REFRESH TO LOAD IT', surface.width / 2, 4, 11, { align: 'center', color: surface.palette.hot, glow: 1 });
     const cpu = performance.now() - t0;
     stats.cpuMs = stats.cpuMs * 0.9 + cpu * 0.1;
     stats.frameMs = stats.frameMs * 0.9 + dt * 0.1;
