@@ -5,7 +5,8 @@
 //       MG.VIEW_R on the shorter axis. Neon colours unlock by spectrum stage (sim.spectrumStage): stage 0
 //       is all phosphor green; 1 colours rock hardness; 2 colours bullet strength; 3 adds moon, turret
 //       and particle accents. Hardness is also drawn as line width and, for cores, a double outline, so
-//       the information survives without colour.
+//       the information survives without colour. All pixel sizes come from the PX table below: the look is
+//       fine on purpose (1 px dust and sentry shots, sub-pixel outlines that sharpen at DPR 2).
 // LORE: G2 (screens and HUD), G8 (the look)
 
 import type { Surface } from '../render/canvas';
@@ -32,6 +33,28 @@ const NEON = {
   moon: '#7DF9FF',
   turret: ['#CCFF00', '#00F0FF', '#FF2BD6'],
   heat: '#FF6A00',
+} as const;
+
+/**
+ * Pixel sizes. Everything is deliberately fine (owner's note, 2026-10-17: "all detail gets finer"):
+ * sentry bullets are single pixels, player bullets barely bigger, dust is 1 px, outlines are sub-pixel at
+ * DPR 1 and crisp at DPR 2. Hardness still reads through colour and the width ladder (ROCK_W + tier * ROCK_W_STEP).
+ */
+const PX = {
+  particle: 1,
+  autoBullet: 1,
+  /** Player bullet: base + damage * step (1.3, 1.6, 1.9 px for damage 1..3). */
+  bullet: 1.0,
+  bulletStep: 0.3,
+  rockW: 0.55,
+  rockWStep: 0.22,
+  coreRing: 0.5,
+  moonW: 0.75,
+  moonDetail: 0.5,
+  sentryW: 0.7,
+  sentryDetail: 0.5,
+  sentryBarrel: 0.8,
+  continentW: 0.7,
 } as const;
 
 const scratch: number[] = [];
@@ -63,7 +86,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   for (const q of st.particles) {
     const a = q.life / q.max;
     const color = q.tier < 0 ? p.hot : stage >= 3 ? tierColor(s, q.tier, stage) : a > 0.5 ? p.hot : p.ink;
-    s.dot(X(q.x), Y(q.y), 1.2, color, a);
+    s.dot(X(q.x), Y(q.y), PX.particle, color, a);
   }
 
   // Planet and continents.
@@ -71,7 +94,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   for (const c of st.continents) {
     scratch.length = 0;
     for (let i = 0; i < c.length; i += 2) scratch.push(X(c[i] as number), Y(c[i + 1] as number));
-    s.stroke(scratch, { closed: true, glow: 0.6, alpha: 0.85, width: 1 });
+    s.stroke(scratch, { closed: true, glow: 0.6, alpha: 0.85, width: PX.continentW });
   }
 
   // Moon: faint orbit ring, disc, craters fixed to its face (tidally locked), cracks as it wears.
@@ -82,13 +105,13 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
       const mc = stage >= 3 ? NEON.moon : p.ink;
       const mr = MG.MOON_R * k;
       const wear = 1 - st.moonHp / MG.MOON_HP;
-      s.circle(X(m.x), Y(m.y), mr, { color: mc, glow: 1.2, alpha: 1 - 0.3 * wear });
+      s.circle(X(m.x), Y(m.y), mr, { color: mc, glow: 1.2, alpha: 1 - 0.3 * wear, width: PX.moonW });
       const ca = Math.cos(st.moonAngle);
       const sa = Math.sin(st.moonAngle);
       for (const [dx, dy, cr] of st.craters) {
         const rx = dx * ca - dy * sa;
         const ry = dx * sa + dy * ca;
-        s.circle(X(m.x + rx * MG.MOON_R), Y(m.y + ry * MG.MOON_R), cr * mr, { color: mc, glow: 0.3, width: 0.8, alpha: 0.8 });
+        s.circle(X(m.x + rx * MG.MOON_R), Y(m.y + ry * MG.MOON_R), cr * mr, { color: mc, glow: 0.3, width: PX.moonDetail, alpha: 0.8 });
       }
       // Cracks: one jagged line per 25% lost.
       const cracks = Math.floor(wear * 4);
@@ -100,7 +123,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
           const aa = a0 + Math.sin(i * 2.3 + c) * 0.5;
           scratch.push(X(m.x) + Math.cos(aa) * rr, Y(m.y) + Math.sin(aa) * rr);
         }
-        s.stroke(scratch, { color: mc, glow: 0.2, width: 0.8, alpha: 0.9 });
+        s.stroke(scratch, { color: mc, glow: 0.2, width: PX.moonDetail, alpha: 0.9 });
       }
     }
   }
@@ -130,12 +153,12 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
       const a = st.t * 0.8 + (i / 6) * Math.PI * 2;
       scratch.push(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
     }
-    s.stroke(scratch, { closed: true, color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: 1 });
-    s.circle(tx, ty, r * 0.45, { color: tc, glow: 0.6, width: 0.8, alpha: fading });
+    s.stroke(scratch, { closed: true, color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: PX.sentryW });
+    s.circle(tx, ty, r * 0.45, { color: tc, glow: 0.6, width: PX.sentryDetail, alpha: fading });
     const target = st.asteroids.find((a) => a.id === tr.targetId);
     if (target) {
       const ang = Math.atan2(Y(target.y) - ty, X(target.x) - tx);
-      s.stroke([tx + Math.cos(ang) * r * 0.5, ty + Math.sin(ang) * r * 0.5, tx + Math.cos(ang) * (r + 7), ty + Math.sin(ang) * (r + 7)], { color: tc, glow: 0.8, width: tr.superb ? 2 : 1.2 });
+      s.stroke([tx + Math.cos(ang) * r * 0.5, ty + Math.sin(ang) * r * 0.5, tx + Math.cos(ang) * (r + 7), ty + Math.sin(ang) * (r + 7)], { color: tc, glow: 0.8, width: tr.superb ? PX.sentryBarrel * 1.6 : PX.sentryBarrel });
     }
     // Life arc.
     const frac = tr.life / tr.maxLife;
@@ -144,11 +167,11 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
       const a = -Math.PI / 2 + (i / 16) * Math.PI * 2 * frac;
       scratch.push(tx + Math.cos(a) * (r + 3), ty + Math.sin(a) * (r + 3));
     }
-    if (scratch.length >= 4) s.stroke(scratch, { color: tc, glow: 0, width: 0.8, alpha: 0.5 });
+    if (scratch.length >= 4) s.stroke(scratch, { color: tc, glow: 0, width: PX.sentryDetail, alpha: 0.5 });
   }
 
-  // Bullets: size and colour by damage.
-  for (const b of st.bullets) s.dot(X(b.x), Y(b.y), 1.5 + b.damage * 0.5, bulletColor(s, b.damage, stage));
+  // Bullets: sentry shots are single pixels; player shots size by damage, colour by damage.
+  for (const b of st.bullets) s.dot(X(b.x), Y(b.y), b.auto ? PX.autoBullet : PX.bullet + b.damage * PX.bulletStep, bulletColor(s, b.damage, stage));
 
   // Asteroids: jagged polygons; width by tier, double outline for cores.
   for (const a of st.asteroids) {
@@ -161,8 +184,8 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     }
     const dt = displayTier(a);
     const color = a.core ? (stage >= 1 ? NEON.core : p.hot) : tierColor(s, dt, stage);
-    s.stroke(scratch, { closed: true, glow: 0.7 + dt * 0.25, color, width: 0.8 + dt * 0.3, alpha: a.passing ? 0.8 : 1 });
-    if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.6, width: 0.8 });
+    s.stroke(scratch, { closed: true, glow: 0.7 + dt * 0.25, color, width: PX.rockW + dt * PX.rockWStep, alpha: a.passing ? 0.8 : 1 });
+    if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.6, width: PX.coreRing });
   }
 
   // Laser beams: a bright core line and a wider faint one, fading.

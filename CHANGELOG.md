@@ -10,6 +10,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   local leaderboard, PLANNER overlay (P), spacecraft on their arcs, play-by-play log, DEBRIEF and NEXT
   ROUND, RUN OVER with leaderboard rank, LEADERBOARD screen. `npm run play` serves a stable build on 4173.
 
+- PERIMETER finer detail: sentry bullets 1 px, player bullets 1.3-1.9 px by damage, dust 1 px, rock width
+  ladder 0.55 + 0.22 per tier, thinner moon, sentry and continent outlines; sizes in the `PX` table in render.ts.
+
 - PERIMETER sound, bassier: a DynamicsCompressor on the synth master bus caps stacked hits; `bass()` adds a
   30-45 Hz sub layer with a longer tail; hits, breakups and crashes lean on it; crunches lowpassed lower;
   ticks stay bright blips, a notch quieter; chaos bass-static a touch fuller.
