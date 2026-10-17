@@ -1,0 +1,66 @@
+import { describe, expect, it } from 'vitest';
+import { Rng, hashSeed, roundRng } from '../src/sim/rng';
+
+describe('Rng (mulberry32)', () => {
+  it('is deterministic for the same seed', () => {
+    const a = new Rng(12345);
+    const b = new Rng(12345);
+    for (let i = 0; i < 1000; i++) expect(a.next()).toBe(b.next());
+  });
+
+  it('matches the reference mulberry32 first outputs for seed 0 (shared with pymiss)', () => {
+    // Reference values computed from the canonical mulberry32 implementation; pymiss/tests reuse them.
+    const r = new Rng(0);
+    const first = [r.next(), r.next(), r.next()];
+    expect(first[0]).toBeCloseTo(0.26642920868471265, 15);
+    expect(first[1]).toBeCloseTo(0.0003297457005828619, 15);
+    expect(first[2]).toBeCloseTo(0.2232720274478197, 15);
+  });
+
+  it('produces uniform-ish floats in [0,1)', () => {
+    const r = new Rng(42);
+    let sum = 0;
+    const n = 20000;
+    for (let i = 0; i < n; i++) {
+      const v = r.next();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+      sum += v;
+    }
+    expect(sum / n).toBeCloseTo(0.5, 1);
+  });
+
+  it('int() is inclusive on both ends', () => {
+    const r = new Rng(7);
+    const seen = new Set<number>();
+    for (let i = 0; i < 2000; i++) seen.add(r.int(1, 3));
+    expect([...seen].sort()).toEqual([1, 2, 3]);
+  });
+
+  it('gaussian has the requested mean and sigma', () => {
+    const r = new Rng(99);
+    const n = 20000;
+    let s = 0;
+    let s2 = 0;
+    for (let i = 0; i < n; i++) {
+      const v = r.gaussian(2, 3);
+      s += v;
+      s2 += v * v;
+    }
+    const mean = s / n;
+    const sigma = Math.sqrt(s2 / n - mean * mean);
+    expect(mean).toBeCloseTo(2, 1);
+    expect(sigma).toBeCloseTo(3, 1);
+  });
+
+  it('hashSeed is stable and differs between seeds', () => {
+    expect(hashSeed('TUTORIAL-1')).toBe(hashSeed('TUTORIAL-1'));
+    expect(hashSeed('TUTORIAL-1')).not.toBe(hashSeed('TUTORIAL-2'));
+    expect(hashSeed('')).toBe(0x811c9dc5);
+  });
+
+  it('roundRng streams differ per round but repeat per (seed, round)', () => {
+    expect(roundRng('ABC', 1).next()).toBe(roundRng('ABC', 1).next());
+    expect(roundRng('ABC', 1).next()).not.toBe(roundRng('ABC', 2).next());
+  });
+});
