@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v2.2: rock-on-rock gravity, bounces and crash chips, binary pairs that orbit each other;
+  continents from layered sines with islands; moon further out with craters, 600 hit points chipped only by
+  rocks, cracks, and loss; sentries with tiers by level, SUPER sentries (3-way, double rate, hue-cycling)
+  including level-up gifts; thinner rocks and bullets, 1 px dust; sub-bass pops under ticks and hits,
+  deeper impacts, soft laser zap, chaos-driven bass static; <SHIFT> pulse in the key hints; 24 s levels.
+
 - PERIMETER v2.1: lo-fi synthesized sound (WebAudio, no samples) with three kits (key 5) and a toggle
   (key 4); laser pulse on the first shot after a break from 3 streams (every launcher at 5 streams); sim
   emits events for sound; difficulty ramps a little faster; turret life 12 s; less glow halo everywhere.

@@ -20,7 +20,7 @@ import { Rng } from '../sim/rng';
 import { clamp, wrapAngle } from '../util/vec';
 import { findHits, type CollisionStrategy } from './collision';
 import { byLevel, MG } from './config';
-import { generateAsteroidShape, generateContinents, type Continent } from './planet';
+import { generateAsteroidShape, generateContinents, generateCraters, type Continent } from './planet';
 
 export interface Input {
   left: boolean;
@@ -79,9 +79,14 @@ export interface Particle {
 export interface Turret {
   angle: number;
   life: number;
+  maxLife: number;
   cooldown: number;
   /** Id of the rock it is aiming at, or -1. */
   targetId: number;
+  /** 0..2 from level: damage and fire rate. */
+  tier: number;
+  /** SUPER sentry: 3-way spread, double rate, longer life, hue-cycling. */
+  superb: boolean;
 }
 
 export interface Flash {
@@ -108,6 +113,9 @@ export type SimEvent =
   | { type: 'levelup' }
   | { type: 'turret' }
   | { type: 'moon' }
+  | { type: 'moonhit' }
+  | { type: 'moonlost' }
+  | { type: 'crash'; speed: number }
   | { type: 'over' };
 
 export type Status = 'ready' | 'playing' | 'over';
@@ -152,6 +160,8 @@ export interface MinigameState {
   /** Direct hits counted toward the next turret. */
   turretProgress: number;
   moonAngle: number;
+  moonHp: number;
+  craters: Array<[number, number, number]>;
   pulses: number;
   pulseCharge: number;
   pulseR: number;
@@ -176,6 +186,11 @@ export const launcherCount = (level: number): number => byLevel(MG.LAUNCHERS_BY_
 export const streamCount = (level: number): number => byLevel(MG.STREAMS_BY_LEVEL, level);
 export const maxTier = (level: number): number => byLevel(MG.MAX_TIER_BY_LEVEL, level);
 export const moonActive = (level: number): boolean => level >= MG.MOON_LEVEL;
+export const moonAlive = (st: MinigameState): boolean => moonActive(st.level) && st.moonHp > 0;
+/** Sentry tier from level: one step per TURRET_TIER_LEVELS after TURRET_LEVEL, capped at 2. */
+export const turretTier = (level: number): number => Math.max(0, Math.min(2, Math.floor((level - MG.TURRET_LEVEL) / MG.TURRET_TIER_LEVELS)));
+/** 0..1 how busy the field is; drives the ambient bass-static layer. */
+export const chaosLevel = (st: MinigameState): number => clamp(st.asteroids.length / 45 + st.bullets.length / 400 + (st.level - 1) / 20, 0, 1);
 /** 0..3: how much of the neon spectrum is unlocked at this level. */
 export const spectrumStage = (level: number): number => MG.SPECTRUM_LEVELS.filter((l) => level >= l).length;
 
@@ -246,6 +261,8 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     turrets: [],
     turretProgress: 0,
     moonAngle: rng.float(0, Math.PI * 2),
+    moonHp: MG.MOON_HP,
+    craters: generateCraters(rng),
     pulses: 0,
     pulseCharge: 0,
     pulseR: -1,
@@ -326,6 +343,35 @@ function drawTier(st: MinigameState, max: number): number {
   return max;
 }
 
+/** Two rocks side by side with circular orbital velocity about their centre of mass, drifting together. */
+export function spawnBinary(st: MinigameState, x: number, y: number, vx: number, vy: number, tier: number): void {
+  const r1 = st.rng.float(MG.AST_R_MIN, MG.AST_R_MAX);
+  const r2 = st.rng.float(MG.AST_R_MIN, MG.AST_R_MAX);
+  const a = makeAsteroid(st, 0, 0, 0, 0, r1, tier, false, false);
+  const b = makeAsteroid(st, 0, 0, 0, 0, r2, Math.max(0, tier - 1), false, false);
+  const m1 = rockMass(a);
+  const m2 = rockMass(b);
+  const sep = r1 + r2 + st.rng.float(0.35, 0.6);
+  const ang = st.rng.float(0, Math.PI * 2);
+  const ux = Math.cos(ang);
+  const uy = Math.sin(ang);
+  // Circular relative orbit: v_rel = sqrt(G (m1+m2) / sep), split by mass about the COM.
+  const vRel = Math.sqrt((MG.AST_G * (m1 + m2)) / sep);
+  const d1 = (sep * m2) / (m1 + m2);
+  const d2 = (sep * m1) / (m1 + m2);
+  a.x = x + ux * d1;
+  a.y = y + uy * d1;
+  b.x = x - ux * d2;
+  b.y = y - uy * d2;
+  const tx = -uy;
+  const ty = ux;
+  a.vx = vx + tx * vRel * (m2 / (m1 + m2));
+  a.vy = vy + ty * vRel * (m2 / (m1 + m2));
+  b.vx = vx - tx * vRel * (m1 / (m1 + m2));
+  b.vy = vy - ty * vRel * (m1 / (m1 + m2));
+  st.asteroids.push(a, b);
+}
+
 function spawnAsteroid(st: MinigameState): void {
   if (st.asteroids.length >= MG.MAX_ASTEROIDS) return;
   const theta = st.rng.float(0, Math.PI * 2);
@@ -338,9 +384,73 @@ function spawnAsteroid(st: MinigameState): void {
   const dy = aimR * Math.sin(aimA) - y;
   const d = Math.hypot(dx, dy);
   const v = baseSpeed(st.level) * (0.8 + 0.2 * st.pressure) * st.rng.float(0.8, 1.2);
-  const r = st.rng.float(MG.AST_R_MIN, MG.AST_R_MAX);
   const tier = drawTier(st, maxTier(st.level));
+  if (!passing && st.level >= MG.BINARY_LEVEL && st.asteroids.length + 2 <= MG.MAX_ASTEROIDS && st.rng.chance(MG.BINARY_PROB)) {
+    spawnBinary(st, x, y, (dx / d) * v * 0.9, (dy / d) * v * 0.9, tier);
+    return;
+  }
+  const r = st.rng.float(MG.AST_R_MIN, MG.AST_R_MAX);
   st.asteroids.push(makeAsteroid(st, x, y, (dx / d) * v, (dy / d) * v, r, tier, false, passing));
+}
+
+/** Rock-on-rock: mutual gravity within range, then elastic bounces that chip both rocks when fast. */
+function interact(st: MinigameState, dt: number): number[] {
+  const rocks = st.asteroids;
+  const n = rocks.length;
+  const dead: number[] = [];
+  const range2 = MG.AST_GRAV_RANGE * MG.AST_GRAV_RANGE;
+  for (let i = 0; i < n; i++) {
+    const a = rocks[i];
+    if (!a) continue;
+    for (let j = i + 1; j < n; j++) {
+      const b = rocks[j];
+      if (!b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > range2) continue;
+      const d = Math.sqrt(d2);
+      const ma = rockMass(a);
+      const mb = rockMass(b);
+      const rr = a.r + b.r;
+      if (d >= rr) {
+        // Gravity, softened so a near pass does not sling.
+        const acc = MG.AST_G / Math.max(d2, 0.04);
+        const ux = dx / d;
+        const uy = dy / d;
+        a.vx += ux * acc * mb * dt;
+        a.vy += uy * acc * mb * dt;
+        b.vx -= ux * acc * ma * dt;
+        b.vy -= uy * acc * ma * dt;
+        continue;
+      }
+      // Overlap: separate along the normal and apply a 1-D elastic impulse with restitution.
+      const ux = d > 1e-9 ? dx / d : 1;
+      const uy = d > 1e-9 ? dy / d : 0;
+      const overlap = rr - d;
+      const total = ma + mb;
+      a.x -= (ux * overlap * mb) / total;
+      a.y -= (uy * overlap * mb) / total;
+      b.x += (ux * overlap * ma) / total;
+      b.y += (uy * overlap * ma) / total;
+      const rel = (b.vx - a.vx) * ux + (b.vy - a.vy) * uy; // closing if negative
+      if (rel >= 0) continue;
+      const jImp = (-(1 + MG.AST_RESTITUTION) * rel) / (1 / ma + 1 / mb);
+      a.vx -= (ux * jImp) / ma;
+      a.vy -= (uy * jImp) / ma;
+      b.vx += (ux * jImp) / mb;
+      b.vy += (uy * jImp) / mb;
+      if (-rel > MG.AST_CRASH_SPEED) {
+        a.hp -= 1;
+        b.hp -= 1;
+        spawnParticles(st, (a.x + b.x) / 2, (a.y + b.y) / 2, 6, 1.5, Math.max(a.tier, b.tier));
+        emit(st, { type: 'crash', speed: -rel });
+        if (a.hp <= 0 && !dead.includes(i)) dead.push(i);
+        if (b.hp <= 0 && !dead.includes(j)) dead.push(j);
+      }
+    }
+  }
+  return dead;
 }
 
 /** Remove asteroid `i`, award score, split if large, and spawn debris. */
@@ -435,10 +545,12 @@ function fire(st: MinigameState): void {
   emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
 }
 
-function deployTurret(st: MinigameState): void {
+export function deployTurret(st: MinigameState, forceSuper?: boolean): void {
   if (st.turrets.length >= MG.TURRET_MAX) return;
-  st.turrets.push({ angle: st.rng.float(0, Math.PI * 2), life: MG.TURRET_LIFE, cooldown: 0.5, targetId: -1 });
-  flash(st, 'AUTO TURRET DEPLOYED', 1.6);
+  const superb = forceSuper ?? st.rng.chance(MG.TURRET_SUPER_PROB);
+  const life = MG.TURRET_LIFE * (superb ? MG.TURRET_SUPER_LIFE_MULT : 1);
+  st.turrets.push({ angle: st.rng.float(0, Math.PI * 2), life, maxLife: life, cooldown: 0.5, targetId: -1, tier: turretTier(st.level), superb });
+  flash(st, superb ? 'SUPER SENTRY' : 'SENTRY DEPLOYED', 1.6);
   emit(st, { type: 'turret' });
 }
 
@@ -500,7 +612,9 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     emit(st, { type: 'levelup' });
     if (lvl === MG.MOON_LEVEL) flash(st, 'MOON IN ORBIT', 2);
     if (lvl === MG.PASSING_LEVEL) flash(st, 'PASSING ROCKS: NUDGE THEM', 2);
-    if (lvl === MG.TURRET_LEVEL) flash(st, 'TURRETS EARNED PER 60 HITS', 2);
+    if (lvl === MG.TURRET_LEVEL) flash(st, 'SENTRIES EARNED PER 60 HITS', 2);
+    // A random SUPER sentry now and then: a breather as the field gets busy.
+    if (lvl > MG.TURRET_LEVEL && st.rng.chance(MG.TURRET_GIFT_PROB)) deployTurret(st, true);
   }
   const wantL = st.cheats.launchers ?? launcherCount(st.level);
   if (wantL !== st.launcherCount) {
@@ -549,8 +663,8 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   }
 
   // Moon.
-  const moonOn = moonActive(st.level);
-  if (moonOn) st.moonAngle = wrapAngle(st.moonAngle + MG.MOON_ANGULAR_SPEED * dt);
+  const moonOn = moonAlive(st);
+  if (moonActive(st.level)) st.moonAngle = wrapAngle(st.moonAngle + MG.MOON_ANGULAR_SPEED * dt);
   const moon = moonPosition(st);
 
   // Turrets: orbit, pick a target, fire.
@@ -572,8 +686,13 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       // Lead the target by its travel time at bullet speed.
       const lead = Math.hypot(target.x - tx, target.y - ty) / MG.BULLET_SPEED;
       const ang = Math.atan2(target.y + target.vy * lead - ty, target.x + target.vx * lead - tx);
-      pushBullet(st, tx, ty, ang, strengthLevel(st.streamCount), true);
-      tr.cooldown = MG.TURRET_COOLDOWN;
+      const dmg = strengthLevel(st.streamCount) + tr.tier;
+      if (tr.superb) {
+        for (const off of [-0.12, 0, 0.12]) pushBullet(st, tx, ty, ang + off, dmg, true);
+      } else {
+        pushBullet(st, tx, ty, ang, dmg, true);
+      }
+      tr.cooldown = (MG.TURRET_COOLDOWN / (1 + 0.35 * tr.tier)) * (tr.superb ? 0.5 : 1);
     }
   }
 
@@ -598,6 +717,11 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     if (moonOn && Math.hypot(b.x - moon.x, b.y - moon.y) <= MG.MOON_R) swapRemove(st.bullets, i);
   }
 
+  // Rock-on-rock gravity and bounces; crashes can break rocks.
+  const crashed = interact(st, dt);
+  crashed.sort((p, q) => q - p);
+  for (const j of crashed) destroyAsteroid(st, j, 0.5, true);
+
   // Asteroids: moon gravity, motion, planet and moon contact.
   for (let i = st.asteroids.length - 1; i >= 0; i--) {
     const a = st.asteroids[i];
@@ -614,7 +738,15 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (d <= MG.MOON_R + a.r) {
         spawnParticles(st, a.x, a.y, 8, 2, a.tier);
         st.score += Math.floor(a.r * MG.SCORE_PER_R * 0.25);
-        emit(st, { type: 'moon' });
+        const chip = clamp(Math.round(a.r * MG.DAMAGE_PER_R * (1 + 0.5 * a.tier)), MG.DAMAGE_MIN, MG.DAMAGE_MAX);
+        st.moonHp -= chip;
+        emit(st, { type: 'moonhit' });
+        if (st.moonHp <= 0) {
+          st.moonHp = 0;
+          spawnParticles(st, moon.x, moon.y, 40, 2.5, 2);
+          flash(st, 'MOON LOST', 2);
+          emit(st, { type: 'moonlost' });
+        }
         swapRemove(st.asteroids, i);
         continue;
       }

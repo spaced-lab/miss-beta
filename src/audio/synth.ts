@@ -235,6 +235,46 @@ export class Synth {
     }
   }
 
+  /** Sub-bass pop: an extremely short sine at 35-90 Hz with a fast pitch drop. The "tiny lo-fi bass". */
+  bass(freq = 70, dur = 0.035, gain = 0.12): void {
+    const io = this.out();
+    if (!io) return;
+    const { ctx, master } = io;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.55, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g).connect(master);
+    osc.start(t);
+    osc.stop(t + dur + 0.01);
+  }
+
+  /** Bass static: a discrete low rumble pop, noise through a very low lowpass plus a sub sine. */
+  bassStatic(gain = 0.1, dur = 0.06): void {
+    const io = this.out();
+    if (!io) return;
+    const { ctx, master } = io;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(ctx, 4000, 3, 0.5);
+    src.playbackRate.value = 0.5 + Math.random() * 0.5;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 140;
+    f.Q.value = 1.2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(master);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+    this.bass(38 + Math.random() * 18, dur * 1.2, gain * 0.9);
+  }
+
   /** Low thud: a sine dropping in pitch plus a short noise layer. Hull impacts. */
   thud(freq = 90, dur = 0.25, gain = 0.35): void {
     const io = this.out();
@@ -252,5 +292,6 @@ export class Synth {
     osc.start(t);
     osc.stop(t + dur + 0.02);
     this.crunch({ rate: 3000, bits: 3, dur: 0.12, cutoff: 900, gain: gain * 0.5 });
+    this.bass(freq * 0.5, dur * 0.8, gain * 0.8);
   }
 }

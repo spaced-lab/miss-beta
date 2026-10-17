@@ -6,7 +6,7 @@ import { MG } from '../src/minigame/config';
 import { generateContinents } from '../src/minigame/planet';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  laserArmed, laserStage, rockMass, snapshot, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, type Asteroid, type Input, type MinigameState,
+  chaosLevel, deployTurret, laserArmed, laserStage, moonAlive, rockMass, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 
@@ -383,5 +383,126 @@ describe('laser pulse', () => {
     for (let i = 0; i < 0.3 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
     expect(st.events.some((e) => e.type === 'impact')).toBe(true);
     expect(st.events.length).toBeLessThanOrEqual(256);
+  });
+});
+
+describe('rock-on-rock dynamics', () => {
+  const quiet = (st: MinigameState) => {
+    st.spawnTimer = 1e9;
+    st.cheats.god = true;
+    st.cheats.noHeat = true;
+  };
+  it('two rocks at rest within range attract each other', () => {
+    const st = createState(61);
+    start(st);
+    quiet(st);
+    const a = rock(st, 2, 0, 0, 0, 0.2, 0);
+    const b = rock(st, 3, 0, 0, 0, 0.2, 0);
+    const d0 = b.x - a.x;
+    for (let i = 0; i < 1 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    expect(a.vx).toBeGreaterThan(0);
+    expect(b.vx).toBeLessThan(0);
+    expect(b.x - a.x).toBeLessThan(d0);
+  });
+  it('a fast head-on collision bounces both rocks and chips them', () => {
+    const st = createState(62);
+    start(st);
+    quiet(st);
+    const a = rock(st, 2, 0, 1.5, 0, 0.3, 1);
+    const b = rock(st, 2.8, 0, -1.5, 0, 0.3, 1);
+    const hpA = a.hp;
+    for (let i = 0; i < 0.5 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    expect(a.vx).toBeLessThan(0);
+    expect(b.vx).toBeGreaterThan(0);
+    expect(a.hp).toBeLessThan(hpA);
+    expect(st.events.some((e) => e.type === 'crash')).toBe(true);
+  });
+  it('a binary pair stays bound for several seconds in isolation', () => {
+    const st = createState(63);
+    start(st);
+    quiet(st);
+    spawnBinary(st, 0, 4, 0, 0, 1);
+    const [a, b] = st.asteroids;
+    if (!a || !b) throw new Error('pair missing');
+    const sep0 = Math.hypot(a.x - b.x, a.y - b.y);
+    let maxSep = 0;
+    for (let i = 0; i < 6 / MG.DT; i++) {
+      step(st, NO_INPUT, MG.DT);
+      maxSep = Math.max(maxSep, Math.hypot(a.x - b.x, a.y - b.y));
+    }
+    expect(st.asteroids.length).toBe(2);
+    expect(maxSep).toBeLessThan(sep0 * 2.2);
+    expect(maxSep).toBeGreaterThan(sep0 * 0.5);
+  });
+});
+
+describe('moon hit points', () => {
+  it('is chipped by rocks, never by bullets, and can be lost', () => {
+    const st = createState(71);
+    start(st);
+    st.spawnTimer = 1e9;
+    st.cheats.god = true;
+    st.t = MG.MOON_LEVEL * MG.LEVEL_SECONDS;
+    st.moonAngle = 0;
+    step(st, NO_INPUT, MG.DT);
+    const m = moonPosition(st);
+    st.bullets.push({ x: m.x - 0.4, y: m.y, vx: MG.BULLET_SPEED, vy: 0, life: 1, r: MG.BULLET_R, damage: 3, auto: false });
+    for (let i = 0; i < 0.3 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    expect(st.moonHp).toBe(MG.MOON_HP);
+    rock(st, m.x, m.y + 0.5, 0, -2, 0.4, 2);
+    for (let i = 0; i < 0.5 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    expect(st.moonHp).toBeLessThan(MG.MOON_HP);
+    expect(st.events.some((e) => e.type === 'moonhit')).toBe(true);
+    st.moonHp = 1;
+    const m2 = moonPosition(st);
+    rock(st, m2.x, m2.y + 0.5, 0, -2, 0.4, 2);
+    for (let i = 0; i < 0.5 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    expect(st.moonHp).toBe(0);
+    expect(moonAlive(st)).toBe(false);
+    expect(st.events.some((e) => e.type === 'moonlost')).toBe(true);
+  });
+});
+
+describe('sentries', () => {
+  it('tier rises with level and SUPER fires a 3-way spread at double rate', () => {
+    expect(turretTier(MG.TURRET_LEVEL)).toBe(0);
+    expect(turretTier(MG.TURRET_LEVEL + MG.TURRET_TIER_LEVELS)).toBe(1);
+    expect(turretTier(100)).toBe(2);
+    const st = createState(81);
+    start(st);
+    st.spawnTimer = 1e9;
+    st.cheats.god = true;
+    st.t = (MG.TURRET_LEVEL + 7) * MG.LEVEL_SECONDS;
+    step(st, NO_INPUT, MG.DT);
+    deployTurret(st, true);
+    const tr = st.turrets[0];
+    if (!tr) throw new Error('no sentry');
+    expect(tr.superb).toBe(true);
+    expect(tr.tier).toBe(2);
+    rock(st, 3, 0, 0, 0, 0.3, 0);
+    tr.cooldown = 0;
+    step(st, NO_INPUT, MG.DT);
+    const auto = st.bullets.filter((b) => b.auto);
+    expect(auto.length).toBe(3);
+    expect(auto[0]?.damage).toBe(strengthLevel(st.streamCount) + 2);
+    expect(tr.cooldown).toBeLessThan(MG.TURRET_COOLDOWN / 2);
+  });
+  it('chaos level is bounded', () => {
+    const st = createState(82);
+    expect(chaosLevel(st)).toBeGreaterThanOrEqual(0);
+    st.level = 99;
+    for (let i = 0; i < 100; i++) rock(st, 3, 0, 0, 0);
+    expect(chaosLevel(st)).toBe(1);
+  });
+});
+
+describe('continents v2', () => {
+  it('produce separated landmasses plus islands, all inside the disc', () => {
+    const cs = generateContinents(new Rng(5));
+    expect(cs.length).toBeGreaterThanOrEqual(3);
+    for (const c of cs) {
+      expect(c.length / 2).toBeGreaterThanOrEqual(8);
+      for (let i = 0; i < c.length; i += 2) expect(Math.hypot(c[i] as number, c[i + 1] as number)).toBeLessThanOrEqual(0.9 + 1e-9);
+    }
   });
 });

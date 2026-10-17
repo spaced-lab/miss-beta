@@ -12,7 +12,7 @@ import type { Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonPosition, spectrumStage, streamDamage, strengthLevel, type MinigameState } from './sim';
+import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, spectrumStage, streamDamage, strengthLevel, type MinigameState } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -28,7 +28,7 @@ const NEON = {
   bullet: ['#B6FFB6', '#00F0FF', '#FF2BD6'],
   core: '#FF3B3B',
   moon: '#7DF9FF',
-  turret: '#CCFF00',
+  turret: ['#CCFF00', '#00F0FF', '#FF2BD6'],
   heat: '#FF6A00',
 } as const;
 
@@ -61,7 +61,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   for (const q of st.particles) {
     const a = q.life / q.max;
     const color = q.tier < 0 ? p.hot : stage >= 3 ? tierColor(s, q.tier, stage) : a > 0.5 ? p.hot : p.ink;
-    s.dot(X(q.x), Y(q.y), 2, color, a);
+    s.dot(X(q.x), Y(q.y), 1.2, color, a);
   }
 
   // Planet and continents.
@@ -72,13 +72,35 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     s.stroke(scratch, { closed: true, glow: 0.6, alpha: 0.85, width: 1 });
   }
 
-  // Moon: orbit ring (faint) and disc with one crater line.
+  // Moon: faint orbit ring, disc, craters fixed to its face (tidally locked), cracks as it wears.
   if (moonActive(st.level)) {
-    const m = moonPosition(st);
-    const mc = stage >= 3 ? NEON.moon : p.ink;
-    s.circle(cx, cy, MG.MOON_ORBIT_R * k, { color: p.dim, glow: 0, width: 1, alpha: 0.35, dash: [2, 10] });
-    s.circle(X(m.x), Y(m.y), MG.MOON_R * k, { color: mc, glow: 1.2 });
-    s.stroke([X(m.x) - MG.MOON_R * k * 0.5, Y(m.y) + 2, X(m.x) + MG.MOON_R * k * 0.3, Y(m.y) + 2], { color: mc, glow: 0.4, width: 1 });
+    s.circle(cx, cy, MG.MOON_ORBIT_R * k, { color: p.dim, glow: 0, width: 1, alpha: 0.3, dash: [2, 10] });
+    if (moonAlive(st)) {
+      const m = moonPosition(st);
+      const mc = stage >= 3 ? NEON.moon : p.ink;
+      const mr = MG.MOON_R * k;
+      const wear = 1 - st.moonHp / MG.MOON_HP;
+      s.circle(X(m.x), Y(m.y), mr, { color: mc, glow: 1.2, alpha: 1 - 0.3 * wear });
+      const ca = Math.cos(st.moonAngle);
+      const sa = Math.sin(st.moonAngle);
+      for (const [dx, dy, cr] of st.craters) {
+        const rx = dx * ca - dy * sa;
+        const ry = dx * sa + dy * ca;
+        s.circle(X(m.x + rx * MG.MOON_R), Y(m.y + ry * MG.MOON_R), cr * mr, { color: mc, glow: 0.3, width: 0.8, alpha: 0.8 });
+      }
+      // Cracks: one jagged line per 25% lost.
+      const cracks = Math.floor(wear * 4);
+      for (let c = 0; c < cracks; c++) {
+        const a0 = st.moonAngle + c * 1.9;
+        scratch.length = 0;
+        for (let i = 0; i <= 4; i++) {
+          const rr = (i / 4) * mr * 0.9;
+          const aa = a0 + Math.sin(i * 2.3 + c) * 0.5;
+          scratch.push(X(m.x) + Math.cos(aa) * rr, Y(m.y) + Math.sin(aa) * rr);
+        }
+        s.stroke(scratch, { color: mc, glow: 0.2, width: 0.8, alpha: 0.9 });
+      }
+    }
   }
 
   // Launchers.
@@ -94,22 +116,37 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     s.stroke([X(tip * Math.cos(a)), Y(tip * Math.sin(a)), X(1.34 * Math.cos(a)), Y(1.34 * Math.sin(a))], { color: hot, glow: 1 });
   }
 
-  // Turrets: a small diamond on its orbit with a barrel toward the target.
+  // Sentries: a hexagon with an inner ring and a barrel toward the target; colour by tier, SUPER cycles hue.
   for (const tr of st.turrets) {
     const tx = X(MG.TURRET_ORBIT_R * Math.cos(tr.angle));
     const ty = Y(MG.TURRET_ORBIT_R * Math.sin(tr.angle));
-    const r = 6;
-    const tc = stage >= 3 ? NEON.turret : p.hot;
-    s.stroke([tx, ty - r, tx + r, ty, tx, ty + r, tx - r, ty], { closed: true, color: tc, glow: 1.5, alpha: tr.life < 3 ? 0.4 + 0.6 * Math.abs(Math.sin(tr.life * 8)) : 1 });
+    const r = tr.superb ? 9 : 7;
+    const tc = tr.superb ? `hsl(${Math.floor((st.t * 140) % 360)}, 100%, 65%)` : stage >= 3 ? (NEON.turret[tr.tier] ?? p.hot) : p.hot;
+    const fading = tr.life < 3 ? 0.4 + 0.6 * Math.abs(Math.sin(tr.life * 8)) : 1;
+    scratch.length = 0;
+    for (let i = 0; i < 6; i++) {
+      const a = st.t * 0.8 + (i / 6) * Math.PI * 2;
+      scratch.push(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
+    }
+    s.stroke(scratch, { closed: true, color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: 1 });
+    s.circle(tx, ty, r * 0.45, { color: tc, glow: 0.6, width: 0.8, alpha: fading });
     const target = st.asteroids.find((a) => a.id === tr.targetId);
     if (target) {
       const ang = Math.atan2(Y(target.y) - ty, X(target.x) - tx);
-      s.stroke([tx, ty, tx + Math.cos(ang) * 11, ty + Math.sin(ang) * 11], { color: tc, glow: 0.8 });
+      s.stroke([tx + Math.cos(ang) * r * 0.5, ty + Math.sin(ang) * r * 0.5, tx + Math.cos(ang) * (r + 7), ty + Math.sin(ang) * (r + 7)], { color: tc, glow: 0.8, width: tr.superb ? 2 : 1.2 });
     }
+    // Life arc.
+    const frac = tr.life / tr.maxLife;
+    scratch.length = 0;
+    for (let i = 0; i <= 16; i++) {
+      const a = -Math.PI / 2 + (i / 16) * Math.PI * 2 * frac;
+      scratch.push(tx + Math.cos(a) * (r + 3), ty + Math.sin(a) * (r + 3));
+    }
+    if (scratch.length >= 4) s.stroke(scratch, { color: tc, glow: 0, width: 0.8, alpha: 0.5 });
   }
 
   // Bullets: size and colour by damage.
-  for (const b of st.bullets) s.dot(X(b.x), Y(b.y), 2.5 + b.damage * 0.7, bulletColor(s, b.damage, stage));
+  for (const b of st.bullets) s.dot(X(b.x), Y(b.y), 1.5 + b.damage * 0.5, bulletColor(s, b.damage, stage));
 
   // Asteroids: jagged polygons; width by tier, double outline for cores.
   for (const a of st.asteroids) {
@@ -122,8 +159,8 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     }
     const dt = displayTier(a);
     const color = a.core ? (stage >= 1 ? NEON.core : p.hot) : tierColor(s, dt, stage);
-    s.stroke(scratch, { closed: true, glow: 1 + dt * 0.3, color, width: p.lineWidth + dt * 0.5, alpha: a.passing ? 0.8 : 1 });
-    if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.8, width: 1 });
+    s.stroke(scratch, { closed: true, glow: 0.7 + dt * 0.25, color, width: 0.8 + dt * 0.3, alpha: a.passing ? 0.8 : 1 });
+    if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.6, width: 0.8 });
   }
 
   // Laser beams: a bright core line and a wider faint one, fading.
@@ -188,7 +225,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
 
   if (laserStage(st.streamCount) > 0) {
     const armed = laserArmed(st);
-    drawText(s, armed ? 'LASER READY' : 'LASER', bx + bw - 90, by - fs - 6, 11, { align: 'left', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
+    drawText(s, armed ? 'LASER READY' : 'LASER', bx + bw, by - fs - 6, 11, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
   }
 
   by += bh + 28;
@@ -208,8 +245,8 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {
     by += bh + 28;
-    drawText(s, `TURRET ${st.turretProgress}/${MG.TURRET_HITS}`, bx, by - fs - 6, fs, { color: stage >= 3 ? NEON.turret : p.ink });
-    bar(s, bx, by, bw, bh, st.turretProgress / MG.TURRET_HITS, stage >= 3 ? NEON.turret : p.ink, 0.6);
+    drawText(s, `SENTRY ${st.turretProgress}/${MG.TURRET_HITS}`, bx, by - fs - 6, fs, { color: stage >= 3 ? NEON.turret[0] : p.ink });
+    bar(s, bx, by, bw, bh, st.turretProgress / MG.TURRET_HITS, stage >= 3 ? NEON.turret[0] : p.ink, 0.6);
   }
 
   // Stream strength ladder: one dot per stream coloured by damage.
@@ -222,7 +259,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     s.dot(lx + j * 12, bottom + fs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
   }
   drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
-  if (st.status === 'playing') drawText(s, 'ARROWS MOVE  SPACE FIRE  ENTER PULSE', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
+  if (st.status === 'playing') drawText(s, '<ARROWS> MOVE   <SPACE> FIRE   <SHIFT> PULSE', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
   drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
   if (st.cheats.assisted) drawText(s, 'ASSISTED', W / 2, bottom, fs, { align: 'center', color: p.dim, glow: 0 });
 
@@ -267,9 +304,9 @@ function drawReady(s: Surface, st: MinigameState): void {
   drawText(s, 'BETA ARCADE MODE', cx, y + 74, 13, { align: 'center', color: s.palette.dim, glow: 0 });
   drawText(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + 100, 12, { align: 'center' });
   const rows: Array<[string, string]> = [
-    ['LEFT / RIGHT  OR  A / D', 'MOVE THE LAUNCHER'],
-    ['SPACE', 'FIRE (WATCH THE HEAT)'],
-    ['ENTER OR SHIFT', 'PULSE (CLEARS THE FIELD)'],
+    ['<LEFT> <RIGHT>  (OR A / D)', 'MOVE THE LAUNCHER'],
+    ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
+    ['<SHIFT>', 'PULSE  (CLEARS THE FIELD)'],
   ];
   let ly = y + 128;
   for (const [key, what] of rows) {
@@ -280,7 +317,7 @@ function drawReady(s: Surface, st: MinigameState): void {
   const notes = [
     'LEVELS RAISE STREAMS, LAUNCHERS AND ROCK HARDNESS.',
     'HARDER ROCKS CHANGE COLOUR AS THEY WEAKEN. SHOTS NUDGE ROCKS.',
-    'A MOON ARRIVES AT LEVEL 3. TURRETS ARE EARNED FROM LEVEL 6.',
+    'A MOON ARRIVES AT LEVEL 3. SENTRIES ARE EARNED FROM LEVEL 6.',
     'FROM 3 STREAMS, THE FIRST SHOT AFTER A BREAK IS A LASER PULSE.',
   ];
   for (const n of notes) {

@@ -21,7 +21,7 @@ export const MG = {
   DAMAGE_MAX: 25,
 
   /** Levels. */
-  LEVEL_SECONDS: 28,
+  LEVEL_SECONDS: 24,
   /** Index = level - 1; the last entry repeats. */
   STREAMS_BY_LEVEL: [1, 1, 2, 2, 3, 3, 4, 4, 5] as readonly number[],
   LAUNCHERS_BY_LEVEL: [1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 8] as readonly number[],
@@ -51,10 +51,10 @@ export const MG = {
 
   /** Spawning: base interval per level decays geometrically to a floor; speed ramps linearly to a cap. */
   SPAWN_0: 1.8,
-  SPAWN_LEVEL_FACTOR: 0.86,
+  SPAWN_LEVEL_FACTOR: 0.84,
   SPAWN_MIN: 0.3,
   AST_SPEED_0: 0.55,
-  AST_SPEED_PER_LEVEL: 0.07,
+  AST_SPEED_PER_LEVEL: 0.08,
   AST_SPEED_MAX: 2.2,
   AST_R_MIN: 0.14,
   AST_R_MAX: 0.42,
@@ -66,6 +66,16 @@ export const MG = {
   PASS_PROB: 0.3,
   PASS_AIM_MIN: 1.7,
   PASS_AIM_MAX: 3.2,
+
+  /** Rock-on-rock dynamics: mutual gravity within AST_GRAV_RANGE (toy G = AST_G on rockMass units),
+   *  elastic bounces with restitution AST_RESTITUTION, both rocks chipped when the closing speed exceeds
+   *  AST_CRASH_SPEED. From BINARY_LEVEL some spawns are pairs with circular orbital velocity. */
+  AST_G: 0.16,
+  AST_GRAV_RANGE: 1.3,
+  AST_RESTITUTION: 0.6,
+  AST_CRASH_SPEED: 1.1,
+  BINARY_LEVEL: 4,
+  BINARY_PROB: 0.18,
 
   /** Hardness tiers 0..3: hit-point, mass (for impulse) and score multipliers. */
   TIER_HP_MULT: [1, 2, 3, 4] as readonly number[],
@@ -89,19 +99,27 @@ export const MG = {
   PRESSURE_LOW_RATE: 0.05,
 
   /** Moon: orbits the planet, bends nearby rocks, absorbs whatever hits it. */
-  MOON_ORBIT_R: 2.6,
-  MOON_ANGULAR_SPEED: 0.35,
-  MOON_R: 0.22,
-  MOON_MU: 0.9,
-  MOON_INFLUENCE: 1.4,
+  MOON_ORBIT_R: 3.4,
+  MOON_ANGULAR_SPEED: 0.3,
+  MOON_R: 0.26,
+  MOON_MU: 1.1,
+  MOON_INFLUENCE: 1.6,
+  /** The moon is super solid: rocks chip it by their hull damage; bullets do nothing. At 0 it is lost. */
+  MOON_HP: 600,
 
   /** Auto turrets: earned every TURRET_HITS direct hits from TURRET_LEVEL on; orbit and fire on their own. */
   TURRET_HITS: 60,
-  TURRET_MAX: 2,
+  TURRET_MAX: 3,
   TURRET_LIFE: 12,
   TURRET_ORBIT_R: 2.0,
   TURRET_ANGULAR_SPEED: 0.9,
   TURRET_COOLDOWN: 0.28,
+  /** Sentry tier rises one step every TURRET_TIER_LEVELS levels after TURRET_LEVEL (max 2): more damage, faster. */
+  TURRET_TIER_LEVELS: 3,
+  /** SUPER sentries: random share of earned ones, and a level-up gift with this chance; 3-way, double rate, longer. */
+  TURRET_SUPER_PROB: 0.25,
+  TURRET_GIFT_PROB: 0.35,
+  TURRET_SUPER_LIFE_MULT: 1.5,
 
   /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
    *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the

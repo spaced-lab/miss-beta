@@ -15,7 +15,7 @@ import { MINIGAME_CHEATS } from './cheats';
 import { MG } from './config';
 import { renderMinigame } from './render';
 import { SfxPlayer } from './sfx';
-import { createState, start, step, type Input, type MinigameState } from './sim';
+import { chaosLevel, createState, start, step, type Input, type MinigameState } from './sim';
 
 const BEST_KEY = 'minigame.best';
 const SOUND_KEY = 'minigame.sound';
@@ -117,6 +117,7 @@ export class MinigameScreen implements Screen {
     // Sound: the step emitted events; play them and clear the queue.
     this.sfx.play(st.events, performance.now() / 1000);
     st.events.length = 0;
+    if (st.status === 'playing') this.sfx.ambient(chaosLevel(st), Math.min(dtMs, 250) / 1000);
 
     if (st.status === 'over' && !st.cheats.assisted && st.score > this.best) {
       this.best = st.score;

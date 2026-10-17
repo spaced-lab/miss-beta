@@ -7,7 +7,7 @@
 
 import type { Cheat } from '../game/cheats';
 import { MG } from './config';
-import { flash, type MinigameState } from './sim';
+import { deployTurret, flash, type MinigameState } from './sim';
 
 function assisted(st: MinigameState, text: string): void {
   st.cheats.assisted = true;
@@ -24,6 +24,7 @@ export const MINIGAME_CHEATS: readonly Cheat<MinigameState>[] = [
   { code: 'SKIP', message: 'next level now', apply: (st) => { st.t = st.level * MG.LEVEL_SECONDS; assisted(st, 'LEVEL SKIP'); } },
   { code: 'REPAIR', message: 'hull restored', apply: (st) => { st.hp = MG.MAX_HP; assisted(st, 'HULL REPAIRED'); } },
   { code: 'COOL', message: 'heat off', apply: (st) => { st.cheats.noHeat = !st.cheats.noHeat; st.heat = 0; st.overheated = false; assisted(st, st.cheats.noHeat ? 'COOLANT UNLIMITED' : 'HEAT ON'); } },
-  { code: 'TURRET', message: 'deploy an auto turret', apply: (st) => { st.turrets.push({ angle: 0, life: MG.TURRET_LIFE, cooldown: 0, targetId: -1 }); assisted(st, 'TURRET'); } },
+  { code: 'TURRET', message: 'deploy a sentry', apply: (st) => { deployTurret(st, false); assisted(st, 'SENTRY'); } },
+  { code: 'SUPER', message: 'deploy a SUPER sentry', apply: (st) => { deployTurret(st, true); assisted(st, 'SUPER SENTRY'); } },
   { code: 'KARDASHEV', message: 'everything maxed', apply: (st) => { st.cheats.launchers = 8; st.cheats.streams = 5; st.pulses = MG.PULSE_MAX; st.cheats.god = true; st.cheats.noHeat = true; assisted(st, 'KARDASHEV'); } },
 ];

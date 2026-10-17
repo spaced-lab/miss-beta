@@ -8,7 +8,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | Milestone | State | Notes |
 |---|---|---|
 | Pre-M0 scaffold | done | Vite 8 / TS 5.9 / vitest 5, render foundation, RNG, font, title screen |
-| PERIMETER minigame (side mode) | v2.1 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts` |
+| PERIMETER minigame (side mode) | v2.2 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts` |
 | M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
 | M1 A threat, and losing | todo | next: closeApproach.ts, roundGen.ts, threat path, RESOLVE NOW, RUN OVER |
 | M2 .. M12 | todo | see docs/BUILD_PLAN.md |

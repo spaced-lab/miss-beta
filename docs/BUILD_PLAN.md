@@ -163,5 +163,6 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 - [x] Pure sim, renderer, loop, cheats, best score, benchmark, tests, title-menu entry, `#minigame` deep link.
 - [x] v2 (2026-10-17): levels, adaptive pressure, hardness tiers + colours, stream strength ladder, heat, moon, bullet impulse, passing rocks, auto turrets, spectrum stages.
 - [x] v2.1: synthesized sound kits, laser pulse, difficulty ramp, shorter turrets, less halo.
+- [x] v2.2: rock gravity/bounces/binaries, continents v2, moon hit points and craters, sentry tiers and SUPER, bass voices, chaos static.
 - [ ] Tuning pass with the user (knobs in `src/minigame/config.ts`, kits in `src/minigame/sfx.ts`).
 - [ ] Moves to IDEAS.md for anything beyond tuning (power-ups, touch, sound, replay, daily seed).
