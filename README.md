@@ -18,12 +18,16 @@ npm run dev          # open http://localhost:5173  (or http://localhost:5173/#mi
 ```
 
 PERIMETER: arrows or A/D move the launcher around the planet, Space fires, Enter or Shift fires a pulse that
-clears the field. Launchers and bullet streams multiply as time goes on. Keep the hull above zero.
-In play: `1` debug HUD, `2` cycle glow strategy, `3` cycle collision strategy, `Esc` title. Firing builds heat;
-an overheated launcher locks until it cools. Levels add streams (centre stream strongest), launchers, rock
-hardness tiers (colour steps down as a rock weakens), passing rocks you can nudge, a moon that bends paths and
-absorbs hits, and auto turrets earned per 60 direct hits from level 6. Cheat codes are
-listed in `src/minigame/cheats.ts`; they flag the run ASSISTED.
+clears the field (earned per 14 kills), `<` launches a seeker missile that homes on the nearest threat and
+blasts an area (earned per 35 direct hits), `>` releases a swarm of 5-8 sentinel drones that hunt rocks for
+ten seconds (earned per 22 kills). Launchers and bullet streams multiply as time goes on. Keep the hull above
+zero. In play: `1` debug HUD, `2` cycle glow strategy, `3` cycle collision strategy, `4` sound, `5` sound kit,
+`Esc` title. Firing builds heat; an overheated launcher locks until it cools. Levels add streams (centre stream
+strongest), launchers, rock hardness tiers (colour steps down as a rock weakens), passing rocks you can nudge,
+a moon that bends paths and absorbs hits, and sentries earned per 60 direct hits from level 6, each of a random
+archetype: ORBITER rides the ring, SWEEPER patrols an arc and fires in bursts, PICKET parks at the densest
+incoming sector, CHASER drifts toward the biggest threat on a leash. Cheat codes are listed in
+`src/minigame/cheats.ts`; they flag the run ASSISTED.
 
 ## Learn to code with this repo
 

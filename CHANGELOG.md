@@ -10,6 +10,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   local leaderboard, PLANNER overlay (P), spacecraft on their arcs, play-by-play log, DEBRIEF and NEXT
   ROUND, RUN OVER with leaderboard rank, LEADERBOARD screen. `npm run play` serves a stable build on 4173.
 
+- PERIMETER instructions: ready panel lists `<` SEEKER and `>` SWARM with how they are earned; the in-play
+  key hint is one line with all five controls; README's PERIMETER paragraph covers the weapons and sentry kinds.
+
 - PERIMETER earned weapons: SEEKER MISSILE (`<`, one per 35 direct hits, stock 3: lead pursuit with a
   turn-rate cap, area blast with outward impulse, exhaust trail) and SWARM OF SENTINELS (`>`, one per 22
   kills, stock 2: 5-8 drones hunt the nearest rock with 1 px bullets for 10 s, then burn out); HUD meters

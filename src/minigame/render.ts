@@ -398,7 +398,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     s.dot(lx + j * 12, bottom + fs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
   }
   drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
-  if (st.status === 'playing') drawText(s, '<ARROWS> MOVE   <SPACE> FIRE   <SHIFT> PULSE', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
+  if (st.status === 'playing') drawText(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
   drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
   if (st.cheats.assisted) drawText(s, 'ASSISTED', W / 2, bottom, fs, { align: 'center', color: p.dim, glow: 0 });
 
@@ -437,7 +437,7 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
 }
 
 function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
-  const { y } = drawPanel(s, Math.min(600, s.width - 32), 356);
+  const { y } = drawPanel(s, Math.min(600, s.width - 32), 400);
   const cx = s.width / 2;
   drawText(s, 'PERIMETER', cx, y + 26, 34, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, 'BETA ARCADE MODE', cx, y + 74, 13, { align: 'center', color: s.palette.dim, glow: 0 });
@@ -445,7 +445,9 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const rows: Array<[string, string]> = [
     ['<LEFT> <RIGHT>  (OR A / D)', 'MOVE THE LAUNCHER'],
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
-    ['<SHIFT>', 'PULSE  (CLEARS THE FIELD)'],
+    ['<SHIFT>', 'PULSE  (CLEARS THE FIELD, EARNED PER 14 KILLS)'],
+    ['<  (COMMA)', 'SEEKER MISSILE  (HOMES AND BLASTS, PER 35 HITS)'],
+    ['>  (PERIOD)', 'SWARM OF SENTINELS  (5-8 DRONES, PER 22 KILLS)'],
   ];
   let ly = y + 128;
   for (const [key, what] of rows) {
@@ -466,12 +468,12 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
   const r = opts.resume;
   if (r) {
-    drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 276, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-    if (blink) drawText(s, '<R> RESUME     <SPACE> NEW GAME', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 320, 11, { align: 'center', color: s.palette.dim, glow: 0 });
+    if (blink) drawText(s, '<R> RESUME     <SPACE> NEW GAME', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   } else if (blink) {
-    drawText(s, 'PRESS SPACE TO START', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    drawText(s, 'PRESS SPACE TO START', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   }
-  drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 330, 10, { align: 'center', color: s.palette.dim, glow: 0 });
+  drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 374, 10, { align: 'center', color: s.palette.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
