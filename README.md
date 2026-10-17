@@ -19,7 +19,10 @@ npm run dev          # open http://localhost:5173  (or http://localhost:5173/#mi
 
 PERIMETER: arrows or A/D move the launcher around the planet, Space fires, Enter or Shift fires a pulse that
 clears the field. Launchers and bullet streams multiply as time goes on. Keep the hull above zero.
-In play: `B` debug HUD, `G` cycle glow strategy, `C` cycle collision strategy, `Esc` title. Cheat codes are
+In play: `1` debug HUD, `2` cycle glow strategy, `3` cycle collision strategy, `Esc` title. Firing builds heat;
+an overheated launcher locks until it cools. Levels add streams (centre stream strongest), launchers, rock
+hardness tiers (colour steps down as a rock weakens), passing rocks you can nudge, a moon that bends paths and
+absorbs hits, and auto turrets earned per 60 direct hits from level 6. Cheat codes are
 listed in `src/minigame/cheats.ts`; they flag the run ASSISTED.
 
 ## Learn to code with this repo

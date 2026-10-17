@@ -55,9 +55,10 @@ export class MinigameScreen implements Screen {
       this.router.go('title');
       return;
     }
-    if (k.pressed('KeyB')) this.debug = !this.debug;
-    if (k.pressed('KeyG')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
-    if (k.pressed('KeyC')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
+    // NOTE: digits, not letters: letters are reserved for typing cheat codes.
+    if (k.pressed('Digit1')) this.debug = !this.debug;
+    if (k.pressed('Digit2')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
+    if (k.pressed('Digit3')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
 
     if (st.status === 'ready' && k.pressed('Space')) start(st);
     if (st.status === 'over' && k.pressed('Space')) {

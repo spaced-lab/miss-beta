@@ -161,5 +161,6 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 ## PERIMETER minigame (side mode, done 2026-10-17; tweaks tracked here)
 
 - [x] Pure sim, renderer, loop, cheats, best score, benchmark, tests, title-menu entry, `#minigame` deep link.
+- [x] v2 (2026-10-17): levels, adaptive pressure, hardness tiers + colours, stream strength ladder, heat, moon, bullet impulse, passing rocks, auto turrets, spectrum stages.
 - [ ] Tuning pass with the user (knobs in `src/minigame/config.ts`).
 - [ ] Moves to IDEAS.md for anything beyond tuning (power-ups, touch, sound, replay, daily seed).

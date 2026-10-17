@@ -3,8 +3,8 @@
 Features not in GAME_PLAN.md, one paragraph each with a size estimate. Nothing here is built before M12
 presents the list (GAME_PLAN Section 0). Sizes: S (hours), M (a day), L (days).
 
-1. **PERIMETER power-ups (S).** Rare drifting pickups the launcher must shoot: temporary rapid fire, a hull
-   repair, a homing stream. Gives the arcade mode a second decision besides "where to stand".
+1. **PERIMETER power-ups (S).** Rare drifting pickups the launcher must shoot: temporary coolant (no heat),
+   a hull repair, a homing stream. Auto turrets exist since v2; pickups would be the other reward channel.
 2. **PERIMETER touch and gamepad controls (S).** Left/right thirds of the screen move, tap-and-hold fires,
    two-finger tap pulses; Gamepad API for sticks. Needed before the minigame is phone-playable.
 3. **PERIMETER sound (S).** WebAudio square-wave bleeps for fire, hit, pulse and hull damage, sharing the
