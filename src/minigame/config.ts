@@ -51,10 +51,10 @@ export const MG = {
 
   /** Spawning: base interval per level decays geometrically to a floor; speed ramps linearly to a cap. */
   SPAWN_0: 1.8,
-  SPAWN_LEVEL_FACTOR: 0.88,
+  SPAWN_LEVEL_FACTOR: 0.86,
   SPAWN_MIN: 0.3,
   AST_SPEED_0: 0.55,
-  AST_SPEED_PER_LEVEL: 0.06,
+  AST_SPEED_PER_LEVEL: 0.07,
   AST_SPEED_MAX: 2.2,
   AST_R_MIN: 0.14,
   AST_R_MAX: 0.42,
@@ -72,7 +72,7 @@ export const MG = {
   TIER_MASS_MULT: [1, 1.6, 2.5, 4] as readonly number[],
   TIER_SCORE_MULT: [1, 2, 3, 5] as readonly number[],
   /** Spawn weight of a tier relative to the next lower tier (so higher tiers stay rarer). */
-  TIER_WEIGHT_DECAY: 0.55,
+  TIER_WEIGHT_DECAY: 0.6,
   /** When a tier >= 1 rock splits, chance that one shard is a small hard core one tier up. */
   HARD_CORE_PROB: 0.18,
   HARD_CORE_SCALE: 0.42,
@@ -80,7 +80,7 @@ export const MG = {
 
   /** Adaptive pressure multiplies spawn rate and speed. */
   PRESSURE_MIN: 0.6,
-  PRESSURE_MAX: 1.5,
+  PRESSURE_MAX: 1.6,
   PRESSURE_GAIN: 0.012,
   PRESSURE_HIT_DROP: 0.08,
   PRESSURE_CALM_SECONDS: 6,
@@ -98,10 +98,21 @@ export const MG = {
   /** Auto turrets: earned every TURRET_HITS direct hits from TURRET_LEVEL on; orbit and fire on their own. */
   TURRET_HITS: 60,
   TURRET_MAX: 2,
-  TURRET_LIFE: 20,
+  TURRET_LIFE: 12,
   TURRET_ORBIT_R: 2.0,
   TURRET_ANGULAR_SPEED: 0.9,
   TURRET_COOLDOWN: 0.28,
+
+  /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
+   *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the
+   *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied. */
+  LASER_BREAK_1: 1.2,
+  LASER_BREAK_2: 0.6,
+  LASER_DAMAGE_BONUS: 1,
+  LASER_HEAT: 0.1,
+  LASER_IMPULSE_MULT: 3,
+  LASER_RANGE: 7.2,
+  BEAM_FADE: 0.18,
 
   /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. */
   PULSE_KILLS: 14,

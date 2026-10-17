@@ -74,6 +74,11 @@ export class Input {
     return codes.some((c) => this.down.has(c));
   }
 
+  /** True if any key went down this frame (used to unlock audio on a user gesture). */
+  anyKeyPressed(): boolean {
+    return this.edge.size > 0;
+  }
+
   /** True on the first frame a key is down. */
   pressed(code: string): boolean {
     return this.edge.has(code);

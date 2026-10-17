@@ -11,6 +11,9 @@
 //       so passing rocks can be nudged and heavy rocks barely move. A moon orbits the planet from
 //       MOON_LEVEL: rocks inside its influence are bent toward it, anything touching it is absorbed.
 //       Heat: each trigger pull adds heat; at 1.0 fire locks until it cools below HEAT_UNLOCK.
+//       Laser: from 3 streams the first pull after a break fires a beam down the centre stream (sim.fireLaser);
+//       the step emits SimEvents (shots, hits, breaks, ...) that the host turns into sound; the sim never
+//       imports audio.
 // LORE: G1 (how to play), G5 (scoring), O14 (randomness), D3 (kinetic push, toy version)
 
 import { Rng } from '../sim/rng';
@@ -86,6 +89,27 @@ export interface Flash {
   t: number;
 }
 
+/** A fading laser beam for the renderer. */
+export interface Beam {
+  angle: number;
+  t: number;
+}
+
+/** Events the step emits for sound and effects; the host drains them each frame. */
+export type SimEvent =
+  | { type: 'shot'; strength: number }
+  | { type: 'laser' }
+  | { type: 'hit'; tier: number }
+  | { type: 'break'; tier: number; r: number }
+  | { type: 'impact' }
+  | { type: 'overheat' }
+  | { type: 'cooled' }
+  | { type: 'pulse' }
+  | { type: 'levelup' }
+  | { type: 'turret' }
+  | { type: 'moon' }
+  | { type: 'over' };
+
 export type Status = 'ready' | 'playing' | 'over';
 
 export interface Cheats {
@@ -132,6 +156,10 @@ export interface MinigameState {
   pulseCharge: number;
   pulseR: number;
   flashes: Flash[];
+  beams: Beam[];
+  events: SimEvent[];
+  /** Seconds since the player's last trigger pull; arms the laser. */
+  sinceShot: number;
   shake: number;
   secAccum: number;
   cheats: Cheats;
@@ -161,6 +189,19 @@ export const strengthLevel = (streams: number): number => (streams <= 2 ? 1 : st
 export function streamDamage(streams: number, j: number): number {
   const d = Math.abs(j - (streams - 1) / 2);
   return Math.max(1, strengthLevel(streams) - Math.floor(d));
+}
+
+/** Laser stage: 0 none, 1 player's launcher only (needs LASER_BREAK_1), 2 every launcher (LASER_BREAK_2). */
+export const laserStage = (streams: number): number => (streams >= 5 ? 2 : streams >= 3 ? 1 : 0);
+
+export function laserArmed(st: MinigameState): boolean {
+  const stage = laserStage(st.streamCount);
+  if (stage === 0) return false;
+  return st.sinceShot >= (stage === 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1);
+}
+
+export function emit(st: MinigameState, e: SimEvent): void {
+  if (st.events.length < 256) st.events.push(e);
 }
 
 /** Tier colour to display: steps down the ladder as hit points fall (a tier-3 rock reads 3, 2, 1 as it weakens). */
@@ -209,6 +250,9 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     pulseCharge: 0,
     pulseR: -1,
     flashes: [],
+    beams: [],
+    events: [],
+    sinceShot: 99,
     shake: 0,
     secAccum: 0,
     cheats: { god: false, timeScale: 1, assisted: false, noHeat: false },
@@ -315,6 +359,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
     }
   }
   spawnParticles(st, a.x, a.y, MG.PARTICLES_PER_HIT + a.tier * 4, 2.5, a.tier);
+  emit(st, { type: 'break', tier: a.tier, r: a.r });
   swapRemove(st.asteroids, i);
 
   if (allowSplit && !a.core && a.r >= MG.AST_SPLIT_R && st.asteroids.length + 2 <= MG.MAX_ASTEROIDS) {
@@ -339,22 +384,62 @@ function pushBullet(st: MinigameState, x: number, y: number, angle: number, dama
   st.bullets.push({ x, y, vx: Math.cos(angle) * MG.BULLET_SPEED, vy: Math.sin(angle) * MG.BULLET_SPEED, life: MG.BULLET_LIFE, r: MG.BULLET_R, damage, auto });
 }
 
+/** Instant beam along `angle` from the muzzle to LASER_RANGE: damages and pushes every rock it crosses. */
+function fireLaser(st: MinigameState, angle: number): void {
+  const damage = strengthLevel(st.streamCount) + MG.LASER_DAMAGE_BONUS;
+  const muzzle = MG.PLANET_R * 1.28;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  const dead: number[] = [];
+  for (let j = 0; j < st.asteroids.length; j++) {
+    const a = st.asteroids[j];
+    if (!a) continue;
+    const along = a.x * ca + a.y * sa;
+    const perp = Math.abs(-a.x * sa + a.y * ca);
+    if (along < muzzle || along > MG.LASER_RANGE || perp > a.r) continue;
+    a.hp -= damage;
+    const k = (MG.BULLET_IMPULSE * MG.LASER_IMPULSE_MULT * damage) / rockMass(a);
+    a.vx += ca * k;
+    a.vy += sa * k;
+    st.hits += 1;
+    spawnParticles(st, a.x - ca * a.r, a.y - sa * a.r, 5, 2, a.tier);
+    emit(st, { type: 'hit', tier: a.tier });
+    if (a.hp <= 0) dead.push(j);
+  }
+  dead.sort((p, q) => q - p);
+  for (const j of dead) destroyAsteroid(st, j, 1, true);
+  st.beams.push({ angle, t: MG.BEAM_FADE });
+  emit(st, { type: 'laser' });
+}
+
 function fire(st: MinigameState): void {
   st.shots += 1;
+  const stage = laserStage(st.streamCount);
+  const laser = laserArmed(st);
+  const laserLaunchers = laser ? (stage === 2 ? st.launcherCount : 1) : 0;
+  st.sinceShot = 0;
+  const centre = (st.streamCount - 1) / 2;
   for (let i = 0; i < st.launcherCount; i++) {
     const base = launcherAngleAt(st, i);
     const muzzle = MG.PLANET_R * 1.28;
+    const beamHere = i < laserLaunchers;
+    if (beamHere) fireLaser(st, base);
     for (let j = 0; j < st.streamCount; j++) {
-      const a = base + (j - (st.streamCount - 1) / 2) * MG.STREAM_SPREAD;
+      // The laser replaces the centre stream's projectile on that pull (only exact centres: odd counts).
+      if (beamHere && j === centre) continue;
+      const a = base + (j - centre) * MG.STREAM_SPREAD;
       pushBullet(st, Math.cos(base) * muzzle, Math.sin(base) * muzzle, a, streamDamage(st.streamCount, j), false);
     }
   }
+  if (laser && !st.cheats.noHeat) st.heat += MG.LASER_HEAT;
+  emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
 }
 
 function deployTurret(st: MinigameState): void {
   if (st.turrets.length >= MG.TURRET_MAX) return;
   st.turrets.push({ angle: st.rng.float(0, Math.PI * 2), life: MG.TURRET_LIFE, cooldown: 0.5, targetId: -1 });
   flash(st, 'AUTO TURRET DEPLOYED', 1.6);
+  emit(st, { type: 'turret' });
 }
 
 /** Most threatening rock: closest to the planet, non-passing first. */
@@ -379,6 +464,10 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     if (f && (f.t -= dt) <= 0) st.flashes.splice(i, 1);
   }
   st.shake = Math.max(0, st.shake - dt * 0.6);
+  for (let i = st.beams.length - 1; i >= 0; i--) {
+    const b = st.beams[i];
+    if (b && (b.t -= dt) <= 0) st.beams.splice(i, 1);
+  }
   for (let i = st.particles.length - 1; i >= 0; i--) {
     const p = st.particles[i];
     if (!p) continue;
@@ -396,6 +485,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
 
   st.t += dt;
   st.sinceHit += dt;
+  st.sinceShot += dt;
   st.secAccum += dt;
   while (st.secAccum >= 1) {
     st.secAccum -= 1;
@@ -407,6 +497,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   if (lvl !== st.level) {
     st.level = lvl;
     flash(st, `LEVEL ${lvl}`, 1.6);
+    emit(st, { type: 'levelup' });
     if (lvl === MG.MOON_LEVEL) flash(st, 'MOON IN ORBIT', 2);
     if (lvl === MG.PASSING_LEVEL) flash(st, 'PASSING ROCKS: NUDGE THEM', 2);
     if (lvl === MG.TURRET_LEVEL) flash(st, 'TURRETS EARNED PER 60 HITS', 2);
@@ -436,6 +527,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   if (st.overheated && st.heat <= MG.HEAT_UNLOCK) {
     st.overheated = false;
     flash(st, 'COOLED', 0.8);
+    emit(st, { type: 'cooled' });
   }
   st.fireCooldown -= dt;
   if (input.fire && st.fireCooldown <= 0 && !st.overheated) {
@@ -446,12 +538,14 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       st.heat = 1;
       st.overheated = true;
       flash(st, 'OVERHEAT', 1.2);
+      emit(st, { type: 'overheat' });
     }
   }
   if (input.pulse && st.pulses > 0 && st.pulseR < 0) {
     st.pulses -= 1;
     st.pulseR = MG.PLANET_R;
     flash(st, 'PULSE', 0.8);
+    emit(st, { type: 'pulse' });
   }
 
   // Moon.
@@ -520,6 +614,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (d <= MG.MOON_R + a.r) {
         spawnParticles(st, a.x, a.y, 8, 2, a.tier);
         st.score += Math.floor(a.r * MG.SCORE_PER_R * 0.25);
+        emit(st, { type: 'moon' });
         swapRemove(st.asteroids, i);
         continue;
       }
@@ -535,10 +630,12 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       st.sinceHit = 0;
       st.pressure = clamp(st.pressure - MG.PRESSURE_HIT_DROP, MG.PRESSURE_MIN, MG.PRESSURE_MAX);
       spawnParticles(st, a.x, a.y, MG.PARTICLES_PER_IMPACT, 3, -1);
+      emit(st, { type: 'impact' });
       swapRemove(st.asteroids, i);
       if (st.hp <= 0) {
         st.hp = 0;
         st.status = 'over';
+        emit(st, { type: 'over' });
         return;
       }
     } else if (d > MG.FIELD_R + 2) {
@@ -570,6 +667,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (!a || !b) continue;
       used.push(i);
       spawnParticles(st, b.x, b.y, 3, 1.5, a.tier);
+      emit(st, { type: 'hit', tier: a.tier });
       a.hp -= b.damage;
       // Kinetic push: impulse along the bullet's direction, divided by the rock's mass.
       const sp = Math.hypot(b.vx, b.vy);

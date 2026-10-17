@@ -8,7 +8,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | Milestone | State | Notes |
 |---|---|---|
 | Pre-M0 scaffold | done | Vite 8 / TS 5.9 / vitest 5, render foundation, RNG, font, title screen |
-| PERIMETER minigame (side mode) | v2 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts` |
+| PERIMETER minigame (side mode) | v2.1 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts` |
 | M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
 | M1 A threat, and losing | todo | next: closeApproach.ts, roundGen.ts, threat path, RESOLVE NOW, RUN OVER |
 | M2 .. M12 | todo | see docs/BUILD_PLAN.md |
@@ -20,6 +20,10 @@ are the values in `src/minigame/config.ts` and the 2026-10-17 tuning (FIELD_R 5.
 reads larger on wide screens).
 
 ## Decisions where the plan was silent
+
+- Sound is fully synthesized (src/audio/synth.ts: tick, 303 sweep, S&H LFO tone, 8-bit crunch, grains, thud);
+  no audio assets in the repo. The sim emits SimEvents; only the screen touches audio.
+- Glow under-stroke reduced from 0.18 alpha / +5 px to 0.11 / +3.5 px (user: less halo).
 
 - Vitest 5 has no `bench` export; benchmarks are timing tests under `bench/` selected with `MISS_BENCH=1`.
 - CSP is injected at build time only (dev tooling needs an open page). The policy string is `CSP` in `vite.config.ts`.

@@ -90,14 +90,14 @@ export function createSurface(canvas: HTMLCanvasElement, palette: Palette, glowM
       ctx.setLineDash(style.dash ? (style.dash as number[]) : []);
 
       if (glow > 0 && s.glowMode === 'understroke') {
-        ctx.globalAlpha = alpha * 0.18 * glow;
+        ctx.globalAlpha = alpha * 0.11 * glow;
         ctx.strokeStyle = color;
-        ctx.lineWidth = width + 5 * glow;
+        ctx.lineWidth = width + 3.5 * glow;
         ctx.stroke();
       }
       if (glow > 0 && s.glowMode === 'shadow') {
         ctx.shadowColor = withAlpha(color, 0.9);
-        ctx.shadowBlur = 8 * glow;
+        ctx.shadowBlur = 6 * glow;
       } else {
         ctx.shadowBlur = 0;
       }

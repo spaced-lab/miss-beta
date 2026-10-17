@@ -12,12 +12,14 @@ import type { Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, launcherAngleAt, moonActive, moonPosition, spectrumStage, streamDamage, strengthLevel, type MinigameState } from './sim';
+import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonPosition, spectrumStage, streamDamage, strengthLevel, type MinigameState } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
   frameMs: number;
   best: number;
+  /** e.g. "SND ON  KIT DELICATE" */
+  sound: string;
 }
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
@@ -124,6 +126,18 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.8, width: 1 });
   }
 
+  // Laser beams: a bright core line and a wider faint one, fading.
+  for (const b of st.beams) {
+    const a = b.t / MG.BEAM_FADE;
+    const x0 = X(1.28 * Math.cos(b.angle));
+    const y0 = Y(1.28 * Math.sin(b.angle));
+    const x1 = X(MG.LASER_RANGE * Math.cos(b.angle));
+    const y1 = Y(MG.LASER_RANGE * Math.sin(b.angle));
+    const lc = stage >= 2 ? NEON.bullet[2] : p.hot;
+    s.stroke([x0, y0, x1, y1], { color: lc, width: 6, alpha: a * 0.25, glow: 0 });
+    s.stroke([x0, y0, x1, y1], { color: p.hot, width: 1.5, alpha: a, glow: 2 });
+  }
+
   // Shockwave.
   if (st.pulseR >= 0) {
     s.circle(cx, cy, st.pulseR * k, { color: p.hot, glow: 2.5, width: 2 });
@@ -172,6 +186,11 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   drawText(s, st.overheated ? 'HEAT  OVERHEAT' : 'HEAT', bx, by - fs - 6, fs, { color: st.overheated ? NEON.heat : p.ink, glow: st.overheated ? 1.5 : 1 });
   bar(s, bx, by, bw, bh, st.heat, st.heat > 0.75 || st.overheated ? NEON.heat : p.ink, st.heat > 0.75 ? 1.5 : 0.6);
 
+  if (laserStage(st.streamCount) > 0) {
+    const armed = laserArmed(st);
+    drawText(s, armed ? 'LASER READY' : 'LASER', bx + bw - 90, by - fs - 6, 11, { align: 'left', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
+  }
+
   by += bh + 28;
   drawText(s, 'PULSE', bx, by - fs - 6, fs);
   for (let i = 0; i < MG.PULSE_MAX; i++) {
@@ -204,6 +223,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   }
   drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
   if (st.status === 'playing') drawText(s, 'ARROWS MOVE  SPACE FIRE  ENTER PULSE', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
+  drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
   if (st.cheats.assisted) drawText(s, 'ASSISTED', W / 2, bottom, fs, { align: 'center', color: p.dim, glow: 0 });
 
   let fy = s.height / 2 - MG.PLANET_R * (Math.min(W, H) / 2 / MG.VIEW_R) - 70;
@@ -241,7 +261,7 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
 }
 
 function drawReady(s: Surface, st: MinigameState): void {
-  const { y } = drawPanel(s, Math.min(600, s.width - 32), 340);
+  const { y } = drawPanel(s, Math.min(600, s.width - 32), 356);
   const cx = s.width / 2;
   drawText(s, 'PERIMETER', cx, y + 26, 34, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, 'BETA ARCADE MODE', cx, y + 74, 13, { align: 'center', color: s.palette.dim, glow: 0 });
@@ -261,14 +281,15 @@ function drawReady(s: Surface, st: MinigameState): void {
     'LEVELS RAISE STREAMS, LAUNCHERS AND ROCK HARDNESS.',
     'HARDER ROCKS CHANGE COLOUR AS THEY WEAKEN. SHOTS NUDGE ROCKS.',
     'A MOON ARRIVES AT LEVEL 3. TURRETS ARE EARNED FROM LEVEL 6.',
+    'FROM 3 STREAMS, THE FIRST SHOT AFTER A BREAK IS A LASER PULSE.',
   ];
   for (const n of notes) {
     drawText(s, n, cx, ly + 4, 11, { align: 'center', color: s.palette.dim, glow: 0 });
     ly += 18;
   }
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
-  if (blink) drawText(s, 'PRESS SPACE TO START', cx, y + 278, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
-  drawText(s, `ESC TITLE    1 DEBUG    2 GLOW    3 COLLISION    SEED ${st.seed}`, cx, y + 312, 10, { align: 'center', color: s.palette.dim, glow: 0 });
+  if (blink) drawText(s, 'PRESS SPACE TO START', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 330, 10, { align: 'center', color: s.palette.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {

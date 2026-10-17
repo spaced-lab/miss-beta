@@ -6,7 +6,7 @@ import { MG } from '../src/minigame/config';
 import { generateContinents } from '../src/minigame/planet';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  rockMass, snapshot, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, type Asteroid, type Input, type MinigameState,
+  laserArmed, laserStage, rockMass, snapshot, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 
@@ -311,5 +311,77 @@ describe('cheats', () => {
   });
   it('rejects malformed codes', () => {
     expect(() => new CheatRegistry([{ code: 'no', message: '', apply: () => {} }])).toThrow();
+  });
+});
+
+describe('laser pulse', () => {
+  const lane = (st: MinigameState) => {
+    st.spawnTimer = 1e9;
+    st.cheats.god = true;
+    st.cheats.noHeat = true;
+  };
+  it('is off below 3 streams and armed after a break from 3 streams', () => {
+    const st = createState(51);
+    start(st);
+    lane(st);
+    expect(laserArmed(st)).toBe(false);
+    st.cheats.streams = 3;
+    step(st, NO_INPUT, MG.DT);
+    expect(laserStage(st.streamCount)).toBe(1);
+    expect(laserArmed(st)).toBe(true); // sinceShot starts large
+  });
+  it('first shot after a break beams the centre lane, then projectiles follow', () => {
+    const st = createState(52);
+    start(st);
+    lane(st);
+    st.cheats.streams = 3;
+    step(st, NO_INPUT, MG.DT);
+    const a = rock(st, 0, 4, 0, 0, 0.3, 0); // launcher points +y
+    const hp0 = a.hp;
+    st.fireCooldown = 0;
+    step(st, FIRE, MG.DT);
+    expect(a.hp).toBe(hp0 - (strengthLevel(3) + MG.LASER_DAMAGE_BONUS));
+    expect(a.vy).toBeGreaterThan(0); // pushed outward
+    expect(st.beams.length).toBe(1);
+    expect(st.events.some((e) => e.type === 'laser')).toBe(true);
+    // Centre projectile was replaced by the beam: 2 side bullets only.
+    expect(st.bullets.length).toBe(2);
+    // Keep firing: no second beam while the break is short.
+    for (let i = 0; i < 0.5 / MG.DT; i++) step(st, FIRE, MG.DT);
+    expect(st.beams.filter((b) => b.t > 0).length).toBeLessThanOrEqual(1);
+    expect(st.events.filter((e) => e.type === 'laser').length).toBe(1);
+  });
+  it('at 5 streams every launcher beams and the break needed is shorter', () => {
+    const st = createState(53);
+    start(st);
+    lane(st);
+    st.cheats.streams = 5;
+    st.cheats.launchers = 2;
+    step(st, NO_INPUT, MG.DT);
+    st.sinceShot = MG.LASER_BREAK_2 + 0.01;
+    st.fireCooldown = 0;
+    step(st, FIRE, MG.DT);
+    expect(st.beams.length).toBe(2);
+    st.sinceShot = MG.LASER_BREAK_2 - 0.1;
+    st.fireCooldown = 0;
+    for (const b of st.beams) b.t = 0.001;
+    step(st, FIRE, MG.DT);
+    expect(st.beams.filter((b) => b.t > 0.01).length).toBe(0);
+  });
+  it('emits sound events for shots, breaks and hull impacts', () => {
+    const st = createState(54);
+    start(st);
+    lane(st);
+    const a = rock(st, 0, 3, 0, 0, 0.2, 0);
+    a.hp = 1;
+    for (let i = 0; i < 1 / MG.DT; i++) step(st, FIRE, MG.DT);
+    const types = new Set(st.events.map((e) => e.type));
+    expect(types.has('shot')).toBe(true);
+    expect(types.has('hit')).toBe(true);
+    expect(types.has('break')).toBe(true);
+    rock(st, 1.1, 0, -3, 0);
+    for (let i = 0; i < 0.3 / MG.DT; i++) step(st, NO_INPUT, MG.DT);
+    expect(st.events.some((e) => e.type === 'impact')).toBe(true);
+    expect(st.events.length).toBeLessThanOrEqual(256);
   });
 });

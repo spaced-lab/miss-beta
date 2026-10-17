@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v2.1: lo-fi synthesized sound (WebAudio, no samples) with three kits (key 5) and a toggle
+  (key 4); laser pulse on the first shot after a break from 3 streams (every launcher at 5 streams); sim
+  emits events for sound; difficulty ramps a little faster; turret life 12 s; less glow halo everywhere.
+
 - PERIMETER v2: open-ended levels (one per 28 s) driving streams, launchers and rock hardness; adaptive
   pressure; hardness tiers 0..3 with neon colours stepping down as a rock weakens; shards one tier down with
   a chance of a hard core one tier up; stream strength by position (centre strongest, 1/2/3 by stream count);

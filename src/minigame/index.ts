@@ -7,16 +7,19 @@
 // LORE: G1 (how to play), C1 (how the game is built)
 
 import { CheatRegistry } from '../game/cheats';
-import { loadNumber, saveJson } from '../game/persistence';
+import { loadJson, loadNumber, saveJson } from '../game/persistence';
 import type { Router, Screen } from '../game/screen';
 import type { GlowMode, Surface } from '../render/canvas';
 import type { Input as Keys } from '../ui/input';
 import { MINIGAME_CHEATS } from './cheats';
 import { MG } from './config';
 import { renderMinigame } from './render';
+import { SfxPlayer } from './sfx';
 import { createState, start, step, type Input, type MinigameState } from './sim';
 
 const BEST_KEY = 'minigame.best';
+const SOUND_KEY = 'minigame.sound';
+const KIT_KEY = 'minigame.kit';
 const GLOW_CYCLE: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 
 export class MinigameScreen implements Screen {
@@ -27,9 +30,16 @@ export class MinigameScreen implements Screen {
   private frameMs = 0;
   private lastFrame = 0;
   private readonly cheats = new CheatRegistry<MinigameState>(MINIGAME_CHEATS);
+  private readonly sfx = new SfxPlayer();
 
   constructor(private readonly s: Surface, private readonly keys: Keys, private readonly router: Router) {
     this.st = createState(this.newSeed());
+    this.sfx.enabled = loadJson(SOUND_KEY, (v): v is boolean => typeof v === 'boolean', true);
+    this.sfx.kitIndex = loadJson(KIT_KEY, (v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 8, 0) % 3;
+  }
+
+  private soundLabel(): string {
+    return `${this.sfx.enabled ? 'SND ON' : 'SND OFF'}  KIT ${this.sfx.kit.name}`;
   }
 
   private newSeed(): number {
@@ -51,9 +61,19 @@ export class MinigameScreen implements Screen {
     const k = this.keys;
     const st = this.st;
 
+    // Any key counts as the user gesture browsers require before audio may start.
+    if (k.anyKeyPressed()) this.sfx.unlock();
     if (k.pressed('Escape')) {
       this.router.go('title');
       return;
+    }
+    if (k.pressed('Digit4')) {
+      this.sfx.enabled = !this.sfx.enabled;
+      saveJson(SOUND_KEY, this.sfx.enabled);
+    }
+    if (k.pressed('Digit5')) {
+      this.sfx.cycleKit();
+      saveJson(KIT_KEY, this.sfx.kitIndex);
     }
     // NOTE: digits, not letters: letters are reserved for typing cheat codes.
     if (k.pressed('Digit1')) this.debug = !this.debug;
@@ -94,6 +114,10 @@ export class MinigameScreen implements Screen {
     }
     if (steps === MG.MAX_STEPS_PER_FRAME) this.acc = 0;
 
+    // Sound: the step emitted events; play them and clear the queue.
+    this.sfx.play(st.events, performance.now() / 1000);
+    st.events.length = 0;
+
     if (st.status === 'over' && !st.cheats.assisted && st.score > this.best) {
       this.best = st.score;
       saveJson(BEST_KEY, this.best);
@@ -104,6 +128,6 @@ export class MinigameScreen implements Screen {
     const now = performance.now();
     if (this.lastFrame) this.frameMs = this.frameMs * 0.9 + (now - this.lastFrame) * 0.1;
     this.lastFrame = now;
-    renderMinigame(this.s, this.st, { debug: this.debug, frameMs: this.frameMs, best: this.best });
+    renderMinigame(this.s, this.st, { debug: this.debug, frameMs: this.frameMs, best: this.best, sound: this.soundLabel() });
   }
 }
