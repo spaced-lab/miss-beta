@@ -41,5 +41,5 @@ npm run check        # typecheck + tests + audit + static security greps; run be
 npm run build        # production build (strict CSP injected)
 ```
 
-Design: `GAME_PLAN.md`. Lore and Learning Center content: `EDUCATION.md`. Work order: `docs/BUILD_PLAN.md`.
+Read `docs/WARNINGS.md` before exposing the dev server to a network. Design: `GAME_PLAN.md`. Lore and Learning Center content: `EDUCATION.md`. Work order: `docs/BUILD_PLAN.md`.
 Ideas not in the plan: `IDEAS.md`. License: AGPL-3.0.

@@ -38,7 +38,8 @@ function csp(): Plugin {
 /**
  * Dev-only screenshot sink. A page running under `vite` can POST a PNG to /__dev/shot and it lands at
  * MISS_SHOT_PATH (default .dev/shot.png). Used for automated visual checks when a browser screenshot tool
- * is unavailable. Never part of the build: apply: 'serve', body capped at 8 MB, fixed output path.
+ * is unavailable. Never part of the build: apply: 'serve', same-origin localhost only, body capped at 8 MB,
+ * fixed output path. Documented in docs/WARNINGS.md.
  */
 function devShot(): Plugin {
   return {
@@ -49,6 +50,16 @@ function devShot(): Plugin {
         if (req.method !== 'POST') {
           res.statusCode = 405;
           res.end();
+          return;
+        }
+        // Same-origin only: the browser sends Origin on POST, so a page from any other origin on the
+        // machine is refused. See docs/WARNINGS.md.
+        const host = req.headers.host ?? '';
+        const origin = req.headers.origin ?? '';
+        const local = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+        if (!local || origin !== `http://${host}`) {
+          res.statusCode = 403;
+          res.end('dev shot: same-origin localhost only');
           return;
         }
         const chunks: Buffer[] = [];

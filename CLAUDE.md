@@ -56,7 +56,9 @@ suites consume them. Run with `python3 -m pytest pymiss` once it exists.
   unfinished screens `[BUILDING]`.
 - Visual self-check without a screenshot tool: with `npm run dev` running, page JavaScript can
   `fetch('/__dev/shot', { method: 'POST', body: <canvas PNG blob> })` and the image lands at `.dev/shot.png`
-  (dev server only, see `vite.config.ts`). The minigame screen also exposes `window.__miss` with CPU ms per frame.
+  (dev server only, same-origin localhost only, see `vite.config.ts` and `docs/WARNINGS.md`). The main loop
+  exposes `window.__miss` with CPU ms per frame in dev.
+- Any convenience that trades away safety gets an entry in `docs/WARNINGS.md` in the same commit.
 
 ## Layout (today)
 
