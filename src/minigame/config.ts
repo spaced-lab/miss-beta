@@ -125,6 +125,27 @@ export const MG = {
   TURRET_GIFT_PROB: 0.35,
   TURRET_SUPER_LIFE_MULT: 1.5,
 
+  /** Sentry archetypes (sim.SentryKind), one drawn per deploy. ORBITER is the classic ring rider.
+   *  SWEEPER oscillates +-SENTRY_SWEEP_ARC around its home angle (phase advances SENTRY_SWEEP_RATE rad/s),
+   *  faces outward and fires SENTRY_BURST shots SENTRY_BURST_GAP apart, then rests SENTRY_BURST_REST. */
+  SENTRY_SWEEP_ARC: 0.85,
+  SENTRY_SWEEP_RATE: 1.3,
+  SENTRY_BURST: 4,
+  SENTRY_BURST_GAP: 0.07,
+  SENTRY_BURST_REST: 1.0,
+  /** PICKET re-reads the field every SENTRY_PICKET_RETARGET s, splits it into SENTRY_PICKET_SECTORS sectors
+   *  weighted by 1 / distance of the incoming rocks, and turns toward the densest at SENTRY_PICKET_TURN rad/s. */
+  SENTRY_PICKET_RETARGET: 1.5,
+  SENTRY_PICKET_SECTORS: 12,
+  SENTRY_PICKET_TURN: 2.2,
+  /** CHASER leaves the ring and drifts toward the most threatening rock at SENTRY_CHASE_SPEED (radii/s),
+   *  stopping SENTRY_CHASE_STANDOFF short of it, never further than SENTRY_CHASE_LEASH from its home point
+   *  and never inside SENTRY_CHASE_R_MIN of the planet's centre. With nothing to chase it drifts home. */
+  SENTRY_CHASE_SPEED: 1.6,
+  SENTRY_CHASE_LEASH: 1.7,
+  SENTRY_CHASE_STANDOFF: 0.9,
+  SENTRY_CHASE_R_MIN: 1.45,
+
   /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
    *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the
    *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied. */
@@ -141,6 +162,44 @@ export const MG = {
   PULSE_MAX: 3,
   PULSE_SPEED: 9,
   PULSE_SCORE_MULT: 0.5,
+
+  /** Seeker missiles (`<`): earned every SEEKER_HITS direct hits, stock capped at SEEKER_MAX. Launched from
+   *  the player's launcher at SEEKER_SPEED, a seeker turns toward the closest threatening rock (lead pursuit,
+   *  turn rate capped at SEEKER_TURN rad/s), detonates on contact with a blast of radius SEEKER_BLAST_R that
+   *  deals SEEKER_BLAST_DAMAGE and pushes rocks outward (SEEKER_BLAST_IMPULSE / mass), or fizzles after
+   *  SEEKER_LIFE seconds. */
+  SEEKER_HITS: 35,
+  SEEKER_MAX: 3,
+  SEEKER_SPEED: 4.2,
+  SEEKER_TURN: 4.5,
+  SEEKER_LIFE: 4.5,
+  SEEKER_R: 0.06,
+  SEEKER_BLAST_R: 0.9,
+  SEEKER_BLAST_DAMAGE: 4,
+  SEEKER_BLAST_IMPULSE: 1.4,
+  SEEKER_TRAIL: 6,
+
+  /** Swarm of sentinels (`>`): earned every SWARM_KILLS kills, stock capped at SWARM_MAX. Releases
+   *  SWARM_COUNT_MIN..MAX drones from the player's launcher fanned over SWARM_FAN rad; each hunts the nearest
+   *  rock at SWARM_SPEED (turn rate SWARM_TURN), orbits it at SWARM_STANDOFF, keeps SWARM_SEPARATION from its
+   *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
+   *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. */
+  SWARM_KILLS: 22,
+  SWARM_MAX: 2,
+  SWARM_COUNT_MIN: 5,
+  SWARM_COUNT_MAX: 8,
+  SWARM_FAN: 2.0,
+  SWARM_SPEED: 2.4,
+  SWARM_TURN: 6,
+  SWARM_STANDOFF: 0.7,
+  SWARM_SEPARATION: 0.3,
+  SWARM_RANGE: 2.2,
+  SWARM_COOLDOWN: 0.2,
+  SWARM_BULLET_SPEED: 1.3,
+  SWARM_BULLET_LIFE: 0.6,
+  SWARM_DAMAGE: 1,
+  SWARM_LIFE: 10,
+  SWARM_R_MIN: 1.35,
 
   /** Score: per planet-radius destroyed times tier multiplier, plus one per second survived. */
   SCORE_PER_R: 100,

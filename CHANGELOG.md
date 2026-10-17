@@ -15,6 +15,27 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   local leaderboard, PLANNER overlay (P), spacecraft on their arcs, play-by-play log, DEBRIEF and NEXT
   ROUND, RUN OVER with leaderboard rank, LEADERBOARD screen. `npm run play` serves a stable build on 4173.
 
+- PERIMETER instructions: ready panel lists `<` SEEKER and `>` SWARM with how they are earned; the in-play
+  key hint is one line with all five controls; README's PERIMETER paragraph covers the weapons and sentry kinds.
+
+- PERIMETER earned weapons: SEEKER MISSILE (`<`, one per 35 direct hits, stock 3: lead pursuit with a
+  turn-rate cap, area blast with outward impulse, exhaust trail) and SWARM OF SENTINELS (`>`, one per 22
+  kills, stock 2: 5-8 drones hunt the nearest rock with 1 px bullets for 10 s, then burn out); HUD meters
+  beside PULSE, cheats SEEKER / SWARM, new sfx voices (bass whoosh, blast, blip cluster), save v3; pulse
+  charge compare gets an epsilon (14 x 1/14 < 1 in floats, the first pulse arrived one kill late).
+
+- PERIMETER sentry archetypes: each deploy draws ORBITER (ring rider), SWEEPER (arc oscillation, outward,
+  bursts), PICKET (parks at the densest incoming sector) or CHASER (drifts toward the biggest threat on a
+  leash), each with its own vector shape (hexagon, chevron, bar + dish, triangle pair); cheats ORBITER /
+  SWEEPER / PICKET / CHASER; save format v2 (sentry kind, radius, home, phase, burst).
+
+- PERIMETER finer detail: sentry bullets 1 px, player bullets 1.3-1.9 px by damage, dust 1 px, rock width
+  ladder 0.55 + 0.22 per tier, thinner moon, sentry and continent outlines; sizes in the `PX` table in render.ts.
+
+- PERIMETER sound, bassier: a DynamicsCompressor on the synth master bus caps stacked hits; `bass()` adds a
+  30-45 Hz sub layer with a longer tail; hits, breakups and crashes lean on it; crunches lowpassed lower;
+  ticks stay bright blips, a notch quieter; chaos bass-static a touch fuller.
+
 - PERIMETER resume: a game in progress is autosaved to sessionStorage (every level-up, every 5 s, on leaving
   the screen) and offered on the ready panel after a reload as <R> RESUME / <SPACE> NEW; the save is a
   validated JSON snapshot of the whole sim including the Rng state (`Rng.fromState`), so play continues

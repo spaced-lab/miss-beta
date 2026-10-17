@@ -2,8 +2,8 @@
 // WHY:  Glue between the pure sim (sim.ts), the renderer (render.ts) and the browser. Everything that
 //       touches the DOM or the clock lives here so the other two files stay testable.
 // HOW:  Real time is accumulated and consumed in MG.DT steps (capped per frame so a background tab does
-//       not spiral). The pulse key is edge-triggered here and passed as a boolean; a replay could feed
-//       the same Input records back into `step` and reproduce the game exactly. A game in progress is
+//       not spiral). The pulse, seeker (`<`) and swarm (`>`) keys are edge-triggered here and passed as
+//       booleans; a replay could feed the same Input records back into `step` and reproduce the game exactly. A game in progress is
 //       autosaved to sessionStorage (every level-up, every AUTOSAVE_SECONDS, and on leaving the screen) so
 //       the dev server's reload-on-change does not wipe it; the ready panel offers <R> RESUME / <SPACE> NEW.
 // LORE: G1 (how to play), C1 (how the game is built)
@@ -125,19 +125,22 @@ export class MinigameScreen implements Screen {
       }
     }
 
+    // NOTE: Comma and Period are the `<` and `>` keys on a US layout; KeyboardEvent.code is layout independent.
     const input: Input = {
       left: k.anyHeld('ArrowLeft', 'KeyA'),
       right: k.anyHeld('ArrowRight', 'KeyD'),
       fire: k.held('Space'),
       pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight'),
+      seeker: k.pressed('Comma'),
+      swarm: k.pressed('Period'),
     };
 
     this.acc += Math.min(dtMs, 250) / 1000 * st.cheats.timeScale;
     let steps = 0;
-    let pulse = input.pulse;
+    let edges = input;
     while (this.acc >= MG.DT && steps < MG.MAX_STEPS_PER_FRAME) {
-      step(st, { ...input, pulse }, MG.DT);
-      pulse = false; // an edge is consumed by the first step
+      step(st, edges, MG.DT);
+      edges = { ...input, pulse: false, seeker: false, swarm: false }; // an edge is consumed by the first step
       this.acc -= MG.DT;
       steps++;
     }

@@ -4,7 +4,10 @@
 // HOW:  `SfxPlayer.play(events)` is called once per frame with the events the step produced. Ticks are
 //       rate-limited so eight launchers at full fire stay delicate. Everything is lo-fi and short:
 //       ticks 15 to 25 ms, crunches under 200 ms, the laser and the pulse are 303-style sweeps, level-ups
-//       and turrets are SH-101-style sample-and-hold tones, bullet hits are pixel-dust grains.
+//       and turrets are SH-101-style sample-and-hold tones, bullet hits are pixel-dust grains. The mix leans
+//       bassy on purpose (owner's note, 2026-10-17): hits, breakups and crashes carry a sub layer (synth.bass
+//       with its 30-45 Hz second voice), crunches are lowpassed lower, the ticks stay as bright blips but a
+//       notch quieter, and the master compressor in synth.ts keeps forty stacked hits from clipping.
 // LORE: G8 (the look, and the sound)
 
 import { Synth } from '../audio/synth';
@@ -58,7 +61,7 @@ export class SfxPlayer {
     this.staticAcc += rate * dt;
     if (this.staticAcc >= 1 && Math.random() < 0.7) {
       this.staticAcc = 0;
-      this.synth.bassStatic(0.04 + 0.12 * chaos, 0.04 + 0.05 * chaos);
+      this.synth.bassStatic(0.05 + 0.14 * chaos, 0.05 + 0.07 * chaos);
     }
   }
 
@@ -70,34 +73,36 @@ export class SfxPlayer {
         case 'shot':
           if (now - this.lastTick > 0.045) {
             this.lastTick = now;
-            this.synth.tick({ wave: k.tickWave, freq: k.tickFreq * (1 + 0.18 * (e.strength - 1)), dur: 0.014 + 0.004 * e.strength, gain: 0.055 });
-            // The tiny bass under the tick.
-            this.synth.bass(62 + 8 * e.strength, 0.03, 0.09);
+            // The blip stays bright, just a notch quieter than before; the bass under it does the weight.
+            this.synth.tick({ wave: k.tickWave, freq: k.tickFreq * (1 + 0.18 * (e.strength - 1)), dur: 0.014 + 0.004 * e.strength, gain: 0.04 });
+            this.synth.bass(62 + 8 * e.strength, 0.03, 0.09, 0.5, 1.5);
           }
           break;
         case 'laser':
           // Soft zap: a triangle sweep with a gentle filter.
           this.synth.sweep({ wave: 'triangle', freq: 640, freqEnd: 110, cutoff: 1800, cutoffEnd: 220, q: 3, dur: 0.16, gain: 0.13 });
-          this.synth.bass(55, 0.08, 0.1);
+          this.synth.bass(55, 0.08, 0.12);
           break;
         case 'hit':
+          // Bullet hit: a little dust on top, a sub pop underneath on every second hit (rate limited).
           if (now - this.lastGrain > 0.03) {
             this.lastGrain = now;
-            this.synth.grains({ count: 2, spread: 0.04, grainDur: 0.008, cutoff: 3800 + e.tier * 700, gain: 0.035 });
+            this.synth.grains({ count: 2, spread: 0.04, grainDur: 0.008, cutoff: 2600 + e.tier * 500, gain: 0.03 });
           }
-          if (++this.hitCount % 3 === 0 && now - this.lastBass > 0.06) {
+          if (++this.hitCount % 2 === 0 && now - this.lastBass > 0.045) {
             this.lastBass = now;
-            this.synth.bass(48 + e.tier * 6, 0.03, 0.07);
+            this.synth.bass(44 + e.tier * 5, 0.045, 0.11, 0.8, 2);
           }
           break;
         case 'break':
-          this.synth.crunch({ rate: k.crunchRate, bits: k.crunchBits, dur: 0.12 + e.r * 0.3, cutoff: 2800, gain: 0.2 + e.tier * 0.04, pitch: 1.3 - e.r });
-          this.synth.grains({ count: 5, spread: 0.1, grainDur: 0.009, cutoff: 2500, gain: 0.04 });
-          this.synth.bass(42 + e.tier * 5, 0.12 + e.r * 0.2, 0.22);
+          // Breakup: crunch lowpassed low, dust, and a long sub thump that grows with size and tier.
+          this.synth.crunch({ rate: k.crunchRate, bits: k.crunchBits, dur: 0.12 + e.r * 0.3, cutoff: 1500, gain: 0.2 + e.tier * 0.04, pitch: 1.1 - e.r });
+          this.synth.grains({ count: 4, spread: 0.1, grainDur: 0.009, cutoff: 2000, gain: 0.035 });
+          this.synth.bass(40 + e.tier * 4, 0.14 + e.r * 0.25, 0.26 + e.tier * 0.02, 0.9, 2);
           break;
         case 'crash':
-          this.synth.crunch({ rate: 3500, bits: 3, dur: 0.08, cutoff: 900, gain: 0.1 });
-          this.synth.bass(50, 0.05, 0.1);
+          this.synth.crunch({ rate: 3500, bits: 3, dur: 0.09, cutoff: 600, gain: 0.11 });
+          this.synth.bass(46, 0.07, 0.14, 0.8, 1.8);
           break;
         case 'impact':
           // Deeper and longer than before: a sub thud with a tail.
@@ -119,6 +124,30 @@ export class SfxPlayer {
           break;
         case 'pulse':
           this.synth.sweep({ wave: 'sawtooth', freq: 55, freqEnd: 440, cutoff: 300, cutoffEnd: 6000, q: 10, dur: 0.6, gain: 0.25 });
+          break;
+        case 'seeker':
+          // Soft bass whoosh: a low triangle sliding down under a closing filter, with the sub beneath.
+          this.synth.sweep({ wave: 'triangle', freq: 150, freqEnd: 48, cutoff: 900, cutoffEnd: 120, q: 2, dur: 0.35, gain: 0.2 });
+          this.synth.bass(48, 0.2, 0.18, 0.9, 1.8);
+          break;
+        case 'blast':
+          // Area blast: a thud with a longer crunch than a breakup.
+          this.synth.thud(60, 0.4, 0.4);
+          this.synth.crunch({ rate: 3000, bits: 3, dur: 0.22, cutoff: 1200, gain: 0.18, pitch: 0.8 });
+          break;
+        case 'swarm': {
+          // A cluster of tiny blips, one per drone, scattered over a fifth of a second and rising.
+          for (let i = 0; i < e.count; i++) {
+            this.synth.tick({ wave: 'triangle', freq: 1800 + i * 160 + Math.random() * 120, dur: 0.012, gain: 0.035, delay: i * 0.028 + Math.random() * 0.01 });
+          }
+          this.synth.bass(58, 0.06, 0.1, 0.6, 1.5);
+          break;
+        }
+        case 'burnout':
+          if (now - this.lastTick > 0.03) {
+            this.lastTick = now;
+            this.synth.tick({ wave: 'sine', freq: 700, dur: 0.03, gain: 0.03 });
+          }
           break;
         case 'levelup':
           this.synth.lfoTone({ base: 660, spread: 1.2, stepDur: 0.035, dur: 0.4, wave: 'square', gain: 0.1 });

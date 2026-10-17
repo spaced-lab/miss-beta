@@ -4,8 +4,11 @@
 //       build sound kits from the same six voices, and lets us try variants by changing numbers.
 // HOW:  Lazily creates an AudioContext on the first `ensure()` (browsers require a user gesture). Each
 //       instrument builds a short node graph, schedules envelopes with setTargetAtTime / linear ramps and
-//       lets the nodes garbage-collect after `stop`. A master gain caps loudness. Everything is guarded so
-//       the module is inert in node (tests) and when audio is unavailable.
+//       lets the nodes garbage-collect after `stop`. The master bus is a gain into a DynamicsCompressor
+//       (threshold -16 dB, ratio 6, fast attack): forty bullets landing in one frame get squashed rather
+//       than clipped, so the kit can lean bassy without a hard ceiling. `bass()` carries a second, lower
+//       sub layer (30 to 45 Hz, longer tail) under the main pop; that is where "bassier" comes from.
+//       Everything is guarded so the module is inert in node (tests) and when audio is unavailable.
 // LORE: G8 (the look, and the sound)
 
 export interface TickOpts {
@@ -14,6 +17,8 @@ export interface TickOpts {
   dur?: number;
   wave?: OscillatorType;
   gain?: number;
+  /** Seconds from now to start; lets a caller schedule a cluster of blips in one go. */
+  delay?: number;
 }
 
 export interface SweepOpts {
@@ -78,7 +83,19 @@ export class Synth {
       this.ctx = new AudioContext();
       this.master = this.ctx.createGain();
       this.master.gain.value = this.volume;
-      this.master.connect(this.ctx.destination);
+      // NOTE: the compressor is the loudness cap. Many short voices stack linearly; without it a busy frame
+      // clips the sub layers first (they carry the most energy per voice).
+      if (typeof this.ctx.createDynamicsCompressor === 'function') {
+        const comp = this.ctx.createDynamicsCompressor();
+        comp.threshold.value = -16;
+        comp.knee.value = 10;
+        comp.ratio.value = 6;
+        comp.attack.value = 0.002;
+        comp.release.value = 0.14;
+        this.master.connect(comp).connect(this.ctx.destination);
+      } else {
+        this.master.connect(this.ctx.destination);
+      }
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
     return true;
@@ -99,7 +116,7 @@ export class Synth {
     const io = this.out();
     if (!io) return;
     const { ctx, master } = io;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + (o.delay ?? 0);
     const dur = o.dur ?? 0.018;
     const osc = ctx.createOscillator();
     osc.type = o.wave ?? 'square';
@@ -198,8 +215,8 @@ export class Synth {
     src.playbackRate.value = o.pitch ?? 1;
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.setValueAtTime(o.cutoff ?? 2800, t);
-    f.frequency.exponentialRampToValueAtTime(200, t + dur);
+    f.frequency.setValueAtTime(o.cutoff ?? 1800, t);
+    f.frequency.exponentialRampToValueAtTime(110, t + dur);
     const g = ctx.createGain();
     g.gain.setValueAtTime(o.gain ?? 0.3, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -235,8 +252,12 @@ export class Synth {
     }
   }
 
-  /** Sub-bass pop: an extremely short sine at 35-90 Hz with a fast pitch drop. The "tiny lo-fi bass". */
-  bass(freq = 70, dur = 0.035, gain = 0.12): void {
+  /**
+   * Sub-bass pop: a short sine at 35-90 Hz with a fast pitch drop, plus a second, lower layer (half the
+   * pitch, clamped to 30-45 Hz) with a tail `subTail` times longer. `sub` scales that layer (0 disables it).
+   * The "tiny lo-fi bass" that sits under almost every event.
+   */
+  bass(freq = 70, dur = 0.035, gain = 0.12, sub = 0.7, subTail = 1.8): void {
     const io = this.out();
     if (!io) return;
     const { ctx, master } = io;
@@ -251,6 +272,20 @@ export class Synth {
     osc.connect(g).connect(master);
     osc.start(t);
     osc.stop(t + dur + 0.01);
+    if (sub <= 0) return;
+    const subFreq = Math.min(45, Math.max(30, freq * 0.5));
+    const subDur = dur * subTail;
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(subFreq, t);
+    o2.frequency.exponentialRampToValueAtTime(subFreq * 0.8, t + subDur);
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.0001, t);
+    g2.gain.exponentialRampToValueAtTime(gain * sub, t + Math.min(0.012, subDur * 0.3));
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + subDur);
+    o2.connect(g2).connect(master);
+    o2.start(t);
+    o2.stop(t + subDur + 0.01);
   }
 
   /** Bass static: a discrete low rumble pop, noise through a very low lowpass plus a sub sine. */
@@ -264,15 +299,17 @@ export class Synth {
     src.playbackRate.value = 0.5 + Math.random() * 0.5;
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.value = 140;
-    f.Q.value = 1.2;
+    f.frequency.setValueAtTime(220, t);
+    f.frequency.exponentialRampToValueAtTime(90, t + dur);
+    f.Q.value = 2;
     const g = ctx.createGain();
     g.gain.setValueAtTime(gain, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f).connect(g).connect(master);
     src.start(t);
     src.stop(t + dur + 0.02);
-    this.bass(38 + Math.random() * 18, dur * 1.2, gain * 0.9);
+    // The sub under the static: a touch fuller than the rumble itself, with the longer tail.
+    this.bass(36 + Math.random() * 18, dur * 1.3, gain, 0.9, 2.2);
   }
 
   /** Low thud: a sine dropping in pitch plus a short noise layer. Hull impacts. */
@@ -291,7 +328,7 @@ export class Synth {
     osc.connect(g).connect(master);
     osc.start(t);
     osc.stop(t + dur + 0.02);
-    this.crunch({ rate: 3000, bits: 3, dur: 0.12, cutoff: 900, gain: gain * 0.5 });
-    this.bass(freq * 0.5, dur * 0.8, gain * 0.8);
+    this.crunch({ rate: 3000, bits: 3, dur: 0.12, cutoff: 700, gain: gain * 0.5 });
+    this.bass(freq * 0.5, dur * 0.8, gain * 0.8, 0.8, 1.6);
   }
 }

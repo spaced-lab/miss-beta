@@ -5,14 +5,15 @@
 //       MG.VIEW_R on the shorter axis. Neon colours unlock by spectrum stage (sim.spectrumStage): stage 0
 //       is all phosphor green; 1 colours rock hardness; 2 colours bullet strength; 3 adds moon, turret
 //       and particle accents. Hardness is also drawn as line width and, for cores, a double outline, so
-//       the information survives without colour.
+//       the information survives without colour. All pixel sizes come from the PX table below: the look is
+//       fine on purpose (1 px dust and sentry shots, sub-pixel outlines that sharpen at DPR 2).
 // LORE: G2 (screens and HUD), G8 (the look)
 
-import type { Surface } from '../render/canvas';
+import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, spectrumStage, streamDamage, strengthLevel, type MinigameState } from './sim';
+import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, spectrumStage, streamDamage, strengthLevel, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -34,7 +35,95 @@ const NEON = {
   heat: '#FF6A00',
 } as const;
 
+/**
+ * Pixel sizes. Everything is deliberately fine (owner's note, 2026-10-17: "all detail gets finer"):
+ * sentry bullets are single pixels, player bullets barely bigger, dust is 1 px, outlines are sub-pixel at
+ * DPR 1 and crisp at DPR 2. Hardness still reads through colour and the width ladder (ROCK_W + tier * ROCK_W_STEP).
+ */
+const PX = {
+  particle: 1,
+  autoBullet: 1,
+  /** Player bullet: base + damage * step (1.3, 1.6, 1.9 px for damage 1..3). */
+  bullet: 1.0,
+  bulletStep: 0.3,
+  rockW: 0.55,
+  rockWStep: 0.22,
+  coreRing: 0.5,
+  moonW: 0.75,
+  moonDetail: 0.5,
+  sentryW: 0.7,
+  sentryDetail: 0.5,
+  sentryBarrel: 0.8,
+  continentW: 0.7,
+} as const;
+
 const scratch: number[] = [];
+
+/** Push a point rotated by `rot` about (cx, cy) onto `scratch`. */
+function pt(cx: number, cy: number, dx: number, dy: number, rot: number): void {
+  const c = Math.cos(rot);
+  const si = Math.sin(rot);
+  scratch.push(cx + dx * c - dy * si, cy + dx * si + dy * c);
+}
+
+/**
+ * Sentry silhouettes, radius r px, `facing` is the screen angle the shape points along:
+ *   orbiter  slowly turning hexagon with an inner ring;
+ *   sweeper  chevron, apex forward, with a short tail bar;
+ *   picket   a bar across the facing with a dish (half ring) opening forward;
+ *   chaser   two triangles nose to tail along the facing.
+ */
+function drawSentry(s: Surface, kind: SentryKind, cx: number, cy: number, r: number, facing: number, t: number, style: StrokeStyle): void {
+  const detail = { ...style, glow: 0.6, width: PX.sentryDetail };
+  scratch.length = 0;
+  switch (kind) {
+    case 'orbiter':
+      for (let i = 0; i < 6; i++) {
+        const a = t * 0.8 + (i / 6) * Math.PI * 2;
+        scratch.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+      s.stroke(scratch, { ...style, closed: true });
+      s.circle(cx, cy, r * 0.45, detail);
+      break;
+    case 'sweeper':
+      pt(cx, cy, -r * 0.6, -r, facing);
+      pt(cx, cy, r, 0, facing);
+      pt(cx, cy, -r * 0.6, r, facing);
+      pt(cx, cy, -r * 0.2, 0, facing);
+      s.stroke(scratch, { ...style, closed: true });
+      scratch.length = 0;
+      pt(cx, cy, -r * 0.9, -r * 0.45, facing);
+      pt(cx, cy, -r * 0.9, r * 0.45, facing);
+      s.stroke(scratch, detail);
+      break;
+    case 'picket':
+      pt(cx, cy, -r * 0.3, -r, facing);
+      pt(cx, cy, -r * 0.3, r, facing);
+      s.stroke(scratch, style);
+      scratch.length = 0;
+      pt(cx, cy, -r * 0.3, 0, facing);
+      pt(cx, cy, r * 0.3, 0, facing);
+      s.stroke(scratch, detail);
+      scratch.length = 0;
+      for (let i = 0; i <= 8; i++) {
+        const a = -Math.PI / 2 + (i / 8) * Math.PI;
+        pt(cx, cy, r * 0.3 + Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7, facing);
+      }
+      s.stroke(scratch, style);
+      break;
+    case 'chaser':
+      pt(cx, cy, r, 0, facing);
+      pt(cx, cy, 0, -r * 0.55, facing);
+      pt(cx, cy, 0, r * 0.55, facing);
+      s.stroke(scratch, { ...style, closed: true });
+      scratch.length = 0;
+      pt(cx, cy, -r * 0.1, 0, facing);
+      pt(cx, cy, -r, -r * 0.45, facing);
+      pt(cx, cy, -r, r * 0.45, facing);
+      s.stroke(scratch, { ...detail, closed: true });
+      break;
+  }
+}
 
 function tierColor(s: Surface, tier: number, stage: number): string {
   return stage >= 1 ? (NEON.tier[tier] ?? s.palette.ink) : s.palette.ink;
@@ -63,7 +152,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   for (const q of st.particles) {
     const a = q.life / q.max;
     const color = q.tier < 0 ? p.hot : stage >= 3 ? tierColor(s, q.tier, stage) : a > 0.5 ? p.hot : p.ink;
-    s.dot(X(q.x), Y(q.y), 1.2, color, a);
+    s.dot(X(q.x), Y(q.y), PX.particle, color, a);
   }
 
   // Planet and continents.
@@ -71,7 +160,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   for (const c of st.continents) {
     scratch.length = 0;
     for (let i = 0; i < c.length; i += 2) scratch.push(X(c[i] as number), Y(c[i + 1] as number));
-    s.stroke(scratch, { closed: true, glow: 0.6, alpha: 0.85, width: 1 });
+    s.stroke(scratch, { closed: true, glow: 0.6, alpha: 0.85, width: PX.continentW });
   }
 
   // Moon: faint orbit ring, disc, craters fixed to its face (tidally locked), cracks as it wears.
@@ -82,13 +171,13 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
       const mc = stage >= 3 ? NEON.moon : p.ink;
       const mr = MG.MOON_R * k;
       const wear = 1 - st.moonHp / MG.MOON_HP;
-      s.circle(X(m.x), Y(m.y), mr, { color: mc, glow: 1.2, alpha: 1 - 0.3 * wear });
+      s.circle(X(m.x), Y(m.y), mr, { color: mc, glow: 1.2, alpha: 1 - 0.3 * wear, width: PX.moonW });
       const ca = Math.cos(st.moonAngle);
       const sa = Math.sin(st.moonAngle);
       for (const [dx, dy, cr] of st.craters) {
         const rx = dx * ca - dy * sa;
         const ry = dx * sa + dy * ca;
-        s.circle(X(m.x + rx * MG.MOON_R), Y(m.y + ry * MG.MOON_R), cr * mr, { color: mc, glow: 0.3, width: 0.8, alpha: 0.8 });
+        s.circle(X(m.x + rx * MG.MOON_R), Y(m.y + ry * MG.MOON_R), cr * mr, { color: mc, glow: 0.3, width: PX.moonDetail, alpha: 0.8 });
       }
       // Cracks: one jagged line per 25% lost.
       const cracks = Math.floor(wear * 4);
@@ -100,7 +189,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
           const aa = a0 + Math.sin(i * 2.3 + c) * 0.5;
           scratch.push(X(m.x) + Math.cos(aa) * rr, Y(m.y) + Math.sin(aa) * rr);
         }
-        s.stroke(scratch, { color: mc, glow: 0.2, width: 0.8, alpha: 0.9 });
+        s.stroke(scratch, { color: mc, glow: 0.2, width: PX.moonDetail, alpha: 0.9 });
       }
     }
   }
@@ -118,24 +207,23 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     s.stroke([X(tip * Math.cos(a)), Y(tip * Math.sin(a)), X(1.34 * Math.cos(a)), Y(1.34 * Math.sin(a))], { color: hot, glow: 1 });
   }
 
-  // Sentries: a hexagon with an inner ring and a barrel toward the target; colour by tier, SUPER cycles hue.
+  // Sentries: one vector shape per archetype (drawSentry), a barrel toward the target, a life arc;
+  // colour by tier, SUPER cycles hue.
   for (const tr of st.turrets) {
-    const tx = X(MG.TURRET_ORBIT_R * Math.cos(tr.angle));
-    const ty = Y(MG.TURRET_ORBIT_R * Math.sin(tr.angle));
+    const pos = turretPosition(tr);
+    const tx = X(pos.x);
+    const ty = Y(pos.y);
     const r = tr.superb ? 9 : 7;
     const tc = tr.superb ? `hsl(${Math.floor((st.t * 140) % 360)}, 100%, 65%)` : stage >= 3 ? (NEON.turret[tr.tier] ?? p.hot) : p.hot;
     const fading = tr.life < 3 ? 0.4 + 0.6 * Math.abs(Math.sin(tr.life * 8)) : 1;
-    scratch.length = 0;
-    for (let i = 0; i < 6; i++) {
-      const a = st.t * 0.8 + (i / 6) * Math.PI * 2;
-      scratch.push(tx + Math.cos(a) * r, ty + Math.sin(a) * r);
-    }
-    s.stroke(scratch, { closed: true, color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: 1 });
-    s.circle(tx, ty, r * 0.45, { color: tc, glow: 0.6, width: 0.8, alpha: fading });
     const target = st.asteroids.find((a) => a.id === tr.targetId);
+    // Facing on screen (y down): outward along the radial, or at the target for the chaser.
+    const outward = -tr.angle;
+    const facing = tr.kind === 'chaser' && target ? Math.atan2(Y(target.y) - ty, X(target.x) - tx) : outward;
+    drawSentry(s, tr.kind, tx, ty, r, facing, st.t, { color: tc, glow: tr.superb ? 2 : 1.4, alpha: fading, width: PX.sentryW });
     if (target) {
       const ang = Math.atan2(Y(target.y) - ty, X(target.x) - tx);
-      s.stroke([tx + Math.cos(ang) * r * 0.5, ty + Math.sin(ang) * r * 0.5, tx + Math.cos(ang) * (r + 7), ty + Math.sin(ang) * (r + 7)], { color: tc, glow: 0.8, width: tr.superb ? 2 : 1.2 });
+      s.stroke([tx + Math.cos(ang) * r * 0.5, ty + Math.sin(ang) * r * 0.5, tx + Math.cos(ang) * (r + 7), ty + Math.sin(ang) * (r + 7)], { color: tc, glow: 0.8, width: tr.superb ? PX.sentryBarrel * 1.6 : PX.sentryBarrel });
     }
     // Life arc.
     const frac = tr.life / tr.maxLife;
@@ -144,11 +232,49 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
       const a = -Math.PI / 2 + (i / 16) * Math.PI * 2 * frac;
       scratch.push(tx + Math.cos(a) * (r + 3), ty + Math.sin(a) * (r + 3));
     }
-    if (scratch.length >= 4) s.stroke(scratch, { color: tc, glow: 0, width: 0.8, alpha: 0.5 });
+    if (scratch.length >= 4) s.stroke(scratch, { color: tc, glow: 0, width: PX.sentryDetail, alpha: 0.5 });
   }
 
-  // Bullets: size and colour by damage.
-  for (const b of st.bullets) s.dot(X(b.x), Y(b.y), 1.5 + b.damage * 0.5, bulletColor(s, b.damage, stage));
+  // Bullets: sentry shots are single pixels; player shots size by damage, colour by damage.
+  for (const b of st.bullets) s.dot(X(b.x), Y(b.y), b.auto ? PX.autoBullet : PX.bullet + b.damage * PX.bulletStep, bulletColor(s, b.damage, stage));
+
+  // Seekers: a small dart along the velocity with a short fading exhaust trail.
+  for (const sk of st.seekers) {
+    const sc = stage >= 2 ? NEON.bullet[2] : p.hot;
+    if (sk.trail.length >= 4) {
+      scratch.length = 0;
+      for (let i = 0; i < sk.trail.length; i += 2) scratch.push(X(sk.trail[i] as number), Y(sk.trail[i + 1] as number));
+      scratch.push(X(sk.x), Y(sk.y));
+      s.stroke(scratch, { color: sc, width: PX.sentryDetail, glow: 0.4, alpha: 0.45 });
+    }
+    const facing = Math.atan2(-sk.vy, sk.vx);
+    const dx = X(sk.x);
+    const dy = Y(sk.y);
+    scratch.length = 0;
+    pt(dx, dy, 5, 0, facing);
+    pt(dx, dy, -3, -2, facing);
+    pt(dx, dy, -1.5, 0, facing);
+    pt(dx, dy, -3, 2, facing);
+    s.stroke(scratch, { closed: true, color: sc, width: PX.sentryW, glow: 1.4 });
+    s.dot(dx - Math.cos(facing) * 4, dy - Math.sin(facing) * 4, 1, p.hot, 0.6 + 0.4 * Math.abs(Math.sin(st.t * 60)));
+  }
+
+  // Sentinel drones: a tiny three-fin mark along the velocity, blinking in the last second.
+  for (const d of st.drones) {
+    const dc = stage >= 3 ? NEON.turret[0] : p.ink;
+    const blink = d.life < 1 ? 0.3 + 0.7 * Math.abs(Math.sin(d.life * 20)) : 1;
+    const facing = Math.atan2(-d.vy, d.vx);
+    const dx = X(d.x);
+    const dy = Y(d.y);
+    scratch.length = 0;
+    pt(dx, dy, 3, 0, facing);
+    pt(dx, dy, 0, 0, facing);
+    pt(dx, dy, -2.2, -2.2, facing);
+    pt(dx, dy, 0, 0, facing);
+    pt(dx, dy, -2.2, 2.2, facing);
+    s.stroke(scratch, { color: dc, width: PX.sentryDetail, glow: 0.8, alpha: blink });
+    s.dot(dx, dy, 1, dc, blink);
+  }
 
   // Asteroids: jagged polygons; width by tier, double outline for cores.
   for (const a of st.asteroids) {
@@ -161,8 +287,8 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     }
     const dt = displayTier(a);
     const color = a.core ? (stage >= 1 ? NEON.core : p.hot) : tierColor(s, dt, stage);
-    s.stroke(scratch, { closed: true, glow: 0.7 + dt * 0.25, color, width: 0.8 + dt * 0.3, alpha: a.passing ? 0.8 : 1 });
-    if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.6, width: 0.8 });
+    s.stroke(scratch, { closed: true, glow: 0.7 + dt * 0.25, color, width: PX.rockW + dt * PX.rockWStep, alpha: a.passing ? 0.8 : 1 });
+    if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.6, width: PX.coreRing });
   }
 
   // Laser beams: a bright core line and a wider faint one, fading.
@@ -201,6 +327,23 @@ function bar(s: Surface, x: number, y: number, w: number, h: number, frac: numbe
   if (f > 0) s.stroke([x + 3, y + h / 2, x + 3 + (w - 6) * f, y + h / 2], { color, width: h - 6, glow });
 }
 
+/** An earned-weapon row: label, `max` stock diamonds (lit up to `have`), and a 0..1 charge bar after them. */
+function stockRow(s: Surface, bx: number, by: number, bw: number, bh: number, fs: number, label: string, have: number, max: number, charge: number, color: string): void {
+  const p = s.palette;
+  drawText(s, label, bx, by - fs - 6, fs);
+  for (let i = 0; i < max; i++) {
+    const dx = bx + 10 + i * 22;
+    const dy = by + bh / 2;
+    const r = 6;
+    const lit = i < have;
+    s.stroke([dx, dy - r, dx + r, dy, dx, dy + r, dx - r, dy], { closed: true, color: lit ? color : p.dim, glow: lit ? 1.5 : 0 });
+  }
+  const cbx = bx + 10 + max * 22 + 6;
+  const cbw = bw - (cbx - bx);
+  s.stroke([cbx, by + bh / 2, cbx + cbw, by + bh / 2], { color: p.dim, glow: 0 });
+  if (charge > 0) s.stroke([cbx, by + bh / 2, cbx + cbw * Math.min(1, charge), by + bh / 2], { width: 4, glow: 0.8 });
+}
+
 function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number): void {
   const p = s.palette;
   const W = s.width;
@@ -230,19 +373,13 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     drawText(s, armed ? 'LASER READY' : 'LASER', bx + bw, by - fs - 6, 11, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
   }
 
+  // Earned weapons: stock diamonds plus a charge bar, one row each.
   by += bh + 28;
-  drawText(s, 'PULSE', bx, by - fs - 6, fs);
-  for (let i = 0; i < MG.PULSE_MAX; i++) {
-    const dx = bx + 10 + i * 22;
-    const dy = by + bh / 2;
-    const r = 6;
-    const have = i < st.pulses;
-    s.stroke([dx, dy - r, dx + r, dy, dx, dy + r, dx - r, dy], { closed: true, color: have ? p.hot : p.dim, glow: have ? 1.5 : 0 });
-  }
-  const cbx = bx + 10 + MG.PULSE_MAX * 22 + 6;
-  const cbw = bw - (cbx - bx);
-  s.stroke([cbx, by + bh / 2, cbx + cbw, by + bh / 2], { color: p.dim, glow: 0 });
-  if (st.pulseCharge > 0) s.stroke([cbx, by + bh / 2, cbx + cbw * Math.min(1, st.pulseCharge), by + bh / 2], { width: 4, glow: 0.8 });
+  stockRow(s, bx, by, bw, bh, fs, 'PULSE', st.pulses, MG.PULSE_MAX, st.pulseCharge, p.hot);
+  by += bh + 28;
+  stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, MG.SEEKER_MAX, st.seekerProgress / MG.SEEKER_HITS, stage >= 2 ? NEON.bullet[2] : p.hot);
+  by += bh + 28;
+  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, MG.SWARM_MAX, st.swarmProgress / MG.SWARM_KILLS, stage >= 3 ? NEON.turret[0] : p.hot);
 
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {
@@ -261,7 +398,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     s.dot(lx + j * 12, bottom + fs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
   }
   drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
-  if (st.status === 'playing') drawText(s, '<ARROWS> MOVE   <SPACE> FIRE   <SHIFT> PULSE', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
+  if (st.status === 'playing') drawText(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
   drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
   if (st.cheats.assisted) drawText(s, 'ASSISTED', W / 2, bottom, fs, { align: 'center', color: p.dim, glow: 0 });
 
@@ -276,7 +413,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     const acc = st.shots > 0 ? ((st.hits / Math.max(1, st.shots * st.launcherCount * st.streamCount)) * 100).toFixed(0) : '0';
     const lines = [
       `FRAME ${opts.frameMs.toFixed(2)} MS`,
-      `AST ${st.asteroids.length}  BUL ${st.bullets.length}  PRT ${st.particles.length}  TUR ${st.turrets.length}`,
+      `AST ${st.asteroids.length}  BUL ${st.bullets.length}  PRT ${st.particles.length}  TUR ${st.turrets.length}  SKR ${st.seekers.length}  DRN ${st.drones.length}`,
       `PRESSURE ${st.pressure.toFixed(2)}  HITS ${st.hits}  ACC ${acc}%`,
       `COLLISION ${st.collision.toUpperCase()}  CHECKS ${st.stats.collisionChecksLastStep}`,
       `GLOW ${s.glowMode.toUpperCase()}  DPR ${s.dpr}  STAGE ${stage}`,
@@ -300,7 +437,7 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
 }
 
 function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
-  const { y } = drawPanel(s, Math.min(600, s.width - 32), 356);
+  const { y } = drawPanel(s, Math.min(600, s.width - 32), 400);
   const cx = s.width / 2;
   drawText(s, 'PERIMETER', cx, y + 26, 34, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, 'BETA ARCADE MODE', cx, y + 74, 13, { align: 'center', color: s.palette.dim, glow: 0 });
@@ -308,7 +445,9 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const rows: Array<[string, string]> = [
     ['<LEFT> <RIGHT>  (OR A / D)', 'MOVE THE LAUNCHER'],
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
-    ['<SHIFT>', 'PULSE  (CLEARS THE FIELD)'],
+    ['<SHIFT>', 'PULSE  (CLEARS THE FIELD, EARNED PER 14 KILLS)'],
+    ['<  (COMMA)', 'SEEKER MISSILE  (HOMES AND BLASTS, PER 35 HITS)'],
+    ['>  (PERIOD)', 'SWARM OF SENTINELS  (5-8 DRONES, PER 22 KILLS)'],
   ];
   let ly = y + 128;
   for (const [key, what] of rows) {
@@ -329,12 +468,12 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
   const r = opts.resume;
   if (r) {
-    drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 276, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-    if (blink) drawText(s, '<R> RESUME     <SPACE> NEW GAME', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 320, 11, { align: 'center', color: s.palette.dim, glow: 0 });
+    if (blink) drawText(s, '<R> RESUME     <SPACE> NEW GAME', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   } else if (blink) {
-    drawText(s, 'PRESS SPACE TO START', cx, y + 296, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    drawText(s, 'PRESS SPACE TO START', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   }
-  drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 330, 10, { align: 'center', color: s.palette.dim, glow: 0 });
+  drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 374, 10, { align: 'center', color: s.palette.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
