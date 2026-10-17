@@ -469,7 +469,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const r = opts.resume;
   if (r) {
     drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 320, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-    if (blink) drawText(s, '<R> RESUME     <SPACE> NEW GAME', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    if (blink) drawText(s, '<SPACE> RESUME     <BACKSPACE> NEW GAME', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   } else if (blink) {
     drawText(s, 'PRESS SPACE TO START', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   }

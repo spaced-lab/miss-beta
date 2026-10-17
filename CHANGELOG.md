@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER resume keys: with a save on the ready panel, <SPACE> (or R) RESUMES and only <BACKSPACE> starts a
+  NEW GAME, so a hand still on the fire key after a reload cannot wipe a run; screen-level test in node.
+
 - M4: RK4 integration, solar sail arcs (SPIRAL OUT/IN, COAST, TARGET STEER), patched-conic flybys, the
   two-leg flyby search and the sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with their
   legs drawn on the system view, FLYBY WINDOWS in the planner; Python mirrors and shared vectors. The dev

@@ -5,7 +5,9 @@
 //       not spiral). The pulse, seeker (`<`) and swarm (`>`) keys are edge-triggered here and passed as
 //       booleans; a replay could feed the same Input records back into `step` and reproduce the game exactly. A game in progress is
 //       autosaved to sessionStorage (every level-up, every AUTOSAVE_SECONDS, and on leaving the screen) so
-//       the dev server's reload-on-change does not wipe it; the ready panel offers <R> RESUME / <SPACE> NEW.
+//       the dev server's reload-on-change does not wipe it; the ready panel offers <SPACE> RESUME (R is an
+//       alias) and <BACKSPACE> NEW GAME. Space resumes on purpose: a player still holding fire when the
+//       reload lands must not wipe their game, and resuming is the harmless action.
 // LORE: G1 (how to play), C1 (how the game is built)
 
 import { CheatRegistry } from '../game/cheats';
@@ -44,6 +46,11 @@ export class MinigameScreen implements Screen {
     this.st = createState(this.newSeed());
     this.sfx.enabled = loadJson(SOUND_KEY, (v): v is boolean => typeof v === 'boolean', true);
     this.sfx.kitIndex = loadJson(KIT_KEY, (v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 8, 0) % 3;
+  }
+
+  /** The live state; read by tests (ready-panel key mapping) and never mutated from outside. */
+  get state(): Readonly<MinigameState> {
+    return this.st;
   }
 
   private soundLabel(): string {
@@ -95,7 +102,9 @@ export class MinigameScreen implements Screen {
     if (k.pressed('Digit3')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
 
     if (st.status === 'ready') {
-      if (this.saved && k.pressed('KeyR')) {
+      // NOTE: with a save present Space RESUMES (so does R); only Backspace, a key nobody hits by reflex while
+      // firing, throws the save away. Without a save Space starts a fresh game as it always did.
+      if (this.saved && k.anyPressed('Space', 'KeyR')) {
         this.st = this.saved;
         this.saved = null;
         this.sinceSave = 0;
@@ -103,7 +112,7 @@ export class MinigameScreen implements Screen {
         k.clearTyped();
         return;
       }
-      if (k.pressed('Space')) {
+      if (this.saved ? k.pressed('Backspace') : k.pressed('Space')) {
         this.saved = null;
         removeSessionJson(SAVE_KEY);
         start(st);

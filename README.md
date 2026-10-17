@@ -26,8 +26,10 @@ zero. In play: `1` debug HUD, `2` cycle glow strategy, `3` cycle collision strat
 strongest), launchers, rock hardness tiers (colour steps down as a rock weakens), passing rocks you can nudge,
 a moon that bends paths and absorbs hits, and sentries earned per 60 direct hits from level 6, each of a random
 archetype: ORBITER rides the ring, SWEEPER patrols an arc and fires in bursts, PICKET parks at the densest
-incoming sector, CHASER drifts toward the biggest threat on a leash. Cheat codes are listed in
-`src/minigame/cheats.ts`; they flag the run ASSISTED.
+incoming sector, CHASER drifts toward the biggest threat on a leash. A game in progress is autosaved in the
+tab; after a reload the ready panel offers `Space` (or `R`) to RESUME it and `Backspace` to start a NEW GAME,
+so a hand still on the fire key cannot wipe a run. Cheat codes are listed in `src/minigame/cheats.ts`; they
+flag the run ASSISTED.
 
 ## Learn to code with this repo
 

@@ -3,7 +3,10 @@ import { CheatRegistry } from '../src/game/cheats';
 import { MINIGAME_CHEATS } from '../src/minigame/cheats';
 import { findHitsGrid, findHitsNaive, type Circle } from '../src/minigame/collision';
 import { byLevel, MG } from '../src/minigame/config';
+import { MinigameScreen } from '../src/minigame/index';
 import { generateContinents } from '../src/minigame/planet';
+import type { Surface } from '../src/render/canvas';
+import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
   chaosLevel, densestSector, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
@@ -849,6 +852,119 @@ describe('save and resume', () => {
     // Optional cheat fields may be absent.
     const { launchers: _l, streams: _s, ...rest } = good.cheats;
     expect(isSavedGame({ ...good, cheats: rest })).toBe(true);
+  });
+});
+
+describe('ready panel keys (screen)', () => {
+  // The screen is DOM-free until render(): a fake key tracker, a fake sessionStorage and a never-called
+  // Surface are enough to drive update() in node. Only the ready-panel decision is under test here.
+  class FakeKeys {
+    private readonly edges = new Set<string>();
+    private readonly down = new Set<string>();
+    press(code: string): void {
+      this.edges.add(code);
+      this.down.add(code);
+    }
+    endFrame(): void {
+      this.edges.clear();
+    }
+    anyKeyPressed(): boolean {
+      return this.edges.size > 0;
+    }
+    pressed(code: string): boolean {
+      return this.edges.has(code);
+    }
+    anyPressed(...codes: string[]): boolean {
+      return codes.some((c) => this.edges.has(c));
+    }
+    held(code: string): boolean {
+      return this.down.has(code);
+    }
+    anyHeld(...codes: string[]): boolean {
+      return codes.some((c) => this.down.has(c));
+    }
+    typed(): string {
+      return '';
+    }
+    clearTyped(): void {}
+  }
+  const SAVE_KEY = 'missb.minigame.save';
+  function fakeStorage() {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, String(v)),
+      removeItem: (k: string) => void m.delete(k),
+    };
+  }
+  function screenWith(keys: FakeKeys): MinigameScreen {
+    return new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} });
+  }
+  const g = globalThis as { sessionStorage?: unknown };
+
+  it('with a save present, Space (even held from before the reload) resumes it unchanged', () => {
+    const store = fakeStorage();
+    g.sessionStorage = store;
+    try {
+      const saved = run(77, 45, FIRE, 'auto', (st) => void (st.cheats.god = true));
+      expect(saved.status).toBe('playing');
+      expect(saved.level).toBeGreaterThan(1);
+      store.setItem(SAVE_KEY, serialize(saved));
+      const keys = new FakeKeys();
+      const screen = screenWith(keys);
+      screen.enter();
+      expect(screen.state.status).toBe('ready');
+      keys.press('Space'); // the player was firing when the reload hit: Space is down and edges this frame
+      screen.update(16);
+      expect(screen.state.status).toBe('playing');
+      expect(screen.state.score).toBe(saved.score);
+      expect(screen.state.level).toBe(saved.level);
+      expect(screen.state.t).toBe(saved.t);
+      expect(store.getItem(SAVE_KEY)).not.toBeNull(); // resuming does not throw the save away
+      // R stays an alias for resume.
+      const keys2 = new FakeKeys();
+      const screen2 = screenWith(keys2);
+      screen2.enter();
+      keys2.press('KeyR');
+      screen2.update(16);
+      expect(screen2.state.status).toBe('playing');
+      expect(screen2.state.score).toBe(saved.score);
+    } finally {
+      delete g.sessionStorage;
+    }
+  });
+  it('with a save present, Backspace starts a new game and clears the save; without one, Space starts', () => {
+    const store = fakeStorage();
+    g.sessionStorage = store;
+    try {
+      const saved = run(78, 45, FIRE, 'auto', (st) => void (st.cheats.god = true));
+      expect(saved.status).toBe('playing');
+      store.setItem(SAVE_KEY, serialize(saved));
+      const keys = new FakeKeys();
+      const screen = screenWith(keys);
+      screen.enter();
+      keys.press('Backspace');
+      screen.update(16);
+      expect(screen.state.status).toBe('playing');
+      expect(screen.state.level).toBe(1);
+      expect(screen.state.score).toBe(0);
+      expect(screen.state.t).toBeLessThan(0.1);
+      expect(store.getItem(SAVE_KEY)).toBeNull();
+      // Backspace with no save does nothing; Space starts a fresh game.
+      const keys2 = new FakeKeys();
+      const screen2 = screenWith(keys2);
+      screen2.enter();
+      keys2.press('Backspace');
+      screen2.update(16);
+      expect(screen2.state.status).toBe('ready');
+      keys2.endFrame();
+      keys2.press('Space');
+      screen2.update(16);
+      expect(screen2.state.status).toBe('playing');
+      expect(screen2.state.level).toBe(1);
+    } finally {
+      delete g.sessionStorage;
+    }
   });
 });
 
