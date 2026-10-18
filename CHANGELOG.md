@@ -58,6 +58,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   above y = 0; over 180 deg the root can lie below z = -4 pi^2. Both returned no solution, so the porkchop marked
   reachable cells infeasible. Fixed in TypeScript and pymiss, with seven fixed fast cases in the shared vectors
   (finding 27).
+- Title screen: the saved-run check runs when the title opens, not every frame (it parsed the save 60 times a second); median frame CPU 3.5 to 2.8 ms in dev (finding 28).
 
 ## 26.4.0 (2026-10-18)
 

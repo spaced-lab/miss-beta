@@ -30,6 +30,11 @@ interface Item {
 }
 
 export class TitleScreen implements Screen {
+  /** CONTINUE's label: whether a save that parses exists. NOTE: read on enter(), not every frame: the save only
+   *  changes away from the title, and the check reads and parses up to 256 KiB (code review 2026-10-18). */
+  private savedRun = false;
+  /** What the console shows before a run exists (built once, not every frame). */
+  private readonly placeholderRun = createRun('PENDING');
   private sel = 0;
   private t = 0;
   private note = '';
@@ -128,6 +133,7 @@ export class TitleScreen implements Screen {
 
   enter(): void {
     this.sel = 0;
+    this.savedRun = hasSavedRun();
     if (!this.attract) this.nextAttract();
     // NOTE: the photosensitivity notice comes first; the first-launch tutorial waits for its acknowledgement
     // (update() calls firstLaunch() on that keypress), so a new player always sees the notice (WARNINGS 8).
@@ -307,7 +313,7 @@ export class TitleScreen implements Screen {
       const it = this.items[i];
       if (!it) continue;
       const selected = i === this.sel;
-      const label = it.label + (it.action ? '' : '   [BUILDING]') + (it.label === 'CONTINUE' ? (hasSavedRun() ? '   (SAVED RUN FOUND)' : '   (NO SAVE)') : '');
+      const label = it.label + (it.action ? '' : '   [BUILDING]') + (it.label === 'CONTINUE' ? (this.savedRun ? '   (SAVED RUN FOUND)' : '   (NO SAVE)') : '');
       if (selected) drawText(s, '>', cx - 190, y, 16, { color: ui.sel, glow: 1.6 });
       const wdt = drawText(s, label, cx - 160, y, 15, { color: selected ? ui.sel : it.action ? ui.text : ui.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
       this.itemRows.push({ x0: cx - 200, x1: cx - 160 + wdt + 10, y });
@@ -318,6 +324,6 @@ export class TitleScreen implements Screen {
     if (this.pendingRun && this.pendingRun.cheatsUsed.length > 0) drawText(s, `CODES FOR THE NEXT RUN: ${this.pendingRun.cheatsUsed.join(' ')}   MODE ${this.pendingRun.mode}`, cx, s.height - 64, 11, { align: 'center', color: p.hot, glow: 0.8 });
     drawText(s, `MISS β V${VERSION}   CREATED BY SPACED   ARROWS OR MOUSE SELECT   ENTER OR CLICK START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)`, cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
     drawText(s, 'SELF-FUNDED AND RUNS ON COFFEE: DONATIONS FOR COFFEE ARE WELCOME (HOW TO PLAY > CREDITS)', cx, s.height - 22, 9, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0 });
-    this.console.render({ run: this.pendingRun ?? createRun('PENDING'), round: null });
+    this.console.render({ run: this.pendingRun ?? this.placeholderRun, round: null });
   }
 }
