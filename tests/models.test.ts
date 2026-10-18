@@ -27,6 +27,7 @@ describe('3-D model catalog', () => {
     }
     expect(modelForTopic('D3')?.id).toBe('DART');
     expect(modelForTopic('F6')?.id).toBe('GOLDSTONE');
+    expect(modelForTopic('D12')?.id).toBe('THRUSTER_SWARM');
     expect(modelForTopic('ZZ')).toBeNull();
   });
 });

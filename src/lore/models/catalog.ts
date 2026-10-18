@@ -186,7 +186,7 @@ const SOLAR_SAIL: Model = {
 const TRACTOR: Model = {
   id: 'TRACTOR',
   title: 'GRAVITY TRACTOR  (HOVER AND PULL)',
-  topics: ['D6', 'D9', 'D12'],
+  topics: ['D6', 'D9'],
   facts: [
     'THE CRAFT\'S OWN GRAVITY PULLS THE ROCK; ITS THRUSTERS HOLD THE GAP AGAINST THAT PULL.',
     'A 20 T CRAFT HOVERING 200 M FROM A 200 M ROCK PULLS WITH ABOUT 0.1 N.',
