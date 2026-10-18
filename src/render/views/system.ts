@@ -42,7 +42,7 @@ import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertai
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
-import { Autopilot, chooseProgram, chooseTech, type AutoView, type Pane } from '../../game/autoplay';
+import { Autopilot, chooseProgram, chooseTech, demoSpeed, type AutoView, type Pane } from '../../game/autoplay';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
@@ -309,6 +309,7 @@ export class SystemScreen implements Screen {
   enter(): void {
     // AUTOPLAY from the title watches a fresh run that never touches the save or the leaderboard.
     this.auto = this.autoplayNext || this.demoNext ? new Autopilot() : null;
+    this.demoT = 0;
     if (this.auto) {
       this.auto.demo = this.demoNext;
       this.sfx?.voice.say('AUTOPLAY', true);
@@ -934,6 +935,9 @@ export class SystemScreen implements Screen {
     this.note(`${targetOf(this.world, id).label} LOST. HOME IS SAFE. REBUILD IT IN PROGRAMS.`, 8);
   }
 
+  /** SUPER-DUPER-DEMO real seconds watched (the demo is timed by the clock). */
+  private demoT = 0;
+
   /** Ask the worker for a fresh gauge when the networks or the whole calendar year changed (cheap to test per frame). */
   private refreshGauge(): void {
     const nets = this.world.networks;
@@ -980,11 +984,12 @@ export class SystemScreen implements Screen {
       this.note(`AUTOPLAY SPEED ${next}`, 2);
     }
     const pace = KNOBS.AUTO_SPEEDS[this.settings.autoSpeed ?? 'NORMAL'];
-    const demoLen = KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'];
+    const demoLen = KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].seconds;
     this.auto.speed = pace;
     if (this.auto.demo) {
-      this.auto.speed = pace * Math.min(KNOBS.DEMO_SPEED_MAX, demoLen.start * Math.pow(KNOBS.DEMO_SPEED_GROWTH, this.auto.rounds));
-      if (this.auto.rounds >= demoLen.games) {
+      this.demoT += dtMs / 1000;
+      this.auto.speed = pace * demoSpeed(this.demoT, demoLen);
+      if (this.demoT >= demoLen) {
         this.auto = null;
         this.autoPane = null;
         this.router.go('demo');
@@ -1031,13 +1036,14 @@ export class SystemScreen implements Screen {
     if (!this.auto) return;
     const ui = uiColors(s.palette, s.spectrum);
     const a = this.auto;
-    const games = KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].games;
+    const left = Math.max(0, KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].seconds - this.demoT);
+    const clock = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
     // Bottom left by default (the teletype docks bottom right); with the planner open the porkchop owns the left,
     // so everything docks bottom right under the plan list.
     const right = this.planner.isOpen;
     const hx = right ? s.width - 16 : 16;
     const align = right ? 'right' : 'left';
-    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1} OF ${games}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, s.height - 64, 10, { align, color: ui.title, glow: 1 });
+    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, s.height - 64, 10, { align, color: ui.title, glow: 1 });
     // How to change the pace, always on screen while the game plays itself.
     const lv = this.settings.autoSpeed ?? 'NORMAL';
     const pace = AUTO_SPEED_LEVELS.map((l) => (l === lv ? `[${l}]` : l)).join(' ');

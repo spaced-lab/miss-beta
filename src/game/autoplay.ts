@@ -7,6 +7,8 @@
 //       given the view (no Rng): the first affordable plan predicted to MISS, warheads last.
 // LORE: G1 (how to play), G3 (reading the planner), D1 (impulse)
 
+import { KNOBS } from '../config/knobs';
+
 export interface AutoCand {
   readonly label: string;
   readonly outcome: string;
@@ -51,6 +53,15 @@ export interface AutoOut {
   pane: Pane | null;
   /** An investment the screen should make (it then shows the panel briefly so the viewer sees it happen). */
   invest?: { kind: 'TECH' | 'PROGRAM'; id: string };
+}
+
+/**
+ * SUPER-DUPER-DEMO speed after `elapsed` of `length` real seconds: START x (END / START)^(elapsed / length), capped.
+ * Example: START 4, END 120, half way -> 4 x 30^0.5 = 21.9.
+ */
+export function demoSpeed(elapsed: number, length: number): number {
+  const f = Math.max(0, Math.min(1, elapsed / Math.max(1, length)));
+  return Math.min(KNOBS.DEMO_SPEED_MAX, KNOBS.DEMO_SPEED_START * Math.pow(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START, f));
 }
 
 /** Programs AUTOPLAY funds, in teaching order: coordination first, then finding rocks, then reacting [knob]. */

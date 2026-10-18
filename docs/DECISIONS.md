@@ -171,3 +171,27 @@ do not rewrite history.
 - **Decision:** leave them: small documented helpers in a teaching repo, free at runtime.
 - **Re-measure:** grep each `export` name across `src/`, `tests/`, `bench/`; the per-module size plugin in the
   recipe lists what actually ships.
+
+## D8. Round generation stays on the main thread (2026-10-18)
+
+- **TYPE:** runtime CPU.
+- **Analysis:** the queued idea was "discovery in the worker". Measured in node (vitest, 30 seeds, rounds 1-8):
+  `generateThreat` with the discovery search takes a median 11.7 ms, p90 33.5 ms, max 89.8 ms. It runs once per
+  round, at round start, while the round-start teletype brief covers the screen.
+- **Decision:** keep it synchronous. A worker round trip would make round start asynchronous for every caller
+  (round start, LEADTIME, SPAWN, the tests) to save at most one long frame per round.
+- **Alternatives rejected:** move `discover` into the planner worker (queued behind porkchop and gauge jobs, the
+  round would start later, not sooner).
+- **Re-measure:** a vitest loop over `generateThreat(roundRng(s, k), createWorld(s, k), k, 0, { runSeed: s })`.
+
+## D9. SUPER-DUPER-DEMO is timed by the clock, not by games (2026-10-18)
+
+- **TYPE:** quality trade-off.
+- **Analysis:** the demo ran a fixed number of games with speed 2 x 1.15^n, meant to last about ten minutes.
+  Watched in Chrome at MEDIUM (start 4, NORMAL pace 1.5x), three games took 300 s: one game is 10 to 12 minutes
+  of real time at speed 1, so the run was heading for about 15 minutes, three times the owner's 5.
+- **Decision:** the OPTIONS lengths are seconds (150 / 300 / 600); speed = START x (END / START)^(t / length),
+  4 to 120; the montage starts when the time is up. The header shows FINALE IN m:ss.
+- **Alternatives rejected:** re-tuning games and growth (the game length varies with lead time and plans, so a
+  game count can never promise minutes).
+- **Re-measure:** start the demo and read the header clock; `demoSpeed` is unit-tested.

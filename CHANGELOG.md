@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- SUPER-DUPER-DEMO is now timed by the clock: SHORT 2.5, MEDIUM 5, LONG 10 minutes, speed rising from x4 to
+  x120, FINALE IN m:ss in the header (a measured MEDIUM run was heading for 15 minutes). docs/DECISIONS.md D8-D9.
+
 - MORE WORLDS TO DEFEND (IDEAS 26): programs MOON_BASE (REALISTIC), MARS_CITIES and GIANT_MOON_OUTPOSTS (SCI-FI)
   build protected sites; once built, three rounds in ten aim at a site (TARGET in the brief, the site drawn on the
   map). A hit on a site destroys it (rebuild it), scores the round zero and costs 400 points; HOME is safe and the

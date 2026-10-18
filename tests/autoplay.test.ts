@@ -77,3 +77,14 @@ describe('AUTOPLAY investments', () => {
     expect(chooseProgram(rows, 10, 3)).toBeNull();
   });
 });
+
+describe('SUPER-DUPER-DEMO timing', () => {
+  it('speed climbs from START to END over the chosen length', async () => {
+    const { demoSpeed } = await import('../src/game/autoplay');
+    const { KNOBS } = await import('../src/config/knobs');
+    expect(demoSpeed(0, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_START, 9);
+    expect(demoSpeed(300, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_END, 9);
+    expect(demoSpeed(150, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_START * Math.sqrt(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START), 9);
+    expect(demoSpeed(999, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_END, 9);
+  });
+});
