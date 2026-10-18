@@ -7,11 +7,17 @@ Underneath: real two-body orbital mechanics, Lambert targeting, patched-conic fl
 deflection, a published disruption scaling law, and the real detection networks. The title is the equation the
 whole game runs on: `miss ≈ 3 · β · (m/M) · U · T`, so **MISS ∝ β**.
 
-Status: milestones M0 to M11 built (see `STATUS.md` and `docs/BUILD_PLAN.md`): the full round loop, the
+Status: milestones M0 to M13 built (see `STATUS.md` and `docs/BUILD_PLAN.md`): the full round loop, the
 planner with porkchops and Monte Carlo, fragmentation, sails and flybys, detection networks and programs,
 the tech tree, autonomy, nuclear and slow-push methods, modes with a console of public cheat codes, the
 tutorial, the Learning Center with 61 topics at five levels, 22 live labs, rotating 3-D models and real NASA/JPL data, and the arcade side mode
-**PERIMETER**.
+**PERIMETER**. Since then: a detection gauge computed from the survey model, feasibility studies with honest
+odds in human years, visitors from other stars (an optional rate dial), a sky-coverage view, a Moon base and
+other worlds to defend, AUTOPLAY and a timed SUPER-DUPER-DEMO, robot voices, and a research method in which
+every real-world number carries a status (`docs/RESEARCH.md`; unchecked ones say UNVERIFIED in the game).
+
+Engineering decisions and their measurements: `docs/DECISIONS.md`. Security and player safety: `docs/SAFETY.md`
+and `docs/WARNINGS.md` (this game contains flashing images; see the first-boot notice and REDUCE MOTION).
 
 ## Play
 
