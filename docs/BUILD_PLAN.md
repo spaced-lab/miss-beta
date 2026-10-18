@@ -159,7 +159,7 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 - [x] `pymiss/` complete (every `src/physics` export has a snake_case twin; `pushForce` mirrored for the four vector-covered methods), `gen_vectors.py` (since M0), notebooks per built LAB (`pymiss/notebooks/*.ipynb`, seven), `docs/CODE_TOUR.md` (eight stops), `docs/ASSUMPTIONS.md` A1..A16, README play and learn paths, `CONTRIBUTING.md`, four issue templates, `docs/LESSONS/` (`build_lore.py --lessons`), GitHub Actions (`.github/workflows/ci.yml`: typecheck, vitest, pytest, lore check, vectors, audit, build, smoke, Pages deploy from main).
 - [x] Smoke test: `scripts/smoke.mjs` serves `dist` and checks the page, CSP, bundle, lore index and a chunk from node. Playwright (browser download) deliberately not added as a dependency; IDEAS.md 12.
-- [ ] Deferred: Pyodide RUN IN PYTHON (IDEAS 9); the Pages deploy and CI have not run yet because the repo is not on GitHub (push when the user says).
+- [ ] Deferred: Pyodide RUN IN PYTHON (IDEAS 9); CI is green on the private spaced-lab/miss-beta since 2026-10-18 (run 39161675146); the Pages deploy waits for the repository to go public (docs/RELEASING.md first-publish checklist).
 
 ## M13: Event cinematics and narratives (user request, 2026-10-17; after M12)
 

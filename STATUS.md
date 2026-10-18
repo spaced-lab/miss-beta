@@ -354,4 +354,4 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
    2026-10-18 more voices: TERMINAL (af_heart, heavy vocoder), COMPUTER (am_michael, mostly dry), MAINFRAME (am_onyx,
    pitched down 16 %), TOY (af_bella, 8 kHz sample-and-hold), 23 lines incl. PLAY_A_GAME ("Would you like to play a
    game?", the OPTIONS sample and the new VOICE TEST row); 6 voices 612 KB; per-voice styles in `gen_voice.py`.
-6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0-or-later). CI is written but unrun.
+6. The repo is on GitHub, private, at spaced-lab/miss-beta (AGPL-3.0-or-later); CI green since 2026-10-18. It goes public at v26.4.0 after the review (docs/RELEASING.md).
