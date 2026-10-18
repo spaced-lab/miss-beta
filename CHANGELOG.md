@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M14 phase 1: three-dimensional Kepler orbits in the physics layer (`kepler3.ts`, `elements3.ts`,
+  `closeApproach3.ts`, pymiss mirrors, shared vectors). With i = 0 they give the planar answers bit for bit; the
+  game does not call them yet (phase 2 in STATUS.md). ASSUMPTIONS A17, EDUCATION O7 EXPERT note.
+
 - Cinematics: the rock is a fuller wireframe (two lit inner contours, ridge lines, five seeded craters).
   Fixed: after a nuclear STANDOFF burst the body vanished although the brief says INTACT; it now stays, ablated.
 
