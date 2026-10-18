@@ -34,6 +34,10 @@ export class Plot {
   mark(x: number, y: number, r = 3, color?: string): void {
     this.s.circle(this.X(x), this.Y(y), r, { color: color ?? this.s.palette.hot, glow: 0.8 });
   }
+  /** A legend line right-aligned inside the frame at data height y (never runs past the box edge). */
+  legend(y: number, text: string, color?: string): void {
+    drawText(this.s, text, this.box.x + this.box.w - 12, this.Y(y) - 10, 8, { align: 'right', color: color ?? this.s.palette.dim, glow: 0 });
+  }
   label(x: number, y: number, text: string, color?: string): void {
     drawText(this.s, text, this.X(x) + 5, this.Y(y) - 10, 8, { color: color ?? this.s.palette.dim, glow: 0 });
   }

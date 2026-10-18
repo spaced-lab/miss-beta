@@ -42,7 +42,7 @@ export const lab: Lab = {
     pl.curve(curve);
     const r = (v.r ?? 1) * AU;
     if (2 / r - 1 / a > 0) pl.mark(r / AU, visViva(MU_SUN, r, a) / 1000, 4);
-    pl.label(3.6, 68, 'ESCAPE (DASHED LONG)');
-    pl.label(3.6, 58, 'CIRCULAR (DASHED SHORT)');
+    pl.legend(68, 'ESCAPE (DASHED LONG)');
+    pl.legend(58, 'CIRCULAR (DASHED SHORT)');
   },
 };
