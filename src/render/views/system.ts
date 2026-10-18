@@ -1334,7 +1334,19 @@ export class SystemScreen implements Screen {
     const buf: number[] = [];
     for (const b of bodies) {
       const bel = elementsAt(b.segments, w.t);
-      const st = propagate(bel, w.star.mu, w.t);
+      let st = propagate(bel, w.star.mu, w.t);
+      // During a push segment (a finite tFrom..tTo followed by the pushed orbit) blend toward the post-push orbit
+      // by the square of the elapsed fraction (displacement under constant thrust grows as t^2), so the body
+      // drifts onto its new path instead of jumping at the end of the push (IDEAS 18).
+      const si = b.segments.findIndex((sg) => w.t >= sg.tFrom && w.t < sg.tTo);
+      const sg = b.segments[si];
+      const after = b.segments[si + 1];
+      if (sg && after && Number.isFinite(sg.tTo) && sg.tTo - sg.tFrom > 86400 && after.tFrom === sg.tTo) {
+        const f = (w.t - sg.tFrom) / (sg.tTo - sg.tFrom);
+        const post = propagate(after.elements, w.star.mu, w.t);
+        const k2 = f * f;
+        st = { ...st, r: { x: st.r.x + (post.r.x - st.r.x) * k2, y: st.r.y + (post.r.y - st.r.y) * k2 } };
+      }
       const [tx, ty] = this.project(st.r.x, st.r.y);
       this.hit(tx - 12, ty - 12, 24, 24, b.role === 'FRAGMENT' ? 'D4' : 'T5', b.role === 'FRAGMENT' ? `${b.id}: FRAGMENTS` : `${th.name}: WHAT IT IS MADE OF`);
       const n = th.shape.length;
