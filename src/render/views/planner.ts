@@ -48,6 +48,8 @@ export interface PlannerSession {
   buildTime: number;
   /** Free C3 from programs (km^2/s^2), passed to every search. */
   c3Bonus?: number;
+  /** Launches allowed inside any 365-day window (19, HEAVY_LAUNCH_CADENCE); plans that would exceed it are hidden. */
+  launchCap?: number;
   budget: number;
   onCommit: (ms: Mission[]) => boolean;
 }
@@ -224,8 +226,22 @@ export class PlannerOverlay {
   }
 
   /** Merge grid candidates and extra plans into one list sorted by score, ids renumbered. */
+  /** Plans hidden by the launch cadence on the last ranking (for the status line). */
+  private cadenceHidden = 0;
+  /** Drop plans whose launches, with the committed ones, would exceed launchCap inside any 365-day window. */
+  private cadence<T extends { missions: { launchTime: number; archetype: string }[] }>(cands: T[]): T[] {
+    const cap = this.session?.launchCap ?? Infinity;
+    const committed = (this.session?.missions ?? []).filter((m) => m.archetype !== 'SLOW_PUSH');
+    const ok = cands.filter((c) => {
+      const all = [...committed, ...c.missions.filter((m) => m.archetype !== 'SLOW_PUSH')];
+      return c.missions.every((m) => all.filter((o) => Math.abs(o.launchTime - m.launchTime) < YEAR / 2).length <= cap);
+    });
+    this.cadenceHidden = cands.length - ok.length;
+    return ok;
+  }
+
   private merge(): void {
-    const all = [...this.cands.filter((c) => c.archetype !== 'KINETIC_FLYBY' && c.archetype !== 'SAIL_KINETIC'), ...this.extra];
+    const all = this.cadence([...this.cands.filter((c) => c.archetype !== 'KINETIC_FLYBY' && c.archetype !== 'SAIL_KINETIC'), ...this.extra]);
     all.sort((a, b) => b.score - a.score);
     const shown = all.slice(0, KNOBS.PLANNER_SHOW_TOP);
     shown.forEach((c, i) => c.missions.forEach((m, j) => (m.id = `${c.archetype === 'SWARM' ? 'SWARM' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype === 'NUKE_STANDOFF' || c.archetype === 'NUKE_DISRUPT' ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : c.archetype === 'SPLIT' ? 'CARRIER' : c.archetype === 'PI' ? 'PI' : 'IMPACTOR'}-${i + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`)));
@@ -254,9 +270,10 @@ export class PlannerOverlay {
     const target = this.target;
     const ctx = this.context();
     if (!s || !g || !target || !ctx) return;
-    this.cands = [...rankCandidates(g, ctx), ...rankNukes(g, ctx, s.warheadTier), ...rankSlowPush(g, ctx, s.slowPushTier, s.sailTier, s.dsmBudget, (s.world.threat?.type.id ?? '') === 'IRON'), ...rankPI(g, ctx, s.pi)];
+    this.cands = this.cadence([...rankCandidates(g, ctx), ...rankNukes(g, ctx, s.warheadTier), ...rankSlowPush(g, ctx, s.slowPushTier, s.sailTier, s.dsmBudget, (s.world.threat?.type.id ?? '') === 'IRON'), ...rankPI(g, ctx, s.pi)]);
     this.sel = 0;
     this.status = g.feasible === 0 ? `NO FEASIBLE LAUNCH WINDOW TO ${target.id} FOR THIS LAUNCHER` : `TARGET ${target.id} (${target.D.toFixed(0)} M)   ${g.feasible} FEASIBLE CELLS  ${g.nL}X${g.nA}  STEP ${(g.step / 86400).toFixed(0)} D`;
+    if (this.cadenceHidden > 0) this.status += `   ${this.cadenceHidden} PLAN${this.cadenceHidden === 1 ? '' : 'S'} HIDDEN: ${this.session?.launchCap ?? 2} LAUNCHES PER YEAR (G: HEAVY LAUNCH CADENCE)`;
     if (this.extra.length > 0) this.merge();
     else this.scheduleMc();
   }

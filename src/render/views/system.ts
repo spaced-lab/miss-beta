@@ -450,6 +450,7 @@ export class SystemScreen implements Screen {
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       buildTime: this.run.effects.buildTimeYears * YEAR,
       c3Bonus: this.run.effects.c3Bonus + this.run.effects.lunarDriverC3,
+      launchCap: this.run.effects.launchCap,
       budget: budgetAt(this.run.economy, this.world.t),
       onCommit: (ms: Mission[]): boolean => {
         // Launch cadence (19): at most launchCap launches within any 365-day window (2 at start, 6 with HEAVY_LAUNCH_CADENCE).
