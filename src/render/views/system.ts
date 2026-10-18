@@ -634,6 +634,10 @@ export class SystemScreen implements Screen {
     const click = !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen ? k.takeClick() : null;
     if (click) {
       const h = this.hitAt(click.x, click.y);
+      if (h && h.topic === 'HELP') {
+        this.router.go('help');
+        return;
+      }
       if (h) {
         setWarp(w, 0);
         this.lore.show(h.topic, this.settings.learningLevel as Level);
@@ -1369,6 +1373,11 @@ export class SystemScreen implements Screen {
 
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
     this.hit(m, m, 200, 40, 'G2', 'CLOCK AND WARP');
+    // An always-visible way into help: a small box under the readouts, clickable (F1 also opens it).
+    const hb = { x: s.width - m - 150, y: m + 44, w: 150, h: 22 };
+    s.stroke([hb.x, hb.y, hb.x + hb.w, hb.y, hb.x + hb.w, hb.y + hb.h, hb.x, hb.y + hb.h], { closed: true, color: p.dim, glow: 0 });
+    drawText(s, 'F1 MANUAL  ? LORE', hb.x + hb.w / 2, hb.y + 6, 9, { align: 'center', color: p.ink, glow: 0.3 });
+    this.hit(hb.x, hb.y, hb.w, hb.h, 'HELP', 'THE MANUAL');
     this.hit(m, m + 44, 240, 20, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
     // The clock / warp / budget column on the left; the centred readouts use the space to its right.
     const leftW = 2 * m + Math.max(measureText(`WARP ${warpLabel(w)}`, 14), measureText(`BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, 12)) * getTextScale();
