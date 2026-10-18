@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- SUPER-DUPER-DEMO (title): AUTOPLAY that speeds up every game (x2 rising 15 % a game); after 100 games a
+  montage that runs faster and faster (data centres, activation map, power, off-world compute, a time portal,
+  teasers for tech not in the game), a pause, then a green teletype window with the closing line in the robot voice.
+
 - AUTOPLAY (title, or A in a run): the game plays itself and explains every step in panes held long enough to
   read; it stacks partial plans when no single plan works, waits for budget, evacuates late. Title AUTOPLAY runs
   are never saved or ranked. Fixed: the debrief no longer reopens PROGRAMS every frame.

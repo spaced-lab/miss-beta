@@ -20,6 +20,7 @@ import { loadBindings, remapFor, setBindings } from './game/keybinds';
 import { crtPass } from './render/crt';
 import { OptionsScreen } from './render/views/options';
 import { UiSfx } from './audio/ui';
+import { DemoScreen } from './render/views/demo';
 import { CenterScreen } from './render/views/center';
 import { Input } from './ui/input';
 
@@ -71,6 +72,7 @@ function boot(): void {
   };
   const help = new HelpScreen(surface, keys, router);
   screens.set('help', help);
+  screens.set('demo', new DemoScreen(surface, keys, router, sfx));
   // Every screen with an L key opens the Learning Center on its topic; the center's Esc returns to the opener.
   const toCenter = (id: string): void => {
     center.openTopic(id);

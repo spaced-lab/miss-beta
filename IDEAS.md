@@ -102,7 +102,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     to the simulation, off-world compute, a time portal pushing nanobots back through a wormhole, hints of tech
     that is not in the game), faster and faster, then a pause and a green teletype window: "STRANGE GAME. THE ONLY
     OPTION IS TO KEEP WORKING TO PROTECT YOUR PLANET. SHALL WE PLAY A GAME OF CHESS, OR WILL YOU HELP US SAVE THE
-    WORLD?" Every montage line FICTION in character.
+    WORLD?" Every montage line FICTION in character. Status 2026-10-18: DONE (render/views/demo.ts, DEMO_* knobs).
 
 21. **Robot voice-overs and game sounds (M).** Owner 2026-10-18. Canned lo-fi voice lines ("LAUNCHING", "BUILDING",
     "IMPACT IMMINENT", outcomes) rendered offline with Kokoro (Apache-2.0) British voices bf_emma and bm_fable,

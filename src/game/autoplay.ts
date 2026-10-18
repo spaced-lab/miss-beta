@@ -132,13 +132,24 @@ export class Autopilot {
   speed = 1;
   /** Rounds watched since AUTOPLAY started. */
   rounds = 0;
+  /** SUPER-DUPER-DEMO: cinematics are cut short and `speed` climbs every game. */
+  demo = false;
+  private cineT = 0;
 
   step(v: AutoView, dtS: number): AutoOut {
     const out: AutoOut = { keys: [], pane: null };
     const dt = dtS * this.speed;
     this.wait = Math.max(0, this.wait - dt);
-    // Cinematics play out on their own; modal briefs are read, then dismissed.
-    if (v.cine) return out;
+    // Cinematics play out on their own (the demo cuts them short); modal briefs are read, then dismissed.
+    if (v.cine) {
+      this.cineT += dt;
+      if (this.demo && this.cineT > 3) {
+        out.keys.push('Space');
+        this.cineT = 0;
+      }
+      return out;
+    }
+    this.cineT = 0;
     if (v.teleModal) {
       this.teleT += dt;
       if (v.teleComplete && this.teleT > 5) {
@@ -194,7 +205,8 @@ export class Autopilot {
         this.wait = AUTO_STEP_S;
         return out;
       case 'waitGrid':
-        this.gridWait += dt;
+        // NOTE: real seconds, not demo seconds: the porkchop worker does not get faster with the demo.
+        this.gridWait += dtS;
         if (!v.planner.open && this.gridWait > 2) {
           this.state = 'openPlanner';
           return out;

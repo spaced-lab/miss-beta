@@ -118,6 +118,8 @@ export class SystemScreen implements Screen {
   private glitch = false;
   /** AUTOPLAY (IDEAS 19): the autopilot, whether this run started from the title (no saves), and the pane up now. */
   autoplayNext = false;
+  /** SUPER-DUPER-DEMO (IDEAS 20): AUTOPLAY that speeds up every game, then hands over to the montage. */
+  demoNext = false;
   private auto: Autopilot | null = null;
   private autoFresh = false;
   private autoPane: { pane: Pane; t: number } | null = null;
@@ -261,9 +263,14 @@ export class SystemScreen implements Screen {
 
   enter(): void {
     // AUTOPLAY from the title watches a fresh run that never touches the save or the leaderboard.
-    this.auto = this.autoplayNext ? new Autopilot() : null;
-    this.autoFresh = this.autoplayNext;
+    this.auto = this.autoplayNext || this.demoNext ? new Autopilot() : null;
+    if (this.auto) {
+      this.auto.demo = this.demoNext;
+      this.sfx?.voice.say('AUTOPLAY', true);
+    }
+    this.autoFresh = this.autoplayNext || this.demoNext;
     this.autoplayNext = false;
+    this.demoNext = false;
     this.autoPane = null;
     this.newRun();
   }
@@ -812,7 +819,8 @@ export class SystemScreen implements Screen {
       }
     }
     const before = w.t;
-    advance(w, Math.min(dtMs, 100) / 1000);
+    // SUPER-DUPER-DEMO runs the clock faster every game; everything else plays at warp.
+    advance(w, (Math.min(dtMs, 100) / 1000) * (this.auto?.demo ? this.auto.speed : 1));
     if (this.result && w.t > before) this.onEventsPassed(this.result.events.filter((e) => e.t > before && e.t <= w.t));
     if (!this.imminentSaid && this.result?.outcome === 'HIT' && w.threat && w.threat.tImpact - w.t < KNOBS.VOICE_IMMINENT_S) {
       this.imminentSaid = true;
@@ -856,11 +864,21 @@ export class SystemScreen implements Screen {
       } else {
         this.auto = new Autopilot();
         this.run.assisted = true;
+        this.sfx?.voice.say('AUTOPLAY', true);
         this.note('AUTOPLAY ON: WATCH AND LEARN (A TAKES OVER)', 4);
       }
       return;
     }
     if (!this.auto) return;
+    if (this.auto.demo) {
+      this.auto.speed = Math.min(KNOBS.DEMO_SPEED_MAX, KNOBS.DEMO_SPEED_START * Math.pow(KNOBS.DEMO_SPEED_GROWTH, this.auto.rounds));
+      if (this.auto.rounds >= KNOBS.DEMO_GAMES) {
+        this.auto = null;
+        this.autoPane = null;
+        this.router.go('demo');
+        return;
+      }
+    }
     const w = this.world;
     const th = w.threat;
     const res = this.result;
@@ -890,7 +908,8 @@ export class SystemScreen implements Screen {
     const s = this.s;
     if (!this.auto) return;
     const ui = uiColors(s.palette, s.spectrum);
-    drawText(s, `AUTOPLAY  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, s.width / 2, 6, 10, { align: 'center', color: ui.title, glow: 1 });
+    const a = this.auto;
+    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1} OF ${KNOBS.DEMO_GAMES}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, s.width / 2, 6, 10, { align: 'center', color: ui.title, glow: 1 });
     const ap = this.autoPane;
     if (!ap) return;
     // Bottom left: the teletype docks bottom right and the HUD owns the top.

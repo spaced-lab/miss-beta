@@ -277,4 +277,10 @@ export const KNOBS = {
   VOICE_IMMINENT_S: 90 * DAY,
   /** Fade applied when a newer line cuts a playing one off, s. */
   VOICE_CUT_S: 0.06,
+  /** SUPER-DUPER-DEMO (IDEAS 20): games watched before the montage, the starting speed and the growth per
+   *  game (speed = START x GROWTH^games, capped). 2 x 1.15^n puts the whole run near ten minutes. */
+  DEMO_GAMES: 100,
+  DEMO_SPEED_START: 2,
+  DEMO_SPEED_GROWTH: 1.15,
+  DEMO_SPEED_MAX: 400,
 } as const;

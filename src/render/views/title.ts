@@ -83,6 +83,15 @@ export class TitleScreen implements Screen {
         },
       },
       {
+        label: 'SUPER-DUPER-DEMO  (FASTER AND FASTER)',
+        hotkey: 'KeyU',
+        action: () => {
+          const sys = this.getSystem();
+          if (sys) sys.demoNext = true;
+          router.go('system');
+        },
+      },
+      {
         label: 'TUTORIAL  (GUIDED FIRST ROUND)',
         hotkey: 'KeyT',
         action: () => this.startTutorial(),
