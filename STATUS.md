@@ -256,6 +256,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Resume here (for a fresh session after a context clear)
 
+**ON OR SOON AFTER 2026-10-19: re-run CI** (`gh workflow run ci -R spaced-lab/miss-beta`) and confirm it is green on the
+Ubuntu 26 `ubuntu-latest` runner; then tick it in docs/RELEASING.md "After the first publish".
+
 **NEXT: code review, then the first public publish as v26.4.0 (owner 2026-10-18).** The tree is committed and
 the gate is green. The owner runs the code review (planned in Fable) and the full security review
 (docs/SAFETY.md checklist) before publishing; after the review: fix findings, follow docs/RELEASING.md, push from

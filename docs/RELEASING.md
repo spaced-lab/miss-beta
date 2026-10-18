@@ -31,3 +31,11 @@ git tag `vYY.Q.N`.
       private one). On it `tests/planarReplay.test.ts` runs bit for bit, because the fixture was captured on
       darwin arm64 Node 26 (`tests/fixtures/planarReplay.env.json`); linux x64 keeps the 1e-8 tolerance path. Keep
       the Pages artifact upload and deploy on the linux job only.
+
+## After the first publish (CI backlog, from run 39161675146 annotations)
+
+- [ ] Node 20 actions are deprecated (GitHub forces them onto Node 24 today): move `actions/checkout`,
+      `actions/setup-node`, `actions/setup-python`, `actions/upload-pages-artifact` and `actions/deploy-pages` to
+      their current majors; confirm one green run.
+- [ ] `ubuntu-latest` migrates to Ubuntu 26 from 2026-10-19: confirm CI stays green on it (the cross-platform
+      tolerances should absorb libm changes); pin `ubuntu-24.04` only if a run breaks and the fix is not quick.
