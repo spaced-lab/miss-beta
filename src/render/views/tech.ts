@@ -69,10 +69,14 @@ export class TechOverlay {
     s.ctx.fillStyle = withAlpha(p.bg, 0.9);
     s.ctx.fillRect(0, 0, s.width, s.height);
     drawText(s, `TECH TREE   RESEARCH ${run.research}`, m, m, 14, { color: p.hot, glow: 1.2 });
-    const colW = Math.max(120, (s.width - 2 * m) / TRACKS.length);
-    const top = m + 40;
+    // Twelve tracks need ~170 px each to read; narrower windows get two rows of six.
+    const perRow = (s.width - 2 * m) / TRACKS.length < 170 ? Math.ceil(TRACKS.length / 2) : TRACKS.length;
+    const colW = (s.width - 2 * m) / perRow;
+    const rowH = 20 + 4 * 58 + 10;
+    const top0 = m + 40;
     TRACKS.forEach((track, ti) => {
-      const x = m + ti * colW;
+      const x = m + (ti % perRow) * colW;
+      const top = top0 + Math.floor(ti / perRow) * rowH;
       const selectedTrack = ti === this.track;
       drawText(s, track, x, top, 10, { color: selectedTrack ? p.hot : p.dim, glow: selectedTrack ? 1 : 0 });
       const nodes = this.nodesOf(track);
@@ -86,7 +90,8 @@ export class TechOverlay {
         s.stroke([x, y, x + w, y, x + w, y + 46, x, y + 46], { closed: true, color: col, glow: selected ? 1.5 : owned ? 0.8 : 0, width: selected ? 1.5 : 1, ...(owned || verdict === 'OK' ? {} : { dash: [3, 4] }) });
         if (ri > 0) s.stroke([x + w / 2, y - 12, x + w / 2, y], { color: p.dim, glow: 0 });
         drawText(s, `${n.id}  ${owned ? 'OWNED' : `${n.cost} RP`}`, x + 6, y + 6, 10, { color: col, glow: selected ? 0.8 : 0.2 });
-        const name = n.name.length > 22 ? n.name.slice(0, 21) + '.' : n.name;
+        const maxChars = Math.max(8, Math.floor((colW - 18) / (8 * 5.5 / 6)));
+        const name = n.name.length > maxChars ? n.name.slice(0, maxChars - 1) + '.' : n.name;
         drawText(s, name, x + 6, y + 20, 8, { color: col, glow: 0 });
         if (!owned && verdict !== 'OK') drawText(s, verdict === 'REQUIRES' ? `NEEDS ${n.requires.join(',')}` : verdict === 'MODE' ? 'SCI-FI' : 'RESEARCH', x + 6, y + 33, 8, { color: p.dim, glow: 0 });
       });
