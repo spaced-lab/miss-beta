@@ -11,6 +11,7 @@
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
+import { advanceStudies, studyById } from '../../sim/studies';
 import { yearOf } from '../../sim/detection';
 import { drawGauge, gaugeHeight } from '../gaugeView';
 import { gaugeVerdict, type GaugeReading } from '../../sim/gauge';
@@ -233,14 +234,31 @@ export class SystemScreen implements Screen {
         nanoforgeSince: scifiMode ? done('NANOFORGE_SEEDS') : null,
         thrusterSwarmSince: scifiMode ? done('THRUSTER_SWARM') : null,
         shepherdSince: scifiMode ? done('SHEPHERD_NETWORK') : null,
-        fusionTugN: scifiMode ? this.run.effects.fusionTugN : 0,
-        fusionTugSince: scifiMode ? done('FUSION_TUG_FLEET') : null,
+        // A fusion line won by a feasibility study pushes in REALISTIC too, from the study's success.
+        fusionTugN: scifiMode ? Math.max(this.run.effects.fusionTugN, this.run.effects.studyFusionTugN) : this.run.effects.studyFusionTugN,
+        fusionTugSince: scifiMode && done('FUSION_TUG_FLEET') !== null ? done('FUSION_TUG_FLEET') : this.studyFusionSince(),
         groundLaserSince: this.run.effects.groundLaser ? done('GROUND_LASER') : null,
         sailDepot: scifiMode ? this.run.effects.sailDepot : 0,
         sailDepotSince: scifiMode ? done('SAIL_SWARM_DEPOT') : null,
         seedFleetSince: scifiMode ? done('SEED_FLEET') : null,
       },
     };
+  }
+
+  /** EXPERIMENTAL studies are offered with OPTIONS > EXPERIMENTAL TECH, or in any SCI-FI-or-above run. */
+  private experimental(): boolean {
+    return this.settings.experimental === true || this.run.mode !== 'REALISTIC';
+  }
+
+  /** Earliest end time of a succeeded study that grants fusion tugs, or null. */
+  private studyFusionSince(): number | null {
+    let best: number | null = null;
+    for (const st of this.run.studies) {
+      if (st.status !== 'SUCCEEDED' || st.endedAt === null) continue;
+      if (!studyById(st.id).effects.some((e) => e.kind === 'STUDY_FUSION_TUGS')) continue;
+      if (best === null || st.endedAt < best) best = st.endedAt;
+    }
+    return best;
   }
 
   private trackingTier(): number {
@@ -715,7 +733,7 @@ export class SystemScreen implements Screen {
     }
     if (this.programs.isOpen) {
       const funded = this.run.programs.filter((p) => p.funding > 0).length;
-      this.programs.update(this.run);
+      this.programs.update(this.run, this.experimental());
       if (this.run.programs.filter((p) => p.funding > 0).length > funded) this.sfx?.voice.say('PROGRAM_FUNDED');
       return;
     }
@@ -844,6 +862,10 @@ export class SystemScreen implements Screen {
     const done = advancePrograms(this.run.programs, { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, w.t, w.t - before);
     for (const id of done) this.note(`PROGRAM COMPLETE: ${id}`, 4);
     if (done.length > 0) this.sfx?.voice.say('RESEARCHING');
+    // Feasibility studies: milestones and verdicts arrive on the same clock (SCI-FI and above: assured).
+    const ev = advanceStudies(this.run.studies, this.run.seed, { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, w.t, w.t - before, this.run.mode !== 'REALISTIC');
+    for (const e of ev) this.note(e.kind === 'MILESTONE' ? `STUDY ${e.id}: READINESS LEVEL ${e.trl} REACHED` : e.kind === 'SUCCEEDED' ? `STUDY ${e.id} SUCCEEDED: IT WORKS` : `STUDY ${e.id} FAILED AT READINESS LEVEL ${e.trl}: FUNDING STOPPED`, 5);
+    if (ev.some((e) => e.kind === 'SUCCEEDED')) this.sfx?.voice.say('RESEARCHING');
     if (this.mv) {
       tickMultiverse(this.mv, w.t - before);
       if (w.t >= earliestEnd(this.mv)) this.finishRound();
@@ -1052,7 +1074,7 @@ export class SystemScreen implements Screen {
     }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
-    this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge);
+    this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge, this.experimental());
     this.tech.render(this.run);
     if (!this.panelHidden && !this.tele.isModal) {
       if (this.phase === 'debrief') this.drawDebrief();

@@ -6,6 +6,7 @@
 // LORE: G1 (how to play)
 
 import { createPrograms, defaultEffects, programById, applyEffects } from '../sim/programs';
+import { asProgram, studyById } from '../sim/studies';
 import type { World } from '../sim/world';
 import { budgetAt, createEconomy } from './economy';
 import { loadJson, saveJson } from './persistence';
@@ -34,6 +35,7 @@ export function toSaveFile(run: RunState, world: World | null): SaveFile {
     research: run.research,
     tech: [...run.tech],
     programs: run.programs.map((p) => ({ id: p.id, progress: p.progress, funding: p.funding })),
+    studies: run.studies.filter((x) => x.attempt > 0).map((x) => ({ id: x.id, attempt: x.attempt, progress: x.progress, funding: x.funding, status: x.status })),
     networks_active: [...run.networks.active],
     run_score: run.score,
     rounds_survived: run.roundsSurvived,
@@ -98,6 +100,16 @@ export function runFromSave(sf: SaveFile): RunState {
         // unknown program id in an edited save: ignore
       }
     }
+  }
+  for (const x of sf.studies ?? []) {
+    const st = run.studies.find((y) => y.id === x.id);
+    if (!st) continue;
+    st.attempt = x.attempt;
+    st.progress = x.progress;
+    st.funding = x.funding;
+    st.status = x.status;
+    if (x.status === 'SUCCEEDED' || x.status === 'FAILED') st.endedAt = 0;
+    if (x.status === 'SUCCEEDED') applyEffects(asProgram(studyById(x.id)), { economy: run.economy, effects: run.effects, networks: run.networks }, 0);
   }
   run.economy = createEconomy(sf.budget, sf.budget_per_year);
   return run;

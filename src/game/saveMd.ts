@@ -22,6 +22,14 @@ export interface SaveThreat {
   p_impact: number;
 }
 
+export interface SaveStudy {
+  id: string;
+  attempt: number;
+  progress: number;
+  funding: number;
+  status: 'IDLE' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+}
+
 export interface SaveFile {
   version: 1;
   seed: string;
@@ -36,6 +44,8 @@ export interface SaveFile {
   research: number;
   tech: string[];
   programs: SaveProgram[];
+  /** Feasibility studies that were ever started (optional: older saves have none). */
+  studies?: SaveStudy[];
   networks_active: string[];
   run_score: number;
   rounds_survived: number;
@@ -81,6 +91,7 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
     ['research', s.research],
     ['tech', s.tech],
     ['programs', s.programs.map((p) => ({ id: p.id, progress: Math.round(p.progress * 1000) / 1000, funding: p.funding }))],
+    ...((s.studies?.length ?? 0) > 0 ? ([['studies', (s.studies ?? []).map((x) => ({ id: x.id, attempt: x.attempt, progress: Math.round(x.progress * 1000) / 1000, funding: x.funding, status: x.status }))]] as [string, Value][]) : []),
     ['networks_active', s.networks_active],
     ['run_score', s.run_score],
     ['rounds_survived', s.rounds_survived],
@@ -206,6 +217,18 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
     if (!isStr(o['id']) || !isNum(o['progress']) || !isNum(o['funding'])) return null;
     ps.push({ id: o['id'], progress: Math.max(0, Math.min(1, o['progress'])), funding: Math.max(0, Math.min(1, o['funding'])) });
   }
+  const studyStatuses = ['IDLE', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED'];
+  const ss: SaveStudy[] = [];
+  const studies = r['studies'];
+  if (studies !== undefined) {
+    if (!Array.isArray(studies)) return null;
+    for (const x of studies) {
+      if (typeof x !== 'object' || x === null) return null;
+      const o = x as Record<string, unknown>;
+      if (!isStr(o['id']) || !isNum(o['attempt']) || !Number.isInteger(o['attempt']) || o['attempt'] < 0 || o['attempt'] > 1000 || !isNum(o['progress']) || !isNum(o['funding']) || !isStr(o['status']) || !studyStatuses.includes(o['status'])) return null;
+      ss.push({ id: o['id'], attempt: o['attempt'], progress: Math.max(0, Math.min(1, o['progress'])), funding: Math.max(0, Math.min(1, o['funding'])), status: o['status'] as SaveStudy['status'] });
+    }
+  }
   if (!isStrArr(r['networks_active']) || !isNum(r['run_score']) || !isNum(r['rounds_survived'])) return null;
   let threat: SaveThreat | null = null;
   const ct = r['current_threat'];
@@ -234,6 +257,7 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
     research: r['research'],
     tech: r['tech'],
     programs: ps,
+    ...(ss.length > 0 ? { studies: ss } : {}),
     networks_active: r['networks_active'],
     run_score: r['run_score'],
     rounds_survived: r['rounds_survived'],

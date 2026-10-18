@@ -13,7 +13,9 @@ import { programBurn, programById } from '../../sim/programs';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
-import { drawText, drawTextFit } from '../vectorFont';
+import { drawText, drawTextFit, wrapText } from '../vectorFont';
+import { KNOBS } from '../../config/knobs';
+import { anyWorks, cancelStudy, milestones, startStudy, studyAvailable, studyBurn, studyById, studyCostPerYear, trlReached, type StudyState } from '../../sim/studies';
 import { drawGauge, gaugeHeight } from '../gaugeView';
 import type { GaugeReading } from '../../sim/gauge';
 
@@ -25,6 +27,10 @@ export class ProgramsOverlay {
   openLore: ((id: string) => void) | null = null;
   private open = false;
   private sel = 0;
+  /** PROGRAMS (things we know how to build) or STUDIES (feasibility research); Tab switches. */
+  private tab: 'PROGRAMS' | 'STUDIES' = 'PROGRAMS';
+  private studySel = 0;
+  private studyRowYs: number[] = [];
   constructor(private readonly s: Surface, private readonly keys: Input) {}
 
   get isOpen(): boolean {
@@ -37,11 +43,19 @@ export class ProgramsOverlay {
     this.open = false;
   }
 
-  update(run: RunState): void {
+  update(run: RunState, experimental = false): void {
     if (!this.open) return;
     const k = this.keys;
     if (k.pressed('Escape') || k.pressed('KeyG')) {
       this.hide();
+      return;
+    }
+    if (k.pressed('Tab')) {
+      this.tab = this.tab === 'PROGRAMS' ? 'STUDIES' : 'PROGRAMS';
+      return;
+    }
+    if (this.tab === 'STUDIES') {
+      this.updateStudies(run, experimental);
       return;
     }
     if ((k.pressed('KeyL') || k.pressed('Slash')) && this.openLore) {
@@ -68,7 +82,98 @@ export class ProgramsOverlay {
     if (k.pressed('Enter')) st.funding = st.funding > 0 ? 0 : 1;
   }
 
-  render(run: RunState, budget: number, t: number, gauge: GaugeReading | null = null): void {
+  /** The cards on the STUDIES tab: every non-EXPERIMENTAL card, EXPERIMENTAL ones only when allowed. */
+  private visibleStudies(run: RunState, experimental: boolean): StudyState[] {
+    return run.studies.filter((st) => experimental || studyById(st.id).tag !== 'EXPERIMENTAL');
+  }
+
+  private updateStudies(run: RunState, experimental: boolean): void {
+    const k = this.keys;
+    const rows = this.visibleStudies(run, experimental);
+    const n = rows.length;
+    if (n === 0) return;
+    if ((k.pressed('KeyL') || k.pressed('Slash')) && this.openLore) {
+      this.openLore('D14');
+      return;
+    }
+    const click = k.takeClick();
+    if (click) {
+      const i = this.studyRowYs.findIndex((y) => click.y >= y - 2 && click.y < y + 15);
+      if (i >= 0) this.studySel = i;
+    }
+    if (k.pressed('ArrowUp')) this.studySel = (this.studySel + n - 1) % n;
+    if (k.pressed('ArrowDown')) this.studySel = (this.studySel + 1) % n;
+    this.studySel = Math.min(this.studySel, n - 1);
+    const st = rows[this.studySel];
+    if (!st) return;
+    const c = studyById(st.id);
+    if (k.pressed('Enter')) {
+      if (st.status === 'RUNNING') cancelStudy(st);
+      else if (studyAvailable(c, run.studies, experimental)) startStudy(st);
+    }
+    if (st.status !== 'RUNNING') return;
+    if (k.pressed('ArrowRight')) st.funding = Math.min(1, Math.round((st.funding + 0.25) * 4) / 4);
+    if (k.pressed('ArrowLeft')) st.funding = Math.max(0, Math.round((st.funding - 0.25) * 4) / 4);
+  }
+
+  private renderStudies(run: RunState, experimental: boolean): void {
+    const s = this.s;
+    const p = s.palette;
+    const ui = uiColors(p, s.spectrum);
+    const m = 16;
+    const rows = this.visibleStudies(run, experimental);
+    const cTag = m + 200, cTrl = m + 345, cHy = m + 410, cGy = m + 490, cCost = m + 565, cP = m + 640, bx = m + 735, bw = 150;
+    for (const [x, h] of [[m, 'STUDY'], [cTag, 'TAG'], [cTrl, 'TRL'], [cHy, 'HUMAN Y'], [cGy, 'GAME Y'], [cCost, 'COST/Y'], [cP, 'P(WORKS)'], [bx, 'MILESTONES'], [bx + bw + 14, 'STATUS']] as const) drawText(s, h, x, m + 26, 10, { color: p.dim, glow: 0 });
+    let y = m + 44;
+    this.studyRowYs = [];
+    rows.forEach((st, i) => {
+      this.studyRowYs.push(y);
+      const c = studyById(st.id);
+      const selected = i === this.studySel;
+      const avail = studyAvailable(c, run.studies, experimental);
+      const col = st.status === 'SUCCEEDED' ? p.dim : !avail && st.status === 'IDLE' ? p.dim : selected ? p.hot : p.ink;
+      const sty = { color: col, glow: selected ? 0.8 : 0.2 };
+      if (selected) drawText(s, '>', m - 12, y, 11, { color: p.hot, glow: 1 });
+      drawText(s, c.id, m, y, 11, sty);
+      const tagCol = !s.spectrum ? col : c.tag === 'PROPOSED' ? s.role('craft') : c.tag === 'SPECULATIVE' ? s.role('program') : s.role('nuclear');
+      drawText(s, c.tag, cTag, y, 11, { ...sty, color: tagCol });
+      drawText(s, `${trlReached(c, st)} / ${c.trlNeeded}`, cTrl, y, 11, sty);
+      drawText(s, String(c.humanYears), cHy + 56, y, 11, { ...sty, align: 'right' });
+      drawText(s, (c.humanYears * KNOBS.STUDY_TIME_COMPRESSION).toFixed(1), cGy + 50, y, 11, { ...sty, align: 'right' });
+      drawText(s, studyCostPerYear(c).toFixed(1), cCost + 50, y, 11, { ...sty, align: 'right' });
+      drawText(s, `${Math.round(c.pSuccess * 100)}%`, cP + 64, y, 11, { ...sty, align: 'right' });
+      // One tick per readiness level to climb; the bar fills as the attempt runs.
+      s.stroke([bx, y + 2, bx + bw, y + 2, bx + bw, y + 10, bx, y + 10], { closed: true, color: p.dim, glow: 0 });
+      const nm = milestones(c);
+      for (let j = 1; j < nm; j++) s.stroke([bx + (bw * j) / nm, y + 1, bx + (bw * j) / nm, y + 11], { color: p.dim, glow: 0 });
+      if (st.progress > 0) s.stroke([bx + 2, y + 6, bx + 2 + (bw - 4) * st.progress, y + 6], { color: st.status === 'FAILED' ? p.hot : col, width: 4, glow: 0.5 });
+      const stat = st.status === 'RUNNING' ? (st.funding >= 1 ? 'RUNNING' : st.funding > 0 ? `RUNNING ${Math.round(st.funding * 100)}%` : 'PAUSED') : st.status === 'IDLE' ? (avail ? 'NOT STARTED' : `NEEDS ${c.requires.join(' + ')}`) : st.status === 'FAILED' ? 'FAILED (ENTER RETRIES)' : st.status;
+      drawText(s, stat, bx + bw + 14, y, 11, { color: st.status === 'FAILED' ? p.hot : col, glow: selected ? 0.8 : 0.2 });
+      y += 17;
+    });
+    const sel = rows[this.studySel];
+    if (!sel) return;
+    const c = studyById(sel.id);
+    y += 8;
+    const w = s.width - 2 * m;
+    drawTextFit(s, c.name, m, y, 11, w, { color: ui.title, glow: 0.8 });
+    y += 16;
+    for (const l of wrapText(c.note.toUpperCase(), w, 10)) {
+      drawText(s, l, m, y, 10, { color: ui.text, glow: 0.3 });
+      y += 14;
+    }
+    drawTextFit(s, `OPEN PROBLEMS: ${c.breakthroughs.join('; ').toUpperCase()}`, m, y + 2, 10, w, { color: ui.sub, glow: 0.3 });
+    y += 18;
+    // Parallel funding: the chance that at least one line of this group works.
+    const group = rows.filter((x) => studyById(x.id).group === c.group && x.status === 'RUNNING').map((x) => studyById(x.id).pSuccess);
+    if (group.length > 1) drawText(s, `PARALLEL ${c.group}: ${group.length} LINES RUNNING, CHANCE AT LEAST ONE WORKS ${Math.round(anyWorks(group) * 100)}%`, m, y, 10, { color: p.hot, glow: 0.6 });
+    else drawText(s, `FUND COMPETING ${c.group} LINES TOGETHER: THE CHANCE THAT ONE WORKS RISES, AND SO DOES THE BILL.`, m, y, 10, { color: p.dim, glow: 0 });
+    y += 16;
+    drawTextFit(s, `HUMAN YEARS ARE THE REAL-WORLD SCALE; THE GAME RUNS THEM AT X${KNOBS.STUDY_TIME_COMPRESSION}. READINESS LEVELS ARE ESTIMATES (UNVERIFIED, CLAIM FS-1); YEARS, COSTS AND ODDS ARE GAME ESTIMATES.`, m, y, 9, w, { color: p.dim, glow: 0 });
+    if (!experimental) drawTextFit(s, 'EXPERIMENTAL STUDIES (FUSION LINES): OPTIONS > EXPERIMENTAL TECH, OR ANY SCI-FI RUN.', m, y + 14, 9, w, { color: p.dim, glow: 0 });
+  }
+
+  render(run: RunState, budget: number, t: number, gauge: GaugeReading | null = null, experimental = false): void {
     if (!this.open) return;
     const s = this.s;
     const p = s.palette;
@@ -76,7 +181,14 @@ export class ProgramsOverlay {
     s.ctx.fillStyle = withAlpha(p.bg, 0.88);
     s.ctx.fillRect(0, 0, s.width, s.height);
     const burn = programBurn(run.programs);
-    drawText(s, `PROGRAMS   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS)`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+    const sBurn = studyBurn(run.studies);
+    drawText(s, `${this.tab}   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS  -${sBurn.toFixed(2)}/Y STUDIES)`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+    drawText(s, this.tab === 'PROGRAMS' ? '<TAB> STUDIES' : '<TAB> PROGRAMS', s.width - m, m, 11, { align: 'right', color: uiColors(p, s.spectrum).sub, glow: 0.6 });
+    if (this.tab === 'STUDIES') {
+      this.renderStudies(run, experimental);
+      drawTextFit(s, 'UP / DOWN OR CLICK SELECT    <ENTER> START / RETRY / CANCEL    LEFT / RIGHT FUNDING    <TAB> PROGRAMS    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+      return;
+    }
     // Columns are placed by x, not by padding, so a long tag (SPECULATIVE) never runs into YEARS.
     const cTag = m + 300, cYr = m + 420, cCost = m + 470, bx = m + 540, bw = 150;
     this.fundX = bx;
@@ -124,6 +236,6 @@ export class ProgramsOverlay {
       if (ny > listBottom) break;
     }
     void t;
-    drawTextFit(s, 'UP / DOWN OR CLICK SELECT    LEFT / RIGHT OR CLICK FUNDING    <ENTER> FULL / NONE    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN OR CLICK SELECT    LEFT / RIGHT OR CLICK FUNDING    <ENTER> FULL / NONE    <TAB> STUDIES    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

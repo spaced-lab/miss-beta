@@ -145,4 +145,14 @@ export const PICTURES_D: Readonly<Record<string, Gen>> = {
     arrow(80, 90, 366, 95, { color: p.hot, dash: '5 4' }), arrow(80, 160, 382, 160, { color: p.hot, dash: '5 4' }), arrow(80, 230, 358, 220, { color: p.hot, dash: '5 4' }),
     label(240, 290, 'EACH PROBE PICKS ITS OWN PIECE', { color: p.hot, anchor: 'middle' }),
   ]),
+  // Three research paths climbing readiness steps: one reaches the top, two stop at crosses; human years below.
+  'pic-studies': (p) => {
+    const f: string[] = [];
+    for (let k = 0; k < 6; k++) f.push(line(60 + k * 60, 250 - k * 30, 120 + k * 60, 250 - k * 30, { color: p.dim }), line(120 + k * 60, 250 - k * 30, 120 + k * 60, 220 - k * 30, { color: p.dim }));
+    f.push(poly([[70, 245], [130, 215], [190, 185], [250, 155], [310, 125], [370, 95], [420, 70]], { color: p.ink }), label(430, 68, 'FLIES', { color: p.ink, size: 10 }));
+    f.push(poly([[70, 252], [130, 222], [190, 192]], { color: p.hot, dash: '4 3' }), line(184, 186, 196, 198, { color: p.hot }), line(196, 186, 184, 198, { color: p.hot }));
+    f.push(poly([[70, 258], [130, 228], [190, 198], [250, 168]], { color: p.hot, dash: '2 3' }), line(244, 162, 256, 174, { color: p.hot }), line(256, 162, 244, 174, { color: p.hot }));
+    f.push(label(240, 290, 'TRL 1 ... 9    HUMAN YEARS: 6 TO 35', { color: p.dim, anchor: 'middle' }));
+    return picture(p, f);
+  },
 };

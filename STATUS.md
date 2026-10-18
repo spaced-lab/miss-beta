@@ -64,6 +64,12 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Decisions
 
+- Studies (2026-10-18): EXPERIMENTAL is a tag on feasibility-study cards only (owner backlog 6 asked for it); no
+  existing method entry gained, lost or moved a tag. A study's fate (duration, success, failing milestone) is
+  drawn from the run seed, card id and attempt number, so saves store only attempt, progress, funding, status.
+  Durations shown are medians; the drawn duration stays hidden, as in real research. Fusion successes grant a
+  REALISTIC fusion tug at 10-20 kN (the SCI-FI fleet is 50 kN).
+
 - Gauge (2026-10-18): the rounds fly a flat system; the gauge alone tilts each reference orbit about its impact
   node (GAUGE_INCL_DEG) and charges ground surveys a trailing loss, because a flat model read the DEFLECT needle
   at about 8 m (every earlier pass an exact crossing). Each network counts from its start year with the reference
@@ -200,7 +206,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    refine cinematics toward detailed wireframes. Done: AUTOPLAY pace SLOW/NORMAL/FAST (`AUTO_SPEEDS`, - and =),
    DEMO LENGTH SHORT/MEDIUM/LONG (`DEMO_LENGTHS`, MEDIUM default). NEON shades approved for now (owner reviews later).
    Done: detection gauge (backlog 9): src/sim/gauge.ts in the worker, PROGRAMS + debrief, F11, LAB_GAUGE.
-   Next in order: feasibility studies (backlog 6), then interstellar dial + sky coverage (10-12).
+   Done: feasibility studies (backlog 6): src/sim/studies.ts, config/studies.json (12 cards), PROGRAMS > STUDIES
+   tab (Tab), OPTIONS EXPERIMENTAL TECH, HIVE_1..3 networks, D14 topic. Next: interstellar dial + sky coverage
+   (backlog 10-12), which needs 3-D orbits first.
    Queue added 2026-10-18 (owner "enhancement" notes go here and are built in turn, no asking):
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
@@ -213,6 +221,13 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
      photosensitive (flashing lights) warning in game and docs (CRT flicker, glitch, montage, impact flashes).
      Owner runs a full security assessment before going live; record it in docs/SAFETY.md.
    - backlog: X.509 compliance enhancements (IDEAS.md).
+   - PRE-PUBLIC CHECKLIST (owner 2026-10-18, review with the owner before publishing; IDEAS 25): licence model
+     AGPL-3.0 (adopted 2026-10-18; LICENSE copyright line "Ridley DiSiena (SPACED)");
+     NOTICE/AUTHORS file; AGPL section 7 additional term requiring the "Created by SPACED" notice be preserved on
+     the credits screen; "Created by SPACED" visible in game; an ABOUT page with "Created by Ridley DiSiena aka
+     SPACED"; .github/FUNDING.yml + "Support this project" line (README, credits) once the owner's Patreon exists
+     (donations voluntary, never a condition of use); decide on a CLA for contributions (only needed for dual
+     licensing); refine attribution of third-party assets (Kokoro voices, Natural Earth, NASA/JPL data).
    - finer launch-cinematic pixels, false-colour thrust head and spark pixels (side agent, in progress).
    Older questions (kept for the record):
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24

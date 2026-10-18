@@ -47,6 +47,8 @@ export interface Settings {
   demoLength?: DemoLength;
   /** True once the photosensitivity notice on the title screen was acknowledged (optional for old records). */
   photoAck?: boolean;
+  /** EXPERIMENTAL feasibility studies (fusion lines) offered in REALISTIC runs; off by default. */
+  experimental?: boolean;
 }
 
 export const AUTO_SPEED_LEVELS: readonly AutoSpeed[] = ['SLOW', 'NORMAL', 'FAST'];
@@ -83,7 +85,8 @@ export function isSettings(v: unknown): v is Settings {
     (o.soundStyle === undefined || SOUND_STYLES.includes(o.soundStyle as SoundStyle)) &&
     (o.autoSpeed === undefined || AUTO_SPEED_LEVELS.includes(o.autoSpeed as AutoSpeed)) &&
     (o.demoLength === undefined || DEMO_LENGTH_LEVELS.includes(o.demoLength as DemoLength)) &&
-    (o.photoAck === undefined || typeof o.photoAck === 'boolean')
+    (o.photoAck === undefined || typeof o.photoAck === 'boolean') &&
+    (o.experimental === undefined || typeof o.experimental === 'boolean')
   );
 }
 

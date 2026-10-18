@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- FEASIBILITY STUDIES (PROGRAMS > Tab): twelve research cards (hive survey tiers, fission power, droplet
+  radiator, compute mothership, five EXPERIMENTAL fusion lines) with readiness levels, human and game years,
+  cost, odds and milestones; a doomed attempt fails partway; parallel lines show the chance one works. Success
+  adds networks (HIVE_1..3, which move the gauge), tracking, launch energy, budget or a REALISTIC fusion tug.
+  OPTIONS > EXPERIMENTAL TECH. Saved in SAVE.md. New topic D14 (59 topics).
+
 - Research method and claim registry: `docs/RESEARCH.md` (statuses UNVERIFIED to UNFEASIBLE, a seven-step method,
   the research backlog), `src/config/claims.json`, `tests/claims.test.ts`. Unchecked figures in the lore now read
   UNVERIFIED with a claim id. New topic G9 "How we know" with dead ends (pushing Ceres, last-minute blasts).

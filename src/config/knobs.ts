@@ -277,6 +277,11 @@ export const KNOBS = {
   VOICE_IMMINENT_S: 90 * DAY,
   /** Fade applied when a newer line cuts a playing one off, s. */
   VOICE_CUT_S: 0.06,
+  /** Feasibility studies (owner backlog 6, src/sim/studies.ts): game years per human year of research, budget
+   *  units per billion US dollars, and the smallest yearly cost of a running study. */
+  STUDY_TIME_COMPRESSION: 0.3,
+  STUDY_BUDGET_PER_BUSD: 2,
+  STUDY_COST_MIN: 0.4,
   /** Detection gauge (owner backlog 9, src/sim/gauge.ts): log size bar from GAUGE_MIN_M to GAUGE_MAX_M sampled
    *  GAUGE_GRID_PER_DECADE times a decade. A needle is the smallest size where GAUGE_CATCH_SHARE of the reference
    *  impactors are found with its warning (DEFLECT and SUNWARD 1 year, EVACUATE and INTERSTELLAR 3 weeks). */

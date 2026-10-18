@@ -9,7 +9,10 @@
       "status": "UNVERIFIED",
       "source": "",
       "check": "Read the latest CNEOS discovery statistics and a population model (Granvik et al. 2018; Nesvorny et al. 2024); divide found by estimated total at H <= 22.",
-      "usedIn": ["EDUCATION.md F11 ADVANCED", "EDUCATION.md F5 INTERMEDIATE"]
+      "usedIn": [
+        "EDUCATION.md F11 ADVANCED",
+        "EDUCATION.md F5 INTERMEDIATE"
+      ]
     },
     {
       "id": "F11-2",
@@ -19,7 +22,10 @@
       "status": "SOURCED",
       "source": "NASA Authorization Act of 2005 (Public Law 109-155), section 321",
       "check": "Quote the section text.",
-      "usedIn": ["EDUCATION.md F11 ADVANCED", "src/config/knobs.ts GAUGE_DANGER_M"]
+      "usedIn": [
+        "EDUCATION.md F11 ADVANCED",
+        "src/config/knobs.ts GAUGE_DANGER_M"
+      ]
     },
     {
       "id": "F11-3",
@@ -29,7 +35,10 @@
       "status": "SOURCED",
       "source": "Popova et al. 2013, Science 342, 1069; Brown et al. 2013, Nature 503, 238",
       "check": "Read the size and energy estimates in both papers.",
-      "usedIn": ["EDUCATION.md F11 BEGINNER", "src/config/knobs.ts GAUGE_DANGER_M"]
+      "usedIn": [
+        "EDUCATION.md F11 BEGINNER",
+        "src/config/knobs.ts GAUGE_DANGER_M"
+      ]
     },
     {
       "id": "F5-1",
@@ -39,7 +48,10 @@
       "status": "UNVERIFIED",
       "source": "",
       "check": "For each survey, find the published single-visit limiting magnitude and the sky area per night; convert area to a per-night coverage chance for a random NEO position.",
-      "usedIn": ["src/config/networks.json", "EDUCATION.md F5 ADVANCED"]
+      "usedIn": [
+        "src/config/networks.json",
+        "EDUCATION.md F5 ADVANCED"
+      ]
     },
     {
       "id": "F5-2",
@@ -49,7 +61,9 @@
       "status": "UNVERIFIED",
       "source": "",
       "check": "ATLAS project pages and Tonry et al. 2018 (PASP 130, 064505); reproduce with LAB_MAGNITUDE.",
-      "usedIn": ["EDUCATION.md F5 BEGINNER"]
+      "usedIn": [
+        "EDUCATION.md F5 BEGINNER"
+      ]
     },
     {
       "id": "F5-3",
@@ -59,7 +73,9 @@
       "status": "UNVERIFIED",
       "source": "",
       "check": "Count the list maintained by the Minor Planet Center / CNEOS for pre-impact discoveries; the count changes, so date it.",
-      "usedIn": ["EDUCATION.md F5 INTERMEDIATE"]
+      "usedIn": [
+        "EDUCATION.md F5 INTERMEDIATE"
+      ]
     },
     {
       "id": "D3-1",
@@ -69,7 +85,10 @@
       "status": "SOURCED",
       "source": "Cheng et al. 2023, Nature 616, 457",
       "check": "Read the beta range and its density assumption.",
-      "usedIn": ["src/config/knobs.ts", "EDUCATION.md D3"]
+      "usedIn": [
+        "src/config/knobs.ts",
+        "EDUCATION.md D3"
+      ]
     },
     {
       "id": "D3-2",
@@ -79,7 +98,9 @@
       "status": "SOURCED",
       "source": "Thomas et al. 2023, Nature 616, 448",
       "check": "Read the measured period change and its uncertainty.",
-      "usedIn": ["EDUCATION.md D3"]
+      "usedIn": [
+        "EDUCATION.md D3"
+      ]
     },
     {
       "id": "G8-1",
@@ -89,7 +110,10 @@
       "status": "SOURCED",
       "source": "W3C Web Content Accessibility Guidelines 2.1, success criterion 2.3.1",
       "check": "Read the criterion and its general and red flash thresholds; measure our flashes against them.",
-      "usedIn": ["src/render/views/demo.ts", "docs/WARNINGS.md 8"]
+      "usedIn": [
+        "src/render/views/demo.ts",
+        "docs/WARNINGS.md 8"
+      ]
     },
     {
       "id": "U-1",
@@ -99,7 +123,9 @@
       "status": "UNFEASIBLE",
       "source": "Ceres mass 9.38e20 kg: Park et al. 2016, Nature 537, 515. DART: m 580 kg, U 6.1 km/s, beta 3.6 (D3-1).",
       "check": "dp = M dv = 9.38e20 x 0.01 = 9.4e18 kg m/s; one hit gives beta m U = 3.6 x 580 x 6100 = 1.27e7 kg m/s; ratio 7.4e11. Reproduced in tests/claims.test.ts.",
-      "usedIn": ["EDUCATION.md G9"]
+      "usedIn": [
+        "EDUCATION.md G9"
+      ]
     },
     {
       "id": "U-2",
@@ -109,7 +135,10 @@
       "status": "UNFEASIBLE",
       "source": "Momentum conservation; the game's own fragment model (src/physics/fragment.ts, EDUCATION D4)",
       "check": "Spread speed of fragments (metres per second) times hours of warning is kilometres: far less than the Earth's radius, so the cloud still hits. LAB_FRAGMENT_CLOUD shows it.",
-      "usedIn": ["EDUCATION.md G9", "EDUCATION.md D4"]
+      "usedIn": [
+        "EDUCATION.md G9",
+        "EDUCATION.md D4"
+      ]
     },
     {
       "id": "O-1",
@@ -119,7 +148,48 @@
       "status": "OPEN",
       "source": "",
       "check": "Literature search on space molten-salt reactor studies; compare specific mass with liquid-metal designs at 1 MWe.",
-      "usedIn": ["docs/RESEARCH.md"]
+      "usedIn": [
+        "docs/RESEARCH.md"
+      ]
+    },
+    {
+      "id": "FS-1",
+      "topic": "D14",
+      "claim": "Technology readiness level today of each feasibility-study technology",
+      "value": "src/config/studies.json trlNow",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "For each card find the latest project or agency statement of readiness (NASA project pages, peer-reviewed status reviews) and record a dated TRL.",
+      "usedIn": [
+        "src/config/studies.json",
+        "EDUCATION.md D14"
+      ]
+    },
+    {
+      "id": "FS-2",
+      "topic": "D14",
+      "claim": "Inertial fusion at NIF produced more fusion energy than the laser energy delivered to the target",
+      "value": "December 2022: about 3.15 MJ out for 2.05 MJ in; wall-plug energy far larger",
+      "status": "SOURCED",
+      "source": "Abu-Shawareb et al. 2024, Physical Review Letters 132, 065102",
+      "check": "Read the reported yield and laser energy.",
+      "usedIn": [
+        "src/config/studies.json FUSION_ICF",
+        "EDUCATION.md D14"
+      ]
+    },
+    {
+      "id": "FS-3",
+      "topic": "D14",
+      "claim": "Fusion products observed in deuterated metal lattices exposed to an energetic photon beam",
+      "value": "NASA Glenn experiments, 2020; no net energy",
+      "status": "SOURCED",
+      "source": "Pines et al. 2020, Physical Review C 101, 044609; Steinetz et al. 2020, Physical Review C 101, 044610",
+      "check": "Read both papers for the beam used and the measured products.",
+      "usedIn": [
+        "src/config/studies.json FUSION_LATTICE",
+        "EDUCATION.md D14"
+      ]
     }
   ]
 }

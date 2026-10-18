@@ -13,7 +13,7 @@ import { YEAR } from '../physics/constants';
 import type { Economy } from '../game/economy';
 import { yearOf } from './detection';
 
-export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD' | 'SEED_FLEET';
+export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD' | 'SEED_FLEET' | 'STUDY_FUSION_TUGS';
 
 export interface Effect {
   kind: EffectKind;
@@ -73,6 +73,8 @@ export interface RunEffects {
   orbitalLaserW: number;
   lunarDriverC3: number;
   fusionTugN: number;
+  /** Fusion tug thrust won by an EXPERIMENTAL feasibility study (acts in REALISTIC too), N. */
+  studyFusionTugN: number;
   disassemblerTauYears: number;
   /** 30: speculative standing capabilities owned (0 / 1). */
   nanoforge: number;
@@ -102,6 +104,7 @@ export function defaultEffects(): RunEffects {
     orbitalLaserW: 0,
     lunarDriverC3: 0,
     fusionTugN: 0,
+    studyFusionTugN: 0,
     disassemblerTauYears: 0,
     nanoforge: 0,
     thrusterSwarm: 0,
@@ -231,6 +234,9 @@ export function applyEffects(def: ProgramDef, ctx: ProgramsContext, t: number): 
         break;
       case 'SEED_FLEET':
         ctx.effects.seedFleet = 1;
+        break;
+      case 'STUDY_FUSION_TUGS':
+        ctx.effects.studyFusionTugN = Math.max(ctx.effects.studyFusionTugN, v);
         break;
     }
   }

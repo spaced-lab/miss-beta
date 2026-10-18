@@ -4,6 +4,7 @@
 // LORE: G1 (how to play), G5 (scoring)
 
 import { createPrograms, defaultEffects, type ProgramState, type RunEffects } from '../sim/programs';
+import { createStudies, type StudyState } from '../sim/studies';
 import { createEconomy, type Economy } from './economy';
 import type { Mode } from './modes';
 import { reapplyTech, TECH } from './tech';
@@ -39,6 +40,8 @@ export interface RunState {
   assisted: boolean;
   startedAt: string;
   programs: ProgramState[];
+  /** Feasibility studies (sim/studies.ts). */
+  studies: StudyState[];
   effects: RunEffects;
   /** Networks active this run (ids) and activation years for ones completed in-game. */
   networks: { active: string[]; since: Record<string, number> };
@@ -94,6 +97,7 @@ export function createRun(seed: string, opts: { sandbox?: boolean; tutorial?: bo
     assisted: false,
     startedAt: new Date().toISOString().slice(0, 10),
     programs: createPrograms(),
+    studies: createStudies(),
     effects: defaultEffects(),
     networks: { active: [], since: {} },
     evacuatedAt: null,
@@ -135,4 +139,5 @@ export function nextRound(run: RunState, budgetNow: number): void {
   // A program finished in an earlier round is simply built: it acts from this round's start. (Its old
   // completion time was on the previous round's clock, which could lie past this round's impact.)
   for (const p of run.programs) if (p.completedAt !== null) p.completedAt = 0;
+  for (const st of run.studies) if (st.endedAt !== null) st.endedAt = 0;
 }

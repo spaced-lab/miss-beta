@@ -124,3 +124,10 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 24. **Research backlog and claim registry (M).** Owner 2026-10-18. Every real-world number that is not yet checked
     against a source shows as UNVERIFIED in game text and lives in `docs/RESEARCH.md` with a method to check it;
     findings feed the Learning Center; ideas found unfeasible get their own Learning Center section. Status: next.
+
+25. **Pre-public checklist: licence, attribution, support (M).** Owner 2026-10-18. AGPL-3.0 as the licence model
+    (network use must offer source; credit kept), adopted 2026-10-18; a
+    NOTICE/AUTHORS file; an AGPL section 7 term preserving "Created by SPACED" on the credits screen; an ABOUT page
+    with "Created by Ridley DiSiena aka SPACED"; FUNDING.yml and a voluntary "Support this project" line once the
+    owner's Patreon is set up; CLA only if dual licensing is wanted; third-party attribution refined. Not legal
+    advice; the owner decides. Status: backlog, before going public.

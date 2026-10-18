@@ -1053,6 +1053,32 @@ DEMO: none
 NOTES: The standing pushes are in src/sim/resolver.ts (search "standing"); the programs in src/config/programs.json; their cinematics in src/render/cinematics/draw.ts (drawPushScene). Self-replication: von Neumann's universal constructor (1966) and the NASA 1980 summer study on a self-replicating lunar factory are the classic starting points. Mass drivers on asteroids: O'Neill's 1970s work. Gravitational and kinetic shepherding of small bodies: asteroid retrieval studies (Keck Institute 2012, NASA ARM 2013-2017).
 MORE: Freitas and Merkle 2004, "Kinematic Self-Replicating Machines" (free online); NASA CP-2255 (1982), "Advanced Automation for Space Missions"; Keck Institute for Space Studies 2012, "Asteroid Retrieval Feasibility Study" (free PDF).
 
+## D14 Feasibility studies and human years
+meta: related=[D13,G9,G4,F11]  game=[PROGRAMS > STUDIES tab, OPTIONS EXPERIMENTAL TECH]  tags=[research,speculative]
+### SIMPLE
+PICTURE: pic-studies  Three paths up a hill of steps; one reaches the top, two stop at a cross; a calendar shows many years.
+TEXT: New inventions take many years, and some never work. Try several at once.
+### BEGINNER
+Some defenses need machines nobody has built yet: a swarm of small space telescopes working as one, a nuclear reactor for deep space, a fusion engine. In the game you fund a study for each one. A study climbs steps of readiness, from an idea on paper to a machine ready to fly. Each step can bring good news or bad: a study can take longer than planned, or fail and stop. Real research works like this, which is why agencies fund several competing ideas at once. The game shows two clocks: human years, how long the real work would take, and game years, the shorter time the game gives it so you can see the result.
+### INTERMEDIATE
+Each study card has a readiness level today and the level a flight unit needs (NASA's Technology Readiness Levels run from 1, a basic idea, to 9, flown and proven). It has a median duration in human years with a spread, a cost, and a chance that the line works at all. When you start an attempt the game draws its fate once from the run's seed: how long it really takes, and whether it works. It reveals the fate one readiness step at a time, so a doomed line fails at a milestone partway and stops spending. Starting it again is a new attempt with a new draw. Funding competing lines in parallel raises the chance that at least one works: two lines at 25 and 20 percent give 1 - 0.75 x 0.8 = 40 percent, for both bills. EXPERIMENTAL cards (fusion) have physics seen in a laboratory but no path yet to a flight unit; they are off unless OPTIONS > EXPERIMENTAL TECH is on, and in SCI-FI every attempt works.
+### ADVANCED
+```
+fate draw (Rng seeded by runSeed:STUDY:id:attempt, in this order):  z ~ N(0,1);  works = U < p_success;  failStep ~ U{1..m}
+human years      T_h = T_median exp(sigma z)            game years  T_g = T_h x STUDY_TIME_COMPRESSION (0.3)
+milestones       m = TRL_needed - TRL_now (at least 1); progress k/m crosses one readiness level
+cost per year    max(STUDY_COST_MIN, cost_BUSD / (T_median x 0.3) x STUDY_BUDGET_PER_BUSD)
+parallel         P(at least one works) = 1 - prod(1 - p_i)
+effects          on success, the card's effects go through the program code: a HIVE network joins the
+                 discovery search (and the gauge), the 1 MWe reactor adds launch energy, the mothership raises
+                 tracking, fusion lines give REALISTIC runs a weaker fusion tug
+```
+Example: HIVE_1, median 6 human years, cost 0.5 billion: 1.8 game years at max(0.4, 0.5 / 1.8 x 2) = 0.56 budget a year.
+### EXPERT
+DEMO: none
+NOTES: src/sim/studies.ts (pure, tests/studies.test.ts), src/config/studies.json (cards), the STUDIES tab in src/render/views/programs.ts. The readiness levels on the cards are our estimates (UNVERIFIED, claim FS-1). The NIF result is claim FS-2 and the lattice-confinement experiments claim FS-3. Light stacking: N mirrors of diameter d collect like one of d sqrt(N), so 16 x 15 cm is like 60 cm.
+MORE: NASA NPR 7123.1 (Technology Readiness Level definitions); Mankins 1995, "Technology Readiness Levels" (NASA white paper); the NIF ignition papers (Abu-Shawareb et al. 2024, Physical Review Letters); Pines et al. 2020 and Steinetz et al. 2020, Physical Review C, on lattice confinement fusion; NASA Kilopower and Fission Surface Power project pages.
+
 ## G1 How to play
 meta: related=[G2,G3,G4,D2]  game=[TUTORIAL menu item, first run]  tags=[tutorial]
 ### SIMPLE

@@ -280,6 +280,46 @@
       "active": false,
       "note": "wide-field survey tuned for hyperbolic visitors; enables the interstellar round type",
       "since": 2100
+    },
+    {
+      "id": "HIVE_1",
+      "name": "HIVE SURVEY 1 (16 VISIBLE CUBESATS)",
+      "tag": "PROPOSED",
+      "kind": "GROUND_OPTICAL",
+      "observer": "HOME",
+      "vLim": 21.5,
+      "epsMin": 45,
+      "pCover": 0.9,
+      "active": false,
+      "note": "feasibility study HIVE_1: stacked small telescopes near the Earth's orbit, no daylight or weather",
+      "since": 2100
+    },
+    {
+      "id": "HIVE_2",
+      "name": "HIVE SURVEY 2 (64 NODES)",
+      "tag": "PROPOSED",
+      "kind": "GROUND_OPTICAL",
+      "observer": "HOME",
+      "vLim": 23,
+      "epsMin": 40,
+      "pCover": 0.95,
+      "active": false,
+      "note": "feasibility study HIVE_2: all-sky every few days, parallax on the first night",
+      "since": 2100
+    },
+    {
+      "id": "HIVE_3",
+      "name": "HIVE SURVEY 3 (INFRARED, VENUS AND L4/L5 LEGS)",
+      "tag": "SPECULATIVE",
+      "kind": "SPACE_IR",
+      "observer": "INNER",
+      "dRef": 60,
+      "rDeltaRef": 0.5,
+      "epsMin": 20,
+      "epsMax": 160,
+      "active": false,
+      "note": "feasibility study HIVE_3: albedo-blind, looks outward from inside the Earth's orbit",
+      "since": 2100
     }
   ]
 }
