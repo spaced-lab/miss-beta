@@ -28,6 +28,8 @@ export interface Settings {
   spectrum: boolean;
   /** In-game tips line in the HUD (2026-10-18). Optional so older saved settings stay valid. */
   tips?: boolean;
+  /** 2 once the NEON-default migration ran (2026-10-18); older records get NEON once, then keep the choice. */
+  colourV?: number;
 }
 
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
@@ -37,7 +39,7 @@ export const UNITS: readonly Units[] = ['SI', 'IMPERIAL'];
 export const LEARNING_LEVELS: readonly LearningLevel[] = ['SIMPLE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 const TEXT_SCALE: Record<TextSize, number> = { SMALL: 0.9, NORMAL: 1, LARGE: 1.15 };
 
-export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: false };
+export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: true, colourV: 2 };
 
 const KEY = 'settings';
 
@@ -54,12 +56,20 @@ export function isSettings(v: unknown): v is Settings {
     TEXT_SIZES.includes(o.textSize as TextSize) &&
     LEARNING_LEVELS.includes(o.learningLevel as LearningLevel) &&
     (o.spectrum === undefined || typeof o.spectrum === 'boolean') &&
-    (o.tips === undefined || typeof o.tips === 'boolean')
+    (o.tips === undefined || typeof o.tips === 'boolean') &&
+    (o.colourV === undefined || typeof o.colourV === 'number')
   );
 }
 
 export function loadSettings(): Settings {
-  return { ...DEFAULT_SETTINGS, ...loadJson(KEY, isSettings, DEFAULT_SETTINGS) };
+  const saved = loadJson(KEY, isSettings, DEFAULT_SETTINGS);
+  const st = { ...DEFAULT_SETTINGS, ...saved };
+  // NOTE: NEON became the default on 2026-10-18; a record saved before that switches to NEON once.
+  if (saved.colourV !== 2) {
+    st.spectrum = true;
+    st.colourV = 2;
+  }
+  return st;
 }
 
 export const SPECTRUM_UNLOCK_KEY = 'spectrum.unlocked';
@@ -80,7 +90,7 @@ export function saveSettings(st: Settings): void {
 export function applySettings(st: Settings, s: Surface): void {
   s.palette = PALETTES[st.colorMode];
   s.glowMode = st.glow;
-  // NEON colours are a plain choice since 2026-10-18 (owner): no unlock, monochrome stays the default.
+  // NEON colours are a plain choice since 2026-10-18 (owner): no unlock, and NEON is the default.
   s.spectrum = st.spectrum;
   setTextScale(TEXT_SCALE[st.textSize]);
 }

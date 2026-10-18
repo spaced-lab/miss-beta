@@ -16,6 +16,7 @@ import { SystemScreen } from './render/views/system';
 import { TitleScreen } from './render/views/title';
 import { importRun } from './game/savegame';
 import { applySettings, loadSettings } from './game/settings';
+import { loadBindings, remapFor, setBindings } from './game/keybinds';
 import { crtPass } from './render/crt';
 import { OptionsScreen } from './render/views/options';
 import { UiSfx } from './audio/ui';
@@ -28,6 +29,9 @@ function boot(): void {
 
   const surface = createSurface(canvas, PALETTES.PHOSPHOR, 'understroke');
   const keys = new Input(window);
+  const bindings = loadBindings();
+  setBindings(bindings);
+  keys.remap = remapFor(bindings);
   const settings = loadSettings();
   applySettings(settings, surface);
   const sfx = new UiSfx();

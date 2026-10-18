@@ -33,7 +33,7 @@ export const HELP_PAGES: readonly HelpPage[] = [
       'WANT TO EXPERIMENT FIRST? START A SANDBOX RUN FROM THE TITLE: UNLIMITED BUDGET, EVERY TECH.',
       '',
       'KEYS:  P PLANNER   T TECH   G PROGRAMS   V PLANET VIEW   E EVACUATE   R RESOLVE   X EXPORT SAVE',
-      '       SPACE PAUSE   [ ] WARP   S SCALE   Z RESET CAMERA   WHEEL ZOOM   DRAG PAN   ? THIS MANUAL',
+      '       SPACE PAUSE   [ ] WARP   S SCALE   Z RESET CAMERA   WHEEL ZOOM   DRAG PAN   M THIS MANUAL',
       '       EVENTS PAUSE THE CLOCK FOR A SHORT CINEMATIC (ANY KEY SKIPS). A BRIEF TYPES IN (ANY KEY CLEARS).',
     ],
   },
@@ -54,7 +54,7 @@ export const HELP_PAGES: readonly HelpPage[] = [
       '   A HIT ENDS THE RUN AND RECORDS IT ON THE LEADERBOARD.',
       '',
       'KEYS:  P PLANNER   T TECH   G PROGRAMS   V PLANET VIEW   E EVACUATE   R RESOLVE   X EXPORT SAVE',
-      '       SPACE PAUSE   [ ] WARP   S SCALE   Z RESET CAMERA   WHEEL ZOOM   DRAG PAN   ? THIS MANUAL',
+      '       SPACE PAUSE   [ ] WARP   S SCALE   Z RESET CAMERA   WHEEL ZOOM   DRAG PAN   M THIS MANUAL',
     ],
   },
   {
@@ -114,7 +114,7 @@ export const HELP_PAGES: readonly HelpPage[] = [
       'SCORE = LOG10(MT + 1) x 100 x (1 + 0.15 ROUND) x OUTCOME x (1 + EFFICIENCY + TIMING + STYLE).',
       '  CLEAN MISS 1.0, MARGINAL 0.8, PARTIAL 0.35. NO WARHEAD AND NO FRAGMENTS EARN STYLE.',
       '',
-      'LEARNING: ? OPENS THE LORE PANEL ON WHAT YOU ARE LOOKING AT (5 LEVELS, 1-5 OR TAB; F1-F4 RELATED);',
+      'LEARNING: ? OPENS THE LORE PANEL ON WHAT YOU ARE LOOKING AT (5 LEVELS, 1-5 OR TAB);',
       '  L OPENS THE LEARNING CENTER (56 TOPICS, SEARCH /, BOOKMARKS B, LABS WITH LIVE SLIDERS ON EXPERT TOPICS).',
       'TUTORIAL (TITLE): A GUIDED ROUND 0 ON A FIXED 100 M ROCK; TAB SKIPS. DAILY RUN: ONE SEED PER UTC DAY.',
       'OPTIONS (TITLE): COLOR MODE, SPECTRUM (UNLOCKS AFTER A CLEAN MISS), CRT, GLOW, SOUND, UNITS, REDUCE MOTION,',
@@ -189,7 +189,7 @@ export class HelpScreen implements Screen {
   exit(): void {}
   update(): void {
     const k = this.keys;
-    if (k.pressed('Escape') || k.pressed('F1')) {
+    if (k.pressed('Escape') || k.pressed('KeyM')) {
       this.router.go(this.returnTo);
       return;
     }

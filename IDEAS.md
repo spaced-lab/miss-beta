@@ -91,3 +91,19 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     ever stutters.
     Recommendation: LATER, one at a time when the owner notices the seam.
     Status 2026-10-18: quizzes DONE (Q in the Learning Center, 21 questions in config/quiz.json).
+
+19. **AUTOPLAY: watch and learn (M).** Owner 2026-10-18. A mode (title item and the AUTOPLAY key, A) where the
+    game plays itself: picks plans, funds programs, warps, and explains each choice in pop-up info panes held long
+    enough to read (about 0.25 s per word, minimum 4 s). Built on the attract-mode planner. Status: BUILDING.
+
+20. **SUPER-DUPER-DEMO (M).** Owner 2026-10-18. AUTOPLAY that keeps accelerating; after 100 games it turns into
+    blinking-light montage screens (data centres, global maps of super-intelligence activations, all power routed
+    to the simulation, off-world compute, a time portal pushing nanobots back through a wormhole, hints of tech
+    that is not in the game), faster and faster, then a pause and a green teletype window: "STRANGE GAME. THE ONLY
+    OPTION IS TO KEEP WORKING TO PROTECT YOUR PLANET. SHALL WE PLAY A GAME OF CHESS, OR WILL YOU HELP US SAVE THE
+    WORLD?" Every montage line FICTION in character.
+
+21. **Robot voice-overs and game sounds (M).** Owner 2026-10-18. Canned lo-fi voice lines ("LAUNCHING", "BUILDING",
+    "IMPACT IMMINENT", outcomes) rendered offline with Kokoro (Apache-2.0) British voices bf_emma and bm_fable,
+    vocoded through a synth chain, compressed small; OPTIONS VOICE OFF / FEMALE / MALE. PERIMETER's lo-fi cues in
+    the main game and the menus, with their own OPTIONS switch.

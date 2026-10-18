@@ -16,6 +16,11 @@ export class Input {
   private keyEvents: string[] = [];
   /** When true, keydown events are not prevented for text keys (console typing); Space still is. */
   textMode = false;
+  /** Physical -> logical key codes from OPTIONS > KEYS (game/keybinds.ts); off while typing text. */
+  remap: Map<string, string> = new Map();
+  private code(c: string): string {
+    return this.textMode ? c : this.remap.get(c) ?? c;
+  }
   private wheelAcc = 0;
   private dragAcc = { x: 0, y: 0 };
   private dragging = false;
@@ -25,15 +30,19 @@ export class Input {
     target.addEventListener('keydown', (e) => {
       // Keep the page from scrolling or triggering browser shortcuts on game keys.
       if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
-      if (!this.down.has(e.code)) this.edge.add(e.code);
-      this.down.add(e.code);
+      // NOTE: F keys are prevented only when the player bound one (otherwise F5 still reloads the page).
+      if (this.remap.has(e.code) && e.code.startsWith('F')) e.preventDefault();
+      const code = this.code(e.code);
+      this.lastRaw = e.code;
+      if (!this.down.has(code)) this.edge.add(code);
+      this.down.add(code);
       if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') this.keyEvents.push(e.key);
       if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {
         this.typedBuffer = (this.typedBuffer + e.key.toUpperCase()).slice(-24);
         for (const l of this.listeners) l(e.key.toUpperCase());
       }
     });
-    target.addEventListener('keyup', (e) => this.down.delete(e.code));
+    target.addEventListener('keyup', (e) => this.down.delete(this.code(e.code)));
     target.addEventListener('blur', () => {
       this.down.clear();
       this.dragging = false;
@@ -138,6 +147,9 @@ export class Input {
   anyKeyPressed(): boolean {
     return this.edge.size > 0;
   }
+
+  /** The physical code of the latest key-down (OPTIONS > KEYS listens to this while waiting for a key). */
+  lastRaw = '';
 
   /** True on the first frame a key is down. */
   pressed(code: string): boolean {

@@ -63,6 +63,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Decisions where the plan was silent
 
+- Keys (2026-10-18): rebinding is a swap at the Input layer (physical -> logical code), so screens keep testing
+  default codes and no key is ever lost; Escape and arrows are not bindable. MANUAL defaults to M.
+
 - Labs batch A (2026-10-18): LAB_QSTAR adds impactor m and U sliders (the registry's "Q from an impactor
   overlay" needs them) and LAB_TRACTOR adds body D and a tier slider for the beam / laser / driver (the
   tractor's m_sc and d/R go through the new `gravityTractorForce`); EDUCATION.md Section 7 updated. The nuclear
@@ -191,4 +194,7 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    blend onto their new orbit. Still queued: attachable kits, an L4/L5 picket line, planner/program-row
    click-to-learn, materialize frames on overlays, orbit-plane grid fade under tilt, discovery in the worker;
    inert program effects warheadBuildYears and damageMult; more labs polish.
+5b. Owner queue 2026-10-18 (in order): NEXT colours (NEON default, cyan text, pink/purple headers), assignable
+   keys with MANUAL on M, planner overlap fix (all done); BACKLOG IDEAS 19 AUTOPLAY, 20 SUPER-DUPER-DEMO,
+   21 voice-overs (Kokoro bf_emma / bm_fable, vocoded) and game sounds; then item 5's queue.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.

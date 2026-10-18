@@ -9,6 +9,8 @@ import { topicForOption } from '../../game/loreLinks';
 import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, TEXT_SIZES, UNITS, type Settings } from '../../game/settings';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
+import { uiColors } from '../palettes';
+import { bind, bindableCode, codeLabel, defaultBindings, KEY_ACTIONS, loadBindings, remapFor, saveBindings, setBindings, type KeyBindings } from '../../game/keybinds';
 import { drawText, drawTextFit } from '../vectorFont';
 
 interface Row {
@@ -26,6 +28,11 @@ export class OptionsScreen implements Screen {
   /** Set by main: open the Learning Center on a topic (Esc there returns here). */
   openCenter: ((id: string) => void) | null = null;
   private readonly rows: Row[];
+  /** OPTIONS > KEYS: open, the selected action, and whether the next key press binds it. */
+  private keysOpen = false;
+  private keySel = 0;
+  private waiting = false;
+  private bindings: KeyBindings = loadBindings();
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings) {
     const st = settings;
     this.rows = [
@@ -38,6 +45,7 @@ export class OptionsScreen implements Screen {
       { label: 'UNITS', value: () => st.units, change: (d) => (st.units = cycle(UNITS, st.units, d)), note: 'DISPLAY ONLY. THE SIMULATION IS SI INSIDE. IMPERIAL SHOWS MILES AND MPH WHERE A READOUT SUPPORTS IT.' },
       { label: 'REDUCE MOTION', value: () => (st.reduceMotion ? 'ON' : 'OFF'), change: () => (st.reduceMotion = !st.reduceMotion), note: 'NO FLICKER, NO GLITCH TEARS, NO SWEEPS.' },
       { label: 'TEXT SIZE', value: () => st.textSize, change: (d) => (st.textSize = cycle(TEXT_SIZES, st.textSize, d)), note: 'SCALES EVERY LABEL. LARGE MAY WRAP LONG READOUTS OFF SCREEN ON NARROW WINDOWS.' },
+      { label: 'KEYS', value: () => 'ASSIGN', change: () => (this.keysOpen = true), note: 'REBIND THE GAME KEYS. MANUAL IS M BY DEFAULT (FUNCTION KEYS ARE AWKWARD ON MAC KEYBOARDS); BIND IT TO F1 IF YOU LIKE.' },
       { label: 'LEARNING LEVEL', value: () => st.learningLevel, change: (d) => (st.learningLevel = cycle(LEARNING_LEVELS, st.learningLevel, d)), note: 'HOW THE LORE PANEL EXPLAINS THINGS (LEARNING CENTER, M9): PICTURES, PLAIN WORDS, SOME MATH, FORMULAS, EVERYTHING.' },
     ];
   }
@@ -45,8 +53,76 @@ export class OptionsScreen implements Screen {
   exit(): void {
     saveSettings(this.settings);
   }
+  private applyBindings(b: KeyBindings): void {
+    this.bindings = b;
+    saveBindings(b);
+    setBindings(b);
+    this.keys.remap = remapFor(b);
+  }
+
+  private updateKeys(): void {
+    const k = this.keys;
+    const n = KEY_ACTIONS.length;
+    if (this.waiting) {
+      if (k.pressed('Escape')) this.waiting = false;
+      else if (k.anyKeyPressed() && bindableCode(k.lastRaw)) {
+        const a = KEY_ACTIONS[this.keySel];
+        if (a) this.applyBindings(bind(this.bindings, a.id, k.lastRaw));
+        this.waiting = false;
+      }
+      return;
+    }
+    if (k.pressed('Escape')) {
+      this.keysOpen = false;
+      return;
+    }
+    if (k.pressed('ArrowUp')) this.keySel = (this.keySel + n - 1) % n;
+    if (k.pressed('ArrowDown')) this.keySel = (this.keySel + 1) % n;
+    const click = k.takeClick();
+    if (click) {
+      const i = this.rowYs.findIndex((y) => click.y >= y - 4 && click.y < y + 18);
+      if (i >= 0) {
+        if (i === this.keySel) this.waiting = true;
+        this.keySel = i;
+      }
+    }
+    if (k.pressed('Enter')) this.waiting = true;
+    if (k.pressed('Backspace')) {
+      const a = KEY_ACTIONS[this.keySel];
+      if (a) this.applyBindings(bind(this.bindings, a.id, a.def));
+    }
+    if (k.pressed('Delete')) this.applyBindings(defaultBindings());
+  }
+
+  private renderKeys(): void {
+    const s = this.s;
+    const ui = uiColors(s.palette, s.spectrum);
+    const m = 24;
+    s.clear();
+    drawText(s, 'OPTIONS  KEYS', s.width / 2, m + 6, 20, { align: 'center', color: ui.title, glow: 1.5 });
+    const x = Math.max(m, s.width / 2 - 260);
+    const step = Math.max(18, Math.min(26, (s.height - 170) / KEY_ACTIONS.length));
+    let y = m + 50;
+    this.rowYs = [];
+    KEY_ACTIONS.forEach((a, i) => {
+      this.rowYs.push(y);
+      const sel = i === this.keySel;
+      const code = this.bindings[a.id] ?? a.def;
+      if (sel) drawText(s, '>', x - 22, y, 12, { color: ui.sel, glow: 1.6 });
+      drawText(s, a.label, x, y, 12, { color: sel ? ui.sel : ui.text, glow: sel ? 1.6 : 0.6 });
+      const val = sel && this.waiting ? 'PRESS A KEY...' : codeLabel(code) + (code === a.def ? '' : `   (DEFAULT ${codeLabel(a.def)})`);
+      drawText(s, val, x + 300, y, 12, { color: sel ? ui.sel : ui.sub, glow: sel ? 1.6 : 0.6 });
+      y += step;
+    });
+    drawTextFit(s, 'UP / DOWN SELECT    ENTER OR CLICK THEN PRESS A KEY    BACKSPACE DEFAULT    DELETE RESET ALL    ESC BACK    A KEY ALREADY IN USE SWAPS', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: ui.dim, glow: 0 });
+  }
+
   update(): void {
     const k = this.keys;
+    if (this.keysOpen) {
+      this.updateKeys();
+      return;
+    }
     if (k.pressed('Escape') || k.pressed('KeyO')) {
       this.router.go('title');
       return;
@@ -87,25 +163,31 @@ export class OptionsScreen implements Screen {
     }
   }
   render(): void {
+    if (this.keysOpen) {
+      this.renderKeys();
+      return;
+    }
     const s = this.s;
     const p = s.palette;
     s.clear();
     const m = 24;
-    drawText(s, 'OPTIONS', s.width / 2, m + 6, 20, { align: 'center', color: p.hot, glow: 1.5 });
+    const ui = uiColors(p, s.spectrum);
+    drawText(s, 'OPTIONS', s.width / 2, m + 6, 20, { align: 'center', color: ui.title, glow: 1.5 });
     let y = m + 60;
     const x = Math.max(m, s.width / 2 - 320);
     this.rowYs = [];
     this.valueX = x + 300;
+    const step = Math.max(24, Math.min(34, (s.height - 200) / this.rows.length));
     this.rows.forEach((r, i) => {
       this.rowYs.push(y);
       const sel = i === this.sel;
-      if (sel) drawText(s, '>', x - 24, y, 14, { color: p.hot, glow: 1.5 });
-      drawText(s, r.label, x, y, 14, { color: sel ? p.hot : p.ink, glow: sel ? 1.2 : 0.8 });
-      drawText(s, `<  ${r.value()}  >`, x + 300, y, 14, { color: sel ? p.hot : p.ink, glow: sel ? 1.2 : 0.8 });
-      y += 34;
+      if (sel) drawText(s, '>', x - 24, y, 14, { color: ui.sel, glow: 1.6 });
+      drawText(s, r.label, x, y, 14, { color: sel ? ui.sel : ui.text, glow: sel ? 1.6 : 0.8 });
+      drawText(s, `<  ${r.value()}  >`, x + 300, y, 14, { color: sel ? ui.sel : ui.sub, glow: sel ? 1.6 : 0.8 });
+      y += step;
     });
     const row = this.rows[this.sel];
-    if (row) drawText(s, row.note, s.width / 2, y + 20, 10, { align: 'center', color: p.dim, glow: 0 });
+    if (row) drawText(s, row.note, s.width / 2, y + 20, 10, { align: 'center', color: ui.head, glow: 0 });
     drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT OR CLICK CHANGE    <L> LEARN ABOUT THIS    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

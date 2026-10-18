@@ -24,7 +24,7 @@ npm run dev                     # or the dev server on http://localhost:5173 (#m
 
 The title menu: NEW RUN, SANDBOX RUN (learn with unlimited budget), DAILY RUN, TUTORIAL (a guided round 0),
 CONTINUE, PERIMETER, LEARN, CODEX, LEADERBOARD, HOW TO PLAY, OPTIONS. In a run: `?` opens the lore panel on
-what you are looking at, `L` the Learning Center, F1 the manual, backquote the console.
+what you are looking at, `L` the Learning Center, `M` the manual (keys are assignable in OPTIONS > KEYS), backquote the console.
 
 PERIMETER: arrows or A/D move the launcher around the planet, Space fires, Enter or Shift fires a pulse that
 clears the field (earned per 14 kills), `<` launches a seeker missile that homes on the nearest threat and

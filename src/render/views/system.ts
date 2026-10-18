@@ -12,6 +12,7 @@
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
 import { KNOBS } from '../../config/knobs';
+import { keyName } from '../../game/keybinds';
 import { budgetAt, spend } from '../../game/economy';
 import { recordRun } from '../../game/leaderboard';
 import { createRun, nextRound, type RunState } from '../../game/run';
@@ -328,7 +329,7 @@ export class SystemScreen implements Screen {
       drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
       ly += lineH;
     }
-    drawTextFit(s, `<TAB> SKIP TUTORIAL   <?> LORE ${step.lore.join(' ')}   <L> LEARNING CENTER   <F1> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.ink, glow: 0.3, alpha });
+    drawTextFit(s, `<TAB> SKIP TUTORIAL   <?> LORE ${step.lore.join(' ')}   <${keyName('LEARN')}> LEARNING CENTER   <${keyName('MANUAL')}> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.ink, glow: 0.3, alpha });
   }
 
   /** The next NEW RUN is a sandbox (set by the title before routing here). */
@@ -655,7 +656,7 @@ export class SystemScreen implements Screen {
       this.lore.onCenter(this.contextTopic(), this.settings.learningLevel as Level);
       return;
     }
-    if (k.pressed('F1')) {
+    if (k.pressed('KeyM')) {
       this.router.go('help');
       return;
     }
@@ -1385,10 +1386,10 @@ export class SystemScreen implements Screen {
 
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
     this.hit(m, m, 200, 40, 'G2', 'CLOCK AND WARP');
-    // An always-visible way into help: a small box under the readouts, clickable (F1 also opens it).
+    // An always-visible way into help: a small box under the readouts, clickable (the MANUAL key, M by default, also opens it).
     const hb = { x: s.width - m - 150, y: m + 44, w: 150, h: 22 };
     s.stroke([hb.x, hb.y, hb.x + hb.w, hb.y, hb.x + hb.w, hb.y + hb.h, hb.x, hb.y + hb.h], { closed: true, color: p.dim, glow: 0 });
-    drawText(s, 'F1 MANUAL  ? LORE', hb.x + hb.w / 2, hb.y + 6, 9, { align: 'center', color: p.ink, glow: 0.3 });
+    drawText(s, `${keyName('MANUAL')} MANUAL  ${keyName('LORE')} LORE`, hb.x + hb.w / 2, hb.y + 6, 9, { align: 'center', color: p.ink, glow: 0.3 });
     this.hit(hb.x, hb.y, hb.w, hb.h, 'HELP', 'THE MANUAL');
     this.hit(m, m + 44, 240, 20, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
     // The clock / warp / budget column on the left; the centred readouts use the space to its right.
@@ -1430,7 +1431,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawTextFit(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   I TILT   Z RESET   X EXPORT   ? LORE   L LEARN   F1 MANUAL   ESC TITLE', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `<${keyName('PLANNER')}> PLANNER   <${keyName('TECH')}> TECH   <${keyName('PROGRAMS')}> PROGRAMS   <${keyName('PLANET')}> PLANET   <${keyName('EVACUATE')}> EVACUATE   <${keyName('PAUSE')}> PAUSE   ${keyName('WARP_DOWN')} ${keyName('WARP_UP')} WARP   ${keyName('RESOLVE')} RESOLVE   ${keyName('SCALE')} SCALE   ${keyName('TILT')} TILT   Z RESET   X EXPORT   ${keyName('LORE')} LORE   ${keyName('LEARN')} LEARN   ${keyName('MANUAL')} MANUAL   ${keyName('AUTOPLAY')} WATCH   ESC TITLE`, s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {

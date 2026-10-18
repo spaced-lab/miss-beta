@@ -10,7 +10,7 @@ import { topicForTrack } from '../../game/loreLinks';
 import { canUnlock, TECH, TRACKS, unlock, type TechNode } from '../../game/tech';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { withAlpha } from '../palettes';
+import { uiColors, withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class TechOverlay {
@@ -88,7 +88,7 @@ export class TechOverlay {
     const m = 16;
     s.ctx.fillStyle = withAlpha(p.bg, 0.9);
     s.ctx.fillRect(0, 0, s.width, s.height);
-    drawText(s, `TECH TREE   RESEARCH ${run.research}`, m, m, 14, { color: p.hot, glow: 1.2 });
+    drawText(s, `TECH TREE   RESEARCH ${run.research}`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     // Twelve tracks need ~170 px each to read; narrower windows get two rows of six.
     const perRow = (s.width - 2 * m) / TRACKS.length < 170 ? Math.ceil(TRACKS.length / 2) : TRACKS.length;
     const colW = (s.width - 2 * m) / perRow;

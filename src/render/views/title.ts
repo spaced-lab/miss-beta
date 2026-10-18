@@ -17,6 +17,7 @@ import type { Router, Screen } from '../../game/screen';
 import type { SystemScreen } from './system';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
+import { uiColors } from '../palettes';
 import { drawText } from '../vectorFont';
 
 interface Item {
@@ -210,19 +211,20 @@ export class TitleScreen implements Screen {
     }
 
     const big = Math.min(72, s.width / 9);
-    drawText(s, 'MISS ∝ β', cx, cy - big * 1.9, big, { align: 'center', glow: 2.2, color: p.hot, width: 2 });
+    drawText(s, 'MISS ∝ β', cx, cy - big * 1.9, big, { align: 'center', glow: 2.2, color: uiColors(p, s.spectrum).title, width: 2 });
     drawText(s, 'MOMENTUM  IMPULSE  SAILS  SLINGSHOTS', cx, cy - big * 0.55, 12, { align: 'center' });
     drawText(s, 'BALLISTIC ENGAGEMENT OF THREATENING ASTEROIDS', cx, cy - big * 0.55 + 20, 12, { align: 'center' });
 
     let y = cy + 4;
+    const ui = uiColors(p, s.spectrum);
     this.itemRows.length = 0;
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
       if (!it) continue;
       const selected = i === this.sel;
       const label = it.label + (it.action ? '' : '   [BUILDING]') + (it.label === 'CONTINUE' ? (hasSavedRun() ? '   (SAVED RUN FOUND)' : '   (NO SAVE)') : '');
-      if (selected) drawText(s, '>', cx - 190, y, 16, { color: p.hot, glow: 1.5 });
-      const wdt = drawText(s, label, cx - 160, y, 15, { color: selected ? p.hot : it.action ? p.ink : p.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
+      if (selected) drawText(s, '>', cx - 190, y, 16, { color: ui.sel, glow: 1.6 });
+      const wdt = drawText(s, label, cx - 160, y, 15, { color: selected ? ui.sel : it.action ? ui.text : ui.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
       this.itemRows.push({ x0: cx - 200, x1: cx - 160 + wdt + 10, y });
       y += 26;
     }

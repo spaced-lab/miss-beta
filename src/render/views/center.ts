@@ -15,7 +15,7 @@ import { bookmarks, lore, progress, recordRead, toggleBookmark } from '../../lor
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawPicture } from '../pictureCache';
-import { withAlpha } from '../palettes';
+import { uiColors, withAlpha } from '../palettes';
 import { modelForTopic } from '../../lore/models/catalog';
 import { answer, current as quizCurrent, next as quizNext, startQuiz, type QuizState } from '../../lore/quiz';
 import { drawModel } from '../../lore/models/viewer';
@@ -306,12 +306,16 @@ export class CenterScreen implements Screen {
     const model = lw === 0 && rw >= 260 && !dataPanel ? modelForTopic(this.topicId) : null;
     const free = lw === 0 && !model && !dataPanel ? rw : 0;
     const readCount = this.index ? this.index.topics.filter((t) => progress[t.id]).length : 0;
-    drawText(s, 'LEARNING CENTER', m, m, 16, { color: p.hot, glow: 1.5 });
-    drawText(s, `${readCount} OF ${this.index?.topics.length ?? 0} TOPICS READ   LEVEL ${this.level}   VIEW ${this.view}${this.search ? `   SEARCH "${this.search.toUpperCase()}"` : ''}`, m + 270, m + 3, 10, { color: p.dim, glow: 0 });
+    const ui = uiColors(p, s.spectrum);
+    drawText(s, 'LEARNING CENTER', m, m, 16, { color: ui.title, glow: 1.5 });
+    let hx = m + 270;
+    hx += drawText(s, `${readCount} OF ${this.index?.topics.length ?? 0} TOPICS READ   `, hx, m + 3, 10, { color: ui.dim, glow: 0 });
+    hx += drawText(s, `LEVEL ${this.level}`, hx, m + 3, 10, { color: ui.sub, glow: 0.6 });
+    drawText(s, `   VIEW ${this.view}${this.search ? `   SEARCH "${this.search.toUpperCase()}"` : ''}`, hx, m + 3, 10, { color: ui.dim, glow: 0 });
     let tx = s.width - m - 120;
     for (const lv of LEVELS) {
       const on = lv === this.level;
-      drawText(s, LEVEL_TABS[lv], tx, m + 2, 12, { color: on ? p.hot : p.ink, glow: on ? 1.2 : 0.3 });
+      drawText(s, LEVEL_TABS[lv], tx, m + 2, 12, { color: on ? ui.head : ui.sub, glow: on ? 1.4 : 0.3 });
       this.tabHits.push({ x: tx, y: m + 2, level: lv });
       tx += 22;
     }
@@ -328,7 +332,7 @@ export class CenterScreen implements Screen {
     for (let i = start; i < Math.min(list.length, start + rows); i++) {
       const t = list[i] as TopicMeta;
       if (t.group !== lastGroup && this.view === 'TOPICS' && !this.search) {
-        drawText(s, cutWords(`${t.group}  ${groups[t.group] ?? ''}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: p.dim, glow: 0 });
+        drawText(s, cutWords(`${t.group}  ${groups[t.group] ?? ''}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: ui.sub, glow: 0.3 });
         lastGroup = t.group;
         y += lineH;
         if (y > s.height - 60) break;
@@ -338,7 +342,7 @@ export class CenterScreen implements Screen {
       this.rowHits.push({ y: y - 2, h: lineH, idx: i });
       const read = progress[t.id];
       const mark = bookmarks.includes(t.id) ? '*' : read ? (LEVEL_TABS[read as Level] ?? '.') : ' ';
-      drawText(s, cutWords(`${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.2 });
+      drawText(s, cutWords(`${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: on ? ui.sel : ui.text, glow: on ? 1.6 : 0.2 });
       y += lineH;
     }
     // Content.
@@ -346,7 +350,7 @@ export class CenterScreen implements Screen {
     const c = this.chunk;
     let cy = top;
     if (c) {
-      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + free,  { color: this.focus === 'CONTENT' ? p.hot : p.ink, glow: 1 });
+      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + free,  { color: this.focus === 'CONTENT' ? ui.title : ui.head, glow: 1.2 });
       cy += 22;
       if (c.pictureId && c.level === 'SIMPLE') {
         // The picture may spill into the empty right pane; the prose below stays at reading width.
@@ -361,10 +365,10 @@ export class CenterScreen implements Screen {
       const maxLines = Math.floor((s.height - 50 - cy) / 13);
       for (const l of this.lines.slice(this.scroll, this.scroll + maxLines)) {
         const txt = substitute(l.text);
-        if (l.kind === 'head') drawTextFit(s, txt.toUpperCase(), cx0, cy, 10, cw, { color: p.hot, glow: 0.8 });
+        if (l.kind === 'head') drawTextFit(s, txt.toUpperCase(), cx0, cy, 10, cw, { color: ui.head, glow: 0.9 });
         // Code and tables are never re-wrapped (columns would break): they may use the empty right pane, else shrink.
-        else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, cx0 + 6, cy, 8, cw + free - 6, { color: p.ink, glow: 0.2, lower: true });
-        else drawText(s, txt, cx0, cy, 9, { color: p.ink, glow: 0.3, lower: true });
+        else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, cx0 + 6, cy, 8, cw + free - 6, { color: ui.text, glow: 0.2, lower: true });
+        else drawText(s, txt, cx0, cy, 9, { color: ui.text, glow: 0.3, lower: true });
         cy += 13;
       }
       if (this.lines.length > this.scroll + maxLines) drawTextFit(s, `... ${this.lines.length - this.scroll - maxLines} MORE (TAB TO CONTENT, DOWN)`, cx0, cy, 9, cw, { color: p.dim, glow: 0 });

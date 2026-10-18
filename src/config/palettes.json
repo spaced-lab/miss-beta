@@ -60,6 +60,15 @@
       "lineWidth": 1.5
     }
   },
+  "neonUi": {
+    "_comment": "NEON screen text (owner 2026-10-18): reading text cyan, selection brighter cyan with glow, titles pink, levels and group headers purple.",
+    "text": "#4FD8FF",
+    "sel": "#C8FAFF",
+    "title": "#FF5FD2",
+    "head": "#FF8AE2",
+    "sub": "#B48CFF",
+    "dim": "#2A6F86"
+  },
   "spectrum": {
     "threat": "#FFB000",
     "danger": "#FF3B3B",

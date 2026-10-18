@@ -26,7 +26,7 @@ export interface Palette {
 
 import palettesJson from '../config/palettes.json';
 
-const RAW = palettesJson as { modes: Record<string, { bg: string; ink: string; dim: string; hot: string; alt?: string; glow: boolean; lineWidth: number }>; spectrum: Record<Role, string>; roleStyle: Record<Role, { dash: number[]; marker: string }> };
+const RAW = palettesJson as { neonUi: NeonUi; modes: Record<string, { bg: string; ink: string; dim: string; hot: string; alt?: string; glow: boolean; lineWidth: number }>; spectrum: Record<Role, string>; roleStyle: Record<Role, { dash: number[]; marker: string }> };
 
 /** Palettes are data (GAME_PLAN 24.4): config/palettes.json, typed here. */
 export const PALETTES: Readonly<Record<ColorMode, Palette>> = Object.fromEntries(
@@ -37,6 +37,25 @@ export const PALETTES: Readonly<Record<ColorMode, Palette>> = Object.fromEntries
 ) as Record<ColorMode, Palette>;
 
 export const SPECTRUM: Readonly<Record<Role, string>> = RAW.spectrum;
+
+/** Screen-text colours for menus and reading panes. */
+export interface NeonUi {
+  readonly text: string;
+  readonly sel: string;
+  readonly title: string;
+  readonly head: string;
+  readonly sub: string;
+  readonly dim: string;
+}
+
+/**
+ * Text colours for a screen: NEON (spectrum on, a dark mode) gives cyan reading text, a brighter cyan selection,
+ * pink titles and purple sub-headers; MONO maps everything back onto the mode's ink / hot / dim.
+ */
+export function uiColors(p: Palette, spectrum: boolean): NeonUi {
+  if (spectrum && p.glow) return RAW.neonUi;
+  return { text: p.ink, sel: p.hot, title: p.hot, head: p.hot, sub: p.dim, dim: p.dim };
+}
 
 /** Each semantic role is paired with a line style (dash pattern, marker) so colour is never the only cue. */
 export const ROLE_STYLE: Readonly<Record<Role, { dash: readonly number[]; marker: string }>> = RAW.roleStyle;

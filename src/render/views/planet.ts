@@ -14,7 +14,7 @@ import type { RoundResult } from '../../sim/resolver';
 import { hashSeed, Rng } from '../../sim/rng';
 import { planetById, type World } from '../../sim/world';
 import type { Surface } from '../canvas';
-import { withAlpha } from '../palettes';
+import { uiColors, withAlpha } from '../palettes';
 import { wireSphere } from '../wire';
 import { drawText, drawTextFit } from '../vectorFont';
 
@@ -89,7 +89,7 @@ export class PlanetOverlay {
     }
 
     const m = 16;
-    drawText(s, 'PLANET VIEW  HOME', m, m, 14, { color: p.hot, glow: 1.2 });
+    drawText(s, 'PLANET VIEW  HOME', m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     if (res) {
       const hits = res.outcomes.filter((o) => o.hits).length;
       const bodies = res.outcomes.length;

@@ -26,7 +26,7 @@ import { planetById, type World } from '../../sim/world';
 import { formatCountdown } from '../../ui/hud';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { withAlpha } from '../palettes';
+import { uiColors, withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export interface PlannerSession {
@@ -361,15 +361,19 @@ export class PlannerOverlay {
     const top = m + 40;
     const bottom = H - m - 40;
     const leftW = Math.min(W * 0.46, 600);
-    drawText(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 ? '  <TAB> NEXT TARGET' : ''}`, m, m, 14, { color: p.hot, glow: 1.2 });
+    drawText(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 ? '  <TAB> NEXT TARGET' : ''}`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     drawText(s, this.status, m, m + 20, 11, { color: p.dim, glow: 0 });
 
     const px0 = m;
     const py0 = top + 10;
     const pw = leftW - m;
-    const ph = bottom - py0 - 30;
+    // NOTE: the space under the plot is reserved from what it holds (ticks, axis label, flyby rows) so the
+    // flyby list never runs into the footer hint (owner screenshot 2026-10-18).
+    const flyRows = this.flybyRes ? Object.keys(this.flybyRes.windows).length + 1 : this.extraStatus ? 1 : 0;
+    const under = 32 + flyRows * 12;
+    const ph = Math.max(80, bottom - py0 - under);
     s.stroke([px0, py0, px0 + pw, py0, px0 + pw, py0 + ph, px0, py0 + ph], { closed: true, color: p.dim, glow: 0 });
-    drawText(s, 'LAUNCH (YEARS FROM NOW)', px0 + pw / 2, py0 + ph + 8, 10, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'LAUNCH (YEARS FROM NOW)', px0 + pw / 2, py0 + ph + 17, 10, { align: 'center', color: p.dim, glow: 0 });
     drawText(s, 'ARRIVAL', px0, py0 - 14, 10, { color: p.dim, glow: 0 });
     const g = this.grid;
     if (g && g.nL > 0 && g.nA > 0) {
@@ -420,7 +424,7 @@ export class PlannerOverlay {
 
     // FLYBY WINDOWS: feasible flyby dates per planet, under the plot.
     if (this.flybyRes) {
-      let wy = py0 + ph + 22;
+      let wy = py0 + ph + 32;
       drawText(s, `FLYBY WINDOWS  ${this.extraStatus}`, px0, wy, 10, { color: p.dim, glow: 0 });
       wy += 13;
       for (const [pid, times] of Object.entries(this.flybyRes.windows)) {
@@ -429,7 +433,7 @@ export class PlannerOverlay {
         wy += 12;
       }
     } else if (this.extraStatus) {
-      drawText(s, this.extraStatus, px0, py0 + ph + 22, 10, { color: p.dim, glow: 0 });
+      drawText(s, this.extraStatus, px0, py0 + ph + 32, 10, { color: p.dim, glow: 0 });
     }
 
     const lx = leftW + m;
@@ -441,7 +445,8 @@ export class PlannerOverlay {
     this.cands.forEach((c, idx) => {
       const selected = idx === this.sel;
       this.planYs.push({ y0: ly - 4, idx });
-      const col = selected ? p.hot : p.ink;
+      const ui = uiColors(p, s.spectrum);
+      const col = selected ? ui.sel : ui.text;
       const first = c.missions[0];
       if (!first) return;
       const v = c.verdict;
@@ -465,7 +470,7 @@ export class PlannerOverlay {
       ];
       if (selected) s.stroke([lx - 8, ly - 4, lx - 8, ly + lines.length * 13 + 2], { color: p.hot, glow: 1.2, width: 2 });
       for (const l of lines) {
-        drawText(s, l, lx, ly, 10, { color: col, glow: selected ? 0.8 : 0.3 });
+        drawText(s, l, lx, ly, 10, { color: col, glow: selected ? 1.4 : 0.3 });
         ly += 13;
       }
       ly += 6;

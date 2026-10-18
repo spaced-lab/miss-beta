@@ -12,7 +12,7 @@ import { NETWORKS } from '../../sim/detection';
 import { programBurn, programById } from '../../sim/programs';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { withAlpha } from '../palettes';
+import { uiColors, withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class ProgramsOverlay {
@@ -74,7 +74,7 @@ export class ProgramsOverlay {
     s.ctx.fillStyle = withAlpha(p.bg, 0.88);
     s.ctx.fillRect(0, 0, s.width, s.height);
     const burn = programBurn(run.programs);
-    drawText(s, `PROGRAMS   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS)`, m, m, 14, { color: p.hot, glow: 1.2 });
+    drawText(s, `PROGRAMS   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS)`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     // Columns are placed by x, not by padding, so a long tag (SPECULATIVE) never runs into YEARS.
     const cTag = m + 300, cYr = m + 420, cCost = m + 470, bx = m + 540, bw = 150;
     this.fundX = bx;
