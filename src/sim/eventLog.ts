@@ -10,10 +10,11 @@ import { formatCountdown } from '../ui/hud';
 export type SimEventRecord =
   | { t: number; kind: 'LAUNCH'; missionId: string; c3: number; massKg: number; tier: number }
   | { t: number; kind: 'IMPACT'; missionId: string; U: number; beta: number; dvAlong: number; dvTotal: number; massKg: number; targetId?: string; qRatio?: number; betaKnownAt?: number }
-  | { t: number; kind: 'IMPACT_MISS'; missionId: string; offset: number }
+  | { t: number; kind: 'IMPACT_MISS'; missionId: string; offset: number; reason?: string }
   | { t: number; kind: 'RETARGET'; missionId: string; targetId: string; dv: number; remaining: number }
   | { t: number; kind: 'SPLIT'; missionId: string; count: number; targets: string[] }
   | { t: number; kind: 'BETA_ASSESSED'; missionId: string; beta: number; marginRadii: number }
+  | { t: number; kind: 'PI'; missionId: string; targetId: string; D: number; damageMt: number; ok: boolean; reason: string }
   | { t: number; kind: 'PUSH'; missionId: string; targetId: string; method: string; force: number; dv: number; duration: number; viable: boolean; note: string }
   | { t: number; kind: 'NUKE'; missionId: string; targetId: string; mode: string; yieldMt: number; dv: number; qRatio: number; fuzed: boolean; pulses: number }
   | { t: number; kind: 'FRAGMENTATION'; missionId: string; targetId: string; qRatio: number; count: number; largestD: number; vEj: number; escaped: number }
@@ -42,13 +43,15 @@ export function formatEvent(e: SimEventRecord, tImpact: number, now?: number): s
         : `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ${e.beta.toFixed(2)}  dV ${(e.dvTotal * 1000).toFixed(2)} MM/S (ALONG ${(e.dvAlong * 1000).toFixed(2)})${e.qRatio !== undefined ? `  Q/Q* ${e.qRatio.toFixed(2)}` : ''}`;
     }
     case 'IMPACT_MISS':
-      return `${stamp}  ${e.missionId} MISSED THE TARGET${Number.isFinite(e.offset) ? `  OFF BY ${(e.offset / 1000).toFixed(0)} KM` : '  (TARGET GONE)'}`;
+      return `${stamp}  ${e.missionId} MISSED THE TARGET${e.reason ? `  (${e.reason})` : `  OFF BY ${(e.offset / 1000).toFixed(0)} KM`}`;
     case 'RETARGET':
       return `${stamp}  ${e.missionId} RETARGET -> ${e.targetId}  DSM ${(e.dv).toFixed(0)} M/S  (${e.remaining.toFixed(0)} M/S LEFT)`;
     case 'SPLIT':
       return `${stamp}  ${e.missionId} DEPLOYS ${e.count} SUB-IMPACTORS -> ${[...new Set(e.targets)].join(' ')}`;
     case 'BETA_ASSESSED':
       return `${stamp}  ${e.missionId} BETA ASSESSED ${e.beta.toFixed(2)}  PREDICTED MARGIN ${e.marginRadii >= 0 ? '+' : ''}${e.marginRadii.toFixed(2)} R`;
+    case 'PI':
+      return `${stamp}  ${e.missionId} PI ARRAY ON ${e.targetId} (${e.D.toFixed(0)} M)  ${e.ok ? `SHREDDED: AIRBURSTS, ${e.damageMt.toFixed(2)} MT OF DAMAGE` : 'FAILED: ' + e.reason}`;
     case 'PUSH':
       return `${stamp}  ${e.missionId} ${e.method} ON ${e.targetId}  ${e.viable ? `F ${e.force < 1 ? (e.force * 1000).toFixed(2) + ' MN' : e.force.toFixed(1) + ' N'}  ${(e.duration / 86400).toFixed(0)} D  dV ${(e.dv * 1000).toFixed(3)} MM/S` : 'NOT VIABLE: ' + e.note}`;
     case 'NUKE':

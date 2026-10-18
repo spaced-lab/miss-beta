@@ -68,6 +68,8 @@ export class SystemScreen implements Screen {
   private noteText = '';
   private noteT = 0;
   rulesPreset = 'DEFAULT';
+  private scrub = 0;
+  private panelHidden = false;
   private mc: MonteCarloResult | null = null;
   private mcToken = 0;
 
@@ -163,6 +165,7 @@ export class SystemScreen implements Screen {
       swarmTier: this.run.swarmTier,
       autonomyTier: this.run.autonomyTier,
       rulesPreset: this.rulesPreset,
+      pi: this.run.pi,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       buildTime: this.run.effects.buildTimeYears * YEAR,
       budget: budgetAt(this.run.economy, this.world.t),
@@ -201,6 +204,8 @@ export class SystemScreen implements Screen {
       producedFragments: res.producedFragments,
       netCapture: false,
     });
+    this.scrub = Math.max(0, res.events.length - 1);
+    this.panelHidden = false;
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
@@ -234,6 +239,20 @@ export class SystemScreen implements Screen {
     if (this.tech.isOpen) {
       this.tech.update(this.run);
       return;
+    }
+    if (this.phase === 'debrief' || this.phase === 'over') {
+      // Timeline scrubber (GAME_PLAN 11): Left/Right step the clock through the event log; the map replays.
+      const evs = this.result?.events ?? [];
+      if (k.pressed('ArrowLeft') && evs.length > 0) {
+        this.scrub = Math.max(0, this.scrub - 1);
+        w.t = evs[this.scrub]?.t ?? w.t;
+      }
+      if (k.pressed('ArrowRight') && evs.length > 0) {
+        this.scrub = Math.min(evs.length - 1, this.scrub + 1);
+        w.t = evs[this.scrub]?.t ?? w.t;
+      }
+      if (k.pressed('KeyV')) this.planetOpen = !this.planetOpen;
+      if (k.pressed('KeyH')) this.panelHidden = !this.panelHidden;
     }
     if (this.phase === 'debrief') {
       if (k.pressed('KeyG')) this.programs.show();
@@ -360,8 +379,12 @@ export class SystemScreen implements Screen {
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t);
     this.tech.render(this.run);
-    if (this.phase === 'debrief') this.drawDebrief();
-    if (this.phase === 'over') this.drawOver();
+    if (!this.panelHidden) {
+      if (this.phase === 'debrief') this.drawDebrief();
+      if (this.phase === 'over') this.drawOver();
+    } else if (this.phase !== 'planning') {
+      drawText(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, { align: 'center', color: this.s.palette.hot, glow: 1 });
+    }
     this.planner.render();
   }
 
@@ -569,15 +592,18 @@ export class SystemScreen implements Screen {
     drawText(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, { align: 'center', color: p.hot, glow: 2 });
     drawText(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, { align: 'center' });
     let ly = y + 92;
-    for (const e of events) {
-      drawText(s, formatEvent(e, th.tImpact), x + 20, ly, 10, { color: p.dim, glow: 0 });
+    const firstIdx = res.events.length - events.length;
+    events.forEach((e, i) => {
+      const idx = firstIdx + i;
+      const cur = idx === this.scrub;
+      drawText(s, (cur ? '> ' : '  ') + formatEvent(e, th.tImpact), x + 10, ly, 10, { color: cur ? p.hot : p.dim, glow: cur ? 0.8 : 0 });
       ly += 15;
-    }
+    });
     ly += 8;
     drawText(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, { align: 'center' });
     drawText(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, { align: 'center', color: p.hot, glow: 1 });
     drawText(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, '<SPACE> NEXT ROUND     <T> TECH     <G> PROGRAMS     <ESC> TITLE', cx, ly + 56, 14, { align: 'center', color: p.hot, glow: 1.5 });
+    drawText(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, { align: 'center', color: p.hot, glow: 1.5 });
   }
 
   private drawOver(): void {
@@ -593,6 +619,6 @@ export class SystemScreen implements Screen {
     drawText(s, `${res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0)} MT   ${res.category}   V-IMPACT ${(res.ca.vImpact / 1000).toFixed(1)} KM/S`, cx, y + 106, 14, { align: 'center' });
     drawText(s, `CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM   MARGIN ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 132, 12, { align: 'center', color: p.dim, glow: 0 });
     drawText(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : ''}`, cx, y + 170, 12, { align: 'center' });
-    drawText(s, '<SPACE> NEW RUN     <ESC> TITLE', cx, y + 214, 14, { align: 'center', color: p.hot, glow: 1.5 });
+    drawText(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 214, 13, { align: 'center', color: p.hot, glow: 1.5 });
   }
 }

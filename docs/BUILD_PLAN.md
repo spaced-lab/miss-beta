@@ -119,14 +119,14 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M6: The full tree
 
-- [ ] `src/config/tech.json` + TECH TREE screen; `src/game/tech.ts`. Launch cadence cap (2/yr, HEAVY_LAUNCH_CADENCE raises it) enforced at commit.
-- [ ] Autonomy tiers and the rules DSL (`src/planner/rules.ts`: JSON validated against a schema in code, no eval) and `autonomy.ts`; split impactors.
-- [ ] `src/physics/nuclear.ts` (6.11 incl. HAIV, pulse train) with C_m calibration test (1 Mt standoff on 1 km stony -> 2..6 cm/s). Mirror + vectors.
-- [ ] `src/physics/slowPush.ts`: tractor, enhanced tractor, ion beam, laser, mirrors, mass driver, tugboat, tether, electrostatic (NOT VIABLE), e-sail, Yarkovsky readout. Mirror + vectors.
-- [ ] PI penetrator terminal method, capture bag, tracking tiers and beta reveal delay (6.14), uncertainty P(impact).
-- [ ] DEBRIEF scrubber and play-by-play; leaderboard tabs.
-- [ ] `src/config/methods.json` complete for 20.1 and 20.2; fuzz test: 1000 random rounds, every archetype, no NaN.
-- [ ] Balance pass against Section 17 (fix constants, not targets).
+- [x] `src/config/tech.json` + TECH TREE screen; `src/game/tech.ts`. Launch cadence cap (2/yr, HEAVY_LAUNCH_CADENCE raises it) enforced at commit.
+- [x] Autonomy tiers and the rules DSL (`src/planner/rules.ts`: JSON validated against a schema in code, no eval) and `autonomy.ts`; split impactors.
+- [x] `src/physics/nuclear.ts` (6.11 incl. HAIV, pulse train) with C_m calibration test (1 Mt standoff on 1 km stony -> 2..6 cm/s). Mirror + vectors.
+- [x] `src/physics/slowPush.ts`: tractor, enhanced tractor, ion beam, laser, mirrors, mass driver, tugboat, tether, electrostatic (NOT VIABLE), e-sail, Yarkovsky readout. Mirror + vectors.
+- [x] PI penetrator terminal method, capture bag, tracking tiers and beta reveal delay (6.14), uncertainty P(impact).
+- [x] DEBRIEF scrubber and play-by-play; leaderboard tabs.
+- [x] `src/config/methods.json` complete for 20.1 and 20.2; fuzz test: 1000 random rounds, every archetype, no NaN.
+- [x] Balance pass against Section 17 (fix constants, not targets).
 
 ## M7: Modes, cheats, fiction
 

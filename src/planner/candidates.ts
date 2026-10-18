@@ -58,7 +58,7 @@ export interface CandidateContext {
 }
 
 export interface Candidate {
-  archetype: 'KINETIC' | 'SWARM' | 'SPLIT' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH';
+  archetype: 'KINETIC' | 'SWARM' | 'SPLIT' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH' | 'PI';
   missions: Mission[];
   iL: number;
   iA: number;
@@ -145,6 +145,29 @@ export function rankSlowPush(g: PorkchopGrid, ctx: CandidateContext, pushTier: n
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, 5);
+}
+
+/** PI candidates: the latest feasible cells for a small body (the method works down to T-12 h). */
+export function rankPI(g: PorkchopGrid, ctx: CandidateContext, piUnlocked: boolean): Candidate[] {
+  if (!piUnlocked || ctx.targetD > KNOBS.PI_MAX_D) return [];
+  const cells: { iL: number; iA: number; tA: number }[] = [];
+  for (let iL = 0; iL < g.nL; iL++) for (let iA = 0; iA < g.nA; iA++) {
+    const i = iL * g.nA + iA;
+    if ((g.payload[i] ?? 0) > 0) cells.push({ iL, iA, tA: cellTimes(g, iL, iA).tA });
+  }
+  cells.sort((a, b) => b.tA - a.tA);
+  const out: Candidate[] = [];
+  for (const c of cells.slice(0, 3)) {
+    const m = missionFromCell(g, c.iL, c.iA, ctx, 'PI');
+    if (!m) continue;
+    const cost = (KNOBS.COST_LAUNCHER[ctx.launcherTier - 1] ?? 0) + KNOBS.PI_COST;
+    const mission: Mission = { ...m, archetype: 'PI', cost };
+    const v = ctx.resolve([mission]);
+    const sc = scoreOf(v, cost, ctx);
+    out.push({ archetype: 'PI', missions: [mission], iL: c.iL, iA: c.iA, missEstRadii: 0, verdict: v, pMiss: sc.pMiss, score: sc.score, betaRange: [1, 1], qRatio: 0, cost });
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, 2);
 }
 
 export function missionCost(launcherTier: number, impactorTier: number): number {

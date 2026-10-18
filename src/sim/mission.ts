@@ -8,7 +8,7 @@ import type { Rule } from '../planner/rules';
 import type { Elements } from '../physics/kepler';
 import type { Vec2 } from '../util/vec';
 
-export type Archetype = 'KINETIC' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH';
+export type Archetype = 'KINETIC' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH' | 'PI';
 
 export interface PushSpecRef {
   method: string;

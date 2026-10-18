@@ -78,6 +78,8 @@ export interface RoundResult {
   outcomes: BodyOutcome[];
   /** Energy actually delivered by bodies that hit, Mt. */
   hitEnergyMt: number;
+  /** Damage energy credited by PI shredding (airbursts), Mt; counts toward the PARTIAL rule. */
+  piDamageMt: number;
   /** Threat element segments (the primary body's). */
   segments: ElementSegment[];
   tLastAction: number;
@@ -132,6 +134,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   let producedFragments = false;
   let usedWarhead = false;
   let fragCounter = 0;
+  let piDamageMt = 0;
 
   /** Replace `target` by a remnant and fragments at time t given the delivered Q and impactor momentum. */
   const disruptBody = (target: Body, current: Elements, st: { r: { x: number; y: number }; v: { x: number; y: number } }, m: Mission, Q: number, Qs: number, Uvec: { x: number; y: number }, mImp: number, t: number): void => {
@@ -402,7 +405,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     const targetId = m.targetId ?? 'THREAT';
     const target = bodies.find((b) => b.id === targetId && bodyAlive(b, m.arrivalTime));
     if (!target) {
-      events.push({ t: m.arrivalTime, kind: 'IMPACT_MISS', missionId: m.id, offset: Infinity });
+      events.push({ t: m.arrivalTime, kind: 'IMPACT_MISS', missionId: m.id, offset: 0, reason: 'TARGET GONE' });
       continue;
     }
     const current = elementsAt(target.segments, m.arrivalTime);
@@ -414,6 +417,26 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     }
     const R = target.D / 2;
     const Qs = qStar(R, threat.type.density, threat.type.strengthMult, material);
+
+    if (m.archetype === 'PI') {
+      // PI (20.2): shred a small body into pieces that airburst high; damage is a fraction of its energy.
+      const D = target.D;
+      if (D > KNOBS.PI_MAX_D) {
+        events.push({ t: m.arrivalTime, kind: 'PI', missionId: m.id, targetId: target.id, D, damageMt: 0, ok: false, reason: `BODY OVER ${KNOBS.PI_MAX_D} M` });
+        continue;
+      }
+      const caNow = closeApproach(current, home.elements, mu, home.mu, home.radius, threat.tImpact, target.role === 'THREAT' ? {} : { window: KNOBS.FRAG_CA_WINDOW });
+      const energy = impactEnergy(D, threat.type.density, caNow.vImpact).energyMt;
+      const damage = caNow.impact ? KNOBS.PI_DAMAGE_FRACTION * energy : 0;
+      piDamageMt += damage;
+      target.tDeath = m.arrivalTime;
+      const lastSeg = target.segments[target.segments.length - 1];
+      if (lastSeg) lastSeg.tTo = m.arrivalTime;
+      tLast = m.arrivalTime;
+      producedFragments = true;
+      events.push({ t: m.arrivalTime, kind: 'PI', missionId: m.id, targetId: target.id, D, damageMt: damage, ok: true, reason: '' });
+      continue;
+    }
 
     if (m.push) {
       // Slow push (6.12): the craft has rendezvoused (the planner paid the mismatch); push along track for tau.
@@ -545,20 +568,30 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     if (b.role === 'THREAT' || b.role === 'REMNANT') primary = bo;
     events.push({ t: ca.tCa, kind: 'CLOSE_APPROACH', bodyId: b.id, dMin: ca.dMin, bCrit: ca.bCrit, marginRadii: ca.marginRadii, impact: hits });
   }
-  if (!primary || !primary.ca) throw new Error('resolveRound: no primary body');
   events.sort((a, b) => a.t - b.t);
+  if (!primary || !primary.ca) {
+    // Every damaging body was shredded (PI) before the approach: the round resolves on the original orbit's numbers.
+    const ca0 = closeApproach(threat.elements, home.elements, mu, home.mu, home.radius, threat.tImpact);
+    const e0 = impactEnergy(threat.D, threat.type.density, ca0.vImpact);
+    const total = hitEnergyMt + piDamageMt;
+    const outcome0: Outcome = total <= 0 ? 'MISS' : total < KNOBS.PARTIAL_ENERGY_FRACTION * e0.energyMt ? 'PARTIAL' : 'HIT';
+    return { outcome: outcome0, ca: ca0, energy: e0, category: impactCategory(threat.D, iron), events, bodies, outcomes, hitEnergyMt: total, piDamageMt, segments: (bodies[0] as Body).segments, tLastAction: tLast, producedFragments, usedWarhead, missionsResolved: flown };
+  }
 
-  const threatEnergy = impactEnergy(threat.D, threat.type.density, primary.ca.vImpact);
-  const outcome: Outcome = hitEnergyMt <= 0 ? 'MISS' : hitEnergyMt < KNOBS.PARTIAL_ENERGY_FRACTION * threatEnergy.energyMt ? 'PARTIAL' : 'HIT';
+  const pca = primary.ca;
+  const threatEnergy = impactEnergy(threat.D, threat.type.density, pca.vImpact);
+  const totalThrough = hitEnergyMt + piDamageMt;
+  const outcome: Outcome = totalThrough <= 0 ? 'MISS' : totalThrough < KNOBS.PARTIAL_ENERGY_FRACTION * threatEnergy.energyMt ? 'PARTIAL' : 'HIT';
   return {
     outcome,
-    ca: primary.ca,
+    ca: pca,
     energy: threatEnergy,
     category: impactCategory(threat.D, iron),
     events,
     bodies,
     outcomes,
-    hitEnergyMt,
+    hitEnergyMt: totalThrough,
+    piDamageMt,
     segments: (bodies[0] as Body).segments,
     tLastAction: tLast,
     producedFragments,

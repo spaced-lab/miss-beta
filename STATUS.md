@@ -15,8 +15,9 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M3 Breaking things | done | fragment.ts (+ mirror, vectors): Q*, largest remnant, Pareto shards, Rayleigh ejection with exact momentum; resolver v2 tracks bodies, disrupts above Q*, per-body close approach with the 3-D correction draw, PARTIAL outcome; Monte Carlo in the worker; planner targets any live body (Tab), SWARM bundles, DISRUPT flag, P(MISS) per plan; PLANET VIEW (V) |
 | M4 Going faster | done | integrate.ts (RK4 + Euler for the lab), sail.ts (force model, SPIRAL/COAST/TARGET_STEER, arcs), flyby.ts (patched conic), two-leg flyby search and sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with legs drawn, FLYBY WINDOWS; all mirrored in pymiss with vectors |
 | M5 Seeing it coming | done | photometry (+ mirror, vectors), detection model with today's and the proposed networks (activation years), discovery search, round generation on discovery-derived lead with NO WARNING rounds, civil defense (E), PROGRAMS panel (G) with effects on completion, SAVE.md writer/parser with CONTINUE, export (X) and drag-drop import, CODEX from config |
-| M6 The full tree | todo | next: tech.json + tech tree, autonomy and rules DSL, split impactors, nuclear, slow push family, PI, capture bag, tracking tiers, debrief scrubber |
-| M7 .. M12 | todo | see docs/BUILD_PLAN.md |
+| M6 The full tree | done | tech tree (T), autonomy tiers 1..3 with the rules DSL and presets, split carriers, nuclear (standoff/surface/subsurface/HAIV/pulse train), the slow-push family with NOT VIABLE numbers, PI, tracking tiers with uncertainty and the beta reveal delay, debrief scrubber, leaderboard tabs; fuzz test over every plan family; Section 17 balance checks. Capture bag deferred to M7 with the net (NET1 is SCI-FI) |
+| M7 Modes, cheats, fiction | todo | next: modes.ts nesting, SCI-FI methods and programs, civilization levels, console with cheat codes and SPAWN scenarios, FICTION commands, knobs editor, MULTIVERSE, glitch renderer |
+| M8 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
 
@@ -28,6 +29,19 @@ quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55
 DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Decisions where the plan was silent
+
+- Tech costs in research [knob]: N1 / SL1 / P1 cost 2 so a first-round win (about 6 research) buys the first
+  flyby, sail or kick stage; the chains climb to 10-15. Runs start at the plan's basics.
+- Autonomy: retargets keep the arrival time (a Lambert re-solve from the craft's state at the event), need at
+  least AUTONOMY_MIN_LEAD (10 d) before arrival, and never apply to warheads or pushers. Split carriers without a
+  trigger deploy 30 days before arrival. BETA_ASSESSED and MISS_PREDICTED fire at impact + the tracking delay.
+- Rules editing: three validated presets cycled with R in the planner; free-form JSON editing arrives with the
+  console (M7).
+- Slow push arcs: the body is drawn on its pre-push orbit during the arc and jumps to the pushed orbit at the
+  arc's end (a sampled table for the arc is a polish item).
+- Ground laser (program effect) is modelled as a method force but not yet auto-applied within 0.05 AU (M7/M8).
+- PI: the shredded body is removed and PI_DAMAGE_FRACTION (5%) of its energy is credited as damage, which
+  resolves as PARTIAL under the 10% rule.
 
 - Networks carry an activation year (`since`); the game's now is EPOCH_YEAR 2026. The discovery search runs
   20 years before impact in round time (t = 0 is now), so pre-2026 surveys can find old rocks and planned networks

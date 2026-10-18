@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M6: tech tree (T), autonomy tiers with the rules DSL and presets, split impactor carriers, nuclear
+  standoff / surface / subsurface / HAIV / pulse trains, the slow-push family with honest NOT VIABLE numbers,
+  PI, tracking tiers with impact probability and the beta reveal delay, debrief timeline scrubber,
+  leaderboard mode tabs, a fuzz test over every plan family and the Section 17 balance checks.
+
 - M5: photometry and the detection model (ground optical, space IR, radar; today's networks with their
   activation years and the proposed ones), the discovery search, rounds whose lead time comes from discovery
   (with NO WARNING rounds), civil defense (E), the PROGRAMS panel (G) with completion effects, SAVE.md

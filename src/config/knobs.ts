@@ -182,6 +182,13 @@ export const KNOBS = {
   SPLIT_COUNT: [1, 1, 3, 8] as readonly number[],
   SPLIT_DEFAULT_LEAD: 30 * DAY,
 
+  /** 20.2 PI (Pulverize It): penetrator array for bodies under PI_MAX_D, usable down to PI_MIN_LEAD before impact;
+   *  the shredded cloud airbursts high and does PI_DAMAGE_FRACTION of the threat's energy in damage. */
+  PI_MAX_D: 100,
+  PI_MIN_LEAD: 12 * 3600,
+  PI_DAMAGE_FRACTION: 0.05,
+  PI_COST: 6,
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 
