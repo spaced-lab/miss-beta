@@ -40,8 +40,8 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 4. One origin per GitHub account: other project pages on `<user>.github.io` share this game's localStorage.
    Data is validated on read, but a custom domain or a dedicated account isolates it. WARNINGS 9.
 5. Source maps ship with the build (a teaching repo; DECISIONS D2, WARNINGS 10). Confirm that is still wanted.
-6. The dev server's screenshot sink and the voice generator are development-only (WARNINGS 1, 2, 7); confirm the
-   production build contains neither (`grep -r "__dev" dist` should find nothing).
+6. CHECKED 2026-10-18: the dev server's screenshot sink and the dev hooks are absent from the production build
+   (`grep -rl "__dev\|__miss\|localhost" dist` finds nothing; the voice generator is a script, never shipped).
 
 ## Assessment checklist (owner, before going live)
 
