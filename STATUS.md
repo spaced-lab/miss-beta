@@ -186,9 +186,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Resume here (for a fresh session after a context clear)
 
-0. FIRST on resume (owner 2026-10-18): read the owner's enhancements document at `docs/ENHANCEMENTS.md` (if it is
-   not there, look in `temp/`, which is private and never committed), turn each item into an IDEAS.md entry
-   with a size, and put it at the top of the backlog. Then ASK the owner these before building:
+0. FIRST on resume (owner 2026-10-18): the owner drops idea documents into the `ideas/` folder. Read every file
+   there, starting with `ideas/FUTURE_TECH_BACKLOG.md`; it is the top of the backlog (no need to copy it into
+   IDEAS.md). Then ASK the owner these before building:
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE). Clear enough? A speech-recognition check got 17 of 24
       lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).
    b. SOUND STYLE: ARCADE (PERIMETER's lo-fi sounds) is the new default. Keep it? The owner's saved SOUND is OFF.
