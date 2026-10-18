@@ -15,7 +15,9 @@ import { bookmarks, lore, progress, recordRead, toggleBookmark } from '../../lor
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawPicture } from '../pictureCache';
+import { withAlpha } from '../palettes';
 import { modelForTopic } from '../../lore/models/catalog';
+import { answer, current as quizCurrent, next as quizNext, startQuiz, type QuizState } from '../../lore/quiz';
 import { drawModel } from '../../lore/models/viewer';
 import type { DataPanel } from '../../lore/data/panels';
 import { ADVANCE, charsPerLine, drawText, drawTextFit, GLYPH_H, getTextScale, substitute, wrapText } from '../vectorFont';
@@ -45,6 +47,9 @@ export class CenterScreen implements Screen {
   private linesCols = 0;
   /** Mouse targets from the last frame: tree rows (list index) and level tabs. */
   private rowHits: { y: number; h: number; idx: number }[] = [];
+  /** The quiz, open over the reading column (Q), or null. */
+  private quiz: QuizState | null = null;
+  private quizHits: { y: number; h: number; choice: number }[] = [];
   private tabHits: { x: number; y: number; level: Level }[] = [];
   private scroll = 0;
   private focus: Focus = 'TREE';
@@ -186,6 +191,22 @@ export class CenterScreen implements Screen {
 
   update(): void {
     const k = this.keys;
+    // The quiz owns the keys while open: 1-3 or a click answers, N or Enter moves on, Q or Esc closes.
+    if (this.quiz) {
+      const qz = this.quiz;
+      const click = k.takeClick();
+      const hit = click ? this.quizHits.find((h) => click.y >= h.y && click.y < h.y + h.h) : undefined;
+      for (let c = 0; c < 3; c++) if (k.pressed(`Digit${c + 1}`)) answer(qz, c);
+      if (hit && qz.chosen < 0) answer(qz, hit.choice);
+      else if (click && qz.chosen >= 0) quizNext(qz);
+      if (qz.chosen >= 0 && (k.pressed('KeyN') || k.pressed('Enter') || k.pressed('Space'))) quizNext(qz);
+      if (k.pressed('KeyQ') || k.pressed('Escape')) this.quiz = null;
+      return;
+    }
+    if (k.pressed('KeyQ') && !this.searching) {
+      this.quiz = startQuiz((this.topicId || 'T').charAt(0));
+      return;
+    }
     // Mouse: click a topic row or a level tab; the wheel scrolls the reading column.
     const click = k.takeClick();
     if (click && !this.searching) {
@@ -350,6 +371,49 @@ export class CenterScreen implements Screen {
       const meta = this.index?.topics.find((t) => t.id === c.id);
       if (meta && meta.related.length > 0) drawText(s, cutWords(`RELATED ${meta.related.join(' ')}   IN GAME: ${meta.game.join(', ').toUpperCase()}`, charsPerLine(cw, 8)), cx0, s.height - 52, 8, { color: p.dim, glow: 0 });
     } else if (!this.status) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
+    if (this.quiz) {
+      // The quiz panel replaces the reading column while open.
+      const qz = this.quiz;
+      const q = quizCurrent(qz);
+      s.ctx.fillStyle = withAlpha(p.bg, 0.97);
+      s.ctx.fillRect(cx0 - 4, top - 4, cw + 8, s.height - top - 40);
+      this.quizHits = [];
+      if (q) {
+        let qy = top;
+        drawTextFit(s, `QUIZ   ${qz.right} RIGHT OF ${qz.asked}   QUESTION ON ${q.topic}`, cx0, qy, 11, cw, { color: p.hot, glow: 1 });
+        qy += 26;
+        for (const l of wrapText(q.q, cw, 11)) {
+          drawText(s, l, cx0, qy, 11, { color: p.ink, glow: 0.5 });
+          qy += 18;
+        }
+        qy += 10;
+        q.a.forEach((a, i) => {
+          const chosen = qz.chosen === i;
+          const reveal = qz.chosen >= 0;
+          const col = reveal && i === q.right ? s.role('planet') : reveal && chosen ? s.role('danger') : p.ink;
+          const lines = wrapText(`${i + 1}  ${a}`, cw - 20, 11);
+          const h = lines.length * 17 + 10;
+          s.stroke([cx0, qy - 4, cx0 + cw, qy - 4, cx0 + cw, qy - 4 + h, cx0, qy - 4 + h], { closed: true, color: col, glow: chosen || (reveal && i === q.right) ? 1 : 0.2, alpha: 0.8 });
+          this.quizHits.push({ y: qy - 4, h, choice: i });
+          let ay = qy;
+          for (const l of lines) {
+            drawText(s, l, cx0 + 10, ay, 11, { color: col, glow: 0.4 });
+            ay += 17;
+          }
+          qy += h + 8;
+        });
+        if (qz.chosen >= 0) {
+          qy += 6;
+          drawText(s, qz.chosen === q.right ? 'RIGHT.' : 'NOT QUITE.', cx0, qy, 12, { color: qz.chosen === q.right ? s.role('planet') : s.role('danger'), glow: 1 });
+          qy += 20;
+          for (const l of wrapText(q.why, cw, 9)) {
+            drawText(s, l, cx0, qy, 9, { color: p.ink, glow: 0.3 });
+            qy += 14;
+          }
+          drawText(s, `N OR CLICK: NEXT QUESTION   READ ${q.topic} FOR MORE   Q CLOSES`, cx0, qy + 10, 9, { color: p.dim, glow: 0 });
+        } else drawText(s, '1, 2, 3 OR CLICK TO ANSWER   Q CLOSES', cx0, qy + 4, 9, { color: p.dim, glow: 0 });
+      }
+    }
     if (dataPanel) {
       s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
       pm?.drawPanel(s, dataPanel, { x: rx, y: top, w: Math.min(rw, CenterScreen.LAB_MAX), h: s.height - 46 - top }, this.settings.reduceMotion ? 60 : performance.now() / 1000);
@@ -406,7 +470,7 @@ export class CenterScreen implements Screen {
         }
       }
     }
-    drawTextFit(s, `CLICK A TOPIC OR TAB   WHEEL SCROLLS   UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `Q QUIZ   CLICK A TOPIC OR TAB   WHEEL SCROLLS   UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
   }
 }
 

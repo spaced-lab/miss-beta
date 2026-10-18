@@ -69,3 +69,20 @@ describe('gamepad mapping (IDEAS 7)', () => {
     expect(padCodes(btn([]), [0.2, -0.2]).size).toBe(0);
   });
 });
+
+describe('quiz (IDEAS 18)', () => {
+  it('every question uses drawable glyphs, orders by group, and scores once per question', async () => {
+    const { QUESTIONS, startQuiz, current, answer, next } = await import('../src/lore/quiz');
+    const { hasGlyph } = await import('../src/render/vectorFont');
+    for (const q of QUESTIONS) for (const text of [q.q, q.why, ...q.a]) for (const ch of text) expect(hasGlyph(ch), `${q.topic}: ${ch}`).toBe(true);
+    const st = startQuiz('D');
+    expect(current(st)?.topic.startsWith('D')).toBe(true);
+    const q = current(st)!;
+    expect(answer(st, q.right)).toBe(true);
+    expect(answer(st, (q.right + 1) % 3)).toBe(false); // second answer to the same question does not count
+    expect(st.right).toBe(1);
+    expect(st.asked).toBe(1);
+    next(st);
+    expect(st.chosen).toBe(-1);
+  });
+});

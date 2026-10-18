@@ -90,3 +90,4 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     bodies instead of the jump at the arc's end; the discovery search moved into the worker if round start
     ever stutters.
     Recommendation: LATER, one at a time when the owner notices the seam.
+    Status 2026-10-18: quizzes DONE (Q in the Learning Center, 21 questions in config/quiz.json).
