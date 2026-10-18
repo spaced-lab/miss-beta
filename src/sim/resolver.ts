@@ -439,8 +439,10 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   /** Process pending assessments and default sub-impactor deployments up to time t. */
   const settleBefore = (t: number): void => {
     assessments.sort((a, b) => a.t - b.t);
-    while (assessments.length > 0 && (assessments[0] as { t: number }).t <= t) {
-      const a = assessments.shift()!;
+    for (;;) {
+      const a = assessments[0];
+      if (!a || a.t > t) break;
+      assessments.shift();
       const margin = predictedMargin(a.t);
       events.push({ t: a.t, kind: 'BETA_ASSESSED', missionId: a.missionId, beta: a.beta, marginRadii: margin });
       autonomy(a.t, 'BETA_ASSESSED', { beta: a.beta, 'predicted.miss_radii': margin, 'fragments.count': liveBodies(a.t).length });

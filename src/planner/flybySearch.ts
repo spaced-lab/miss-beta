@@ -77,7 +77,9 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
   const tAmax = req.tImpact - KNOBS.PORKCHOP_RESOLVE_MARGIN;
   const n = Math.max(0, Math.floor((tAmax - tL0) / step) + 1);
   const times: number[] = [];
-  for (let i = 0; i < n; i++) times.push(tL0 + i * step);
+  // Grid time of index i; the same expression fills `times`, so tAt(i) === times[i] without an indexed read.
+  const tAt = (i: number): number => tL0 + i * step;
+  for (let i = 0; i < n; i++) times.push(tAt(i));
   const homeStates = times.map((t) => propagate(req.home, req.muSun, t));
   const threatStates = times.map((t) => propagate(req.threat, req.muSun, t));
   const cells: FlybyCell[] = [];
@@ -93,8 +95,9 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
       for (let iF = iL + 1; iF < n; iF++) {
         const dt = (iF - iL) * step;
         if (dt < minLeg) continue;
-        const hs = homeStates[iL]!;
-        const ps = planetStates[iF]!;
+        const hs = homeStates[iL];
+        const ps = planetStates[iF];
+        if (!hs || !ps) continue;
         const sol = lambert(hs.r, ps.r, dt, req.muSun);
         if (!sol) continue;
         const c3 = c3FromVinf(Math.hypot(sol.v1.x - hs.v.x, sol.v1.y - hs.v.y));
@@ -109,8 +112,9 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
       for (let iA = iF + 1; iA < n; iA++) {
         const dt = (iA - iF) * step;
         if (dt < minLeg) continue;
-        const ps = planetStates[iF]!;
-        const ts = threatStates[iA]!;
+        const ps = planetStates[iF];
+        const ts = threatStates[iA];
+        if (!ps || !ts) continue;
         const sol = lambert(ps.r, ts.r, dt, req.muSun);
         if (!sol) continue;
         leg2.set(iF * n + iA, { vDep: sol.v1, v2: sol.v2 });
@@ -119,7 +123,8 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
     const feasibleF = new Set<number>();
     const bestByLA = new Map<number, FlybyCell>();
     for (let iF = 1; iF < n - 1; iF++) {
-      const ps = planetStates[iF]!;
+      const ps = planetStates[iF];
+      if (!ps) continue;
       for (let iL = 0; iL < iF; iL++) {
         const a = leg1.get(iL * n + iF);
         if (!a) continue;
@@ -136,7 +141,8 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
           if (mismatch > req.dsmBudget) continue;
           const turn = signedAngle(vinIn, vinOut);
           if (Math.abs(turn) > dMax) continue;
-          const ts = threatStates[iA]!;
+          const ts = threatStates[iA];
+          if (!ts) continue;
           const U = Math.hypot(b.v2.x - ts.v.x, b.v2.y - ts.v.y);
           const key = iL * n + iA;
           const prev = bestByLA.get(key);
@@ -144,9 +150,9 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
           const vinf = vin;
           bestByLA.set(key, {
             planetId: pl.id,
-            tL: times[iL]!,
-            tF: times[iF]!,
-            tA: times[iA]!,
+            tL: tAt(iL),
+            tF: tAt(iF),
+            tA: tAt(iA),
             c3: a.c3,
             payload: a.payload,
             dsm: mismatch,
@@ -165,7 +171,7 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
         }
       }
     }
-    windows[pl.id] = [...feasibleF].sort((x, y) => x - y).map((iF) => times[iF]!);
+    windows[pl.id] = [...feasibleF].sort((x, y) => x - y).map(tAt);
     for (const c of bestByLA.values()) cells.push(c);
   }
   return { cells, windows, step };

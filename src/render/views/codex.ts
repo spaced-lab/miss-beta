@@ -109,7 +109,8 @@ export class CodexScreen implements Screen {
     const start = Math.max(0, Math.min(this.sel - Math.floor(visible / 2), rows.length - visible));
     let y = listTop;
     for (let i = start; i < Math.min(rows.length, start + visible); i++) {
-      const r = rows[i]!;
+      const r = rows[i];
+      if (!r) continue;
       const selected = i === this.sel;
       const tagCol = r.tag === 'REAL' ? p.ink : r.tag === 'PROPOSED' ? p.ink : p.dim;
       if (selected) drawText(s, '>', m - 12, y, 11, { color: p.hot, glow: 1 });

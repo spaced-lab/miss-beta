@@ -37,10 +37,9 @@ export function formatEvent(e: SimEventRecord, tImpact: number, now?: number): s
     case 'LAUNCH':
       return `${stamp}  ${e.missionId} LAUNCH  L${e.tier}  C3 ${e.c3.toFixed(1)}  ${e.massKg.toFixed(0)} KG`;
     case 'IMPACT': {
-      const hidden = now !== undefined && e.betaKnownAt !== undefined && now < e.betaKnownAt;
-      return hidden
-        ? `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ?  (ASSESSMENT ${formatCountdown(tImpact - e.betaKnownAt!)})`
-        : `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ${e.beta.toFixed(2)}  dV ${(e.dvTotal * 1000).toFixed(2)} MM/S (ALONG ${(e.dvAlong * 1000).toFixed(2)})${e.qRatio !== undefined ? `  Q/Q* ${e.qRatio.toFixed(2)}` : ''}`;
+      const known = e.betaKnownAt;
+      if (now !== undefined && known !== undefined && now < known) return `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ?  (ASSESSMENT ${formatCountdown(tImpact - known)})`;
+      return `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ${e.beta.toFixed(2)}  dV ${(e.dvTotal * 1000).toFixed(2)} MM/S (ALONG ${(e.dvAlong * 1000).toFixed(2)})${e.qRatio !== undefined ? `  Q/Q* ${e.qRatio.toFixed(2)}` : ''}`;
     }
     case 'IMPACT_MISS':
       return `${stamp}  ${e.missionId} MISSED THE TARGET${e.reason ? `  (${e.reason})` : `  OFF BY ${(e.offset / 1000).toFixed(0)} KM`}`;

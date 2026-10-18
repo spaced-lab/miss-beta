@@ -467,6 +467,7 @@ export class PlannerOverlay {
     if (this.cands.length === 0 && g) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
     this.planYs = [];
     this.learnHits = [];
+    const budget = this.session.budget;
     this.cands.forEach((c, idx) => {
       const selected = idx === this.sel;
       this.planYs.push({ y0: ly - 4, idx });
@@ -485,13 +486,13 @@ export class PlannerOverlay {
       const verdict = v ? `${v.outcome}${v.outcome !== 'MISS' ? ` ${v.hitEnergyMt.toFixed(1)} MT THROUGH` : ''}  MARGIN ${v.marginRadii >= 0 ? '+' : ''}${v.marginRadii.toFixed(2)} R` : '...';
       const mcLine = selected ? (this.mc ? `  P(MISS) ${(this.mc.pMiss * 100).toFixed(0)}%  P(PARTIAL) ${(this.mc.pPartial * 100).toFixed(0)}%  N ${this.mc.n}` : '  P(MISS) ...') : '';
       const lines = [
-        `PLAN ${idx + 1}  ${kind}  ${label}   SCORE ${c.score.toFixed(2)}${c.cost > this.session!.budget ? '  UNAFFORDABLE' : ''}`,
+        `PLAN ${idx + 1}  ${kind}  ${label}   SCORE ${c.score.toFixed(2)}${c.cost > budget ? '  UNAFFORDABLE' : ''}`,
         ` LAUNCH  ${formatCountdown(th.tImpact - first.launchTime)}${c.missions.length > 1 ? ` (+${c.missions.length - 1} STAGGERED)` : ''}   C3 ${first.c3.toFixed(1)}   PAYLOAD ${first.impactorKg.toFixed(0)} KG`,
         ...(legLine ? [legLine] : []),
         ` IMPACT  ${formatCountdown(th.tImpact - first.arrivalTime)}   U ${(first.U / 1000).toFixed(1)} KM/S   TARGET ${first.targetId ?? 'THREAT'}`,
         first.push ? ` PUSH    ${first.push.method} ${first.push.sign > 0 ? 'PROGRADE' : 'RETROGRADE'}   RENDEZVOUS dV ${((first.dsmUsed ?? 0) / 1000).toFixed(2)} KM/S   UP TO ${(first.push.tauMax / 86400).toFixed(0)} D   EST ${c.missEstRadii.toFixed(3)} R` : first.warhead ? ` PUSH    ${first.warhead.mode} BURST   EST ${c.missEstRadii.toFixed(2)} R   WARHEAD ${first.impactorKg.toFixed(0)} KG` : ` PUSH    dV ${(dvMid * 1000).toFixed(2)} MM/S (BETA ${range[0].toFixed(1)}..${range[1].toFixed(1)})   EST ${c.missEstRadii.toFixed(2)} R`,
         ` RESULT  ${verdict}${mcLine}`,
-        ` COST    ${c.cost} / ${this.session!.budget.toFixed(1)}`,
+        ` COST    ${c.cost} / ${budget.toFixed(1)}`,
       ];
       if (selected) s.stroke([lx - 8, ly - 4, lx - 8, ly + lines.length * 13 + 2], { color: p.hot, glow: 1.2, width: 2 });
       // [?] after the headline: the method's lore topic (kinetic D3, nuclear D5, slow push D6, sail D7, flyby O11).
