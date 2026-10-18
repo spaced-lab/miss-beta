@@ -68,7 +68,7 @@ import { exportSave, saveRun } from '../../game/savegame';
 import { Teletype } from './teletype';
 import { Cinematics } from '../cinematics/index';
 import type { CineContext } from '../cinematics/scene';
-import { operatorNote } from '../../game/fiction';
+import { ANOMALY_LINES, anomalyFor, operatorNote, type Anomaly } from '../../game/fiction';
 import { cloudNarrative, debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
 import { craftRemaining, WarpDown } from '../../game/warpDown';
 import { pickTip, TIP_SECONDS } from '../../game/tips';
@@ -142,6 +142,8 @@ export class SystemScreen implements Screen {
   private freeNext = false;
   /** Last operator bulletin slot shown (SIMULATION ambience). */
   private opSlot = -1;
+  /** SIMULATION anomaly of this round, or null. */
+  private anomaly: Anomaly | null = null;
   /** Click-to-learn (IDEAS 8): regions registered by this frame's draw calls, topmost last. */
   private hits: { x: number; y: number; w: number; h: number; topic: string; label: string }[] = [];
   private hit(x: number, y: number, w: number, h: number, topic: string, label: string): void {
@@ -334,7 +336,10 @@ export class SystemScreen implements Screen {
     this.world.networks = this.run.networks;
     // Programs the current mode allows (SCI-FI adds its own when the mode is entered by code or by level).
     syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
-    const rng = roundRng(seed, round);
+    // SIMULATION anomalies (GAME_PLAN 30): a LOOPED round redraws the previous round's threat.
+    const fictionMode = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
+    this.anomaly = fictionMode ? anomalyFor(seed, round) : null;
+    const rng = roundRng(seed, this.anomaly === 'LOOPED' ? round - 1 : round);
     if (this.run.spawnNext) {
       const sc = scenarioById(this.run.spawnNext);
       this.world.threat = sc ? spawnScenario(sc, this.world, rng) : generateThreat(rng, this.world, round);
@@ -354,6 +359,11 @@ export class SystemScreen implements Screen {
       // SCI-FI and beyond: budget scale x10 (21.2), applied once.
       this.run.economy.perYear *= budgetScale(this.run.mode);
       this.run.economy.start *= budgetScale(this.run.mode);
+    }
+    if (this.anomaly === 'MIRRORED' && this.world.threat) this.world.threat = { ...this.world.threat, name: this.world.threat.name.split('').reverse().join('') };
+    if (this.anomaly === 'UNSTABLE_G') {
+      const f = 1 + (hashSeed(`${seed}#g#${round}`) % 2 === 0 ? 0.03 : -0.03);
+      (this.world as { star: { mu: number } }).star = { ...this.world.star, mu: this.world.star.mu * f };
     }
     this.mv = null;
     this.glitch = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
@@ -387,6 +397,7 @@ export class SystemScreen implements Screen {
     // The tutorial round starts paused (step 1 asks for SPACE) and its first step already explains the brief.
     if (this.run.tutorial) setWarp(this.world, 0);
     else if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
+    if (this.anomaly) this.tele.push({ header: { text: `ANOMALY: ${this.anomaly.replace('_', ' ')}`, role: 'program' }, lines: [{ text: ANOMALY_LINES[this.anomaly], role: 'text' }] });
   }
 
   private sunwardActive(): boolean {

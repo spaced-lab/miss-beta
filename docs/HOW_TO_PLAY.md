@@ -181,7 +181,8 @@ typed on the title apply to the next NEW RUN.
   own mass-driver rocket), a SELF-ASSEMBLING THRUSTER SWARM, the SHEPHERD NETWORK of parked impactor rocks, and a
   SELF-REPLICATING SEED FLEET that doubles every 18 months and throws its rocks each time. New round types too:
   interstellar objects on hyperbolic orbits at 50 to 90 km/s, long-period comets with a year of warning, 5 km bodies.
-- SIMULATION turns on the glitch render, the peeling corners, the operators' bulletins and the FICTION commands.
+- SIMULATION turns on the glitch render, the peeling corners, the operators' bulletins, round anomalies (a LOOPED
+  round repeats the last rock, a MIRRORED one arrives from the other side, UNSTABLE G drifts the planets) and the FICTION commands.
   They are played straight, as ordinary procedure; type `REALITY ON` to have each one state the physics that
   forbids it first (the CODEX lists those lines too). The commands: `TELEPORT`, `OBSERVE`, `REWIND n`, `EDIT G x`,
   `DELETE`, `NOCLIP`, `TRACTORBEAM`, `SINGULARITY`, `PLANETTHRUSTERS dv`, `SHIELD`, `SHRINK`, `MICROHOLE [b]`

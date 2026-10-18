@@ -194,3 +194,22 @@ export function operatorNote(seed: string, slot: number): string {
   for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) | 0;
   return OPERATOR_NOTES[Math.abs(h + slot * 7919) % OPERATOR_NOTES.length] ?? '';
 }
+
+/** SIMULATION round anomalies (GAME_PLAN 30): picked per (seed, round), about one round in three. */
+export type Anomaly = 'LOOPED' | 'MIRRORED' | 'UNSTABLE_G';
+export const ANOMALY_LINES: Readonly<Record<Anomaly, string>> = {
+  LOOPED: 'THIS ROUND HAS HAPPENED BEFORE. THE OPERATORS APOLOGISE FOR THE REPEAT.',
+  MIRRORED: 'THE ROCK IS ARRIVING FROM THE OTHER SIDE OF THE MIRROR. PLEASE READ ITS NAME BACKWARDS.',
+  UNSTABLE_G: 'GRAVITY IS RUNNING A FEW PERCENT OFF SPEC THIS ROUND. A TECHNICIAN HAS BEEN DISPATCHED.',
+};
+export function anomalyFor(seed: string, round: number): Anomaly | null {
+  if (round < 2) return null;
+  // FNV-1a with a final avalanche, so neighbouring rounds are uncorrelated.
+  let h = 2166136261;
+  for (const ch of `${seed}#anomaly#${round}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  const u = (h >>> 0) / 4294967296;
+  return u < 0.11 ? 'LOOPED' : u < 0.22 ? 'MIRRORED' : u < 0.33 ? 'UNSTABLE_G' : null;
+}

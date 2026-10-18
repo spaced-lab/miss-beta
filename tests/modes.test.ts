@@ -193,3 +193,15 @@ describe('the peel', () => {
     runCommand('REALITY OFF', c);
   });
 });
+
+describe('SIMULATION anomalies', () => {
+  it('about one round in three from round 2, stable per (seed, round)', async () => {
+    const { anomalyFor } = await import('../src/game/fiction');
+    expect(anomalyFor('S', 1)).toBeNull();
+    let n = 0;
+    for (let r = 2; r < 302; r++) if (anomalyFor('SEED', r)) n++;
+    expect(n).toBeGreaterThan(60);
+    expect(n).toBeLessThan(140);
+    expect(anomalyFor('SEED', 7)).toBe(anomalyFor('SEED', 7));
+  });
+});
