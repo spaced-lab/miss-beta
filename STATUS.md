@@ -285,6 +285,11 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    Done 2026-10-18 (item 5 queue): AUTOPLAY buys tech and funds programs (chooseTech / chooseProgram), L4_L5_PICKET
    and SAIL_KITS programs (PICKET_*, KIT_* knobs), planner [?] and program-row click-to-learn. Item 5 closed:
    materialize frames on overlays and the tilt grid done; discovery stays on the main thread (DECISIONS D8).
+   DONE M14 phases 1-2 (2026-10-18): 3-D Kepler physics + pymiss + vectors; visitors from other stars fly in 3-D
+   through generation, discovery, resolver, planner (lambert3 porkchop) and drawing; planar rounds replay bit for
+   bit (tests/planarReplay.test.ts). OWNER DECISION PENDING: moving ordinary NEAs to 3-D changes every seed's
+   rounds (the planar replay fixture would be retired on purpose); flyby/sail plans against 3-D targets, 3-D
+   fragment cones and retrograde long-period comets follow that choice.
    Older questions (kept for the record):
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24
       lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).
