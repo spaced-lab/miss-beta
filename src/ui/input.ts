@@ -10,6 +10,8 @@ import { padCodes } from './gamepad';
 export class Input {
   private readonly down = new Set<string>();
   private readonly edge = new Set<string>();
+  /** Physical code -> the logical code it went down as, while held. */
+  private readonly physical = new Map<string, string>();
   private typedBuffer = '';
   private readonly listeners: Array<(ch: string) => void> = [];
   /** Printable characters and control keys that went down this frame, in order (for text entry). */
@@ -32,7 +34,11 @@ export class Input {
       if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
       // NOTE: F keys are prevented only when the player bound one (otherwise F5 still reloads the page).
       if (this.remap.has(e.code) && e.code.startsWith('F')) e.preventDefault();
-      const code = this.code(e.code);
+      // NOTE: a held key keeps the logical code it went down as (key repeat included), and keyup releases that
+      // code: opening the console or changing the remap while a key was held left it stuck down (code review
+      // 2026-10-18).
+      const code = this.physical.get(e.code) ?? this.code(e.code);
+      this.physical.set(e.code, code);
       this.lastRaw = e.code;
       this.real = true;
       if (!this.down.has(code)) this.edge.add(code);
@@ -43,9 +49,13 @@ export class Input {
         for (const l of this.listeners) l(e.key.toUpperCase());
       }
     });
-    target.addEventListener('keyup', (e) => this.down.delete(this.code(e.code)));
+    target.addEventListener('keyup', (e) => {
+      this.down.delete(this.physical.get(e.code) ?? this.code(e.code));
+      this.physical.delete(e.code);
+    });
     target.addEventListener('blur', () => {
       this.down.clear();
+      this.physical.clear();
       this.dragging = false;
     });
     target.addEventListener('wheel', (e) => {
