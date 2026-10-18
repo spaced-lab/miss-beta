@@ -5,6 +5,8 @@ import { findHitsGrid, findHitsNaive, type Circle } from '../src/minigame/collis
 import { byLevel, MG } from '../src/minigame/config';
 import { MinigameScreen } from '../src/minigame/index';
 import { generateContinents } from '../src/minigame/planet';
+import { AUDITION_CUE, choicesFor, clickiness, DEFAULT_INDEX, isSfxPrefs, OFF, SfxPlayer, SOUND_EVENTS, VARIANTS, variantIndex, type SoundEvent } from '../src/minigame/sfx';
+import { createLab, LAB_KEY, LAB_ROWS, reviewSequence, updateLab } from '../src/minigame/soundLab';
 import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
 import {
@@ -724,6 +726,13 @@ describe('weapons that scale with level', () => {
     expect(swarmKillsNeeded(1)).toBe(MG.SWARM_KILLS);
     expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL)).toBe(MG.SWARM_KILLS);
     expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL + 1)).toBe(MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL);
+    // v3.3 (owner: "swarm not keeping up"): 102 at 10, 302 at 20, 400 from level 25 (v3.2: 142, 442, 742). The cap
+    // is the knob that matters late; the slope is the biggest cut the balance probe below accepts.
+    expect(swarmKillsNeeded(10)).toBe(102);
+    expect(swarmKillsNeeded(20)).toBe(302);
+    expect(swarmKillsNeeded(30)).toBe(MG.SWARM_KILLS_CAP);
+    expect(swarmKillsNeeded(1000)).toBe(MG.SWARM_KILLS_CAP);
+    expect(MG.SWARM_KILLS_CAP).toBeLessThanOrEqual(400);
     monotone(pulseKillsNeeded);
     expect(pulseKillsNeeded(1)).toBe(MG.PULSE_KILLS);
     expect(pulseKillsNeeded(MG.PULSE_KILLS_FROM_LEVEL + 5)).toBe(MG.PULSE_KILLS + 5 * MG.PULSE_KILLS_PER_LEVEL);
@@ -1306,5 +1315,231 @@ describe('balance probe', () => {
     expect(hullDamage(3, 0.42, 3)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 3));
     expect(hullDamage(3, 0.05, 0)).toBe(MG.DAMAGE_MIN);
     expect(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1)).toBeLessThan(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1000));
+  });
+});
+
+describe('sound variants (sfx.ts)', () => {
+  // Nothing here is audible: the tables, the defaults, the persisted-choice guard and the lab's review order are
+  // what a test can hold. The owner picks the actual voices by ear in the SOUND LAB.
+  it('every event has at least three variants plus OFF, with unique short names and complete metadata', () => {
+    for (const ev of SOUND_EVENTS) {
+      const table = VARIANTS[ev];
+      expect(table.length, ev).toBeGreaterThanOrEqual(3);
+      const all = choicesFor(ev);
+      expect(all[all.length - 1]).toBe(OFF);
+      expect(new Set(all.map((v) => v.name)).size).toBe(all.length);
+      for (const v of table) {
+        expect(v.name, `${ev} name`).toMatch(/^[A-Z][A-Z ]{2,8}$/);
+        expect(v.about.length, `${ev} ${v.name} about`).toBeGreaterThan(8);
+        expect(v.hz).toBeGreaterThan(0);
+        expect(v.attackMs).toBeGreaterThanOrEqual(0);
+        expect(v.dur).toBeGreaterThan(0);
+        expect(typeof v.play).toBe('function');
+      }
+    }
+  });
+  it('the default of every event is a real voice, and for the bleepy events it is the least clicky one', () => {
+    for (const ev of SOUND_EVENTS) expect(VARIANTS[ev][DEFAULT_INDEX]).not.toBe(OFF);
+    // Proxy: spectral centre over (1 + attack ms); see sfx.ts HOW. Owner, v3.2: "some bleepy sounds are a little
+    // annoying": shots, sentries and hits are the frequent ones, so their defaults must be the softest by the proxy.
+    for (const ev of ['SHOT', 'HIT', 'SENTRY'] as const) {
+      const table = VARIANTS[ev];
+      const def = clickiness(table[DEFAULT_INDEX] ?? OFF);
+      for (const v of table.slice(1)) expect(def, `${ev}: ${v.name} is softer than the default`).toBeLessThan(clickiness(v));
+    }
+    expect(clickiness({ hz: 60, attackMs: 4 })).toBe(12);
+  });
+  it('variants play without an audio context (node): no throw, no state', () => {
+    const sfx = new SfxPlayer();
+    for (const ev of SOUND_EVENTS) for (const v of choicesFor(ev)) expect(() => v.play(sfx.synth, AUDITION_CUE)).not.toThrow();
+    expect(() => sfx.audition('SWARM')).not.toThrow();
+    expect(() => sfx.play([{ type: 'shot', strength: 2 }, { type: 'hit', tier: 3 }, { type: 'impact' }, { type: 'over' }], 1)).not.toThrow();
+    expect(() => sfx.ambient(0.9, 0.5)).not.toThrow();
+  });
+  it('choices cycle through OFF and back, and the persisted shape round-trips', () => {
+    const sfx = new SfxPlayer();
+    const n = choicesFor('SHOT').length;
+    expect(sfx.variantOf('SHOT').name).toBe('THUMP');
+    for (let i = 0; i < n - 1; i++) sfx.cycleChoice('SHOT', 1);
+    expect(sfx.variantOf('SHOT')).toBe(OFF);
+    sfx.cycleChoice('SHOT', 1);
+    expect(sfx.choice.SHOT).toBe(DEFAULT_INDEX);
+    sfx.cycleChoice('SHOT', -1);
+    expect(sfx.variantOf('SHOT')).toBe(OFF);
+    sfx.setChoice('HIT', 2);
+    sfx.setVolume(0.8);
+    sfx.ambientLevel = 0.3;
+    const p = sfx.prefs();
+    expect(isSfxPrefs(p)).toBe(true);
+    expect(isSfxPrefs(JSON.parse(JSON.stringify(p)))).toBe(true);
+    const other = new SfxPlayer();
+    other.applyPrefs(p);
+    expect(other.variantOf('SHOT')).toBe(OFF);
+    expect(other.variantOf('HIT').name).toBe(VARIANTS.HIT[2]?.name);
+    expect(other.volume).toBe(0.8);
+    expect(other.ambientLevel).toBe(0.3);
+    other.resetChoices();
+    expect(other.variantOf('SHOT').name).toBe('THUMP');
+    expect(other.volume).toBe(0.5);
+    expect(other.ambientLevel).toBe(1);
+  });
+  it('the persisted-choice guard rejects bad shapes', () => {
+    const good = new SfxPlayer().prefs();
+    expect(isSfxPrefs(good)).toBe(true);
+    expect(isSfxPrefs({ choices: {}, volume: 0.5, ambient: 1 })).toBe(true); // partial choices mean defaults
+    expect(isSfxPrefs(null)).toBe(false);
+    expect(isSfxPrefs([])).toBe(false);
+    expect(isSfxPrefs({})).toBe(false);
+    expect(isSfxPrefs('THUMP')).toBe(false);
+    expect(isSfxPrefs({ ...good, volume: 2 })).toBe(false);
+    expect(isSfxPrefs({ ...good, volume: '0.5' })).toBe(false);
+    expect(isSfxPrefs({ ...good, ambient: -0.1 })).toBe(false);
+    expect(isSfxPrefs({ ...good, ambient: Number.NaN })).toBe(false);
+    expect(isSfxPrefs({ ...good, choices: [] })).toBe(false);
+    expect(isSfxPrefs({ ...good, choices: { SHOT: 'NOT A VARIANT' } })).toBe(false);
+    expect(isSfxPrefs({ ...good, choices: { SHOT: 1 } })).toBe(false);
+    expect(isSfxPrefs({ ...good, choices: { BOGUS: 'THUMP' } })).toBe(false);
+    expect(isSfxPrefs({ ...good, choices: { SHOT: 'OFF' } })).toBe(true);
+    expect(variantIndex('SHOT', 'OFF')).toBe(VARIANTS.SHOT.length);
+    expect(variantIndex('SHOT', 'nope')).toBe(-1);
+  });
+  it('the review sequence covers every event exactly once, in the lab, with a gap between', () => {
+    const seq = reviewSequence();
+    expect([...seq].sort()).toEqual([...SOUND_EVENTS].sort());
+    expect(new Set(seq).size).toBe(seq.length);
+    // Drive the lab's REVIEW mode with a silent player: the highlighted event must walk the whole sequence once.
+    const sfx = new SfxPlayer();
+    const lab = createLab();
+    lab.open = true;
+    const press = (code: string) => ({ pressed: (c: string) => c === code, anyPressed: (...cs: string[]) => cs.includes(code) });
+    const idle = press('');
+    updateLab(lab, press('KeyA'), sfx, 0);
+    expect(lab.reviewAt).toBe(0);
+    const played: SoundEvent[] = [];
+    let last: SoundEvent | null = null;
+    for (let i = 0; i < 400 && lab.reviewAt >= 0; i++) {
+      updateLab(lab, idle, sfx, 0.05);
+      if (lab.lastPlayed !== last && lab.lastPlayed) {
+        played.push(lab.lastPlayed);
+        expect(LAB_ROWS[lab.row]).toBe(lab.lastPlayed); // the row follows the event being played
+      }
+      last = lab.lastPlayed;
+    }
+    expect(played).toEqual([...seq]);
+    expect(lab.reviewAt).toBe(-1);
+    // Any navigation stops the review.
+    updateLab(lab, press('KeyA'), sfx, 0);
+    expect(lab.reviewAt).toBe(0);
+    updateLab(lab, press('ArrowDown'), sfx, 0);
+    expect(lab.reviewAt).toBe(-1);
+  });
+  it('the lab keys select rows, cycle variants, adjust levels, reset and close', () => {
+    const sfx = new SfxPlayer();
+    const lab = createLab();
+    lab.open = true;
+    const press = (code: string) => ({ pressed: (c: string) => c === code, anyPressed: (...cs: string[]) => cs.includes(code) });
+    expect(updateLab(lab, press('ArrowDown'), sfx, 0.016)).toBe(false);
+    expect(LAB_ROWS[lab.row]).toBe('HIT');
+    expect(updateLab(lab, press('ArrowRight'), sfx, 0.016)).toBe(true);
+    expect(sfx.variantOf('HIT').name).toBe(VARIANTS.HIT[1]?.name);
+    expect(lab.lastPlayed).toBe('HIT');
+    expect(updateLab(lab, press('ArrowUp'), sfx, 0.016)).toBe(false);
+    expect(updateLab(lab, press('ArrowUp'), sfx, 0.016)).toBe(false); // wraps to the last row
+    expect(LAB_ROWS[lab.row]).toBe('AMBIENT LEVEL');
+    expect(updateLab(lab, press('ArrowLeft'), sfx, 0.016)).toBe(true);
+    expect(sfx.ambientLevel).toBeCloseTo(0.9, 9);
+    updateLab(lab, press('ArrowUp'), sfx, 0.016);
+    expect(LAB_ROWS[lab.row]).toBe('VOLUME');
+    expect(updateLab(lab, press('ArrowRight'), sfx, 0.016)).toBe(true);
+    expect(sfx.volume).toBeCloseTo(0.55, 9);
+    expect(updateLab(lab, press('Digit0'), sfx, 0.016)).toBe(true);
+    expect(sfx.variantOf('HIT').name).toBe('SUB POP');
+    expect(sfx.volume).toBe(0.5);
+    expect(sfx.ambientLevel).toBe(1);
+    expect(updateLab(lab, press('Escape'), sfx, 0.016)).toBe(false);
+    expect(lab.open).toBe(false);
+  });
+});
+
+describe('sound lab from the screen', () => {
+  class FakeKeys {
+    private readonly edges = new Set<string>();
+    press(code: string): void {
+      this.edges.add(code);
+    }
+    endFrame(): void {
+      this.edges.clear();
+    }
+    anyKeyPressed(): boolean {
+      return this.edges.size > 0;
+    }
+    pressed(code: string): boolean {
+      return this.edges.has(code);
+    }
+    anyPressed(...codes: string[]): boolean {
+      return codes.some((c) => this.edges.has(c));
+    }
+    held(): boolean {
+      return false;
+    }
+    anyHeld(): boolean {
+      return false;
+    }
+    typed(): string {
+      return '';
+    }
+    clearTyped(): void {}
+  }
+  function fakeStorage() {
+    const m = new Map<string, string>();
+    return {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, String(v)),
+      removeItem: (k: string) => void m.delete(k),
+    };
+  }
+  const g = globalThis as { localStorage?: unknown };
+  it('L on the ready panel opens the lab, the sim stays put, a change is saved under one guarded key, Esc returns', () => {
+    const store = fakeStorage();
+    g.localStorage = store;
+    try {
+      const keys = new FakeKeys();
+      let went = '';
+      const screen = new MinigameScreen({} as Surface, keys as unknown as Keys, { go: (s: string) => void (went = s) });
+      expect(screen.state.status).toBe('ready');
+      keys.press(LAB_KEY);
+      screen.update(16);
+      keys.endFrame();
+      expect(screen.lab.open).toBe(true);
+      expect(screen.state.status).toBe('ready');
+      // Space inside the lab replays; it must not start the game.
+      keys.press('Space');
+      screen.update(16);
+      keys.endFrame();
+      expect(screen.state.status).toBe('ready');
+      keys.press('ArrowRight');
+      screen.update(16);
+      keys.endFrame();
+      expect(screen.sounds.variantOf('SHOT').name).toBe('BLIP');
+      const raw = store.getItem('missb.minigame.sfx');
+      expect(raw).not.toBeNull();
+      const parsed: unknown = JSON.parse(raw ?? 'null');
+      expect(isSfxPrefs(parsed)).toBe(true);
+      keys.press('Escape');
+      screen.update(16);
+      keys.endFrame();
+      expect(screen.lab.open).toBe(false);
+      expect(went).toBe(''); // Esc closed the lab, it did not leave the screen
+      expect(screen.state.status).toBe('ready');
+      // A fresh screen reads the saved choice back.
+      const screen2 = new MinigameScreen({} as Surface, new FakeKeys() as unknown as Keys, { go() {} });
+      expect(screen2.sounds.variantOf('SHOT').name).toBe('BLIP');
+      // A corrupt save falls back to the defaults.
+      store.setItem('missb.minigame.sfx', JSON.stringify({ choices: { SHOT: 'NOPE' }, volume: 0.5, ambient: 1 }));
+      const screen3 = new MinigameScreen({} as Surface, new FakeKeys() as unknown as Keys, { go() {} });
+      expect(screen3.sounds.variantOf('SHOT').name).toBe('THUMP');
+    } finally {
+      delete g.localStorage;
+    }
   });
 });

@@ -350,8 +350,8 @@ export const seekerVolley = (level: number): number => 1 + MG.SEEKER_VOLLEY_LEVE
 export const seekerHitsNeeded = (level: number): number => Math.max(MG.SEEKER_HITS_MIN, MG.SEEKER_HITS - MG.SEEKER_HITS_EASE_PER_LEVEL * past(level, MG.SEEKER_HITS_EASE_FROM_LEVEL));
 /** Kills per pulse: PULSE_KILLS + PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (14 to level 6, then rising). */
 export const pulseKillsNeeded = (level: number): number => MG.PULSE_KILLS + MG.PULSE_KILLS_PER_LEVEL * past(level, MG.PULSE_KILLS_FROM_LEVEL);
-/** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL (22 to level 6, then rising). */
-export const swarmKillsNeeded = (level: number): number => MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL);
+/** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL, capped at SWARM_KILLS_CAP (22 to level 6, 102 at 10, 302 at 20, 400 from 25). */
+export const swarmKillsNeeded = (level: number): number => Math.min(MG.SWARM_KILLS_CAP, MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL));
 /** Swarm stock cap: SWARM_MAX + one per SWARM_MAX_LEVELS levels, capped at SWARM_MAX_CAP (2, 3 at level 11, 4 at 21, 5 at 31). */
 export const swarmMax = (level: number): number => Math.min(MG.SWARM_MAX_CAP, MG.SWARM_MAX + Math.floor(past(level, 1) / MG.SWARM_MAX_LEVELS));
 /** Sentry cap: TURRET_MAX + one per TURRET_MAX_LEVELS levels after TURRET_LEVEL, capped at TURRET_MAX_CAP (3 at 6, 4 at 12, 5 at 18, 6 at 24). */

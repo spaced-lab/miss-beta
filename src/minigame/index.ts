@@ -7,7 +7,9 @@
 //       autosaved to sessionStorage (every level-up, every AUTOSAVE_SECONDS, and on leaving the screen) so
 //       the dev server's reload-on-change does not wipe it; the ready panel offers <SPACE> RESUME (R is an
 //       alias) and <BACKSPACE> NEW GAME. Space resumes on purpose: a player still holding fire when the
-//       reload lands must not wipe their game, and resuming is the harmless action.
+//       reload lands must not wipe their game, and resuming is the harmless action. L on the ready or game-over
+//       panel opens the SOUND LAB (soundLab.ts); while it is open the sim is not stepped and the game is kept.
+//       Sound choices (variant per event, volume, ambient level) persist under one localStorage key, guarded.
 // LORE: G1 (how to play), C1 (how the game is built)
 
 import { CheatRegistry } from '../game/cheats';
@@ -18,12 +20,15 @@ import type { Input as Keys } from '../ui/input';
 import { MINIGAME_CHEATS } from './cheats';
 import { MG } from './config';
 import { renderMinigame } from './render';
-import { SfxPlayer } from './sfx';
+import { isSfxPrefs, SfxPlayer } from './sfx';
+import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
 import { chaosLevel, createState, flash, fromSaved, isSavedGame, start, step, toSaved, type Input, type MinigameState } from './sim';
 
 const BEST_KEY = 'minigame.best';
 const SOUND_KEY = 'minigame.sound';
 const KIT_KEY = 'minigame.kit';
+/** One key for every SOUND LAB choice (variant names per event, master volume, ambient level). */
+const SFX_KEY = 'minigame.sfx';
 /** sessionStorage: one tab, survives reloads, gone when the tab closes. */
 const SAVE_KEY = 'minigame.save';
 const AUTOSAVE_SECONDS = 5;
@@ -41,11 +46,26 @@ export class MinigameScreen implements Screen {
   private sinceSave = 0;
   private readonly cheats = new CheatRegistry<MinigameState>(MINIGAME_CHEATS);
   private readonly sfx = new SfxPlayer();
+  private readonly labState = createLab();
 
   constructor(private readonly s: Surface, private readonly keys: Keys, private readonly router: Router) {
     this.st = createState(this.newSeed());
     this.sfx.enabled = loadJson(SOUND_KEY, (v): v is boolean => typeof v === 'boolean', true);
     this.sfx.kitIndex = loadJson(KIT_KEY, (v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 8, 0) % 3;
+    // NOTE: a malformed or stale preference (an unknown variant name after a rename) fails the guard and the
+    // defaults apply; nothing is read from it piecemeal.
+    const prefs = loadJson(SFX_KEY, isSfxPrefs, null);
+    if (prefs) this.sfx.applyPrefs(prefs);
+  }
+
+  /** The SOUND LAB state; read by tests. */
+  get lab(): Readonly<LabState> {
+    return this.labState;
+  }
+
+  /** The sound player (choices, volume); read by tests. */
+  get sounds(): SfxPlayer {
+    return this.sfx;
   }
 
   /** The live state; read by tests (ready-panel key mapping) and never mutated from outside. */
@@ -84,6 +104,17 @@ export class MinigameScreen implements Screen {
 
     // Any key counts as the user gesture browsers require before audio may start.
     if (k.anyKeyPressed()) this.sfx.unlock();
+    // The SOUND LAB owns the keys while open; the sim is not stepped and the game is untouched.
+    if (this.labState.open) {
+      if (updateLab(this.labState, k, this.sfx, Math.min(dtMs, 250) / 1000)) saveJson(SFX_KEY, this.sfx.prefs());
+      k.clearTyped();
+      return;
+    }
+    if ((st.status === 'ready' || st.status === 'over') && k.pressed(LAB_KEY)) {
+      this.labState.open = true;
+      k.clearTyped();
+      return;
+    }
     if (k.pressed('Escape')) {
       this.router.go('title');
       return;
@@ -189,5 +220,6 @@ export class MinigameScreen implements Screen {
       sound: this.soundLabel(),
       resume: sv ? { level: sv.level, score: sv.score, t: sv.t } : null,
     });
+    if (this.labState.open) renderLab(this.s, this.labState, this.sfx);
   }
 }

@@ -480,7 +480,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   } else if (blink) {
     drawText(s, 'PRESS SPACE TO START', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
   }
-  drawText(s, `ESC TITLE   1 DEBUG   2 GLOW   3 COLLISION   4 SOUND   5 KIT   SEED ${st.seed}`, cx, y + 374, 10, { align: 'center', color: s.palette.dim, glow: 0 });
+  drawText(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  L SOUND LAB  SEED ${st.seed}`, cx, y + 374, 10, { align: 'center', color: s.palette.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
@@ -492,5 +492,5 @@ function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
   drawText(s, isBest ? 'NEW BEST' : `BEST ${opts.best}`, cx, y + 116, 14, { align: 'center', color: isBest ? s.palette.hot : s.palette.dim, glow: isBest ? 1.5 : 0 });
   drawText(s, `LEVEL ${st.level}   SURVIVED ${clock(st.t)}   ROCKS ${st.kills}`, cx, y + 146, 13, { align: 'center' });
   if (st.cheats.assisted) drawText(s, 'ASSISTED RUN: NOT SAVED', cx, y + 172, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-  drawText(s, 'SPACE RETRY    ESC TITLE', cx, y + 212, 14, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  drawText(s, 'SPACE RETRY    L SOUND LAB    ESC TITLE', cx, y + 212, 14, { align: 'center', color: s.palette.hot, glow: 1.5 });
 }
