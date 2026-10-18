@@ -185,7 +185,7 @@ export class TitleScreen implements Screen {
       if (th) {
         const left = th.tImpact - a.world.t;
         const line = left > 0 ? `ATTRACT  ${th.name}  D ${th.D.toFixed(0)} M  T-${(left / 31557600).toFixed(1)} Y  ${a.missions.length} MISSION${a.missions.length === 1 ? '' : 'S'}  PREDICTED ${a.result.outcome}` : `ATTRACT  ${th.name}  ${a.result.outcome === 'MISS' ? `MISSED BY ${a.result.ca.marginRadii.toFixed(1)} R` : a.result.outcome}`;
-        drawText(s, line, cx, s.height - 112, 10, { align: 'center', color: p.dim, glow: 0 });
+        drawText(s, line, cx, 14, 10, { align: 'center', color: p.dim, glow: 0 });
       }
     } else {
       s.circle(cx, cy, 6, { glow: 1.5, color: p.hot });
@@ -196,15 +196,15 @@ export class TitleScreen implements Screen {
     drawText(s, 'MOMENTUM  IMPULSE  SAILS  SLINGSHOTS', cx, cy - big * 0.55, 12, { align: 'center' });
     drawText(s, 'BALLISTIC ENGAGEMENT OF THREATENING ASTEROIDS', cx, cy - big * 0.55 + 20, 12, { align: 'center' });
 
-    let y = cy + 20;
+    let y = cy + 4;
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
       if (!it) continue;
       const selected = i === this.sel;
       const label = it.label + (it.action ? '' : '   [BUILDING]') + (it.label === 'CONTINUE' ? (hasSavedRun() ? '   (SAVED RUN FOUND)' : '   (NO SAVE)') : '');
       if (selected) drawText(s, '>', cx - 190, y, 16, { color: p.hot, glow: 1.5 });
-      drawText(s, label, cx - 160, y, 16, { color: selected ? p.hot : it.action ? p.ink : p.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
-      y += 30;
+      drawText(s, label, cx - 160, y, 15, { color: selected ? p.hot : it.action ? p.ink : p.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
+      y += 26;
     }
 
     if (this.noteT > 0) drawText(s, this.note, cx, s.height - 90, 12, { align: 'center', color: p.hot, alpha: Math.min(1, this.noteT) });
