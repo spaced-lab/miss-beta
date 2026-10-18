@@ -42,6 +42,7 @@ export interface GameContext {
     ticket(): string;
     nibiru(): string;
     mandela(): string;
+    peel(): string;
   } | null;
 }
 

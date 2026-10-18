@@ -44,7 +44,7 @@ import type { Level } from '../../lore/index';
 import type { GameContext } from '../../game/console';
 import { budgetScale } from '../../game/modes';
 import { branchSurvives, earliestEnd, forkMultiverse, resolveBranch, survivalFraction, tickMultiverse, wormhole, type Branch, type Multiverse } from '../../game/multiverse';
-import { glitchPass } from '../glitch';
+import { ambientPeel, glitchPass, peelPass } from '../glitch';
 import { drawMiniSystem } from '../miniSystem';
 import { CAMERA_PITCHES, polyhedron, tilt, type Camera } from '../camera3d';
 import { Materialize, StarField } from '../wire';
@@ -131,6 +131,8 @@ export class SystemScreen implements Screen {
   private detourAt: { t: number; x: number; y: number } | null = null;
   private nibiru = false;
   private ticketFiled = false;
+  /** PEEL: until this real time (ms) a big flap shows the raw state. */
+  private peelUntil = 0;
   private approachSounded = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
@@ -782,6 +784,17 @@ export class SystemScreen implements Screen {
     if (this.tele.isModal || (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.planetOpen)) this.tele.render(this.tele.isModal ? 'center' : 'dock');
     this.lore.render();
     this.console.render(this.gameContext());
+    if (this.glitch && !this.settings.reduceMotion) {
+      const now = performance.now();
+      const big = now < this.peelUntil ? Math.min(1, (this.peelUntil - now) / 600, (now - (this.peelUntil - 8000)) / 600) : 0;
+      const amb = ambientPeel(now / 1000);
+      const th = w.threat;
+      const raw = th
+        ? [`RENDER LAYER 0   ENTITY ${th.id}  ${th.name}`, `a ${(th.elements.a / AU).toFixed(6)} AU   e ${th.elements.e.toFixed(6)}`, `w ${th.elements.w.toFixed(5)} RAD   M0 ${th.elements.M0.toFixed(5)} RAD`, `MASS ${th.mass.toExponential(4)} KG   D ${th.D.toFixed(1)} M`, `T_IMPACT ${th.tImpact.toFixed(0)} S   T ${w.t.toFixed(0)} S`, `SEED ${w.runSeed}#${w.round}   RNG OK`]
+        : ['RENDER LAYER 0', 'NO ENTITIES'];
+      if (big > 0) peelPass(s, big, 1, raw, now / 1000);
+      else if (amb.amount > 0) peelPass(s, amb.amount, amb.corner, raw.slice(0, 3), now / 1000);
+    }
     if (this.glitch && !this.settings.reduceMotion) glitchPass(s, w.t / 86400, this.run.mode === 'MULTIVERSE' ? 1.5 : 1, `SIM  FRAME ${(1000 / 60).toFixed(1)} MS  ENTITIES ${this.result ? this.result.bodies.length + this.missions.length : 0}  T ${w.t.toFixed(0)}`);
   }
 
@@ -1012,6 +1025,11 @@ export class SystemScreen implements Screen {
           }
           const replies = ['WONTFIX: WORKS AS INTENDED.', 'DUPLICATE OF TICKET #1 (1908, TUNGUSKA). CLOSED.', 'NEEDS MORE INFORMATION. PLEASE ATTACH A SCREENSHOT OF THE UNIVERSE.', 'ACKNOWLEDGED. PRIORITY: LOW. ESTIMATED FIX: NEXT EPOCH.'];
           return `TICKET #${rng.int(1000, 9999)}: ${replies[rng.int(0, replies.length - 1)] ?? 'ACKNOWLEDGED.'}`;
+        },
+        peel: () => {
+          this.peelUntil = performance.now() + 8000;
+          this.glitch = true;
+          return 'THE CORNER HAS COME AWAY FOR EIGHT SECONDS. THE NUMBERS UNDERNEATH ARE THE REAL ONES.';
         },
         nibiru: () => {
           this.nibiru = true;

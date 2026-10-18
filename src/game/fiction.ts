@@ -41,6 +41,7 @@ export const DEADPAN: Readonly<Record<string, readonly string[]>> = {
   HOLLOW: ['CORE SAMPLE RETURNED: HOLLOW. FORM 7-B (UNEXPECTED VOIDS) FILED IN TRIPLICATE.'],
   TICKET: ['TICKET SUBMITTED TO THE SIMULATION OPERATORS.'],
   NIBIRU: ['PLANET X CONFIRMED. ARRIVAL: NEXT YEAR. ARRIVAL HAS BEEN NEXT YEAR FOR SOME TIME.'],
+  PEEL: ['THE WALLPAPER HAS COME AWAY. PLEASE DO NOT LOOK DIRECTLY AT THE NUMBERS.', 'MAINTENANCE PANEL OPENED. MIND THE VARIABLES.'],
   MANDELA: ['HISTORY HAS BEEN AMENDED. IT WAS ALWAYS THIS WAY. YOU REMEMBER IT THIS WAY.'],
 };
 
@@ -128,6 +129,13 @@ export const EXTRA_FICTION: readonly Command[] = [
     handler: (_a, ctx) => {
       flag(ctx, 'MANDELA');
       return ['MEMORY IS RECONSTRUCTIVE. ORBITS ARE NOT.', ctx.round?.mandela() ?? 'NO THREAT.'];
+    },
+  },
+  {
+    verb: 'PEEL', tag: 'FICTION', usage: 'PEEL', help: 'peel back a corner of the render: the raw state of the threat underneath', mode: 'SIMULATION',
+    handler: (_a, ctx) => {
+      flag(ctx, 'PEEL');
+      return ['THE SCREEN IS A PICTURE OF NUMBERS THE PROGRAM KEEPS. THESE ARE THEM: ORBITAL ELEMENTS, MASS, TIME.', ctx.round?.peel() ?? 'NOTHING TO PEEL.'];
     },
   },
   {

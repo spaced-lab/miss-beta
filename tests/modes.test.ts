@@ -17,7 +17,7 @@ function ctx(mode: 'REALISTIC' | 'SCIFI' | 'SIMULATION' | 'MULTIVERSE' = 'REALIS
   if (mode === 'SIMULATION' || mode === 'MULTIVERSE') enterMode(run, 'SIMULATION');
   if (mode === 'MULTIVERSE') enterMode(run, 'MULTIVERSE');
   const say = (s: string) => () => s;
-  return { run, round: { hasThreat: true, teleport: say('TP'), observe: say('OB'), rewind: () => 'RW', editG: () => 'EG', deleteThreat: say('DL'), tractorBeam: say('TB'), singularity: say('SG'), planetThrusters: () => 'PT', shrink: say('SH'), multiverse: (n) => `MV${n}`, wormhole: say('WH'), revealNow: say('RV'), impulse: () => 'IMPULSE', timefold: () => 'FOLD', detour: () => 'DETOUR', hollow: () => 'HOLLOW', ticket: () => 'TICKET', nibiru: () => 'X', mandela: () => 'M', completeAllPrograms: () => 'CP' } };
+  return { run, round: { hasThreat: true, teleport: say('TP'), observe: say('OB'), rewind: () => 'RW', editG: () => 'EG', deleteThreat: say('DL'), tractorBeam: say('TB'), singularity: say('SG'), planetThrusters: () => 'PT', shrink: say('SH'), multiverse: (n) => `MV${n}`, wormhole: say('WH'), revealNow: say('RV'), impulse: () => 'IMPULSE', timefold: () => 'FOLD', detour: () => 'DETOUR', hollow: () => 'HOLLOW', ticket: () => 'TICKET', nibiru: () => 'X', mandela: () => 'M', peel: () => 'P', completeAllPrograms: () => 'CP' } };
 }
 
 describe('MODES (GAME_PLAN 21)', () => {
@@ -177,5 +177,19 @@ describe('GAME_PLAN 30 fiction', () => {
       expect(out.length).toBeGreaterThanOrEqual(2);
       expect(DEADPAN[v]).toContain(out[0]);
     }
+  });
+});
+
+describe('the peel', () => {
+  it('ambient peel is mostly off, peels in a 4 s window every 23 s, and PEEL runs in character', async () => {
+    const { ambientPeel } = await import('../src/render/glitch');
+    expect(ambientPeel(10).amount).toBe(0);
+    expect(ambientPeel(23 + 2).amount).toBeGreaterThan(0);
+    expect(ambientPeel(23 + 2).corner).toBeGreaterThanOrEqual(0);
+    const c = ctx('SIMULATION');
+    expect(runCommand('PEEL', c)[1]).toBe('P');
+    runCommand('REALITY ON', c);
+    expect(runCommand('PEEL', c)[0]).toContain('ORBITAL ELEMENTS');
+    runCommand('REALITY OFF', c);
   });
 });
