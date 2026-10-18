@@ -7,7 +7,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 Versions are YY.Q.N (docs/RELEASING.md).
 
 - CI: the Pages deploy job skips itself while the repository is private, so the pre-publish review can run CI
-  on a private spaced-lab/miss-beta without a red main.
+  on a private spaced-lab/miss-beta without a red main. CI runs the Node major in .nvmrc (26), the one the
+  planar replay fixture was captured on; Node 22's V8 rounds some Math results differently in the last bit.
 
 - Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
   ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the

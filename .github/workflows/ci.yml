@@ -17,7 +17,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # NOTE: the Node major comes from .nvmrc and must match the one tests/fixtures/planarReplay.json was
+          # captured on: V8's Math functions differ in the last bit between majors (22 fails the replay, 26 passes).
+          node-version-file: .nvmrc
           cache: npm
       - uses: actions/setup-python@v5
         with:

@@ -6,6 +6,8 @@
 //       the round stays ordinary, site targets), resolves them with no missions, a kinetic hammer, a disrupting
 //       hit on a rubble pile, a standoff warhead, a slow push and a standing SCI-FI push, and compares exactly
 //       (toEqual on numbers from JSON, which round-trips doubles). MISS_CAPTURE=1 rewrites the fixture.
+//       The fixture is Node-major specific (V8 Math rounds differently between majors): run on the .nvmrc major,
+//       and recapture only on a commit that changes nothing else.
 // LORE: C3 (tests and the two-language trick), O7 (elements)
 
 // @ts-expect-error node built-in without @types/node (same pattern as tests/help.test.ts)
