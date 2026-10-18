@@ -43,3 +43,26 @@ def integrate_push(el: Elements, mu: float, t0: float, t1: float, a: float, h: f
 
     e = integrate(f, (x, y, vx, vy), t0, t1, h)
     return state_to_elements(e[0], e[1], e[2], e[3], mu, t1), a * (t1 - t0)
+
+G = 6.67430e-11
+TRACTOR_SC_MASS_KG = [1000.0, 5000.0, 20000.0]
+ION_BEAM_N = [0.1, 0.5, 2.0]
+LASER_POWER_W = [5e4, 2e5, 1e6]
+MASS_DRIVER_MDOT = [0.1, 1.0, 10.0]
+MASS_DRIVER_VE = 500.0
+
+
+def push_force(method: str, tier: int, M: float, R: float) -> float:
+    """Force (N) for the main slow-push methods by tier. Mirror of the pushForce cases the vectors cover
+    (GRAVITY_TRACTOR, ION_BEAM, LASER, MASS_DRIVER); other methods live in TypeScript only."""
+    if method == "GRAVITY_TRACTOR":
+        m_sc = TRACTOR_SC_MASS_KG[tier]
+        d = TRACTOR_HOVER_FACTOR * R
+        return G * m_sc * M / (d * d)
+    if method == "ION_BEAM":
+        return ION_BEAM_N[tier]
+    if method == "LASER":
+        return LASER_CM * LASER_POWER_W[tier]
+    if method == "MASS_DRIVER":
+        return MASS_DRIVER_MDOT[tier] * MASS_DRIVER_VE
+    raise ValueError(f"push_force: unsupported method {method}")

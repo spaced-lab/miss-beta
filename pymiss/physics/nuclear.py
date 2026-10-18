@@ -32,3 +32,18 @@ def nuclear_burst(yield_mt: float, mode: str, M: float, R: float, H: float) -> t
 
 def warhead_mass(yield_mt: float) -> float:
     return 1500 + 500 * yield_mt
+
+NUKE_FUZE_U = [0.0, 5000.0, 20000.0, 20000.0]
+NUKE_YIELDS_MT = [0.1, 0.3, 1.0, 5.0]
+NUKE_YIELDS_BY_TIER = [[], [0, 1], [0, 1, 2], [0, 1, 2, 3]]
+
+
+def fuze_ok(U: float, warhead_tier: int) -> bool:
+    """Can a standoff burst be fuzed at closing speed U (m/s) with this warhead tier? Mirror of fuzeOk."""
+    return U <= (NUKE_FUZE_U[warhead_tier] if 0 <= warhead_tier < len(NUKE_FUZE_U) else 0.0)
+
+
+def yields_for_tier(tier: int) -> list[float]:
+    """Yields (Mt) available at a warhead tier. Mirror of yieldsForTier."""
+    idx = NUKE_YIELDS_BY_TIER[tier] if 0 <= tier < len(NUKE_YIELDS_BY_TIER) else []
+    return [NUKE_YIELDS_MT[i] for i in idx]

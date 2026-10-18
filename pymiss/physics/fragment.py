@@ -92,3 +92,11 @@ def disrupt(rng: Rng, M: float, R: float, rho: float, Q: float, Qstar: float, m:
 def f_3d(b_crit: float, v_ej: float, T: float) -> float:
     denom = F3D_K * v_ej * T
     return min(1.0, b_crit / denom) if denom > 0 else 1.0
+
+FRAG_HARMLESS_D = 25.0
+FRAG_HARMLESS_D_IRON = 10.0
+
+
+def harmless_diameter(iron: bool) -> float:
+    """Below this diameter (m) a fragment airbursts harmlessly (GAME_PLAN 6.4). Mirror of harmlessDiameter."""
+    return FRAG_HARMLESS_D_IRON if iron else FRAG_HARMLESS_D

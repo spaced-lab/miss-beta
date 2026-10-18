@@ -1368,3 +1368,13 @@ SOI               sphere of influence
 - Mainzer et al., NEO Surveyor mission papers; ESA NEOMIR study (Conversi et al., NEOSST2 2023)
 - Bowell et al. (1989), asteroid H-G photometric system; Harris and Harris (1997), D-H-albedo relation (the 1329 km constant)
 - Ivezic et al., LSST science requirements (survey depth); Chow et al. (2026), ApJ, imminent impactors discovered by LSST
+
+---
+
+## 29. Event cinematics and narratives (added 2026-10-17 from play feedback)
+
+- **Cinematics**: every clock-passing event (launch, impact, breakup, nuclear, PI, close approach) pauses the clock for a 2 to 5 second vector animation in the PERIMETER minigame's style (pixel debris, shards, bass thud), drawn from the resolved numbers: body type (rubble crumbles, stony cracks, iron rings, comet puffs), U, beta, Q/Q*, fragment count and sizes. A launch shows a planet-level mock-up: HOME's limb, the ascent arc, staging, scaled by launcher tier and payload. Any key skips; reduce-motion replaces it with a flash and the brief. Then the clock returns to the warp that was running.
+- **Auto warp-down**: when no craft is in flight any more the clock drops to 1 day per second, with a HUD line saying so, so the player sees there is room to act.
+- **Narratives**: canned templated briefs (no LLM at play time) at round start ("spotted by what, at what magnitude, how big, how long") and after every event (post-impact summary, breakup summary, fuze, civil defense, debrief). A teletype overlay types the header first, then the body, fast; a key renders the rest at once; another clears it. Narratives use the SPECTRUM role colours (threat amber, craft cyan, fragments magenta) so the screen is not only green; the whole game keeps the minigame's neon feel.
+- Implementation home: `src/render/cinematics/*`, `src/config/narratives.json`, `src/render/views/teletype.ts`; BUILD_PLAN M13.
+

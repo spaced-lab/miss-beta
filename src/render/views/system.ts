@@ -37,11 +37,17 @@ import { PlannerOverlay } from './planner';
 import { ProgramsOverlay } from './programs';
 import { TechOverlay } from './tech';
 import { ConsoleOverlay } from './console';
+import { LorePanel } from './lorePanel';
+import type { Level } from '../../lore/index';
 import type { GameContext } from '../../game/console';
 import { budgetScale } from '../../game/modes';
 import { branchSurvives, earliestEnd, forkMultiverse, resolveBranch, survivalFraction, tickMultiverse, wormhole, type Branch, type Multiverse } from '../../game/multiverse';
 import { glitchPass } from '../glitch';
 import { drawMiniSystem } from '../miniSystem';
+import { CAMERA_PITCHES, polyhedron, tilt, type Camera } from '../camera3d';
+import { Materialize, StarField } from '../wire';
+import { ROLE_STYLE } from '../palettes';
+import { unlockSpectrum } from '../../game/settings';
 import type { UiSfx } from '../../audio/ui';
 import { advanceTutorial, createTutorial, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, TUTORIAL_STEPS, type TutorialFacts, type TutorialState } from '../../game/tutorial';
 import { saveJson } from '../../game/persistence';
@@ -99,7 +105,16 @@ export class SystemScreen implements Screen {
   private mc: MonteCarloResult | null = null;
   private mcToken = 0;
 
-  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null) {
+  private readonly lore: LorePanel;
+  private readonly stars = new StarField();
+  private readonly cam: Camera = { pitch: 0, focal: 900 };
+  private pitchIdx = 0;
+  private readonly mat = new Materialize();
+  private matPhase: Phase = 'planning';
+
+  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
+    this.lore = new LorePanel(s, keys);
+    this.lore.onCenter = openCenter;
     this.world = createWorld('DEV', 1);
     this.run = createRun('DEV');
     this.planner = new PlannerOverlay(s, keys, this.client);
@@ -227,7 +242,7 @@ export class SystemScreen implements Screen {
       drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
       ly += 15;
     }
-    drawText(s, `LORE ${step.lore.join(' ')}   <TAB> SKIP TUTORIAL   <?> MANUAL`, x + 12, y + h - 16, 9, { color: p.dim, glow: 0, alpha });
+    drawText(s, `<?> LORE ${step.lore.join(' ')}   <L> LEARNING CENTER   <TAB> SKIP TUTORIAL   <F1> MANUAL`, x + 12, y + h - 16, 9, { color: p.dim, glow: 0, alpha });
   }
 
   /** The next NEW RUN is a sandbox (set by the title before routing here). */
@@ -368,6 +383,7 @@ export class SystemScreen implements Screen {
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
     this.sfx?.approach(finalOutcome === 'HIT');
+    if (finalOutcome === 'MISS' && !this.run.sandbox && !this.run.tutorial && unlockSpectrum()) this.note('SPECTRUM UNLOCKED: SEMANTIC COLOURS IN OPTIONS.', 6);
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
     this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
     if (finalOutcome !== 'HIT') {
@@ -393,7 +409,22 @@ export class SystemScreen implements Screen {
       this.router.go('title');
       return;
     }
+    if (this.lore.isOpen) {
+      this.lore.update();
+      return;
+    }
     if (k.pressed('Slash')) {
+      // The lore panel opens on what the player is looking at (GAME_PLAN 23 entry points).
+      setWarp(w, 0);
+      this.lore.show(this.contextTopic(), this.settings.learningLevel as Level);
+      return;
+    }
+    if (k.pressed('KeyL') && this.lore.onCenter) {
+      setWarp(w, 0);
+      this.lore.onCenter(this.contextTopic(), this.settings.learningLevel as Level);
+      return;
+    }
+    if (k.pressed('F1')) {
       this.router.go('help');
       return;
     }
@@ -488,6 +519,10 @@ export class SystemScreen implements Screen {
     if (k.pressed('BracketRight')) setWarp(w, w.warp + 1);
     if (k.pressed('BracketLeft')) setWarp(w, w.warp - 1);
     if (k.pressed('KeyS')) this.scale = this.scale === 'LINEAR' ? 'COMPRESSED' : 'LINEAR';
+    if (k.pressed('KeyI')) {
+      this.pitchIdx = (this.pitchIdx + 1) % CAMERA_PITCHES.length;
+      this.cam.pitch = CAMERA_PITCHES[this.pitchIdx] as number;
+    }
     if (k.pressed('KeyZ')) {
       this.zoom = 1;
       this.panX = 0;
@@ -535,7 +570,9 @@ export class SystemScreen implements Screen {
     const r = Math.hypot(x, y);
     const rs = this.scale === 'COMPRESSED' ? (Math.sqrt(r / AU) / 2.5) * base : (r / AU / 5.6) * base;
     const f = r > 0 ? rs / r : 0;
-    return [s.width / 2 + this.panX + x * f, s.height / 2 + this.panY - y * f];
+    // Wireframe-3-D camera (24.3): the tilt is applied to screen offsets, so the physics never sees it.
+    const [dx, dy] = tilt(this.cam, x * f, -y * f);
+    return [s.width / 2 + this.panX + dx, s.height / 2 + this.panY + dy];
   }
 
   private polyline(pts: Float64Array, style: Parameters<Surface['stroke']>[1]): void {
@@ -552,6 +589,12 @@ export class SystemScreen implements Screen {
     const p = s.palette;
     const w = this.world;
     s.clear();
+    this.stars.draw(s, this.panX, this.panY, !this.settings.reduceMotion);
+    if (this.matPhase !== this.phase) {
+      this.matPhase = this.phase;
+      this.mat.start();
+    }
+    this.mat.tick(1 / 60);
 
     const [sx, sy] = this.project(0, 0);
     const sr = 7;
@@ -597,6 +640,7 @@ export class SystemScreen implements Screen {
     }
     this.planner.render();
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
+    this.lore.render();
     this.console.render(this.gameContext());
     if (this.glitch && !this.settings.reduceMotion) glitchPass(s, w.t / 86400, this.run.mode === 'MULTIVERSE' ? 1.5 : 1, `SIM  FRAME ${(1000 / 60).toFixed(1)} MS  ENTITIES ${this.result ? this.result.bodies.length + this.missions.length : 0}  T ${w.t.toFixed(0)}`);
   }
@@ -638,6 +682,24 @@ export class SystemScreen implements Screen {
       const f = r > 0 ? ((Math.sqrt(r / AU) / 2.5) * base) / r : 0;
       s.circle(cx + st.r.x * f, cy - st.r.y * f, 2.5, { color: p.hot, glow: 1, dash: [2, 2] });
     }
+  }
+
+  /** Which lore topic `?` opens: the panel on screen, else the round's situation. */
+  private contextTopic(): string {
+    if (this.programs.isOpen) return 'G4';
+    if (this.tech.isOpen) return 'G5';
+    if (this.planetOpen) return 'O12';
+    if (this.phase === 'debrief') return 'G5';
+    if (this.phase === 'over') return 'T2';
+    if (this.tut) return 'G1';
+    const th = this.world.threat;
+    if (th?.noWarning) return 'F3';
+    if (th?.flavor === 'INTERSTELLAR' || th?.type.kind === 'comet') return 'T6';
+    if (this.result?.producedFragments) return 'D4';
+    if (this.missions.some((m) => m.push)) return 'D6';
+    if (this.missions.some((m) => m.warhead)) return 'D5';
+    if (this.missions.length > 0) return 'D3';
+    return this.world.t > 0 ? 'G2' : 'T1';
   }
 
   /** The console's hooks into the round (game/console.ts GameContext). */
@@ -796,7 +858,8 @@ export class SystemScreen implements Screen {
       const [cx, cy] = this.project(st.r.x, st.r.y);
       const ang = Math.atan2(-st.v.y, st.v.x);
       const r = 5;
-      s.stroke([cx + Math.cos(ang) * r * 1.6, cy + Math.sin(ang) * r * 1.6, cx + Math.cos(ang + 2.5) * r, cy + Math.sin(ang + 2.5) * r, cx + Math.cos(ang - 2.5) * r, cy + Math.sin(ang - 2.5) * r], { closed: true, color: p.hot, glow: 1.2 });
+      const craftRole = m.archetype === 'SAIL_KINETIC' ? 'sail' : m.warhead ? 'nuclear' : 'craft';
+      s.stroke([cx + Math.cos(ang) * r * 1.6, cy + Math.sin(ang) * r * 1.6, cx + Math.cos(ang + 2.5) * r, cy + Math.sin(ang + 2.5) * r, cx + Math.cos(ang - 2.5) * r, cy + Math.sin(ang - 2.5) * r], { closed: true, color: s.spectrum ? s.role(craftRole) : p.hot, glow: 1.2 });
       const trail = new Float64Array(10 * 2);
       for (let i = 0; i < 10; i++) {
         const t = Math.max(m.launchTime, w.t - (i * 20 * DAY));
@@ -804,7 +867,7 @@ export class SystemScreen implements Screen {
         trail[i * 2] = ts.r.x;
         trail[i * 2 + 1] = ts.r.y;
       }
-      this.polyline(trail, { color: p.ink, glow: 0.4, width: 1, alpha: 0.7 });
+      this.polyline(trail, { color: s.spectrum ? s.role(craftRole) : p.ink, glow: 0.4, width: 1, alpha: 0.7, ...(s.spectrum && ROLE_STYLE[craftRole].dash.length > 0 ? { dash: ROLE_STYLE[craftRole].dash } : {}) });
       drawText(s, m.id, cx + 8, cy - 12, 9, { color: p.dim, glow: 0 });
     }
   }
@@ -864,7 +927,7 @@ export class SystemScreen implements Screen {
     if (!th) return;
     const el = this.result ? elementsAt(this.result.segments, w.t) : th.elements;
     if (!this.threatOrbitCache || this.threatOrbitCache.el !== el) this.threatOrbitCache = { el, pts: orbitPoints(el, 360) };
-    this.polyline(this.threatOrbitCache.pts, { closed: el.e < 1, color: p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] });
+    this.polyline(this.threatOrbitCache.pts, { closed: el.e < 1, color: s.spectrum ? s.role('threat') : p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] });
 
     if (this.ghost) {
       const [gx, gy] = this.project(this.ghost.x, this.ghost.y);
@@ -889,9 +952,15 @@ export class SystemScreen implements Screen {
         const rr = size * (th.shape[i] as number);
         buf.push(tx + rr * Math.cos(a), ty + rr * Math.sin(a));
       }
-      const col = b.harmless ? p.dim : p.hot;
-      s.stroke(buf, { closed: true, color: col, glow: b.role === 'FRAGMENT' ? 0.6 : 1.5, width: b.role === 'FRAGMENT' ? 0.8 : 1.25 });
-      if (b.role !== 'FRAGMENT') drawText(s, b.role === 'THREAT' ? th.name : `${th.name} ${b.id}`, tx + 10, ty - 14, 10, { color: p.hot, glow: 0.5 });
+      // SPECTRUM (24.1): threat amber, fragments magenta, each with its paired line style; else hot ink.
+      const role = b.role === 'FRAGMENT' ? 'fragment' : 'threat';
+      const col = b.harmless ? p.dim : s.spectrum ? s.role(role) : p.hot;
+      const dash = s.spectrum && ROLE_STYLE[role].dash.length > 0 ? { dash: ROLE_STYLE[role].dash } : {};
+      if (this.cam.pitch > 0 && b.role !== 'FRAGMENT') {
+        // Tilted view: a seeded wireframe polyhedron tumbling (24.3).
+        for (const seg of polyhedron(this.cam, tx, ty, size * 1.1, w.t * 2e-7, th.shape)) s.stroke(seg, { color: col, glow: 1 });
+      } else s.stroke(buf, { closed: true, color: col, glow: b.role === 'FRAGMENT' ? 0.6 : 1.5, width: b.role === 'FRAGMENT' ? 0.8 : 1.25, ...dash });
+      if (b.role !== 'FRAGMENT') drawText(s, b.role === 'THREAT' ? th.name : `${th.name} ${b.id}`, tx + 10, ty - 14, 10, { color: col === p.dim ? p.dim : col, glow: 0.5 });
     }
     if (bodies.length === 0) {
       const st = propagate(el, w.star.mu, w.t);
@@ -938,7 +1007,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   BACKQUOTE CONSOLE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   I TILT   Z RESET   X EXPORT   ? LORE   L LEARN   F1 MANUAL   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
@@ -947,7 +1016,7 @@ export class SystemScreen implements Screen {
     const y = (s.height - h) / 2;
     s.ctx.fillStyle = withAlpha(s.palette.bg, 0.8);
     s.ctx.fillRect(0, 0, s.width, s.height);
-    s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, glow: 1.2 });
+    this.mat.frame(s, x, y, w, h, 1.2, this.settings.reduceMotion);
     return { x, y };
   }
 

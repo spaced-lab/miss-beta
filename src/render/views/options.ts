@@ -5,7 +5,7 @@
 // LORE: G8 (the look), G2 (screens and HUD)
 
 import type { Router, Screen } from '../../game/screen';
-import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, TEXT_SIZES, UNITS, type Settings } from '../../game/settings';
+import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, spectrumUnlocked, TEXT_SIZES, UNITS, type Settings } from '../../game/settings';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawText } from '../vectorFont';
@@ -24,6 +24,7 @@ export class OptionsScreen implements Screen {
     const st = settings;
     this.rows = [
       { label: 'COLOR MODE', value: () => st.colorMode, change: (d) => (st.colorMode = cycle(COLOR_MODES, st.colorMode, d)), note: 'PHOSPHOR IS THE DEFAULT TERMINAL GREEN. DAYLIGHT IS DARK INK ON PAPER, NO GLOW.' },
+      { label: 'SPECTRUM', value: () => (spectrumUnlocked() ? (st.spectrum ? 'ON' : 'OFF') : 'LOCKED'), change: () => { if (spectrumUnlocked()) st.spectrum = !st.spectrum; }, note: 'SEMANTIC COLOURS: THREAT AMBER, CRAFT CYAN, FRAGMENTS MAGENTA, SAILS ACID, NUCLEAR ORANGE. UNLOCKS AFTER YOUR FIRST CLEAN MISS. EACH ROLE ALSO HAS ITS OWN LINE STYLE.' },
       { label: 'CRT EFFECTS', value: () => (st.crt ? 'ON' : 'OFF'), change: () => (st.crt = !st.crt), note: 'SCANLINES, VIGNETTE AND A FAINT FLICKER OVER THE WHOLE FRAME.' },
       { label: 'GLOW', value: () => st.glow.toUpperCase(), change: (d) => (st.glow = cycle(GLOW_MODES, st.glow, d)), note: 'UNDERSTROKE IS A WIDE FAINT LINE UNDER EVERY STROKE (CHEAP). SHADOW USES CANVAS BLUR (SOFTER, SLOWER).' },
       { label: 'SOUND', value: () => (st.sound ? 'ON' : 'OFF'), change: () => (st.sound = !st.sound), note: 'INTERFACE BLEEPS AND EVENT SOUNDS IN THE MAIN GAME. THE ARCADE MODE HAS ITS OWN SWITCH (KEY 4).' },

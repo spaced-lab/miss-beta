@@ -802,7 +802,7 @@ MORE: Cheng et al. 2023, Nature, "Momentum transfer from the DART mission kineti
 meta: related=[D3,T5,D5,D10]  game=[HAMMER_SWEEP plans, fragment cloud]  tags=[deflection,physics]
 ### SIMPLE
 PICTURE: pic-shotgun  One big rock aimed at Earth; after a blast, a cloud of small rocks still aimed at Earth.
-TEXT: Blow it up late and you get a shotgun blast instead of a bullet. Break it early, or not at all.
+TEXT: Blow it up late and you get a shotgun blast instead of a bullet. Break it early or never.
 ### BEGINNER
 The movie plan, blowing the asteroid apart, mostly makes it worse: the pieces keep going the same way, and now they are spread over a wider area with the same total energy. There are two exceptions. If you break it up years early, the pieces drift apart far enough that most miss. And if the pieces are all small (under about 25 m), the atmosphere burns them up. The game lets you try the "hammer" plan, but shows you the fragment cloud, and you will see the shotgun problem yourself.
 ### INTERMEDIATE
@@ -846,7 +846,7 @@ MORE: Moore et al. 2024, Nature Physics; Bruck Syal, Dearborn and Schultz 2013, 
 meta: related=[D1,D2,D7,T5]  game=[SLOW_PUSH plans, NET_TOW]  tags=[deflection,proposed]
 ### SIMPLE
 PICTURE: pic-slowpush  Four tiny spacecraft near a rock: one just hovering (gravity), one blowing a beam, one shining a laser, one throwing stones off the rock.
-TEXT: Push gently for years: hover and tug, blow on it, cook it with a laser, or throw its own rocks off it.
+TEXT: Push gently for years: hover and tug, blow on it, cook it with a laser, or throw its rocks off.
 ### BEGINNER
 If you have decades, you do not need to hit anything. A heavy spacecraft hovering nearby tugs the asteroid with its gravity alone (the gravity tractor). An ion engine pointed at the asteroid pushes it with exhaust (the ion beam shepherd). A laser or a mirror boils rock off one side (ablation). A robot could even mine the surface and fling the rubble away (a mass driver). All are gentle, controllable, and slow: millimeters per second per year. They shine for small bodies, for fine-tuning after a big push, and for herding fragments.
 ### INTERMEDIATE

@@ -25,3 +25,7 @@ def flyby(vsx: float, vsy: float, vpx: float, vpy: float, delta: float, side: in
     c, s = math.cos(side * delta), math.sin(side * delta)
     ox, oy = ix * c - iy * s, ix * s + iy * c
     return ox, oy, vpx + ox, vpy + oy, 2 * v_inf * math.sin(delta / 2), periapsis_for_turn(delta, v_inf, mu_planet)
+
+def signed_angle(ax: float, ay: float, bx: float, by: float) -> float:
+    """Signed angle from a to b, rad in (-pi, pi]. Mirror of signedAngle."""
+    return math.atan2(ax * by - ay * bx, ax * bx + ay * by)

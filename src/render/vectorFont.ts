@@ -83,19 +83,73 @@ const G: Record<string, Glyph> = {
   '°': [[[1.5, 0], [2.5, 0], [3, 0.5], [3, 1.5], [2.5, 2], [1.5, 2], [1, 1.5], [1, 0.5], [1.5, 0]]],
 };
 
+/** Lowercase, x-height 4 (rows 2..6), ascenders to row 0, descenders to row 8. Used only with `lower: true`
+ *  (lore prose); the HUD keeps mapping lowercase to capitals so existing strings do not change. */
+const LOWER: Record<string, Glyph> = {
+  a: [[[4, 6], [4, 3], [3, 2], [1, 2], [0, 3], [0, 5], [1, 6], [3, 6], [4, 5]]],
+  b: [[[0, 0], [0, 6]], [[0, 3], [1, 2], [3, 2], [4, 3], [4, 5], [3, 6], [1, 6], [0, 5]]],
+  c: [[[4, 3], [3, 2], [1, 2], [0, 3], [0, 5], [1, 6], [3, 6], [4, 5]]],
+  d: [[[4, 0], [4, 6]], [[4, 3], [3, 2], [1, 2], [0, 3], [0, 5], [1, 6], [3, 6], [4, 5]]],
+  e: [[[0, 4], [4, 4], [4, 3], [3, 2], [1, 2], [0, 3], [0, 5], [1, 6], [3, 6], [4, 5.4]]],
+  f: [[[1, 6], [1, 1], [2, 0], [3, 0]], [[0, 3], [2.5, 3]]],
+  g: [[[4, 2], [4, 7], [3, 8], [1, 8], [0, 7]], [[4, 3], [3, 2], [1, 2], [0, 3], [0, 5], [1, 6], [3, 6], [4, 5]]],
+  h: [[[0, 0], [0, 6]], [[0, 3], [1, 2], [3, 2], [4, 3], [4, 6]]],
+  i: [[[2, 2], [2, 6]], [[2, 0], [2, 0.6]]],
+  j: [[[2.5, 2], [2.5, 7], [1.5, 8], [0.5, 7.4]], [[2.5, 0], [2.5, 0.6]]],
+  k: [[[0, 0], [0, 6]], [[3.5, 2], [0, 4.5]], [[1.3, 3.6], [3.5, 6]]],
+  l: [[[1.5, 0], [1.5, 5], [2.5, 6], [3, 6]]],
+  m: [[[0, 6], [0, 2]], [[0, 3], [1, 2], [1.7, 2], [2.2, 3], [2.2, 6]], [[2.2, 3], [2.8, 2], [3.5, 2], [4, 3], [4, 6]]],
+  n: [[[0, 6], [0, 2]], [[0, 3], [1, 2], [3, 2], [4, 3], [4, 6]]],
+  o: [[[1, 2], [3, 2], [4, 3], [4, 5], [3, 6], [1, 6], [0, 5], [0, 3], [1, 2]]],
+  p: [[[0, 2], [0, 8]], [[0, 3], [1, 2], [3, 2], [4, 3], [4, 5], [3, 6], [1, 6], [0, 5]]],
+  q: [[[4, 2], [4, 8]], [[4, 3], [3, 2], [1, 2], [0, 3], [0, 5], [1, 6], [3, 6], [4, 5]]],
+  r: [[[0.5, 6], [0.5, 2]], [[0.5, 3.5], [1.5, 2.3], [3, 2], [4, 2.4]]],
+  s: [[[4, 2.6], [3, 2], [1, 2], [0.3, 2.8], [1, 3.8], [3, 4.2], [3.8, 5], [3, 6], [1, 6], [0, 5.4]]],
+  t: [[[1.5, 0.5], [1.5, 5], [2.5, 6], [3.5, 6]], [[0, 2], [3, 2]]],
+  u: [[[0, 2], [0, 5], [1, 6], [3, 6], [4, 5]], [[4, 2], [4, 6]]],
+  v: [[[0, 2], [2, 6], [4, 2]]],
+  w: [[[0, 2], [1, 6], [2, 3.5], [3, 6], [4, 2]]],
+  x: [[[0, 2], [4, 6]], [[4, 2], [0, 6]]],
+  y: [[[0, 2], [2, 6]], [[4, 2], [1.5, 8], [0.5, 8]]],
+  z: [[[0, 2], [4, 2], [0, 6], [4, 6]]],
+  // Characters the lore text uses that the capitals set lacks.
+  '{': [[[3, 0], [2, 0.5], [2, 2.5], [1, 3], [2, 3.5], [2, 5.5], [3, 6]]],
+  '}': [[[1, 0], [2, 0.5], [2, 2.5], [3, 3], [2, 3.5], [2, 5.5], [1, 6]]],
+  '`': [[[1.5, 0], [2.5, 1.2]]],
+  '&': [[[4, 6], [1, 2.5], [1, 1], [2, 0], [3, 1], [3, 1.8], [0.5, 4], [0.5, 5], [1.5, 6], [2.5, 6], [4, 4]]],
+  '@': [[[3, 2.5], [2, 2], [1.3, 2.7], [1.3, 3.8], [2, 4.5], [3, 4]], [[3, 2.5], [3, 4.2], [3.8, 4.2], [4, 3], [3.5, 1], [2.5, 0.3], [1, 0.5], [0, 2], [0, 4.5], [1, 6], [3, 6]]],
+  '$': [[[2, -0.3], [2, 6.8]], [[4, 1], [3, 0.3], [1, 0.3], [0, 1.3], [1, 2.6], [3, 3.4], [4, 4.6], [3, 5.7], [1, 5.7], [0, 5]]],
+};
+
 const UNKNOWN: Glyph = [[[0, 0], [4, 0], [4, 6], [0, 6], [0, 0]]];
+
+/** Substitutions for characters the font lacks (lore prose): drawn as the nearest ASCII. */
+const SUBST: Record<string, string> = { '\u2248': '~', '\u00d7': 'x', '\u00b2': '^2', '\u00b3': '^3', '\u00b1': '+/-', '\u2013': '-', '\u2212': '-', '\u00b7': '.', '\u2192': '->', '\u2264': '<=', '\u2265': '>=', '\u03bd': 'nu', '\u03c0': 'pi', '\u03c9': 'w', '\u03d6': 'w', '\u03b1': 'alpha', '\u03c3': 'sigma', '\u03c4': 'tau', '\u03b7': 'eta', '\u0394': 'D', '\u03bc': 'mu', '\u03c1': 'rho', '\u2026': '...', '\u2019': "'", '\u201c': '"', '\u201d': '"', '\u00b0': '\u00b0' };
+
+/** Replace characters the font cannot draw with ASCII stand-ins (keeps degree, beta, proportional). */
+export function substitute(text: string): string {
+  let out = '';
+  for (const ch of text) out += SUBST[ch] ?? ch;
+  return out;
+}
 
 /** Glyph cell is 4 wide; advance is 5.5 so letters breathe. */
 export const GLYPH_W = 4;
 export const GLYPH_H = 6;
 export const ADVANCE = 5.5;
 
-export function glyph(ch: string): Glyph {
+export function glyph(ch: string, lower = false): Glyph {
+  if (lower) return LOWER[ch] ?? G[ch] ?? G[ch.toUpperCase()] ?? UNKNOWN;
   return G[ch] ?? G[ch.toUpperCase()] ?? UNKNOWN;
 }
 
-export function hasGlyph(ch: string): boolean {
-  return ch in G || ch.toUpperCase() in G;
+export function hasGlyph(ch: string, lower = false): boolean {
+  return ch in G || ch.toUpperCase() in G || (lower && ch in LOWER);
+}
+
+/** How many characters of cap height `size` fit in `widthPx` (uses the current text scale). */
+export function charsPerLine(widthPx: number, size: number): number {
+  return Math.max(8, Math.floor(widthPx / ((size * textScale * ADVANCE) / GLYPH_H)));
 }
 
 /** Width in CSS px of `text` drawn at cap height `size`. */
@@ -111,6 +165,8 @@ export interface TextStyle extends StrokeStyle {
   align?: Align;
   /** Extra letter spacing in glyph units. */
   spacing?: number;
+  /** Draw lowercase letters as lowercase (lore prose); default maps them to capitals. */
+  lower?: boolean;
 }
 
 /**
@@ -137,7 +193,7 @@ export function drawText(s: Surface, text: string, x: number, y: number, size0: 
 
   const buf: number[] = [];
   for (const ch of text) {
-    for (const stroke of glyph(ch)) {
+    for (const stroke of glyph(ch, style.lower ?? false)) {
       buf.length = 0;
       for (const [gx, gy] of stroke) buf.push(cx + gx * u, y + gy * u);
       s.stroke(buf, style);

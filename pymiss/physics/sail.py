@@ -51,3 +51,18 @@ def integrate_sail(s0, t0: float, t1: float, a_c: float, mu: float, law: str, h:
 
     s = integrate(f, tuple(s0), t0, t1, h, rk4_step, on_step)
     return s, dv[0]
+
+SAIL_TIERS = [
+    {"tier": 1, "sigma": 0.1, "eta": 0.9},
+    {"tier": 2, "sigma": 0.025, "eta": 0.9},
+    {"tier": 3, "sigma": 0.01, "eta": 0.9},
+    {"tier": 4, "sigma": 0.003, "eta": 0.9},
+]
+
+
+def sail_tier(tier: int) -> dict:
+    """Sail spec by tier (loading sigma kg/m^2, efficiency eta). Mirror of sailTier; values from knobs.ts SAIL_TIERS."""
+    for t in SAIL_TIERS:
+        if t["tier"] == tier:
+            return dict(t)
+    raise ValueError(f"no sail tier {tier}")

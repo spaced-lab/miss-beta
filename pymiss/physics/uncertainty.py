@@ -37,3 +37,11 @@ def impact_probability(d_min: float, b_crit: float, sb: float) -> float:
     if sb <= 0:
         return 1.0 if d_min < b_crit else 0.0
     return phi((d_min + b_crit) / sb) - phi((d_min - b_crit) / sb)
+
+BETA_ASSESS_DELAY = [60 * 86400.0, 20 * 86400.0, 5 * 86400.0]
+
+
+def beta_assess_delay(tier: int) -> float:
+    """Seconds after an impact before beta is assessed, by tracking tier. Mirror of betaAssessDelay."""
+    i = max(0, min(len(BETA_ASSESS_DELAY) - 1, tier))
+    return BETA_ASSESS_DELAY[i]

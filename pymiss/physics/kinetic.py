@@ -13,3 +13,8 @@ def kinetic_impact(m: float, M: float, vix: float, viy: float, vtx: float, vty: 
 
 def kinetic_dv(m: float, M: float, U: float, beta: float) -> float:
     return beta * m * U / M
+
+def along_track(dvx: float, dvy: float, vtx: float, vty: float) -> float:
+    """Along-track component of dv given the threat velocity direction. Mirror of alongTrack."""
+    v = math.hypot(vtx, vty)
+    return (dvx * vtx + dvy * vty) / v if v > 0 else 0.0

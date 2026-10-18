@@ -10,7 +10,7 @@
 //         'none'        crisp line only (what DAYLIGHT uses).
 // LORE: G8 (the look), C2 (reading the code)
 
-import { withAlpha, type Palette } from './palettes';
+import { holoHue, roleColor, withAlpha, type Palette, type Role } from './palettes';
 
 export type GlowMode = 'shadow' | 'understroke' | 'none';
 
@@ -34,6 +34,12 @@ export interface Surface {
   dpr: number;
   palette: Palette;
   glowMode: GlowMode;
+  /** SPECTRUM layer on (24.1): semantic roles get their own hue. */
+  spectrum: boolean;
+  /** HOLO hue drift, degrees; the loop advances it unless reduce-motion is on. */
+  holoDrift: number;
+  /** Colour for a semantic role under the current palette and SPECTRUM setting. */
+  role(role: Role): string;
   /** Re-read the element size and DPR; call on resize. */
   resize(): void;
   clear(): void;
@@ -56,6 +62,12 @@ export function createSurface(canvas: HTMLCanvasElement, palette: Palette, glowM
     dpr: 1,
     palette,
     glowMode,
+    spectrum: false,
+    holoDrift: 0,
+
+    role(role) {
+      return roleColor(s.palette, role, s.spectrum);
+    },
 
     resize() {
       const rect = canvas.getBoundingClientRect();
@@ -89,9 +101,37 @@ export function createSurface(canvas: HTMLCanvasElement, palette: Palette, glowM
       if (style.closed) ctx.closePath();
       ctx.setLineDash(style.dash ? (style.dash as number[]) : []);
 
+      // HOLO (24.1): iridescent strokes, hue cycling along the path's extent, plus a 1 px chromatic offset.
+      let paint: string | CanvasGradient = color;
+      if (s.palette.name === 'HOLO' && style.color === undefined) {
+        let x0 = Infinity;
+        let x1 = -Infinity;
+        let y0 = Infinity;
+        let y1 = -Infinity;
+        for (let i = 0; i < n; i += 2) {
+          const px = points[i] as number;
+          const py = points[i + 1] as number;
+          if (px < x0) x0 = px;
+          if (px > x1) x1 = px;
+          if (py < y0) y0 = py;
+          if (py > y1) y1 = py;
+        }
+        if (x1 - x0 > 2 || y1 - y0 > 2) {
+          const g = ctx.createLinearGradient(x0, y0, x1, y1);
+          for (let k = 0; k <= 4; k++) g.addColorStop(k / 4, holoHue(k / 4, s.holoDrift));
+          paint = g;
+          ctx.save();
+          ctx.translate(1, 0);
+          ctx.globalAlpha = alpha * 0.35;
+          ctx.strokeStyle = 'rgba(0,240,255,1)';
+          ctx.lineWidth = width;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
       if (glow > 0 && s.glowMode === 'understroke') {
         ctx.globalAlpha = alpha * 0.11 * glow;
-        ctx.strokeStyle = color;
+        ctx.strokeStyle = paint;
         ctx.lineWidth = width + 3.5 * glow;
         ctx.stroke();
       }
@@ -102,7 +142,7 @@ export function createSurface(canvas: HTMLCanvasElement, palette: Palette, glowM
         ctx.shadowBlur = 0;
       }
       ctx.globalAlpha = alpha;
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = paint;
       ctx.lineWidth = width;
       ctx.stroke();
       ctx.shadowBlur = 0;

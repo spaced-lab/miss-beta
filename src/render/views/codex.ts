@@ -12,6 +12,7 @@ import { PROGRAMS } from '../../sim/programs';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawText } from '../vectorFont';
+import { LorePanel } from './lorePanel';
 
 interface Method {
   id: string;
@@ -42,7 +43,13 @@ const TABS = ['NETWORKS', 'PROGRAMS', 'METHODS'] as const;
 export class CodexScreen implements Screen {
   private tab = 2;
   private sel = 0;
-  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {}
+  private readonly lore: LorePanel;
+  /** Set by main.ts: open the Learning Center on a topic. */
+  openCenter: ((id: string) => void) | null = null;
+  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {
+    this.lore = new LorePanel(s, keys);
+    this.lore.onCenter = (id) => this.openCenter?.(id);
+  }
   enter(): void {}
   exit(): void {}
 
@@ -54,8 +61,21 @@ export class CodexScreen implements Screen {
 
   update(): void {
     const k = this.keys;
+    if (this.lore.isOpen) {
+      this.lore.update();
+      return;
+    }
     if (k.pressed('Escape')) {
       this.router.go('title');
+      return;
+    }
+    const cur = this.rows()[this.sel];
+    if (k.pressed('Slash') && cur) {
+      this.lore.show(cur.lore);
+      return;
+    }
+    if (k.pressed('KeyL') && cur && this.openCenter) {
+      this.openCenter(cur.lore);
       return;
     }
     if (k.pressed('ArrowLeft')) {
@@ -104,6 +124,7 @@ export class CodexScreen implements Screen {
       drawText(s, `EQUATION  ${r.equation}`, m, by + 20, 11);
       drawText(s, r.extra.toUpperCase().slice(0, 160), m, by + 38, 10, { color: p.dim, glow: 0 });
     }
-    drawText(s, 'LEFT / RIGHT TAB    UP / DOWN SELECT    <ESC> TITLE', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'LEFT / RIGHT TAB    UP / DOWN SELECT    <?> LORE    <L> LEARNING CENTER    <ESC> TITLE', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    this.lore.render();
   }
 }

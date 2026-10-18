@@ -4,6 +4,23 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M11: the teaching repo. Python mirror completed (every physics export has a twin), one notebook per built
+  lab, docs/CODE_TOUR.md, docs/ASSUMPTIONS.md A1 to A16, docs/LESSONS pages generated from EDUCATION.md, the
+  README play and learn paths, CONTRIBUTING and four good-first-issue templates, a GitHub Actions workflow
+  (gate + build + smoke + Pages deploy) and a node smoke test over the built site.
+
+- M10: the visual system. Palettes as data (config/palettes.json), SPECTRUM semantic colours unlocked by the
+  first clean miss (threat amber, craft cyan, fragments magenta, sails acid, nuclear orange, each with its own
+  line style), HOLO iridescent strokes with chromatic offset, the wireframe-3-D tilt (I) with a tumbling
+  polyhedron threat, a wireframe planet, a parallax star field, panels that materialize, and a contrast test
+  over every mode.
+
+- M9: the Learning Center. `scripts/build_lore.py` turns EDUCATION.md into 55 x 5 JSON chunks with the
+  contract validated (gate step); the lore panel (`?`) opens on what you are looking at with level tabs and
+  related topics; the Learning Center (L / LEARN) has the topic tree with progress, search, bookmarks, a
+  LABS view and seven live labs that call the real physics; lowercase stroke glyphs for prose; `lore_read`
+  round-trips through SAVE.md; the manual moved to F1 in a run.
+
 - M8: TUTORIAL round 0 (eight guided steps on a fixed 100 m rock, auto-opens on first launch, Tab skips,
   Space at the debrief starts round 1 for real), OPTIONS screen (seven color modes, CRT, glow, sound, units,
   reduce motion, text size, learning level, persisted), CRT pass, attract mode (a seeded round plans and

@@ -19,6 +19,7 @@ import { applySettings, loadSettings } from './game/settings';
 import { crtPass } from './render/crt';
 import { OptionsScreen } from './render/views/options';
 import { UiSfx } from './audio/ui';
+import { CenterScreen } from './render/views/center';
 import { Input } from './ui/input';
 
 function boot(): void {
@@ -40,6 +41,7 @@ function boot(): void {
       if (!next) throw new Error(`unknown screen ${id}`);
       // The manual remembers where it was opened from.
       if (id === 'help' && currentId !== 'help') (next as HelpScreen).returnTo = currentId;
+      if (id === 'center' && currentId !== 'center') (next as CenterScreen).returnTo = currentId;
       current?.exit();
       current = next;
       currentId = id;
@@ -48,10 +50,20 @@ function boot(): void {
   };
   screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null, sfx));
   screens.set('minigame', new MinigameScreen(surface, keys, router));
-  screens.set('system', new SystemScreen(surface, keys, router, settings, sfx));
+  screens.set('system', new SystemScreen(surface, keys, router, settings, sfx, (id, level) => {
+    center.openTopic(id, level);
+    router.go('center');
+  }));
   screens.set('options', new OptionsScreen(surface, keys, router, settings));
+  const center = new CenterScreen(surface, keys, router, settings);
+  screens.set('center', center);
   screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
-  screens.set('codex', new CodexScreen(surface, keys, router));
+  const codex = new CodexScreen(surface, keys, router);
+  screens.set('codex', codex);
+  codex.openCenter = (id) => {
+    (screens.get('center') as CenterScreen).openTopic(id);
+    router.go('center');
+  };
   const help = new HelpScreen(surface, keys, router);
   screens.set('help', help);
 
@@ -82,7 +94,7 @@ function boot(): void {
 
   // Deep link for quick testing: index.html#minigame
   const hash = location.hash.slice(1);
-  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' || hash === 'help' || hash === 'options' ? hash : 'title');
+  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' || hash === 'help' || hash === 'options' || hash === 'center' ? hash : 'title');
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.
@@ -103,6 +115,7 @@ function boot(): void {
     last = now;
     const t0 = performance.now();
     sfx.enabled = settings.sound;
+    if (!settings.reduceMotion) surface.holoDrift = (surface.holoDrift + dt * 0.01) % 360;
     if (keys.anyKeyPressed()) sfx.unlock();
     current?.update(dt);
     keys.endFrame();

@@ -1,0 +1,127 @@
+{
+  "_comment": "GAME_PLAN 24.1 color modes. Every mode: bg / ink / dim / hot; alt for two-tone modes; glow false and thicker lines for DAYLIGHT. SPECTRUM is a layer: semantic roles get their own hue when unlocked (first clean miss) and switched on in OPTIONS. roleStyle pairs each role with a line style so colorblind players lose nothing.",
+  "modes": {
+    "PHOSPHOR": {
+      "bg": "#000000",
+      "ink": "#33FF33",
+      "dim": "#0B4D0B",
+      "hot": "#B6FFB6",
+      "glow": true,
+      "lineWidth": 1.25
+    },
+    "AMBER": {
+      "bg": "#0A0600",
+      "ink": "#FFB000",
+      "dim": "#4A3000",
+      "hot": "#FFE2A0",
+      "glow": true,
+      "lineWidth": 1.25
+    },
+    "ICE": {
+      "bg": "#00060C",
+      "ink": "#7DF9FF",
+      "dim": "#0A3A44",
+      "hot": "#E0FFFF",
+      "glow": true,
+      "lineWidth": 1.25
+    },
+    "VAPOR": {
+      "bg": "#05000A",
+      "ink": "#FF71CE",
+      "dim": "#3A0A3A",
+      "hot": "#FFFFFF",
+      "alt": "#01CDFE",
+      "glow": true,
+      "lineWidth": 1.25
+    },
+    "BLACKLIGHT": {
+      "bg": "#050008",
+      "ink": "#BF5FFF",
+      "dim": "#2A0A40",
+      "hot": "#F0E0FF",
+      "alt": "#CCFF00",
+      "glow": true,
+      "lineWidth": 1.25
+    },
+    "HOLO": {
+      "bg": "#02030A",
+      "ink": "#5FF5D0",
+      "dim": "#0E2A3A",
+      "hot": "#FFFFFF",
+      "glow": true,
+      "lineWidth": 1.25
+    },
+    "DAYLIGHT": {
+      "bg": "#F2F5F3",
+      "ink": "#0B3D0B",
+      "dim": "#B8CCB8",
+      "hot": "#000000",
+      "glow": false,
+      "lineWidth": 1.5
+    }
+  },
+  "spectrum": {
+    "threat": "#FFB000",
+    "danger": "#FF3B3B",
+    "craft": "#00F0FF",
+    "fragment": "#FF2BD6",
+    "program": "#9D4EDD",
+    "sail": "#CCFF00",
+    "nuclear": "#FF6A00",
+    "planet": "#33FF33",
+    "text": "#E6FFE6"
+  },
+  "roleStyle": {
+    "threat": {
+      "dash": [],
+      "marker": "poly"
+    },
+    "danger": {
+      "dash": [
+        2,
+        2
+      ],
+      "marker": "cross"
+    },
+    "craft": {
+      "dash": [],
+      "marker": "dot"
+    },
+    "fragment": {
+      "dash": [
+        1,
+        3
+      ],
+      "marker": "small"
+    },
+    "program": {
+      "dash": [
+        4,
+        2
+      ],
+      "marker": "bar"
+    },
+    "sail": {
+      "dash": [
+        6,
+        3
+      ],
+      "marker": "diamond"
+    },
+    "nuclear": {
+      "dash": [
+        2,
+        2
+      ],
+      "marker": "burst"
+    },
+    "planet": {
+      "dash": [],
+      "marker": "ring"
+    },
+    "text": {
+      "dash": [],
+      "marker": "none"
+    }
+  }
+}

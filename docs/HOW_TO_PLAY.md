@@ -117,6 +117,27 @@ style.
 The run saves at round boundaries. CONTINUE on the title resumes it. `X` downloads SAVE.md, a readable file
 whose front matter the game reads back; drop a SAVE.md onto the window to import it.
 
+## The look: color modes, SPECTRUM, tilt
+
+OPTIONS has seven color modes (PHOSPHOR green, AMBER, ICE, VAPOR, BLACKLIGHT, HOLO with iridescent strokes,
+DAYLIGHT for bright rooms). SPECTRUM unlocks after your first clean miss: the threat turns amber, craft cyan,
+fragments magenta, sails acid, warheads orange, and each role also keeps its own line style so colour is never
+the only cue. `I` in the system view tilts the camera (top-down, 30, 60 degrees): orbits become rings and the
+threat a tumbling wireframe. The planet view draws a slowly turning wireframe globe.
+
+## Learning: the lore panel and the Learning Center
+
+Press `?` in a run (or in the codex) to open the lore panel on whatever you are looking at: the threat brief,
+a committed plan, fragments, the planet view, the debrief. Every topic is written at five levels, SIMPLE
+(a picture and a sentence), BEGINNER, INTERMEDIATE (one worked number), ADVANCED (the game's equations) and
+EXPERT (a lab, the code path, sources); keys 1 to 5 or Tab switch level, F1 to F4 jump to related topics, and
+`L` opens the full Learning Center (also LEARN on the title). The center has the topic tree with your reading
+progress, the content, search (`/`), bookmarks (`B`), a LABS view (`V`) and, on EXPERT topics with a built
+lab, live sliders and a plot that call the game's real physics functions, with the formula and the current
+numbers substituted and the source path under SHOW CODE. The learning level default is in OPTIONS. All of this
+text lives in EDUCATION.md and is built into small chunks by `scripts/build_lore.py`; the game fetches them
+only when a panel opens.
+
 ## Tutorial, daily run, options
 
 TUTORIAL on the title (also the first launch) plays a guided round 0 on a fixed 100 m stony rock with ten

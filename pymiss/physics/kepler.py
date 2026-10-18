@@ -127,3 +127,22 @@ def periapsis(el: Elements) -> float:
 
 def apoapsis(el: Elements) -> float:
     return el.a * (1 + el.e) if el.e < 1 else math.inf
+
+def orbit_points(el: Elements, n: int = 128, r_max: float = 12 * 1.495978707e11) -> list[tuple[float, float]]:
+    """Sampled outline in the system frame, evenly spaced in true anomaly; a hyperbola is an open arc inside r_max.
+    Mirror of orbitPoints."""
+    p = el.a * (1 - el.e * el.e)
+    cw = math.cos(el.w)
+    sw = math.sin(el.w)
+    if el.e > 1:
+        nu_lim = math.acos(max(-1.0, min(1.0, (p / r_max - 1) / el.e)))
+    else:
+        nu_lim = math.pi
+    out = []
+    for i in range(n):
+        nu = -nu_lim + (i / (n - 1)) * 2 * nu_lim if el.e > 1 else (i / n) * 2 * math.pi
+        r = p / (1 + el.e * math.cos(nu))
+        xp = r * math.cos(nu)
+        yp = r * math.sin(nu)
+        out.append((xp * cw - yp * sw, xp * sw + yp * cw))
+    return out

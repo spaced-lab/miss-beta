@@ -8,6 +8,9 @@
 
 export type ColorMode = 'PHOSPHOR' | 'AMBER' | 'ICE' | 'VAPOR' | 'BLACKLIGHT' | 'HOLO' | 'DAYLIGHT';
 
+/** Semantic roles. With SPECTRUM off every role maps to the mode's ink. */
+export type Role = 'threat' | 'danger' | 'craft' | 'fragment' | 'program' | 'sail' | 'nuclear' | 'planet' | 'text';
+
 export interface Palette {
   readonly name: ColorMode;
   readonly bg: string;
@@ -21,33 +24,47 @@ export interface Palette {
   readonly lineWidth: number;
 }
 
-export const PALETTES: Readonly<Record<ColorMode, Palette>> = {
-  PHOSPHOR:   { name: 'PHOSPHOR',   bg: '#000000', ink: '#33FF33', dim: '#0B4D0B', hot: '#B6FFB6', glow: true,  lineWidth: 1.25 },
-  AMBER:      { name: 'AMBER',      bg: '#0A0600', ink: '#FFB000', dim: '#4A3000', hot: '#FFE2A0', glow: true,  lineWidth: 1.25 },
-  ICE:        { name: 'ICE',        bg: '#00060C', ink: '#7DF9FF', dim: '#0A3A44', hot: '#E0FFFF', glow: true,  lineWidth: 1.25 },
-  VAPOR:      { name: 'VAPOR',      bg: '#05000A', ink: '#FF71CE', dim: '#3A0A3A', hot: '#FFFFFF', alt: '#01CDFE', glow: true, lineWidth: 1.25 },
-  BLACKLIGHT: { name: 'BLACKLIGHT', bg: '#050008', ink: '#BF5FFF', dim: '#2A0A40', hot: '#F0E0FF', alt: '#CCFF00', glow: true, lineWidth: 1.25 },
-  HOLO:       { name: 'HOLO',       bg: '#02030A', ink: '#5FF5D0', dim: '#0E2A3A', hot: '#FFFFFF', glow: true,  lineWidth: 1.25 },
-  DAYLIGHT:   { name: 'DAYLIGHT',   bg: '#F2F5F3', ink: '#0B3D0B', dim: '#B8CCB8', hot: '#000000', glow: false, lineWidth: 1.5 },
-};
+import palettesJson from '../config/palettes.json';
 
-/** Semantic roles. With SPECTRUM off every role maps to the mode's ink. */
-export type Role = 'threat' | 'danger' | 'craft' | 'fragment' | 'program' | 'sail' | 'nuclear' | 'planet' | 'text';
+const RAW = palettesJson as { modes: Record<string, { bg: string; ink: string; dim: string; hot: string; alt?: string; glow: boolean; lineWidth: number }>; spectrum: Record<Role, string>; roleStyle: Record<Role, { dash: number[]; marker: string }> };
 
-export const SPECTRUM: Readonly<Record<Role, string>> = {
-  threat: '#FFB000',
-  danger: '#FF3B3B',
-  craft: '#00F0FF',
-  fragment: '#FF2BD6',
-  program: '#9D4EDD',
-  sail: '#CCFF00',
-  nuclear: '#FF6A00',
-  planet: '#33FF33',
-  text: '#E6FFE6',
-};
+/** Palettes are data (GAME_PLAN 24.4): config/palettes.json, typed here. */
+export const PALETTES: Readonly<Record<ColorMode, Palette>> = Object.fromEntries(
+  (Object.keys(RAW.modes) as ColorMode[]).map((name) => {
+    const m = RAW.modes[name] as (typeof RAW.modes)[string];
+    return [name, { name, bg: m.bg, ink: m.ink, dim: m.dim, hot: m.hot, ...(m.alt ? { alt: m.alt } : {}), glow: m.glow, lineWidth: m.lineWidth }];
+  }),
+) as Record<ColorMode, Palette>;
+
+export const SPECTRUM: Readonly<Record<Role, string>> = RAW.spectrum;
+
+/** Each semantic role is paired with a line style (dash pattern, marker) so colour is never the only cue. */
+export const ROLE_STYLE: Readonly<Record<Role, { dash: readonly number[]; marker: string }>> = RAW.roleStyle;
 
 export function roleColor(p: Palette, role: Role, spectrum: boolean): string {
-  return spectrum ? SPECTRUM[role] : p.ink;
+  // DAYLIGHT keeps dark ink: the spectrum hues are tuned for dark backgrounds (24.1: "a layer on any dark mode").
+  return spectrum && p.glow ? SPECTRUM[role] : p.ink;
+}
+
+/** Relative luminance (WCAG 2) of a #RRGGBB colour. */
+export function luminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex).map((c) => {
+    const x = c / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two colours (1 to 21). Example: #33FF33 on #000000 -> about 15.3. */
+export function contrast(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/** HOLO: iridescent hue along a path (160 -> 300 deg) plus a slow drift, as an hsl string. */
+export function holoHue(frac: number, drift: number): string {
+  return `hsl(${(160 + 140 * frac + drift) % 360} 100% 70%)`;
 }
 
 /** Parse "#RRGGBB" into [r, g, b]. Used by the glow under-stroke to build rgba() variants. */

@@ -144,16 +144,29 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M9: Learning Center and lore
 
-- [ ] `scripts/build_lore.py` with the full validation list of EDUCATION.md 0.2; `src/lore/index.ts` loader + LRU (2 MB cap), `panel.ts`, `center.ts`; 55 SIMPLE pictures as SVG generators; first six LABs; SAVE.md fields; codex links.
-- [ ] Tests LORE (build-time) and a runtime test that no lore is fetched before the first panel opens.
+- [x] `scripts/build_lore.py` with the validation list of EDUCATION.md 0.2 (gate runs `--check`); `src/lore/index.ts` loader + LRU (2 MB cap); `render/views/lorePanel.ts` (`?`), `render/views/center.ts` (L / LEARN); 55 SIMPLE pictures as SVG generators (`src/lore/pictures/*`); seven LABs (ELLIPSE, VISVIVA, KEPLER_SOLVER, BETA, FOCUSING, 3DVT, MAGNITUDE) code-split; `lore_read` in SAVE.md merged on load; codex `?` and `L`; lowercase stroke glyphs for prose (opt-in `lower`).
+- [x] Tests LORE (TS loader/markdown/labs/built index; Python parser and validation) and the runtime no-fetch-at-boot test.
+- [ ] Deferred: click-to-open on entities and HUD numbers (keyboard `?` with a context topic instead), the remaining 13 labs, RUN IN PYTHON (Pyodide), quizzes (BACKLOG in EDUCATION.md).
 
 ## M10: Visual system
 
-- [ ] `config/palettes.json` (move the table out of `render/palettes.ts`), SPECTRUM unlock, all modes incl. DAYLIGHT, HOLO strokes + optional WebGL2 bloom with Canvas fallback, `camera3d.ts` tilt, wireframe planet, panel materialize transitions, colorblind line styles, contrast test (PALETTES). Remaining LABs.
+- [x] `config/palettes.json` (the table moved out of `render/palettes.ts`), SPECTRUM unlock (first clean miss) + OPTIONS toggle with `Surface.role()`, all seven modes selectable, HOLO iridescent gradient strokes with a 1 px chromatic offset and slow hue drift (Canvas 2D; WebGL2 bloom deferred to IDEAS 11), `camera3d.ts` tilt (I key: 0 / 30 / 60 deg) with the tumbling wireframe polyhedron, wireframe sphere in the planet view, parallax star field, panel materialize (system panels), colorblind role line styles (`ROLE_STYLE`), contrast test (PALETTES: ink/hot/alt >= 4.5:1 in every mode, SPECTRUM roles >= 3:1 on dark modes).
+- [ ] Deferred: materialize on the planner/programs/tech overlays (they draw their own frames), orbit-plane grid fading with distance, the remaining 13 labs (IDEAS 9).
 
 ## M11: Teaching repo and Python companion
 
-- [ ] `pymiss/` complete, `gen_vectors.py`, notebooks per LAB, `docs/CODE_TOUR.md`, `docs/ASSUMPTIONS.md` complete, README learn path, CONTRIBUTING, issue templates, GitHub Actions (vitest, pytest, lore validation, Playwright smoke), Pages deploy, optional Pyodide.
+- [x] `pymiss/` complete (every `src/physics` export has a snake_case twin; `pushForce` mirrored for the four vector-covered methods), `gen_vectors.py` (since M0), notebooks per built LAB (`pymiss/notebooks/*.ipynb`, seven), `docs/CODE_TOUR.md` (eight stops), `docs/ASSUMPTIONS.md` A1..A16, README play and learn paths, `CONTRIBUTING.md`, four issue templates, `docs/LESSONS/` (`build_lore.py --lessons`), GitHub Actions (`.github/workflows/ci.yml`: typecheck, vitest, pytest, lore check, vectors, audit, build, smoke, Pages deploy from main).
+- [x] Smoke test: `scripts/smoke.mjs` serves `dist` and checks the page, CSP, bundle, lore index and a chunk from node. Playwright (browser download) deliberately not added as a dependency; IDEAS.md 12.
+- [ ] Deferred: Pyodide RUN IN PYTHON (IDEAS 9); the Pages deploy and CI have not run yet because the repo is not on GitHub (push when the user says).
+
+## M13: Event cinematics and narratives (user request, 2026-10-17; after M12)
+
+Design addition from the user (recorded in GAME_PLAN.md Section 29). Build after the planned milestones.
+
+- [ ] **Event cinematics**: when a LAUNCH, IMPACT, FRAGMENTATION, NUKE, PI or CLOSE_APPROACH event passes on the clock, pause the clock and play a few-second (2 to 5 s) vector animation in the PERIMETER style (pixel debris, shards, bass thud), then return to the warp that was running. Launch: a planet-level mock-up (HOME's limb, the pad, the ascent arc, staging) scaled by launcher tier and payload. Impact: the impactor streak, crater or breakup drawn from the real numbers (U, beta, Q/Q*, fragment count and sizes, body type: rubble pile crumbles, stony cracks, iron rings, comet puffs). Skippable with any key; off under reduce-motion (a 0.5 s flash and the brief instead). Module: `src/render/cinematics/*` fed by the resolver's event records only (no new physics).
+- [ ] **Auto warp-down**: when the last in-flight mission has arrived (or none are committed) the clock drops to 1 day/s so the player notices there is room to act; a HUD line says why ("NO MORE CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT").
+- [ ] **Canned narratives**: `src/config/narratives.json`: templated briefs (no LLM at play time) for round start ("SPOTTED BY <network> AT V <mag>, <D> M, <type>, <lead> ..."), after each event (post-impact summary with beta reveal timer, breakup summary with the fragment picture, NUKE fuze, PI, civil defense), and the debrief. Rendered by a `Teletype` overlay: header types in first, then the body, fast (whole text in under a second) with the retro typing look; any key renders the rest at once; another key clears it. Narratives use SPECTRUM role colours when the layer is on (threat amber, craft cyan, fragments magenta) so the screen is not only green.
+- [ ] Tests: narrative templating covers every event kind and every body type with no `undefined`; cinematics are deterministic in (event, seed); the warp-down fires exactly once per arrival.
 
 ## M12: Exhaustion check and idea harvest
 

@@ -15,6 +15,7 @@ import { hashSeed, Rng } from '../../sim/rng';
 import { planetById, type World } from '../../sim/world';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
+import { wireSphere } from '../wire';
 import { drawText } from '../vectorFont';
 
 export class PlanetOverlay {
@@ -43,8 +44,9 @@ export class PlanetOverlay {
     const X = (x: number): number => cx + x * k;
     const Y = (y: number): number => cy - y * k;
 
-    // Disc and continents.
+    // Disc, a slowly rotating wireframe sphere (24.3), and the continents.
     s.circle(cx, cy, R, { glow: 1.4, width: p.lineWidth + 0.25 });
+    wireSphere(s, cx, cy, R, (world.t / 86400) * 0.15, 4, 6, s.spectrum ? s.role('planet') : p.dim);
     const buf: number[] = [];
     for (const c of this.continents) {
       buf.length = 0;

@@ -16,6 +16,9 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M4 Going faster | done | integrate.ts (RK4 + Euler for the lab), sail.ts (force model, SPIRAL/COAST/TARGET_STEER, arcs), flyby.ts (patched conic), two-leg flyby search and sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with legs drawn, FLYBY WINDOWS; all mirrored in pymiss with vectors |
 | M5 Seeing it coming | done | photometry (+ mirror, vectors), detection model with today's and the proposed networks (activation years), discovery search, round generation on discovery-derived lead with NO WARNING rounds, civil defense (E), PROGRAMS panel (G) with effects on completion, SAVE.md writer/parser with CONTINUE, export (X) and drag-drop import, CODEX from config |
 | M6 The full tree | done | tech tree (T), autonomy tiers 1..3 with the rules DSL and presets, split carriers, nuclear (standoff/surface/subsurface/HAIV/pulse train), the slow-push family with NOT VIABLE numbers, PI, tracking tiers with uncertainty and the beta reveal delay, debrief scrubber, leaderboard tabs; fuzz test over every plan family; Section 17 balance checks. Capture bag deferred to M7 with the net (NET1 is SCI-FI) |
+| M11 Teaching repo | done | pymiss mirrors complete + test_m11, seven notebooks, CODE_TOUR, ASSUMPTIONS A1..A16, LESSONS generator, README, CONTRIBUTING, issue templates, CI workflow with Pages deploy (unrun: no GitHub remote yet), scripts/smoke.mjs (node, no browser). Playwright deliberately skipped (IDEAS 12) |
+| M10 Visual system | done | palettes.json, SPECTRUM (unlock + toggle + ROLE_STYLE line styles), HOLO gradient strokes (no WebGL bloom yet), camera3d tilt on I with the wireframe polyhedron, wireSphere in the planet view, StarField parallax, Materialize frames on the system panels, PALETTES contrast test. Materialize on the planner/programs/tech overlays deferred |
+| M9 Learning Center | done | build_lore.py (parse + validate + chunks; `--check` in the gate), LoreStore with 2 MB LRU and zero fetches at boot, lore panel on `?` with a context topic (brief, plan, fragments, planet view, debrief), Learning Center with tree/progress/search/bookmarks/LABS, seven labs (of 20) as dynamic imports, 55 SIMPLE pictures (agent), lowercase glyphs. Labels inside SVG pictures use the browser's monospace font (the one raster font on screen; documented) |
 | M8 Polish | done | TUTORIAL round 0 (GAME_PLAN 25) with eight step predicates, OPTIONS + settings record, CRT pass (scanlines, vignette, flicker), attract mode via game/attract.ts, DAILY RUN seed, UI sound cues, touch input, frame bench (state cost per frame printed by `npm run bench`). Hershey font not adopted (see BUILD_PLAN M8). Units IMPERIAL is stored but readouts still show SI |
 | M7 Modes, cheats, fiction | done | modes nesting (REALISTIC > SCIFI > SIMULATION > MULTIVERSE) with per-mode leaderboards, console (`) on the title and in a run with the public cheat-code table (REVEAL, FASTBUILD, GODTRACK, LEADTIME, SPAWN scenarios, DART, KARDASHEV1/2), FICTION commands with their forbidding quantities, SUMMONDEVS knobs editor, SCI-FI programs and methods (CNT net capture, DE-STAR in-range firing, fusion/Orion tugs, disassembler decay), hyperbolic Kepler branch (TS + Python, shared vectors) for INTERSTELLAR rounds plus LONG_PERIOD and GIANT flavors, MULTIVERSE tiles with COLLAPSE and WORMHOLE, glitch pass. Civilization-level auto-unlock of SCI-FI is computed (civilizationLevel) but only the codes move the mode so far |
 | M8 .. M12 | todo | see docs/BUILD_PLAN.md |
@@ -113,3 +116,16 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   but the coefficients have not been checked against the paper to three digits.
 - HAMMER_SWEEP is not a separate archetype: any plan with Q/Q* >= 1 is flagged DISRUPT, and the sweep is the player
   re-planning against fragment bodies (Tab in the planner) after the breakup. Autonomy (M6) will automate the sweep.
+
+## Resume here (for a fresh session after a context clear)
+
+1. Read `CLAUDE.md`, then this file, then the first unchecked box in `docs/BUILD_PLAN.md` (M12 harvest, then M13
+   cinematics and narratives, the user's request of 2026-10-17).
+2. Play URL for the user is http://localhost:4173 (`npm run play`, or `npx vite build` after a commit while the
+   preview keeps running). The dev server on 5173 is for the agent; its hot updates reset a running minigame.
+3. Commit only with `bash scripts/gate.sh && git add -A && git commit -q -m "..."`; the gate includes
+   `scripts/build_lore.py --check`, which needs every SIMPLE picture generator present.
+4. Open agent branches are merged with `git merge --no-ff <branch>`; keep both sides of CHANGELOG/STATUS conflicts.
+5. Nobody in a session can hear audio: minigame sound feedback goes through the SOUND LAB (L on the PERIMETER
+   ready panel) or as "event + one adjective".
+6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.

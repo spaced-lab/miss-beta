@@ -24,6 +24,8 @@ export interface Settings {
   reduceMotion: boolean;
   textSize: TextSize;
   learningLevel: LearningLevel;
+  /** SPECTRUM layer (24.1): unlocked by the first clean miss, then a toggle. */
+  spectrum: boolean;
 }
 
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
@@ -33,7 +35,7 @@ export const UNITS: readonly Units[] = ['SI', 'IMPERIAL'];
 export const LEARNING_LEVELS: readonly LearningLevel[] = ['SIMPLE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 const TEXT_SCALE: Record<TextSize, number> = { SMALL: 0.9, NORMAL: 1, LARGE: 1.15 };
 
-export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER' };
+export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: false };
 
 const KEY = 'settings';
 
@@ -48,12 +50,23 @@ export function isSettings(v: unknown): v is Settings {
     UNITS.includes(o.units as Units) &&
     typeof o.reduceMotion === 'boolean' &&
     TEXT_SIZES.includes(o.textSize as TextSize) &&
-    LEARNING_LEVELS.includes(o.learningLevel as LearningLevel)
+    LEARNING_LEVELS.includes(o.learningLevel as LearningLevel) &&
+    (o.spectrum === undefined || typeof o.spectrum === 'boolean')
   );
 }
 
 export function loadSettings(): Settings {
-  return { ...loadJson(KEY, isSettings, DEFAULT_SETTINGS) };
+  return { ...DEFAULT_SETTINGS, ...loadJson(KEY, isSettings, DEFAULT_SETTINGS) };
+}
+
+export const SPECTRUM_UNLOCK_KEY = 'spectrum.unlocked';
+export function spectrumUnlocked(): boolean {
+  return loadJson(SPECTRUM_UNLOCK_KEY, (v): v is boolean => typeof v === 'boolean', false);
+}
+export function unlockSpectrum(): boolean {
+  if (spectrumUnlocked()) return false;
+  saveJson(SPECTRUM_UNLOCK_KEY, true);
+  return true;
 }
 
 export function saveSettings(st: Settings): void {
@@ -64,6 +77,7 @@ export function saveSettings(st: Settings): void {
 export function applySettings(st: Settings, s: Surface): void {
   s.palette = PALETTES[st.colorMode];
   s.glowMode = st.glow;
+  s.spectrum = st.spectrum && spectrumUnlocked();
   setTextScale(TEXT_SCALE[st.textSize]);
 }
 

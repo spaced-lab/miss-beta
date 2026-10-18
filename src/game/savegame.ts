@@ -10,6 +10,8 @@ import type { World } from '../sim/world';
 import { budgetAt, createEconomy } from './economy';
 import { loadJson, saveJson } from './persistence';
 import { createRun, type RunState } from './run';
+import { loadSettings } from './settings';
+import { mergeProgress, progress } from '../lore/store';
 import { reapplyTech } from './tech';
 import { parseSave, writeSave, type SaveFile } from './saveMd';
 
@@ -36,9 +38,9 @@ export function toSaveFile(run: RunState, world: World | null): SaveFile {
     run_score: run.score,
     rounds_survived: run.roundsSurvived,
     current_threat: th ? { name: th.name, type: th.type.id, D_m: Math.round(th.D), t_impact_years: (th.tImpact - t) / 3.15576e7, p_impact: 1 } : null,
-    learning_level: 'BEGINNER',
-    lore_read: {},
-    color_mode: 'PHOSPHOR',
+    learning_level: loadSettings().learningLevel,
+    lore_read: { ...progress },
+    color_mode: loadSettings().colorMode,
   };
 }
 
@@ -61,6 +63,7 @@ function loadSavedText(): string | null {
 
 /** Rebuild a RunState from a SaveFile. Program effects are re-applied so completed programs count. */
 export function runFromSave(sf: SaveFile): RunState {
+  mergeProgress(sf.lore_read);
   const run = createRun(sf.seed);
   run.startedAt = sf.started;
   run.round = sf.round;

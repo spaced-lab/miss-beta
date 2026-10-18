@@ -113,8 +113,11 @@ export const HELP_PAGES: readonly HelpPage[] = [
       'SCORE = LOG10(MT + 1) x 100 x (1 + 0.15 ROUND) x OUTCOME x (1 + EFFICIENCY + TIMING + STYLE).',
       '  CLEAN MISS 1.0, MARGINAL 0.8, PARTIAL 0.35. NO WARHEAD AND NO FRAGMENTS EARN STYLE.',
       '',
+      'LEARNING: ? OPENS THE LORE PANEL ON WHAT YOU ARE LOOKING AT (5 LEVELS, 1-5 OR TAB; F1-F4 RELATED);',
+      '  L OPENS THE LEARNING CENTER (55 TOPICS, SEARCH /, BOOKMARKS B, LABS WITH LIVE SLIDERS ON EXPERT TOPICS).',
       'TUTORIAL (TITLE): A GUIDED ROUND 0 ON A FIXED 100 M ROCK; TAB SKIPS. DAILY RUN: ONE SEED PER UTC DAY.',
-      'OPTIONS (TITLE): COLOR MODE, CRT, GLOW, SOUND, UNITS, REDUCE MOTION, TEXT SIZE, LEARNING LEVEL.',
+      'OPTIONS (TITLE): COLOR MODE, SPECTRUM (UNLOCKS AFTER A CLEAN MISS), CRT, GLOW, SOUND, UNITS, REDUCE MOTION,',
+      '  TEXT SIZE, LEARNING LEVEL. I TILTS THE SYSTEM VIEW INTO WIREFRAME 3-D.',
       '',
       'SAVING: THE RUN SAVES AT ROUND BOUNDARIES. CONTINUE ON THE TITLE RESUMES IT. X DOWNLOADS SAVE.MD;',
       '  DROP A SAVE.MD ONTO THE WINDOW TO IMPORT IT.',
@@ -159,7 +162,7 @@ export class HelpScreen implements Screen {
   exit(): void {}
   update(): void {
     const k = this.keys;
-    if (k.pressed('Escape') || k.pressed('Slash')) {
+    if (k.pressed('Escape') || k.pressed('F1')) {
       this.router.go(this.returnTo);
       return;
     }
