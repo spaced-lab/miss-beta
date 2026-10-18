@@ -194,6 +194,7 @@ export class SystemScreen implements Screen {
         groundLaserSince: this.run.effects.groundLaser ? done('GROUND_LASER') : null,
         sailDepot: this.run.effects.sailDepot,
         sailDepotSince: done('SAIL_SWARM_DEPOT'),
+        seedFleetSince: done('SEED_FLEET'),
       },
     };
   }

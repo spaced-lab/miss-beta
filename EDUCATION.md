@@ -1018,6 +1018,7 @@ NANOFORGE (game):   growth delay NANOFORGE_GROW_DAYS (240 d), then F = mdot v_e 
 THRUSTER SWARM:     F = eta_spin N F_unit = 0.6 x 600 x 25 N = 9.0e3 N, after a 200 d transit
 SHEPHERD NETWORK:   dv = beta m_rock U / M = 2 x 2e7 kg x 12 km/s / M, once per threat, 150 d after discovery
 FUSION TUG FLEET:   F = 5e4 N continuous after a 1 yr transit
+SEED FLEET:         arrives after 1 yr, doubles every 1.5 yr; strike k throws 2^k shepherd rocks (max 16)
 All are knobs in src/config/knobs.ts and act through the resolver's standing-push routine (integratePush).
 ```
 The physics is ordinary rocketry and momentum; only the machines are imaginary. The rocket equation still rules the forge: the rock loses mass as it throws regolith, so dv = v_e ln(M0 / M1) caps what a given fraction of the body can buy.

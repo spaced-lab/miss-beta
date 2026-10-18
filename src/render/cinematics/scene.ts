@@ -448,13 +448,13 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
     case 'PUSH': {
       if (!e.viable) return null;
       // The ground laser looks like DE-STAR from the rock's side; the sail depot strikes like the shepherd.
-      const alias: Record<string, string> = { GROUND_LASER: 'DE_STAR', SAIL_DEPOT: 'SHEPHERD' };
+      const alias: Record<string, string> = { GROUND_LASER: 'DE_STAR', SAIL_DEPOT: 'SHEPHERD', SEED_FLEET: 'SHEPHERD' };
       const m0 = alias[e.method] ?? e.method;
       const method = PUSH_SCENES.includes(m0) ? m0 : 'GENERIC';
       sc.push = { method, n: method === 'NANOFORGE' ? 36 : method === 'THRUSTER_SWARM' ? 28 : 1 };
       sc.titleRole = method === 'DE_STAR' ? 'nuclear' : method === 'SHEPHERD' ? 'threat' : 'sail';
       const NAME: Record<string, string> = { GROUND_LASER_: '', NANOFORGE: 'NANOFORGE SEEDS TAKE HOLD', THRUSTER_SWARM: 'THRUSTER SWARM LOCKS ON', SHEPHERD: 'SHEPHERD ROCK INBOUND', FUSION_TUG: 'FUSION TUG DOCKED', DE_STAR: 'DE-STAR ARRAY FIRING', GENERIC: `${e.method.replace(/_/g, ' ')} ON STATION` };
-      sc.title = e.method === 'GROUND_LASER' ? 'GROUND LASER FIRING' : e.method === 'SAIL_DEPOT' ? 'PARKED SAILS STRIKE' : (NAME[method] ?? e.method);
+      sc.title = e.method === 'GROUND_LASER' ? 'GROUND LASER FIRING' : e.method === 'SAIL_DEPOT' ? 'PARKED SAILS STRIKE' : e.method === 'SEED_FLEET' ? 'THE SEED FLEET THROWS' : (NAME[method] ?? e.method);
       const f = e.force < 1 ? `${(e.force * 1000).toFixed(2)} MN` : e.force < 1e4 ? `${e.force.toFixed(1)} N` : `${(e.force / 1000).toFixed(1)} KN`;
       sc.subtitle = `${e.targetId}   F ${f}   ${(e.duration / DAY_S).toFixed(0)} D   DV ${(e.dv * 1000).toFixed(2)} MM/S`;
       if (method === 'SHEPHERD') {

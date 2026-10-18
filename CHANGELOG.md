@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- SEED FLEET (SCI-FI, owner idea): seeds mine small bodies to copy themselves; the fleet doubles every 18 months
+  and throws all its rocks at the threat at each doubling, so lead time buys strikes. Civilization level now opens
+  SCI-FI and SIMULATION on its own; SCI-FI programs actually join the run.
+
 - Programs now do what the panel says (IDEAS 13): HEAVY_LAUNCH_CADENCE unlocks L3 and lifts a real 2-launches-per-year
   cap, ORBITAL_DEPOT and the lunar mass driver add free C3 to every search, GROUND_LASER fires inside 0.05 AU,
   PRECURSOR_FLEET gives tracking tier 1, SAIL_SWARM_DEPOT's parked sails strike.

@@ -631,6 +631,15 @@
       "lore": "G6",
       "unlock": "SIMULATION",
       "forbidden": "MEMORY IS RECONSTRUCTIVE. ORBITS ARE NOT."
+    },
+    {
+      "id": "SEED_FLEET",
+      "name": "SELF-REPLICATING SEED FLEET",
+      "tag": "SPECULATIVE",
+      "status": "BUILT (2026-10-18)",
+      "equation": "strike k throws 2^k rocks of 2e7 kg at 12 km/s; one strike per doubling time of the lead",
+      "lore": "D13",
+      "unlock": "SEED_FLEET (SCI-FI)"
     }
   ]
 }

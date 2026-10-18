@@ -84,3 +84,15 @@ describe('civilization level (IDEAS 14)', () => {
     expect(advanceCivilization(run)).toBeNull();
   });
 });
+
+describe('seed fleet', () => {
+  it('strikes once per doubling with 1, 2, 4 ... rocks; more lead buys more strikes', () => {
+    const world = round('SEEDS');
+    const r = resolveRound(world, [], { scifi: { ...base, seedFleetSince: 0 } });
+    const strikes = r.events.filter((e) => e.kind === 'PUSH' && e.method === 'SEED_FLEET');
+    const leadYears = world.threat!.tImpact / (365.25 * 86400);
+    expect(strikes.length).toBeGreaterThan(0);
+    expect(strikes.length).toBeLessThanOrEqual(Math.ceil((leadYears - 1) / 1.5) + 1);
+    if (strikes.length >= 2 && strikes[0]!.kind === 'PUSH' && strikes[1]!.kind === 'PUSH') expect(strikes[1]!.dv / strikes[0]!.dv).toBeGreaterThan(1.8);
+  });
+});

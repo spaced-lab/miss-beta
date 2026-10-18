@@ -258,4 +258,10 @@ export const KNOBS = {
   SAIL_DEPOT_U: 15000,
   SAIL_DEPOT_BETA: 2,
   SAIL_DEPOT_DELAY: 60 * DAY,
+  /** SEED FLEET (30, owner idea): seeds reach the threat's neighbourhood after SEED_FLEET_DELAY, then the fleet
+   *  doubles every SEED_FLEET_DOUBLING, mining small bodies for copies, and at each doubling throws all its rocks
+   *  (shepherd-sized) at the threat: 1, 2, 4 ... up to SEED_FLEET_MAX rocks a strike. Lead time buys doublings. */
+  SEED_FLEET_DELAY: 365 * DAY,
+  SEED_FLEET_DOUBLING: 1.5 * 365 * DAY,
+  SEED_FLEET_MAX: 16,
 } as const;

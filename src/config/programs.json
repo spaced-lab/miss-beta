@@ -374,6 +374,21 @@
         }
       ],
       "note": "a standing fleet steers captured 25 m rocks; one is fired into every new threat"
+    },
+    {
+      "id": "SEED_FLEET",
+      "name": "SELF-REPLICATING SEED FLEET",
+      "tag": "SPECULATIVE",
+      "years": 16,
+      "costPerYear": 12,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "SEED_FLEET",
+          "value": 1
+        }
+      ],
+      "note": "seeds mine small bodies to copy themselves; the fleet doubles every 18 months and throws its rocks at the threat each time"
     }
   ]
 }

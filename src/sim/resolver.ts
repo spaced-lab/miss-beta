@@ -123,6 +123,8 @@ export interface SciFiOpts {
   /** SAIL_SWARM_DEPOT: pre-accelerated sail impactors on hand (count) and completion time. */
   sailDepot?: number;
   sailDepotSince?: number | null;
+  /** SEED_FLEET program completion (round time) or null. */
+  seedFleetSince?: number | null;
 }
 
 function streamFor(world: World, tag: string, sample: number): Rng {
@@ -670,6 +672,15 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     // The shepherd rock: one kinetic hit, delivered as a one-hour push of the same impulse.
     // SAIL_SWARM_DEPOT: the parked sails strike together 60 days in, each SAIL_DEPOT_KG at SAIL_DEPOT_U, beta SAIL_DEPOT_BETA.
     if ((sf.sailDepot ?? 0) > 0) standing('SAIL-DEPOT', 'SAIL_DEPOT', sf.sailDepotSince, KNOBS.SAIL_DEPOT_DELAY, () => ((sf.sailDepot ?? 0) * KNOBS.SAIL_DEPOT_BETA * KNOBS.SAIL_DEPOT_KG * KNOBS.SAIL_DEPOT_U) / 3600, 3600);
+    // SEED FLEET: one strike per doubling time after arrival; strike k throws 2^k shepherd rocks (capped).
+    if (sf.seedFleetSince !== null && sf.seedFleetSince !== undefined) {
+      for (let k = 0; k < 12; k++) {
+        const delay = KNOBS.SEED_FLEET_DELAY + k * KNOBS.SEED_FLEET_DOUBLING;
+        if (Math.max(sf.seedFleetSince, 0) + delay > tEnd) break;
+        const rocks = Math.min(KNOBS.SEED_FLEET_MAX, 2 ** k);
+        standing(`SEED-FLEET X${rocks}`, 'SEED_FLEET', sf.seedFleetSince, delay, () => (rocks * KNOBS.SHEPHERD_BETA * KNOBS.SHEPHERD_KG * KNOBS.SHEPHERD_U) / 3600, 3600);
+      }
+    }
     standing('SHEPHERD', 'SHEPHERD', sf.shepherdSince, KNOBS.SHEPHERD_DELAY, () => (KNOBS.SHEPHERD_BETA * KNOBS.SHEPHERD_KG * KNOBS.SHEPHERD_U) / 3600, 3600);
   }
 
