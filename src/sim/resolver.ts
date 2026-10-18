@@ -666,7 +666,34 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         }
       }
     };
-    standing('NANOFORGE', 'NANOFORGE', sf.nanoforgeSince, KNOBS.NANOFORGE_GROW_DAYS, () => KNOBS.NANOFORGE_MDOT * KNOBS.NANOFORGE_VE);
+    // NANOFORGE: the rock is its own propellant. It runs until NANOFORGE_MAX_EAT of the body is thrown away (or the
+    // push window ends); the push is the rocket equation dv = v_e ln(M0 / M1), delivered as its average acceleration.
+    if (sf.nanoforgeSince !== null && sf.nanoforgeSince !== undefined) {
+      for (const b of bodies) {
+        if (b.escaped || b.tDeath !== Infinity || b.harmless || b.role === 'FRAGMENT') continue;
+        const tIn = Math.max(sf.nanoforgeSince, b.tBirth === -Infinity ? 0 : b.tBirth, tLast, 0) + KNOBS.NANOFORGE_GROW_DAYS;
+        const tOut = Math.min(tEnd, tIn + (KNOBS.NANOFORGE_MAX_EAT * b.mass) / KNOBS.NANOFORGE_MDOT);
+        if (tOut - tIn < 3600) continue;
+        const m0 = b.mass;
+        const m1 = m0 - KNOBS.NANOFORGE_MDOT * (tOut - tIn);
+        const dv = KNOBS.NANOFORGE_VE * Math.log(m0 / m1);
+        const el = elementsAt(b.segments, Infinity);
+        try {
+          const arc = integratePush(el, mu, tIn, tOut, dv / (tOut - tIn));
+          const lastSeg = b.segments[b.segments.length - 1];
+          if (lastSeg) lastSeg.tTo = tIn;
+          b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
+          b.segments.push({ tFrom: tOut, tTo: Infinity, elements: arc.elements });
+          b.mass = m1;
+          b.D *= Math.cbrt(m1 / m0);
+          b.harmless = b.D < harmlessDiameter(iron);
+          events.push({ t: tIn, kind: 'PUSH', missionId: 'NANOFORGE', targetId: b.id, method: 'NANOFORGE', force: KNOBS.NANOFORGE_MDOT * KNOBS.NANOFORGE_VE, dv: arc.dv, duration: tOut - tIn, viable: true, note: `ATE ${((1 - m1 / m0) * 100).toFixed(0)}% OF THE BODY` });
+        } catch (e) {
+          if (!(e instanceof OrbitError)) throw e;
+          events.push({ t: tIn, kind: 'NOTE', text: `NANOFORGE PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+        }
+      }
+    }
     standing('THRUSTER-SWARM', 'THRUSTER_SWARM', sf.thrusterSwarmSince, KNOBS.THRUSTER_TRANSIT, () => KNOBS.THRUSTER_ETA * KNOBS.THRUSTER_SWARM_N * KNOBS.THRUSTER_UNIT_N);
     if ((sf.fusionTugN ?? 0) > 0) standing('FUSION-TUG', 'FUSION_TUG', sf.fusionTugSince, KNOBS.FUSION_TUG_TRANSIT, () => sf.fusionTugN ?? 0);
     // The shepherd rock: one kinetic hit, delivered as a one-hour push of the same impulse.

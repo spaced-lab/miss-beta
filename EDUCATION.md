@@ -1014,9 +1014,10 @@ Some defenses are not possible today but break no laws of physics, only the limi
 The self-replicating forge turns the threat into its own propellant. Suppose the forge throws 40 kg of regolith every second at 900 m/s. The push is F = mdot x v_e = 40 x 900 = 36,000 newtons, about the thrust of a small jet engine, and it never needs fuel from Earth. On a 2e10 kg rock (a 250 m stony body) that is an acceleration of 1.8e-6 m/s^2; after a year of pushing the rock has changed speed by about 57 m/s, thousands of times what a single DART-style impact gives. The catch is the growth time and that nobody has built a machine that copies itself from raw rock.
 ### ADVANCED
 ```
-NANOFORGE (game):   growth delay NANOFORGE_GROW_DAYS (240 d), then F = mdot v_e = 40 kg/s x 900 m/s = 3.6e4 N
-THRUSTER SWARM:     F = eta_spin N F_unit = 0.6 x 600 x 25 N = 9.0e3 N, after a 200 d transit
-SHEPHERD NETWORK:   dv = beta m_rock U / M = 2 x 2e7 kg x 12 km/s / M, once per threat, 150 d after discovery
+NANOFORGE (game):   growth delay NANOFORGE_GROW_DAYS (240 d), then F = mdot v_e = 8 kg/s x 900 m/s = 7.2e3 N,
+                    until half the body is thrown away: dv = v_e ln(M0 / M1) <= 900 ln 2 = 624 m/s
+THRUSTER SWARM:     F = eta_spin N F_unit = 0.6 x 120 x 25 N = 1.8e3 N, after a 200 d transit
+SHEPHERD NETWORK:   dv = beta m_rock U / M = 2 x 2e6 kg x 12 km/s / M, once per threat, 150 d after discovery
 FUSION TUG FLEET:   F = 5e4 N continuous after a 1 yr transit
 SEED FLEET:         arrives after 1 yr, doubles every 1.5 yr; strike k throws 2^k shepherd rocks (max 16)
 All are knobs in src/config/knobs.ts and act through the resolver's standing-push routine (integratePush).

@@ -1388,7 +1388,8 @@ Owner's core tenet: Earth must be protected by all means, and nothing is ruled o
   carbon-nanotube nets (since M7), the disassembler swarm, DE-STAR, and since 2026-10-18 three standing
   capabilities that act on every threat without a flight once their program is complete:
   - **NANOFORGE SEEDS**: self-replicating, reconfigurable-matter seeds land, grow over the body (NANOFORGE_GROW_DAYS),
-    then run a mass driver from the rock's own regolith: F = mdot v_e. The rock becomes its own rocket.
+    then run a mass driver from the rock's own regolith: F = mdot v_e, until half the body is gone (dv = v_e ln(M0/M1)).
+    The rock becomes its own rocket.
   - **SELF-ASSEMBLING THRUSTER SWARM**: hundreds of small units land, lock together, despin the body (eta_spin) and push.
   - **SHEPHERD NETWORK**: a standing fleet steering captured 25 m rocks; one is fired into every new threat
     (dv = beta m U / M), the planetary-defense infrastructure that uses objects already in space.
