@@ -26,7 +26,8 @@ class NotebooksRun(unittest.TestCase):
             os.chdir(NB_DIR)
             for name in names:
                 with self.subTest(notebook=name):
-                    nb = json.load(open(name))
+                    with open(name) as fh:
+                        nb = json.load(fh)
                     code = [''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code']
                     joined = '\n'.join(code)
                     self.assertNotIn('\\n' + 'import', joined, 'literal backslash-n in source')

@@ -273,7 +273,89 @@ const RUBBLE: Model = {
   },
 };
 
-export const MODELS: readonly Model[] = [DART, RUBIN, GOLDSTONE, NEO_SURVEYOR, SOLAR_SAIL, TRACTOR, LAUNCHER, HAMMER, RUBBLE];
+
+/** NANOFORGE seed (speculative): a lander the size of a fridge that copies itself from regolith. */
+const NANOFORGE: Model = {
+  id: 'NANOFORGE',
+  title: 'NANOFORGE SEED  (SPECULATIVE)',
+  topics: ['D13'],
+  facts: [
+    'A SEED LANDS, BUILDS MORE OF ITSELF FROM THE ROCK, THEN BUILDS A MASS DRIVER.',
+    'IN THE GAME: 240 DAYS OF GROWTH, THEN 40 KG/S OF REGOLITH AT 900 M/S: 36 KN, FOREVER.',
+    'NOTHING LIKE IT EXISTS. NO LAW OF PHYSICS FORBIDS IT.',
+  ],
+  source: 'CONCEPT: VON NEUMANN (1966); NASA CP-2255 (1982). DESIGN IS INVENTED FOR THE GAME.',
+  scaleBar: 1,
+  build: (t) => {
+    // A geodesic pod on three legs; a replication arm unfolds and a daughter pod assembles beside it.
+    const pod = sphere(0.6, 3, 6, 'sail');
+    const legs = [0, 1, 2].map((i) => {
+      const a = (i / 3) * Math.PI * 2;
+      return strut([0.45 * Math.cos(a), -0.3, 0.45 * Math.sin(a)], [1.1 * Math.cos(a), -1, 1.1 * Math.sin(a)], 'craft', false);
+    });
+    const u = (t % 8) / 8;
+    const arm = [strut([0.5, 0.2, 0], [0.5 + 0.9 * u, 0.7, 0], 'craft', false), strut([0.5 + 0.9 * u, 0.7, 0], [0.5 + 1.5 * u, -0.4, 0], 'craft', false)];
+    const daughter = move(sphere(0.6 * u, 3, 6, 'sail'), [0.5 + 1.5 * u, -0.4 + 0.6 * u, 0]);
+    const ground = move(panel(5, 3, 5, 'threat'), [0.5, -1, 0]);
+    return rotY(flat(pod, legs, arm, u > 0.05 ? daughter : [], ground), t * 0.3);
+  },
+};
+
+/** A self-assembling thruster swarm on a small rock (speculative). */
+const THRUSTER_SWARM_MODEL: Model = {
+  id: 'THRUSTER_SWARM',
+  title: 'SELF-ASSEMBLING THRUSTER SWARM  (SPECULATIVE)',
+  topics: ['D12'],
+  facts: [
+    '600 SMALL UNITS LAND, LOCK INTO A NET OVER THE SURFACE AND FIRE ON A SHARED CLOCK.',
+    'A SPINNING ROCK MUST BE DESPUN FIRST: ONLY THE UNITS FACING THE RIGHT WAY FIRE (ETA ABOUT 0.6).',
+    'IN THE GAME: 9 KN CONTINUOUS AFTER A 200 DAY TRANSIT.',
+  ],
+  source: 'CONCEPT ONLY. SWARM ROBOTICS LITERATURE; DESIGN IS INVENTED FOR THE GAME.',
+  scaleBar: 20,
+  build: (t) => {
+    const rock = sphere(60, 6, 10, 'threat', (u, v) => 1 + 0.1 * Math.sin(5 * u + 2 * v));
+    const units: Part[] = [];
+    for (let i = 0; i < 40; i++) {
+      const u = 0.15 + 0.7 * ((i * 0.61) % 1);
+      const v = (i * 0.37) % 1;
+      const th = u * Math.PI;
+      const ph = v * Math.PI * 2;
+      const p: V3 = [62 * Math.sin(th) * Math.cos(ph), 62 * Math.cos(th), 62 * Math.sin(th) * Math.sin(ph)];
+      units.push(move([box(4, 4, 4, 'craft')], p)[0] as Part);
+      // Units on the -x side fire (the push is toward +x).
+      if (p[0] < -10 && Math.floor(t * 4 + i) % 3 !== 0) units.push(strut(p, [p[0] - 18, p[1], p[2]], 'nuclear', false));
+    }
+    return rotY(flat(rock, units), t * 0.15);
+  },
+};
+
+/** A shepherd tug with a captured 25 m rock in a net (speculative infrastructure). */
+const SHEPHERD_MODEL: Model = {
+  id: 'SHEPHERD',
+  title: 'SHEPHERD TUG AND ITS PARKED ROCK  (SPECULATIVE)',
+  topics: ['G4'],
+  facts: [
+    'A STANDING FLEET KEEPS SMALL CAPTURED ROCKS PARKED, READY TO THROW AT A THREAT.',
+    'A 2E7 KG ROCK AT 12 KM/S WITH BETA 2 GIVES DV = BETA M U / M: CENTIMETRES PER SECOND ON A 100 M BODY.',
+    'IT USES WHAT IS ALREADY IN SPACE: THE MASS NEVER HAS TO BE LAUNCHED FROM EARTH.',
+  ],
+  source: 'KECK INSTITUTE ASTEROID RETRIEVAL STUDY (2012); NASA ARM (2013-2017). FLEET IS INVENTED.',
+  scaleBar: 10,
+  build: (t) => {
+    const rock = sphere(12, 5, 8, 'threat', (u, v) => 1 + 0.15 * Math.sin(4 * u + 3 * v));
+    const net: Part[] = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      net.push(strut([14 * Math.cos(a), 0, 14 * Math.sin(a)], [0, 26, 0], 'sail', true));
+    }
+    const tug = move(flat([box(3, 5, 3, 'craft')], move(panel(12, 2.5, 4, 'program'), [0, 0, 0])), [0, 29, 0]);
+    const plume = [strut([0, 32, 0], [0, 44 + 3 * Math.sin(t * 9), 0], 'nuclear', false)];
+    return rotY(flat(rock, net, tug, plume), t * 0.25);
+  },
+};
+
+export const MODELS: readonly Model[] = [DART, RUBIN, GOLDSTONE, NEO_SURVEYOR, SOLAR_SAIL, TRACTOR, LAUNCHER, HAMMER, RUBBLE, NANOFORGE, THRUSTER_SWARM_MODEL, SHEPHERD_MODEL];
 
 /** The model for a topic, or null. */
 export function modelForTopic(id: string): Model | null {

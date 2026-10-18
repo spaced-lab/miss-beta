@@ -113,6 +113,17 @@ export const PICTURES_D: Readonly<Record<string, Gen>> = {
     ...[[220, 120], [210, 180], [195, 230]].map(([x, y]) => arrow(x ?? 0, y ?? 0, (x ?? 0) + 45, y ?? 0, { color: p.dim }) + person((x ?? 0) + 58, (y ?? 0) - 10, 3)),
   ]),
 
+  // D13: a rock covered in tiny machines with a dust jet off one side; a small captured rock steered toward it.
+  'pic-wild-ideas': (p) => picture(p, [
+    rock(250, 165, 70, 3),
+    ...Array.from({ length: 26 }, (_, i) => { const a = (i / 26) * Math.PI * 2; const r = 55 + (i % 3) * 6; return glowDot(250 + Math.cos(a) * r, 165 + Math.sin(a) * r, 2, p.hot); }),
+    ...[0, 1, 2, 3, 4, 5].map((i) => line(180 - i * 22, 165 + (i % 2 ? 6 : -6), 166 - i * 22, 165 + (i % 2 ? -4 : 4), { color: p.ink })),
+    label(70, 140, 'ITS OWN DUST', { color: p.ink }), label(70, 154, 'THROWN BACK', { color: p.dim }),
+    arrow(330, 165, 400, 165, { color: p.hot }), label(365, 150, 'PUSH', { color: p.hot, anchor: 'middle' }),
+    rock(395, 60, 10, 2, { color: p.dim }), spacecraft(415, 45, 6), arrow(385, 70, 320, 110, { color: p.dim, dash: '4 3' }),
+    label(410, 95, 'A PARKED ROCK', { color: p.dim, anchor: 'middle' }), label(250, 275, 'TINY MACHINES', { color: p.hot, anchor: 'middle' }),
+  ]),
+
   // A grid: rock size up the side, years of warning along the bottom; zones labeled nudge, hit, nuke, run.
   'pic-decision-chart': (p) => picture(p, [
     arrow(80, 270, 450, 270, { color: p.dim }), arrow(80, 270, 80, 40, { color: p.dim }),

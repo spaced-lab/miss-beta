@@ -36,7 +36,7 @@ describe('SIMPLE pictures (EDUCATION.md Section 8)', () => {
   const ids = educationIds();
 
   it('has one generator per PICTURE id in EDUCATION.md and no extras', () => {
-    expect(ids.length).toBe(55);
+    expect(ids.length).toBe(56);
     expect(new Set(ids).size).toBe(ids.length);
     const keys = Object.keys(PICTURES).sort();
     expect(keys).toEqual([...ids].sort());

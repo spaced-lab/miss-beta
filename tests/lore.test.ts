@@ -122,10 +122,10 @@ describe('LABS', () => {
 });
 
 describe('built lore (public/lore)', () => {
-  it('index.json lists 55 topics with five levels, chunks exist, SIMPLE text is at most 20 words', () => {
+  it('index.json lists 56 topics with five levels, chunks exist, SIMPLE text is at most 20 words', () => {
     if (!existsSync('public/lore/index.json')) return; // built by scripts/build_lore.py; the gate runs it
     const ix = JSON.parse(readFileSync('public/lore/index.json', 'utf8')) as { topics: { id: string; levels: string[]; pictureId: string | null; demoId: string | null }[]; labs: string[] };
-    expect(ix.topics.length).toBe(55);
+    expect(ix.topics.length).toBe(56);
     expect(ix.labs.length).toBe(20);
     for (const t of ix.topics) {
       expect(t.levels).toEqual(LEVELS);

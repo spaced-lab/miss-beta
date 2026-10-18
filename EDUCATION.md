@@ -69,6 +69,7 @@ O  ORBITS AND MATH  O1 numbers   O2 logs and magnitudes   O3 vectors   O4 Newton
                     O13 integration   O14 randomness and probability
 D  DEFLECTION       D1 impulse   D2 early beats big   D3 kinetic and beta   D4 fragmentation   D5 nuclear   D6 slow push
                     D7 sails   D8 rockets   D9 Yarkovsky   D10 last resorts   D11 the catalog and the chart   D12 autonomy
+                    D13 wild ideas
 G  THE GAME         G1 how to play   G2 screens and HUD   G3 the planner   G4 programs   G5 scoring   G6 modes and cheats
                     G7 under the hood   G8 the look
 C  THE CODE         C1 how it is built   C2 reading the code   C3 tests and two languages   C4 build your own   C5 sources
@@ -1001,6 +1002,29 @@ MORE: Rivkin et al. 2021, PSJ (DART mission overview); Chen et al. 2018 on SMART
 ---
 
 # G. THE GAME
+
+## D13 Wild ideas that might work someday
+meta: related=[D6,D10,D3,G6]  game=[SCI-FI programs, CODEX SPECULATIVE tier]  tags=[speculative,sci-fi]
+### SIMPLE
+PICTURE: pic-wild-ideas  A rock covered in tiny machines with a jet of dust streaming off one side, and a small rock being steered toward it.
+TEXT: Tiny machines could grow on a rock and turn it into its own rocket.
+### BEGINNER
+Some defenses are not possible today but break no laws of physics, only the limits of our factories. Picture seeds no bigger than sand grains that land on an asteroid, copy themselves from its own dust, and build a machine that throws that dust away, so the rock pushes itself off course. Or hundreds of small thrusters that land, link up, and push together. Or a standing fleet that keeps a few small captured rocks parked in space, ready to throw at anything dangerous. In SCI-FI mode the game lets you fund these, labelled SPECULATIVE: unproven, but maybe someday.
+### INTERMEDIATE
+The self-replicating forge turns the threat into its own propellant. Suppose the forge throws 40 kg of regolith every second at 900 m/s. The push is F = mdot x v_e = 40 x 900 = 36,000 newtons, about the thrust of a small jet engine, and it never needs fuel from Earth. On a 2e10 kg rock (a 250 m stony body) that is an acceleration of 1.8e-6 m/s^2; after a year of pushing the rock has changed speed by about 57 m/s, thousands of times what a single DART-style impact gives. The catch is the growth time and that nobody has built a machine that copies itself from raw rock.
+### ADVANCED
+```
+NANOFORGE (game):   growth delay NANOFORGE_GROW_DAYS (240 d), then F = mdot v_e = 40 kg/s x 900 m/s = 3.6e4 N
+THRUSTER SWARM:     F = eta_spin N F_unit = 0.6 x 600 x 25 N = 9.0e3 N, after a 200 d transit
+SHEPHERD NETWORK:   dv = beta m_rock U / M = 2 x 2e7 kg x 12 km/s / M, once per threat, 150 d after discovery
+FUSION TUG FLEET:   F = 5e4 N continuous after a 1 yr transit
+All are knobs in src/config/knobs.ts and act through the resolver's standing-push routine (integratePush).
+```
+The physics is ordinary rocketry and momentum; only the machines are imaginary. The rocket equation still rules the forge: the rock loses mass as it throws regolith, so dv = v_e ln(M0 / M1) caps what a given fraction of the body can buy.
+### EXPERT
+DEMO: none
+NOTES: The standing pushes are in src/sim/resolver.ts (search "standing"); the programs in src/config/programs.json; their cinematics in src/render/cinematics/draw.ts (drawPushScene). Self-replication: von Neumann's universal constructor (1966) and the NASA 1980 summer study on a self-replicating lunar factory are the classic starting points. Mass drivers on asteroids: O'Neill's 1970s work. Gravitational and kinetic shepherding of small bodies: asteroid retrieval studies (Keck Institute 2012, NASA ARM 2013-2017).
+MORE: Freitas and Merkle 2004, "Kinematic Self-Replicating Machines" (free online); NASA CP-2255 (1982), "Advanced Automation for Space Missions"; Keck Institute for Space Studies 2012, "Asteroid Retrieval Feasibility Study" (free PDF).
 
 ## G1 How to play
 meta: related=[G2,G3,G4,D2]  game=[TUTORIAL menu item, first run]  tags=[tutorial]

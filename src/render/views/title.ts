@@ -96,7 +96,7 @@ export class TitleScreen implements Screen {
       { label: 'CODEX', hotkey: 'KeyX', action: () => router.go('codex') },
       { label: 'LEADERBOARD', hotkey: 'KeyB', action: () => router.go('leaderboard') },
       { label: 'HOW TO PLAY', hotkey: 'KeyH', action: () => router.go('help') },
-      { label: 'LEARN  (LEARNING CENTER: 55 TOPICS, 5 LEVELS, LABS)', hotkey: 'KeyL', action: () => router.go('center') },
+      { label: 'LEARN  (LEARNING CENTER: 56 TOPICS, 5 LEVELS, 20 LABS)', hotkey: 'KeyL', action: () => router.go('center') },
       { label: 'OPTIONS', hotkey: 'KeyO', action: () => router.go('options') },
     ];
   }
