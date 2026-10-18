@@ -355,7 +355,9 @@ export class SystemScreen implements Screen {
     this.detourAt = null;
     this.nibiru = false;
     this.ticketFiled = false;
-    if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
+    // The tutorial round starts paused (step 1 asks for SPACE) and its first step already explains the brief.
+    if (this.run.tutorial) setWarp(this.world, 0);
+    else if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
   }
 
   private sunwardActive(): boolean {
@@ -780,6 +782,11 @@ export class SystemScreen implements Screen {
       drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
+    if (this.planner.isOpen && this.tut) {
+      // The tutorial box is hidden under the planner, so the step it asks for is repeated in one line here.
+      const hint = this.tut.step <= 3 ? 'TUTORIAL: UP / DOWN PICKS A PLAN, ENTER COMMITS THE TOP KINETIC PLAN. ESC CLOSES THE PLANNER.' : 'TUTORIAL: COMMITTED. ESC CLOSES THE PLANNER, THEN ] RUNS THE CLOCK.';
+      drawTextFit(s, hint, s.width / 2, s.height - 50, 11, s.width - 32, { align: 'center', color: s.spectrum ? s.role('program') : p.hot, glow: 1 });
+    }
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
     if (this.tele.isModal || (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.planetOpen)) this.tele.render(this.tele.isModal ? 'center' : 'dock');
     this.lore.render();
