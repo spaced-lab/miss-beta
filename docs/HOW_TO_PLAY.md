@@ -151,3 +151,11 @@ Arrows move the launcher, Space fires (watch the heat), Shift fires a pulse, `<`
 of sentinels. Levels raise streams, launchers and rock hardness; the moon arrives at level 3 and sentries are
 earned from level 6. Keys 1 to 5: debug, glow, collision, sound, sound kit. Cheat codes are listed in
 `src/minigame/cheats.ts`; they flag the run ASSISTED.
+
+**SOUND LAB** (`L` on the ready or game-over panel): every sound in the game has three or four synthesized
+voices plus OFF, and you choose by ear. Up/Down picks a row (shot, hit, breakup, hull impact, laser, mesh,
+pulse, seeker, swarm, sentry, moon hit, level-up, the ambient layer, then master volume and ambient level),
+Left/Right changes the variant and plays it, Enter or Space replays it, `A` plays the whole backlog in order
+with a 0.6 s gap so you can listen through and note what grates, `0` restores the defaults, Esc returns to the
+game without resetting it. Choices are saved in this browser (`missb.minigame.sfx`). The defaults for the
+frequent sounds (shot, hit, sentry) are the least clicky voices; the rest default to the v3.2 sound.

@@ -10,6 +10,17 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   resolves itself behind the title menu), DAILY RUN, main-game sound cues (menu, commit, launch, impact,
   breakup, approach), touch pan and pinch zoom, a frame-cost bench.
 
+- PERIMETER v3.3 SOUND LAB (`L` on the ready / game-over panel, `src/minigame/soundLab.ts`): every game event
+  (shot, hit, breakup, hull impact, laser, mesh, pulse, seeker, swarm, sentry, moon hit, level-up, ambient layer)
+  has a table of three or four named synthesized variants plus OFF in `src/minigame/sfx.ts`, each with a one-line
+  description and a documented clickiness proxy (spectral centre / attack); Up/Down row, Left/Right variant (plays
+  it), Enter/Space replay, `A` reviews the whole backlog with a 0.6 s gap, `0` resets, Esc returns with the game
+  untouched; master volume and ambient level rows; choices persisted under one guarded key (`isSfxPrefs`). The
+  least clicky voice is the default for shot (THUMP), hit (SUB POP) and sentry (THRUM); other events keep the v3.2
+  voice. Synth voices gained soft-attack options (`bass`, `crunch`, `lfoTone`) and a `bass` delay. Swarm charge
+  (owner: "not keeping up"): `SWARM_KILLS_PER_LEVEL` 30 -> 20 with a new cap `SWARM_KILLS_CAP` 400 (102 at level
+  10, 302 at 20, 400 from 25; was 142 / 442 / 742), the biggest cut the balance probe accepts.
+
 - M7: modes (REALISTIC > SCIFI > SIMULATION > MULTIVERSE) with their leaderboards, the console (`) with the
   public cheat codes and SPAWN scenarios, the FICTION commands and their forbidding quantities, the knobs
   editor, SCI-FI programs and standing capabilities (CNT net, DE-STAR in range, disassembler decay), the

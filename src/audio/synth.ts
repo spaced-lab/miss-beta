@@ -10,7 +10,8 @@
 //       sub layer (30 to 45 Hz, longer tail) under the main pop; that is where "bassier" comes from. `thud()`
 //       is the rock-breakup voice (a low thud with a tail); `rumble()` is the hull impact: a 35-45 Hz sub with a
 //       slow pitch drop over a 120 Hz lowpassed noise bed, the loudest voice in the kit;
-//       `tick` takes a soft attack and `sweep` a start delay so clusters (the laser mesh) schedule in one call.
+//       `tick`, `crunch`, `lfoTone` and `bass` take a soft attack (the Sound Lab's "less clicky" variants lean on
+//       it) and `tick`, `sweep`, `softPulse` and `bass` a start delay so clusters (the laser mesh) schedule in one call.
 //       Everything is guarded so the module is inert in node (tests) and when audio is unavailable.
 // LORE: G8 (the look, and the sound)
 
@@ -49,6 +50,8 @@ export interface LfoToneOpts {
   dur?: number;
   wave?: OscillatorType;
   gain?: number;
+  /** Soft attack, s: the gain ramps up over this time instead of starting at full level (less click). */
+  attack?: number;
 }
 
 export interface CrunchOpts {
@@ -61,6 +64,8 @@ export interface CrunchOpts {
   gain?: number;
   /** Playback rate multiplier; < 1 lowers and lengthens. */
   pitch?: number;
+  /** Soft attack, s: the gain ramps up over this time instead of starting at full level (less click). */
+  attack?: number;
 }
 
 export interface GrainsOpts {
@@ -188,7 +193,13 @@ export class Synth {
     f.type = 'lowpass';
     f.frequency.value = 3000;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(o.gain ?? 0.12, t);
+    const attack = Math.min(o.attack ?? 0, dur * 0.5);
+    if (attack > 0) {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(o.gain ?? 0.12, t + attack);
+    } else {
+      g.gain.setValueAtTime(o.gain ?? 0.12, t);
+    }
     g.gain.setValueAtTime(o.gain ?? 0.12, t + dur * 0.7);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(f).connect(g).connect(master);
@@ -231,7 +242,13 @@ export class Synth {
     f.frequency.setValueAtTime(o.cutoff ?? 1800, t);
     f.frequency.exponentialRampToValueAtTime(110, t + dur);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(o.gain ?? 0.3, t);
+    const attack = Math.min(o.attack ?? 0, dur * 0.5);
+    if (attack > 0) {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(o.gain ?? 0.3, t + attack);
+    } else {
+      g.gain.setValueAtTime(o.gain ?? 0.3, t);
+    }
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f).connect(g).connect(master);
     src.start(t);
@@ -268,19 +285,27 @@ export class Synth {
   /**
    * Sub-bass pop: a short sine at 35-90 Hz with a fast pitch drop, plus a second, lower layer (half the
    * pitch, clamped to 30-45 Hz) with a tail `subTail` times longer. `sub` scales that layer (0 disables it).
-   * The "tiny lo-fi bass" that sits under almost every event.
+   * The "tiny lo-fi bass" that sits under almost every event. `attack` (s, default 0) softens the onset: the
+   * main pop ramps up linearly over that time instead of starting at full level, which removes the click edge
+   * a sine that starts mid-cycle makes; `delay` (s) schedules it later so a caller can stack a pattern in one go.
    */
-  bass(freq = 70, dur = 0.035, gain = 0.12, sub = 0.7, subTail = 1.8): void {
+  bass(freq = 70, dur = 0.035, gain = 0.12, sub = 0.7, subTail = 1.8, attack = 0, delay = 0): void {
     const io = this.out();
     if (!io) return;
     const { ctx, master } = io;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + delay;
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, t);
     osc.frequency.exponentialRampToValueAtTime(freq * 0.55, t + dur);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
+    const a = Math.min(attack, dur * 0.5);
+    if (a > 0) {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + a);
+    } else {
+      g.gain.setValueAtTime(gain, t);
+    }
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(g).connect(master);
     osc.start(t);

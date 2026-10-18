@@ -246,12 +246,17 @@ export const MG = {
    *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
    *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. Count and life grow with level (below). */
   SWARM_KILLS: 22,
-  /** Kills per swarm grow SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL (sim.swarmKillsNeeded): 22 to
-   *  level 6, 142 at 10, 292 at 15, 742 at 30. Without this the swarm feeds itself (drones make kills, kills make
-   *  swarms) and the balance probe took no hull damage at all from level 3 to 15 whatever the rocks did. The swarms
-   *  themselves still grow (count, life, stock cap): bigger but rarer, a burst weapon rather than permanent cover. */
+  /** Kills per swarm grow SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL, capped at SWARM_KILLS_CAP
+   *  (sim.swarmKillsNeeded): 22 to level 6, 102 at 10, 202 at 15, 302 at 20, 400 from level 25 on. v3.2 used +30 and
+   *  no cap (142 at 10, 442 at 20, 742 at 30); the owner found the swarm "not keeping up", so v3.3 cuts the slope and
+   *  caps it. Measured 2026-10-17 with the armed balance-probe bot (god off, seeds 1..4): one charge every 11-15 s
+   *  from level 8 on (per level: 7 s at 8, 8 s at 10, 12 s at 15, 13 s at 20-25, 11 s at 30; v3.2 gave 9 to 21 s).
+   *  Gentler settings (15/300, 18/360) let the bot plateau above 60 hull at level 30 on one seed, so this is the
+   *  biggest cut the probe accepts. Some growth has to stay: without it the swarm feeds itself (drones make kills,
+   *  kills make swarms) and the probe took no hull damage at all from level 3 to 15 whatever the rocks did. */
   SWARM_KILLS_FROM_LEVEL: 6,
-  SWARM_KILLS_PER_LEVEL: 30,
+  SWARM_KILLS_PER_LEVEL: 20,
+  SWARM_KILLS_CAP: 400,
   /** Stock cap grows one per SWARM_MAX_LEVELS levels up to SWARM_MAX_CAP (2, then 3 at level 11, 4 at 21, 5 at 31). */
   SWARM_MAX: 2,
   SWARM_MAX_LEVELS: 10,
