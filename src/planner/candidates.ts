@@ -17,7 +17,7 @@ import { fuzeOk, nuclearBurst, warheadMass, yieldsForTier } from '../physics/nuc
 import { pushForce, type PushMethod } from '../physics/slowPush';
 import { missFromPush } from '../physics/estimates';
 import type { Mission } from '../sim/mission';
-import type { Vec2 } from '../util/vec';
+import type { V } from '../sim/orbit3';
 import { cellTimes, type PorkchopGrid } from './porkchop';
 
 export interface ResolveVerdict {
@@ -44,8 +44,8 @@ export interface CandidateContext {
   impactorTier: number;
   budget: number;
   committedAt: number;
-  /** Target velocity at a given time, for the along-track projection. */
-  targetVelocity: (t: number) => Vec2;
+  /** Target velocity at a given time, for the along-track projection (with z for a target off the ecliptic). */
+  targetVelocity: (t: number) => V;
   /** Resolve the candidate's missions together with the committed ones. */
   resolve: (ms: Mission[]) => ResolveVerdict;
   /** Allow SWARM bundles (k = 2, 3). */
@@ -190,9 +190,10 @@ export function missionFromCell(g: PorkchopGrid, iL: number, iA: number, ctx: Ca
     arrivalTime: tA,
     impactorKg: Math.min(payload, cap),
     c3: g.c3[i] ?? NaN,
-    departureV: { x: g.v1x[i] ?? 0, y: g.v1y[i] ?? 0 },
-    arrivalV: { x: g.v2x[i] ?? 0, y: g.v2y[i] ?? 0 },
-    interceptR: { x: g.rx[i] ?? 0, y: g.ry[i] ?? 0 },
+    // NOTE: a 3-D grid (target off the ecliptic) adds the z parts, which route the mission through 3-D code.
+    departureV: g.v1z ? { x: g.v1x[i] ?? 0, y: g.v1y[i] ?? 0, z: g.v1z[i] ?? 0 } : { x: g.v1x[i] ?? 0, y: g.v1y[i] ?? 0 },
+    arrivalV: g.v2z ? { x: g.v2x[i] ?? 0, y: g.v2y[i] ?? 0, z: g.v2z[i] ?? 0 } : { x: g.v2x[i] ?? 0, y: g.v2y[i] ?? 0 },
+    interceptR: g.rz ? { x: g.rx[i] ?? 0, y: g.ry[i] ?? 0, z: g.rz[i] ?? 0 } : { x: g.rx[i] ?? 0, y: g.ry[i] ?? 0 },
     U: g.U[i] ?? NaN,
     cost: missionCost(ctx.launcherTier, ctx.impactorTier),
     committedAt: ctx.committedAt,
@@ -203,6 +204,13 @@ export function missionFromCell(g: PorkchopGrid, iL: number, iA: number, ctx: Ca
 /** Along-track dv estimate for a mission with the given beta: beta (m/M) U cos(angle to the track). */
 export function estimateDvAlong(m: Mission, ctx: CandidateContext, beta: number): number {
   const vt = ctx.targetVelocity(m.arrivalTime);
+  if (vt.z !== undefined || m.arrivalV.z !== undefined) {
+    // A target off the ecliptic (M14): the same projection with the z parts.
+    const u = { x: m.arrivalV.x - vt.x, y: m.arrivalV.y - vt.y, z: (m.arrivalV.z ?? 0) - (vt.z ?? 0) };
+    const v3 = Math.hypot(vt.x, vt.y, vt.z ?? 0);
+    const along3 = v3 > 0 ? (u.x * vt.x + u.y * vt.y + u.z * (vt.z ?? 0)) / v3 : 0;
+    return (beta * m.impactorKg * along3) / ctx.targetMass;
+  }
   const ux = m.arrivalV.x - vt.x;
   const uy = m.arrivalV.y - vt.y;
   const vm = Math.hypot(vt.x, vt.y);

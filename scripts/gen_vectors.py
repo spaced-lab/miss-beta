@@ -29,8 +29,8 @@ from pymiss.physics.nuclear import intercepted_fraction, nuclear_burst, warhead_
 from pymiss.physics.photometry import absolute_magnitude, apparent_magnitude, view_geometry  # noqa: E402
 from pymiss.physics.fragment import disrupt, f_3d, fragment_masses, largest_remnant_fraction, q_star, specific_energy  # noqa: E402
 from pymiss.physics.estimates import LAUNCHERS, miss_from_impulse, miss_from_push, payload_for_c3  # noqa: E402
-from pymiss.physics.kinetic import kinetic_impact  # noqa: E402
-from pymiss.physics.lambert import lambert  # noqa: E402
+from pymiss.physics.kinetic import along_track3, kinetic_impact, kinetic_impact3  # noqa: E402
+from pymiss.physics.lambert import lambert, lambert3  # noqa: E402
 from pymiss.physics.stumpff import stumpff_c, stumpff_s  # noqa: E402
 from pymiss.physics.elements import OrbitError, state_to_elements  # noqa: E402
 from pymiss.physics.kepler import Elements, propagate, solve_kepler, solve_kepler_hyperbolic  # noqa: E402
@@ -310,6 +310,38 @@ def close_approach3_vectors() -> dict:
     return {"closeApproach3": cases}
 
 
+def lambert3_vectors() -> dict:
+    """M14 phase 2: lambert3 between random points off the ecliptic (both senses), and kinetic_impact3."""
+    rng = Rng(hash_seed("vectors:lambert3"))
+    cases = []
+    tries = 0
+    while len(cases) < 30 and tries < 400:
+        tries += 1
+        r1 = rng.float(0.7, 1.5) * AU
+        t1 = rng.float(0, 2 * math.pi)
+        r2 = rng.float(0.5, 5.5) * AU
+        t2 = t1 + rng.float(0.1, 2 * math.pi - 0.1)
+        lat2 = rng.float(-0.9, 0.9)
+        dt = rng.float(30, 900) * DAY
+        prograde = rng.next() < 0.8
+        a = (r1 * math.cos(t1), r1 * math.sin(t1), 0.0)
+        b = (r2 * math.cos(lat2) * math.cos(t2), r2 * math.cos(lat2) * math.sin(t2), r2 * math.sin(lat2))
+        res = lambert3(a, b, dt, MU_SUN, prograde)
+        if res is None:
+            continue
+        cases.append({"r1": list(a), "r2": list(b), "dt": dt, "mu": MU_SUN, "prograde": prograde, "v1": list(res.v1), "v2": list(res.v2), "z": res.z, "dtheta": res.dtheta})
+    kin = []
+    for _ in range(10):
+        m = rng.float(300, 20000)
+        M = rng.float(1e8, 1e12)
+        vi = (rng.float(-4e4, 4e4), rng.float(-4e4, 4e4), rng.float(-2e4, 2e4))
+        vt = (rng.float(-3e4, 3e4), rng.float(-3e4, 3e4), rng.float(-1e4, 1e4))
+        beta = rng.float(1, 5)
+        dvx, dvy, dvz, U, Q = kinetic_impact3(m, M, vi, vt, beta)
+        kin.append({"m": m, "M": M, "vi": list(vi), "vt": list(vt), "beta": beta, "dv": [dvx, dvy, dvz], "U": U, "Q": Q, "along": along_track3((dvx, dvy, dvz), vt)})
+    return {"lambert3": cases, "kinetic3": kin}
+
+
 if __name__ == "__main__":
     write("kepler.json", kepler_vectors())
     write("closeApproach.json", close_approach_vectors())
@@ -325,3 +357,4 @@ if __name__ == "__main__":
     write("kepler3.json", kepler3_vectors())
     write("elements3.json", elements3_vectors())
     write("closeApproach3.json", close_approach3_vectors())
+    write("lambert3.json", lambert3_vectors())

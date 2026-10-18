@@ -8,13 +8,14 @@
 //       active discovering networks (brightness ignored: it says where they look, not how deep). A direction is a
 //       short cross, dim where coverage is high, hot where it is low. Orthographic projection of the unit sphere,
 //       yaw turning with time (frozen under REDUCE MOTION), pitch fixed. The threat's direction each 10 days over
-//       the last 400 comes from its 3-D lite position (tilted about its node when it has an inclination).
+//       the last 400 comes from its 3-D position (a 3-D orbit since M14 phase 2; older 3-D lite threats are
+//       tilted about their node).
 //       Pure drawing: it reads the world and never changes it.
 // LORE: F12 (visitors from other stars), F3 (the sunward blind spot), F5 (today's surveys), F11 (the gauge)
 
 import { Materialize } from '../wire';
-import { propagate } from '../../physics/kepler';
 import { NETWORKS } from '../../sim/detection';
+import { is3D, lift, stateAt } from '../../sim/orbit3';
 import { coverageAll, eclipticLatitude, nodeLine, tiltAboutNode } from '../../sim/sky';
 import { planetById, planetState, type World } from '../../sim/world';
 import type { Input } from '../../ui/input';
@@ -152,8 +153,9 @@ export class SkyOverlay {
       };
       for (let dt = -400; dt <= 0; dt += 10) {
         const tt = world.t + dt * 86400;
-        const st = propagate(th.elements, world.star.mu, tt);
-        const r3 = th.incl && th.node !== undefined ? tiltAboutNode(st.r, nodeLine(th.node), th.incl) : { x: st.r.x, y: st.r.y, z: 0 };
+        // A 3-D orbit (M14 phase 2) gives its own z; older 3-D lite threats tilt the planar track about the node.
+        const st = stateAt(th.elements, world.star.mu, tt);
+        const r3 = is3D(th.elements) ? lift(st.r) : th.incl && th.node !== undefined ? tiltAboutNode(st.r, nodeLine(th.node), th.incl) : { x: st.r.x, y: st.r.y, z: 0 };
         const hr = planetState(world, home, tt).r;
         const beta = eclipticLatitude(r3, hr);
         // Longitude from the Sun: angle between (sun - home) and (rock - home) in the plane, signed.

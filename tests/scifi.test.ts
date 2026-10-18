@@ -7,6 +7,7 @@ import { launcherTier } from '../src/physics/estimates';
 import { propagate } from '../src/physics/kepler';
 import { computePorkchop } from '../src/planner/porkchop';
 import type { Mission } from '../src/sim/mission';
+import { is3D, stateAt, vlen, vsub } from '../src/sim/orbit3';
 import { resolveRound, type SciFiOpts } from '../src/sim/resolver';
 import { roundRng } from '../src/sim/rng';
 import { drawFlavor, generateThreat } from '../src/sim/roundGen';
@@ -32,7 +33,9 @@ function impactor(w: World, tA: number, kg: number, id = 'K1', tMin = KNOBS.BUIL
   if (best < 0) return null;
   return {
     id, archetype: 'KINETIC', launcherTier: 3, impactorTier: 3, launchTime: g.tL0 + Math.floor(best / g.nA) * g.step, arrivalTime: g.tA0 + (best % g.nA) * g.step, impactorKg: kg, c3: g.c3[best] as number,
-    departureV: { x: g.v1x[best] as number, y: g.v1y[best] as number }, arrivalV: { x: g.v2x[best] as number, y: g.v2y[best] as number }, interceptR: { x: g.rx[best] as number, y: g.ry[best] as number },
+    departureV: { x: g.v1x[best] as number, y: g.v1y[best] as number, ...(g.v1z ? { z: g.v1z[best] as number } : {}) },
+    arrivalV: { x: g.v2x[best] as number, y: g.v2y[best] as number, ...(g.v2z ? { z: g.v2z[best] as number } : {}) },
+    interceptR: { x: g.rx[best] as number, y: g.ry[best] as number, ...(g.rz ? { z: g.rz[best] as number } : {}) },
     U: g.U[best] as number, cost: 20, committedAt: 0,
   };
 }
@@ -41,7 +44,8 @@ describe('SCI-FI round types (21.2)', () => {
   it('INTERSTELLAR: hyperbolic (e > 1), 50 to 90 km/s relative to HOME, hits when ignored, and a kinetic impactor still deflects it', () => {
     let deflected = 0;
     let tried = 0;
-    for (const seed of ['ISO-1', 'ISO-2', 'ISO-3', 'ISO-4', 'ISO-5']) {
+    // NOTE: since M14 phase 2 the orbits arrive from any direction in 3-D; ISO-9 and ISO-24 are among the few reachable.
+    for (const seed of ['ISO-1', 'ISO-2', 'ISO-3', 'ISO-9', 'ISO-24']) {
       const w = createWorld(seed, 3);
       w.threat = generateThreat(roundRng(seed, 3), w, 3, 0, { flavor: 'INTERSTELLAR' });
       const th = w.threat;
@@ -52,11 +56,12 @@ describe('SCI-FI round types (21.2)', () => {
       expect(th.vInfNominal / 1000).toBeLessThanOrEqual(90);
       expect(th.tImpact / YEAR).toBeGreaterThan(0.59);
       expect(th.tImpact / YEAR).toBeLessThan(1.51);
-      // At impact epoch the body is at HOME, closing at v_inf.
-      const a = propagate(th.elements, w.star.mu, th.tImpact);
+      // At impact epoch the body is at HOME, closing at v_inf; since M14 phase 2 it arrives in 3-D (i and raan).
+      expect(is3D(th.elements)).toBe(true);
+      const a = stateAt(th.elements, w.star.mu, th.tImpact);
       const h = planetState(w, planetById(w, 'HOME'), th.tImpact);
-      expect(Math.hypot(a.r.x - h.r.x, a.r.y - h.r.y)).toBeLessThan(1e3);
-      expect(Math.hypot(a.v.x - h.v.x, a.v.y - h.v.y)).toBeCloseTo(th.vInfNominal, -1);
+      expect(vlen(vsub(a.r, h.r))).toBeLessThan(1e3);
+      expect(vlen(vsub(a.v, h.v))).toBeCloseTo(th.vInfNominal, -1);
       const r0 = resolveRound(w);
       expect(r0.outcome).toBe('HIT');
       expect(Math.abs(r0.ca.tCa - th.tImpact)).toBeLessThan(10);

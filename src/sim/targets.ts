@@ -8,13 +8,18 @@
 //       as before). Moons ride a circular orbit around their planet: r = r_planet + a (cos(n t + phi), sin(n t +
 //       phi)) with theta = n (t - t0_planet) + phi, n = sqrt(mu_planet / a^3) and the phase phi from a hash of the run seed (no Rng draw). Their close
 //       approach is the same coarse scan plus golden-section refinement, on that moving state. Python has no
-//       mirror: this is sim, built from the mirrored physics (bCrit, escapeSpeed, propagate).
+//       mirror: this is sim, built from the mirrored physics (bCrit, escapeSpeed, propagate). A tilted threat
+//       orbit (M14 phase 2, sim/orbit3.ts is3D) is measured in 3-D: closeApproach3 for planets, the same scan
+//       with the z separation for moons.
 // LORE: T7 (protecting more than one world), O12 (close approach and b-crit)
 
 import { KNOBS } from '../config/knobs';
 import { bCrit, closeApproach, escapeSpeed, goldenMin, type CloseApproach, type CloseApproachOpts } from '../physics/closeApproach';
+import { closeApproach3 } from '../physics/closeApproach3';
 import { propagate, type Elements } from '../physics/kepler';
+import { liftElements, propagate3, type Elements3 } from '../physics/kepler3';
 import type { Vec2 } from '../util/vec';
+import { is3D } from './orbit3';
 import { hashSeed } from './rng';
 import { planetById, type World } from './world';
 
@@ -61,6 +66,7 @@ export function targetOf(world: World, id: TargetId = 'HOME'): Target {
  * physics closeApproach (identical numbers); moons scan their moving state the same way.
  */
 export function targetCloseApproach(threat: Elements, target: Target, muSun: number, tNominal: number, opts: CloseApproachOpts = {}): CloseApproach {
+  if (is3D(threat)) return targetCloseApproach3(threat, target, muSun, tNominal, opts);
   if (target.elements) return closeApproach(threat, target.elements, muSun, target.mu, target.radius, tNominal, opts);
   const window = opts.window ?? 90 * 86400;
   const coarse = opts.coarseStep ?? 3600;
@@ -84,6 +90,39 @@ export function targetCloseApproach(threat: Elements, target: Target, muSun: num
   const b = target.state(tCa);
   const dMin = Math.hypot(a.r.x - b.r.x, a.r.y - b.r.y);
   const vInf = Math.hypot(a.v.x - b.v.x, a.v.y - b.v.y);
+  const bc = bCrit(target.mu, target.radius, vInf);
+  const vEsc = escapeSpeed(target.mu, target.radius);
+  return { tCa, dMin, vInf, bCrit: bc, impact: dMin < bc, marginRadii: (dMin - bc) / target.radius, vImpact: Math.sqrt(vInf * vInf + vEsc * vEsc) };
+}
+
+/**
+ * The same test for a tilted threat orbit (M14 phase 2): planets use closeApproach3 against their lifted (i = 0)
+ * elements; moons, which ride in the plane, are scanned with the 3-D separation |r_T - r_moon| (z_moon = 0).
+ */
+function targetCloseApproach3(threat: Elements3, target: Target, muSun: number, tNominal: number, opts: CloseApproachOpts): CloseApproach {
+  if (target.elements) return closeApproach3(threat, liftElements(target.elements), muSun, target.mu, target.radius, tNominal, opts);
+  const window = opts.window ?? 90 * 86400;
+  const coarse = opts.coarseStep ?? 3600;
+  const tol = opts.tol ?? 1;
+  const dist = (t: number): number => {
+    const a = propagate3(threat, muSun, t).r;
+    const b = target.state(t).r;
+    return Math.hypot(a.x - b.x, a.y - b.y, a.z);
+  };
+  let bestT = tNominal;
+  let bestD = Infinity;
+  for (let t = tNominal - window; t <= tNominal + window; t += coarse) {
+    const d = dist(t);
+    if (d < bestD) {
+      bestD = d;
+      bestT = t;
+    }
+  }
+  const tCa = goldenMin(dist, bestT - coarse, bestT + coarse, tol);
+  const a = propagate3(threat, muSun, tCa);
+  const b = target.state(tCa);
+  const dMin = Math.hypot(a.r.x - b.r.x, a.r.y - b.r.y, a.r.z);
+  const vInf = Math.hypot(a.v.x - b.v.x, a.v.y - b.v.y, a.v.z);
   const bc = bCrit(target.mu, target.radius, vInf);
   const vEsc = escapeSpeed(target.mu, target.radius);
   return { tCa, dMin, vInf, bCrit: bc, impact: dMin < bc, marginRadii: (dMin - bc) / target.radius, vImpact: Math.sqrt(vInf * vInf + vEsc * vEsc) };

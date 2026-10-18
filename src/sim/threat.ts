@@ -1,7 +1,8 @@
 // WHAT: The threat object: an asteroid or comet on a collision course with HOME.
 // WHY:  One record carries everything the brief, the planner and the resolver need: orbit, size, type,
 //       mass, nominal impact epoch and the seeded outline it is drawn with.
-// HOW:  Built by roundGen.ts; elements are replaced by the resolver after every impulse (M2+).
+// HOW:  Built by roundGen.ts; elements are replaced by the resolver after every impulse (M2+). Visitors from other
+//       stars carry 3-D elements (M14 phase 2).
 // LORE: T1 (what is a NEO), T5 (what they are made of)
 
 import type { Elements } from '../physics/kepler';
@@ -31,6 +32,11 @@ export interface Threat {
   readonly D: number;
   /** Mass, kg. */
   readonly mass: number;
+  /**
+   * The orbit. Planar Elements for ordinary rounds; an Elements3 (with i and raan, physics/kepler3.ts) for a
+   * visitor from another star since M14 phase 2, so the whole round flies in 3-D (sim/orbit3.ts is3D). Spread
+   * copies ({ ...elements, M0 }) keep the tilt.
+   */
   elements: Elements;
   /** Nominal impact epoch, s (round time). */
   readonly tImpact: number;
@@ -47,6 +53,7 @@ export interface Threat {
   /**
    * 3-D lite (sim/sky.ts): the orbit's tilt about the node line through the impact point, rad, and that line's
    * angle in the plane, rad. Absent (flat) for ordinary rounds; detection and drawing use it, dynamics do not.
+   * Superseded by 3-D elements (M14 phase 2): new rounds never set it; kept so older threats still draw.
    */
   readonly incl?: number;
   readonly node?: number;

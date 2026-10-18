@@ -10,6 +10,7 @@
 
 import { generateContinents, type Continent } from '../../minigame/planet';
 import { propagate } from '../../physics/kepler';
+import { is3D, lift, stateAt, vsub } from '../../sim/orbit3';
 import type { RoundResult } from '../../sim/resolver';
 import { hashSeed, Rng } from '../../sim/rng';
 import { planetById, type World } from '../../sim/world';
@@ -65,10 +66,29 @@ export class PlanetOverlay {
         if (!o.ca) continue;
         const el = o.body.segments[o.body.segments.length - 1]?.elements;
         if (!el) continue;
-        const tb = propagate(el, world.star.mu, o.ca.tCa);
         const th = propagate(home.elements, world.star.mu, o.ca.tCa);
-        const dx = (tb.r.x - th.r.x) / home.radius;
-        const dy = (tb.r.y - th.r.y) / home.radius;
+        let dx: number;
+        let dy: number;
+        // Approach corridor direction on the chart (none in the b-plane view: v_rel points into the screen).
+        let corr: { x: number; y: number } | null = null;
+        if (is3D(el)) {
+          // Off the ecliptic (M14 phase 2): the miss lies in the b-plane (normal to v_rel); draw it there, with
+          // e1 = v_rel x z (in the ecliptic) and e2 = v_hat x e1, so the drawn distance is the 3-D miss.
+          const tb = stateAt(el, world.star.mu, o.ca.tCa);
+          const d = lift(vsub(tb.r, th.r));
+          const u = lift(vsub(tb.v, th.v));
+          const um = Math.hypot(u.x, u.y, u.z) || 1;
+          const e1 = { x: u.y / um, y: -u.x / um, z: 0 };
+          const e1m = Math.hypot(e1.x, e1.y) || 1;
+          const e2 = { x: (u.y * e1.z - u.z * e1.y) / um / e1m, y: (u.z * e1.x - u.x * e1.z) / um / e1m, z: (u.x * e1.y - u.y * e1.x) / um / e1m };
+          dx = (d.x * e1.x + d.y * e1.y) / e1m / home.radius;
+          dy = (d.x * e2.x + d.y * e2.y + d.z * e2.z) / home.radius;
+        } else {
+          const tb = propagate(el, world.star.mu, o.ca.tCa);
+          dx = (tb.r.x - th.r.x) / home.radius;
+          dy = (tb.r.y - th.r.y) / home.radius;
+          corr = { x: tb.v.x - th.v.x, y: tb.v.y - th.v.y };
+        }
         const x = X(dx);
         const y = Y(dy);
         const isPrimary = o.body.role !== 'FRAGMENT';
@@ -77,11 +97,13 @@ export class PlanetOverlay {
         if (isPrimary) {
           s.circle(x, y, size, { color, glow: 1.5 });
           // Approach corridor: the relative velocity direction through the body.
-          const vx = tb.v.x - th.v.x;
-          const vy = tb.v.y - th.v.y;
-          const vm = Math.hypot(vx, vy) || 1;
-          const L = extent * R * 1.5;
-          s.stroke([x - (vx / vm) * L, y + (vy / vm) * L, x + (vx / vm) * L, y - (vy / vm) * L], { color: p.dim, glow: 0, width: 1, alpha: 0.6, dash: [6, 6] });
+          if (corr) {
+            const vx = corr.x;
+            const vy = corr.y;
+            const vm = Math.hypot(vx, vy) || 1;
+            const L = extent * R * 1.5;
+            s.stroke([x - (vx / vm) * L, y + (vy / vm) * L, x + (vx / vm) * L, y - (vy / vm) * L], { color: p.dim, glow: 0, width: 1, alpha: 0.6, dash: [6, 6] });
+          }
         } else {
           s.dot(x, y, size, color, o.body.harmless ? 0.5 : 1);
         }

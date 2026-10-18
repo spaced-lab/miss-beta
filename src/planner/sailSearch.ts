@@ -8,6 +8,7 @@
 // LORE: D7 (sails), O10 (A to B), G3 (the planner)
 
 import { KNOBS } from '../config/knobs';
+import { is3D } from '../sim/orbit3';
 import { YEAR } from '../physics/constants';
 import { c3FromVinf, payloadForC3, type LauncherTier } from '../physics/estimates';
 import { propagate, type Elements } from '../physics/kepler';
@@ -52,6 +53,8 @@ export interface SailResult {
 }
 
 export function sailSearch(req: SailRequest): SailResult {
+  // NOTE: sail spirals are planar; a target off the ecliptic (M14 phase 2) gets no sail plans (STATUS.md M14).
+  if (is3D(req.threat)) return { cells: [], arcsTried: 0 };
   const spec = sailTier(req.sailTier);
   const aC = characteristicAccel(spec.sigma, spec.eta);
   const frac = KNOBS.SAIL_TIERS.find((t) => t.tier === req.sailTier)?.massFraction ?? 0.3;

@@ -198,7 +198,7 @@ if (typeof scope.document === 'undefined' && typeof scope.postMessage === 'funct
     const reply = runJob(e.data as WorkerJob);
     if (reply.type === 'porkchop') {
       const g = reply.grid;
-      scope.postMessage?.(reply, [g.c3.buffer, g.payload.buffer, g.U.buffer, g.v1x.buffer, g.v1y.buffer, g.v2x.buffer, g.v2y.buffer, g.rx.buffer, g.ry.buffer]);
+      scope.postMessage?.(reply, [g.c3.buffer, g.payload.buffer, g.U.buffer, g.v1x.buffer, g.v1y.buffer, g.v2x.buffer, g.v2y.buffer, g.rx.buffer, g.ry.buffer, ...(g.v1z && g.v2z && g.rz ? [g.v1z.buffer, g.v2z.buffer, g.rz.buffer] : [])]);
     } else {
       scope.postMessage?.(reply);
     }

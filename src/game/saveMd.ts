@@ -20,6 +20,12 @@ export interface SaveThreat {
   D_m: number;
   t_impact_years: number;
   p_impact: number;
+  /**
+   * M14 phase 2: a visitor off the ecliptic records its inclination and node, rad (exact doubles). Absent in
+   * older saves and for planar threats, which read as i = 0 (the round itself regenerates from the seed).
+   */
+  i_rad?: number;
+  raan_rad?: number;
 }
 
 export interface SaveStudy {
@@ -98,7 +104,7 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
     ['networks_active', s.networks_active],
     ['run_score', s.run_score],
     ['rounds_survived', s.rounds_survived],
-    ['current_threat', s.current_threat ? { name: s.current_threat.name, type: s.current_threat.type, D_m: s.current_threat.D_m, t_impact_years: Math.round(s.current_threat.t_impact_years * 100) / 100, p_impact: s.current_threat.p_impact } : null],
+    ['current_threat', s.current_threat ? { name: s.current_threat.name, type: s.current_threat.type, D_m: s.current_threat.D_m, t_impact_years: Math.round(s.current_threat.t_impact_years * 100) / 100, p_impact: s.current_threat.p_impact, ...(s.current_threat.i_rad !== undefined && s.current_threat.raan_rad !== undefined ? { i_rad: s.current_threat.i_rad, raan_rad: s.current_threat.raan_rad } : {}) } : null],
     ['learning_level', s.learning_level],
     ['lore_read', s.lore_read],
     ['color_mode', s.color_mode],
@@ -240,6 +246,14 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
     const o = ct as Record<string, unknown>;
     if (!isStr(o['name']) || !isStr(o['type']) || !isNum(o['D_m']) || !isNum(o['t_impact_years']) || !isNum(o['p_impact'])) return null;
     threat = { name: o['name'], type: o['type'], D_m: o['D_m'], t_impact_years: o['t_impact_years'], p_impact: o['p_impact'] };
+    // Both or neither, in range; anything else is a malformed save.
+    const iR = o['i_rad'];
+    const nR = o['raan_rad'];
+    if (iR !== undefined || nR !== undefined) {
+      if (!isNum(iR) || !isNum(nR) || iR < 0 || iR > Math.PI || nR < -2 * Math.PI || nR > 4 * Math.PI) return null;
+      threat.i_rad = iR;
+      threat.raan_rad = nR;
+    }
   }
   if (!isStr(r['learning_level']) || !levels.includes(r['learning_level'])) return null;
   const lr = r['lore_read'];

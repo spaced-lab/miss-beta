@@ -12,10 +12,12 @@
 import networksJson from '../config/networks.json';
 import { KNOBS } from '../config/knobs';
 import { propagate, type Elements } from '../physics/kepler';
+import { propagate3 } from '../physics/kepler3';
 import { absoluteMagnitude, apparentMagnitude, viewGeometry } from '../physics/photometry';
 import type { Vec2 } from '../util/vec';
 import type { Rng } from './rng';
-import { coverage, eclipticLatitude, nodeLine, tiltAboutNode, trailingLoss, viewGeometry3 } from './sky';
+import { is3D } from './orbit3';
+import { coverage, eclipticLatitude, nodeLine, tiltAboutNode, trailingLoss, viewGeometry3, type Vec3 } from './sky';
 
 export type NetworkKind = 'GROUND_OPTICAL' | 'SPACE_IR' | 'RADAR' | 'COORDINATION' | 'AIRBURST';
 export type Tag = 'REAL' | 'PROPOSED' | 'SPECULATIVE' | 'FICTION';
@@ -134,18 +136,30 @@ export interface DiscoveryInput {
   /**
    * 3-D lite (sim/sky.ts): the orbit tilted by `incl` about the node line at angle `node`. With it, detection uses
    * the 3-D view geometry, ground trailing loss and latitude-dependent coverage; without it, the flat model.
+   * A threat whose elements carry i and raan (M14 phase 2) takes the same 3-D rules from its own orbit, no tilt.
    */
   tilt?: { incl: number; node: number };
 }
 
-/** A night's detection test for a tilted (3-D lite) target: same rules as `detects`, in 3-D, with trailing loss. */
+/**
+ * A night's detection test for a target off the plane: same rules as `detects`, in 3-D, with trailing loss. The
+ * position is the 3-D orbit's own (elements with i and raan) or, for the 3-D lite tilt, the tilted planar one.
+ */
 function tiltedSeen(inp: DiscoveryInput, t: number, home: Vec2, inner: Vec2): (n: Network, rng: Rng) => boolean {
-  const tl = inp.tilt as { incl: number; node: number };
-  const st = propagate(inp.threat, inp.muSun, t);
   const vHome = propagate(inp.home, inp.muSun, t).v;
-  const nl = nodeLine(tl.node);
-  const r3 = tiltAboutNode(st.r, nl, tl.incl);
-  const v3 = tiltAboutNode(st.v, nl, tl.incl);
+  let r3: Vec3;
+  let v3: Vec3;
+  if (is3D(inp.threat)) {
+    const s3 = propagate3(inp.threat, inp.muSun, t);
+    r3 = { ...s3.r };
+    v3 = { ...s3.v };
+  } else {
+    const tl = inp.tilt as { incl: number; node: number };
+    const st = propagate(inp.threat, inp.muSun, t);
+    const nl = nodeLine(tl.node);
+    r3 = tiltAboutNode(st.r, nl, tl.incl);
+    v3 = tiltAboutNode(st.v, nl, tl.incl);
+  }
   const H = absoluteMagnitude(inp.D, inp.albedo);
   return (n, rng) => {
     const obs = observerPosition(n, home, inner);
@@ -176,16 +190,16 @@ export function discover(inp: DiscoveryInput, rng: Rng): DiscoveryResult {
   const sinceOf = (n: Network): number => inp.sinceOverride?.[n.id] ?? n.since;
   const streak = new Map<string, number>();
   const t0 = inp.tImpact - (inp.windowYears ?? KNOBS.DISCOVERY_YEARS) * 3.15576e7;
+  const three = is3D(inp.threat);
   for (let t = t0; t < inp.tImpact; t += KNOBS.DISCOVERY_STEP) {
     const year = yearOf(t);
-    const rT = propagate(inp.threat, inp.muSun, t).r;
     const home = propagate(inp.home, inp.muSun, t).r;
     const inner = propagate(inp.inner, inp.muSun, t).r;
-    const d: DetectInput = { t, rT, home, inner, D: inp.D, albedo: inp.albedo };
-    const tiltSeen = inp.tilt ? tiltedSeen(inp, t, home, inner) : null;
+    const tiltSeen = inp.tilt || three ? tiltedSeen(inp, t, home, inner) : null;
+    const d: DetectInput | null = tiltSeen ? null : { t, rT: propagate(inp.threat, inp.muSun, t).r, home, inner, D: inp.D, albedo: inp.albedo };
     for (const n of nets) {
       if (year < sinceOf(n)) continue;
-      if (tiltSeen ? tiltSeen(n, rng) : detects(n, d, rng)) {
+      if (tiltSeen ? tiltSeen(n, rng) : detects(n, d as DetectInput, rng)) {
         const k = (streak.get(n.id) ?? 0) + 1;
         if (k >= KNOBS.DISCOVERY_NIGHTS) return { tDisc: t, lead: inp.tImpact - t, networkId: n.id };
         streak.set(n.id, k);

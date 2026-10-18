@@ -7,6 +7,7 @@
 import { AU } from '../physics/constants';
 import { orbitPoints, propagate } from '../physics/kepler';
 import { craftPosition } from '../planner/legs';
+import { stateAt, topDownOutline } from '../sim/orbit3';
 import { bodyAlive, elementsAt, type RoundResult } from '../sim/resolver';
 import { planetState, type World } from '../sim/world';
 import type { Surface } from './canvas';
@@ -42,8 +43,8 @@ export function drawMiniSystem(s: Surface, w: World, result: RoundResult | null,
   if (result) {
     for (const body of result.bodies.filter((q) => bodyAlive(q, w.t))) {
       const el = elementsAt(body.segments, w.t);
-      if (o.threatPath && body.role !== 'FRAGMENT') poly(orbitPoints(el, 180), el.e < 1, p.ink, 0.35, [3, 5]);
-      const st = propagate(el, w.star.mu, w.t);
+      if (o.threatPath && body.role !== 'FRAGMENT') poly(topDownOutline(el, 180), el.e < 1, p.ink, 0.35, [3, 5]);
+      const st = stateAt(el, w.star.mu, w.t);
       const [tx, ty] = proj(st.r.x, st.r.y);
       s.circle(tx, ty, body.role === 'FRAGMENT' ? 1 : 2.5, { color: body.harmless ? p.dim : p.hot, glow: 0.6, alpha });
     }
@@ -56,8 +57,8 @@ export function drawMiniSystem(s: Surface, w: World, result: RoundResult | null,
       }
     }
   } else if (w.threat) {
-    poly(orbitPoints(w.threat.elements, 180), w.threat.elements.e < 1, p.ink, 0.35, [3, 5]);
-    const st = propagate(w.threat.elements, w.star.mu, w.t);
+    poly(topDownOutline(w.threat.elements, 180), w.threat.elements.e < 1, p.ink, 0.35, [3, 5]);
+    const st = stateAt(w.threat.elements, w.star.mu, w.t);
     const [tx, ty] = proj(st.r.x, st.r.y);
     s.circle(tx, ty, 2.5, { color: p.hot, glow: 0.6, alpha });
   }

@@ -4,6 +4,13 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M14 phase 2 (first slice): visitors from other stars fly in three dimensions through the whole round:
+  generated from HOME's state plus an isotropic v_inf (retrograde ones too), discovered from their real 3-D
+  position, resolved in 3-D (kinetic, nuclear, pushes, fragments, retargets, close approach), planned with a new
+  3-D Lambert (`lambert3`, pymiss mirror, vectors), drawn with true z in the system and SKY views, and recorded
+  in SAVE.md (i_rad, raan_rad). Every planar round replays bit for bit (tests/planarReplay.test.ts). Flyby and
+  sail plans are not offered against a 3-D visitor yet. EDUCATION F12, F11 and O7 notes, ASSUMPTIONS A1/A15/A17.
+
 - Security: the production CSP no longer allows inline styles or blob workers (page chrome moved to
   src/style.css). docs/SAFETY.md findings 2-3 fixed; DECISIONS D10.
 

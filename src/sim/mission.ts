@@ -6,7 +6,7 @@
 
 import type { Rule } from '../planner/rules';
 import type { Elements } from '../physics/kepler';
-import type { Vec2 } from '../util/vec';
+import type { V } from './orbit3';
 
 export type Archetype = 'KINETIC' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH' | 'PI';
 
@@ -47,11 +47,11 @@ export interface Mission {
   impactorKg: number;
   /** Departure energy, km^2/s^2. */
   c3: number;
-  /** Heliocentric velocities from the Lambert solution, m/s. */
-  departureV: Vec2;
-  arrivalV: Vec2;
-  /** Planned intercept point (threat position at arrival when committed), m. */
-  interceptR: Vec2;
+  /** Heliocentric velocities from the Lambert solution, m/s (with a z part when the target is off the ecliptic). */
+  departureV: V;
+  arrivalV: V;
+  /** Planned intercept point (threat position at arrival when committed), m (3-D for a tilted target). */
+  interceptR: V;
   /** Planned closing speed, m/s. */
   U: number;
   cost: number;

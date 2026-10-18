@@ -13,6 +13,8 @@ import { propagate } from '../physics/kepler';
 import { absoluteMagnitude, apparentMagnitude, viewGeometry } from '../physics/photometry';
 import type { Role } from '../render/palettes';
 import { NETWORKS } from '../sim/detection';
+import { is3D, lift, stateAt } from '../sim/orbit3';
+import { viewGeometry3 } from '../sim/sky';
 import type { SimEventRecord } from '../sim/eventLog';
 import type { RoundResult } from '../sim/resolver';
 import type { Threat, ThreatTypeId } from '../sim/threat';
@@ -98,9 +100,9 @@ function networkName(id: string): string {
 /** Apparent V of the threat from HOME at round time `t` (t = 0 is the discovery for discovered rounds). */
 export function apparentVAt(th: Threat, world: World, t: number): number {
   const H = absoluteMagnitude(th.D, th.type.albedo);
-  const rT = propagate(th.elements, world.star.mu, t).r;
   const rO = planetState(world, planetById(world, 'HOME'), t).r;
-  const g = viewGeometry(rT, rO);
+  // A visitor off the ecliptic (M14 phase 2) is seen at its 3-D distance and phase angle.
+  const g = is3D(th.elements) ? viewGeometry3(lift(stateAt(th.elements, world.star.mu, t).r), { x: 0, y: 0, z: 0 }, rO, { x: 0, y: 0 }) : viewGeometry(propagate(th.elements, world.star.mu, t).r, rO);
   // NOTE: viewGeometry returns AU already; AU is imported only to keep the unit explicit for readers.
   void AU;
   return apparentMagnitude(H, g.rAu, g.deltaAu, g.alphaDeg);

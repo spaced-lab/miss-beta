@@ -15,6 +15,8 @@ import { targetOf, type TargetId } from '../../sim/targets';
 import { canUnlock, TECH, unlock } from '../../game/tech';
 import { SkyOverlay } from './sky';
 import { nodeLine, tiltAboutNode } from '../../sim/sky';
+import { orbitPoints3 } from '../../physics/kepler3';
+import { is3D, onPlaneOf, stateAt, toElements as elementsFromState } from '../../sim/orbit3';
 import { advanceStudies, studyById } from '../../sim/studies';
 import { yearOf } from '../../sim/detection';
 import { drawGauge, gaugeHeight } from '../gaugeView';
@@ -27,7 +29,6 @@ import { createRun, nextRound, type RunState } from '../../game/run';
 import { scoreRound, type ScoreBreakdown } from '../../game/scoring';
 import type { Router, Screen } from '../../game/screen';
 import { AU, DAY, YEAR } from '../../physics/constants';
-import { stateToElements } from '../../physics/elements';
 import { orbitPoints, propagate, type Elements } from '../../physics/kepler';
 import type { MonteCarloResult } from '../../planner/monteCarlo';
 import { sharedPlanner } from '../../planner/workerClient';
@@ -1083,18 +1084,19 @@ export class SystemScreen implements Screen {
     return [s.width / 2 + this.panX + dx, s.height / 2 + this.panY + dy];
   }
 
-  /** A threat position in 3-D lite: tilted about its impact node when the threat has an inclination (sim/sky.ts). */
-  private threat3(x: number, y: number): [number, number] {
+  /** A threat position: a 3-D orbit passes its own z (M14 phase 2); a 3-D lite threat is tilted about its node. */
+  private threat3(x: number, y: number, z?: number): [number, number] {
+    if (z !== undefined) return this.project(x, y, z);
     const th = this.world.threat;
     if (!th?.incl || th.node === undefined) return this.project(x, y);
     const v = tiltAboutNode({ x, y }, nodeLine(th.node), th.incl);
     return this.project(v.x, v.y, v.z);
   }
 
-  private polyline(pts: Float64Array, style: Parameters<Surface['stroke']>[1]): void {
+  private polyline(pts: Float64Array, style: Parameters<Surface['stroke']>[1], stride: 2 | 3 = 2): void {
     const buf: number[] = [];
-    for (let i = 0; i < pts.length; i += 2) {
-      const [px, py] = this.project(pts[i] as number, pts[i + 1] as number);
+    for (let i = 0; i < pts.length; i += stride) {
+      const [px, py] = this.project(pts[i] as number, pts[i + 1] as number, stride === 3 ? (pts[i + 2] as number) : 0);
       buf.push(px, py);
     }
     this.s.stroke(buf, style);
@@ -1272,7 +1274,7 @@ export class SystemScreen implements Screen {
     const base = (Math.min(tw, th) / 2) * 0.9;
     drawMiniSystem(s, w, b.result, cx, cy, base);
     if (b.extraThreat && b.extraResult) {
-      const st = propagate(elementsAt(b.extraResult.segments, w.t), w.star.mu, w.t);
+      const st = stateAt(elementsAt(b.extraResult.segments, w.t), w.star.mu, w.t);
       const r = Math.hypot(st.r.x, st.r.y);
       const f = r > 0 ? ((Math.sqrt(r / AU) / 2.5) * base) / r : 0;
       s.circle(cx + st.r.x * f, cy - st.r.y * f, 2.5, { color: p.hot, glow: 1, dash: [2, 2] });
@@ -1352,7 +1354,7 @@ export class SystemScreen implements Screen {
         tractorBeam: () => {
           const th = this.world.threat;
           if (!th) return 'NO THREAT.';
-          const st = propagate(th.elements, this.world.star.mu, this.world.t);
+          const st = stateAt(th.elements, this.world.star.mu, this.world.t);
           const m: Mission = { id: `BEAM-${this.missions.length + 1}`, archetype: 'SLOW_PUSH', launcherTier: 1, impactorTier: 1, launchTime: this.world.t, arrivalTime: this.world.t + 1, impactorKg: 0, c3: 0, departureV: { x: 0, y: 0 }, arrivalV: st.v, interceptR: st.r, U: 0, cost: 0, committedAt: this.world.t, targetId: 'THREAT', push: { method: 'TRACTORBEAM', tier: 0, sign: 1, tauMax: th.tImpact }, dsmUsed: 0 };
           this.missions.push(m);
           reresolve();
@@ -1420,7 +1422,8 @@ export class SystemScreen implements Screen {
           const vm = Math.hypot(st.v.x, st.v.y) || 1;
           try {
             const el = toElements(st.r, { x: st.v.x * (1 + dv / vm), y: st.v.y * (1 + dv / vm) }, this.world.star.mu, this.world.t);
-            this.world.threat = { ...th, elements: el };
+            // NOTE: for a 3-D orbit propagate() gives the in-plane state; along track stays in the plane, keep i and raan.
+            this.world.threat = { ...th, elements: onPlaneOf(el, th.elements) };
           } catch {
             return `${label}: THE ROCK LEFT THE SYSTEM. FILED AS A SUCCESS.`;
           }
@@ -1439,7 +1442,7 @@ export class SystemScreen implements Screen {
           const th = this.world.threat;
           if (!th) return 'NO THREAT.';
           // The sign goes up a month ahead on the rock's path; the detour costs it a day and a half.
-          const ahead = propagate(th.elements, this.world.star.mu, Math.min(th.tImpact - DAY, this.world.t + 30 * DAY)).r;
+          const ahead = stateAt(th.elements, this.world.star.mu, Math.min(th.tImpact - DAY, this.world.t + 30 * DAY)).r;
           this.detourAt = { t: this.world.t, x: ahead.x, y: ahead.y };
           const n = Math.sqrt(this.world.star.mu / Math.abs(th.elements.a) ** 3);
           this.world.threat = { ...th, elements: { ...th.elements, M0: th.elements.M0 - n * 1.5 * DAY } };
@@ -1528,7 +1531,7 @@ export class SystemScreen implements Screen {
       if (!el) {
         const hs = planetState(w, home, m.launchTime);
         try {
-          el = stateToElements(hs.r, m.departureV, w.star.mu, m.launchTime);
+          el = elementsFromState(hs.r, m.departureV, w.star.mu, m.launchTime);
         } catch {
           continue;
         }
@@ -1536,28 +1539,30 @@ export class SystemScreen implements Screen {
       }
       // Planned arc.
       const n = 48;
-      const arc = new Float64Array(n * 2);
+      const arc = new Float64Array(n * 3);
       for (let i = 0; i < n; i++) {
         const t = m.launchTime + ((m.arrivalTime - m.launchTime) * i) / (n - 1);
-        const st = propagate(el, w.star.mu, t);
-        arc[i * 2] = st.r.x;
-        arc[i * 2 + 1] = st.r.y;
+        const st = stateAt(el, w.star.mu, t);
+        arc[i * 3] = st.r.x;
+        arc[i * 3 + 1] = st.r.y;
+        arc[i * 3 + 2] = st.r.z ?? 0;
       }
-      this.polyline(arc, { color: p.ink, glow: 0, width: 1, alpha: 0.35, dash: [2, 5] });
+      this.polyline(arc, { color: p.ink, glow: 0, width: 1, alpha: 0.35, dash: [2, 5] }, 3);
       if (w.t < m.launchTime || w.t >= m.arrivalTime) continue;
-      const st = propagate(el, w.star.mu, w.t);
-      const [cx, cy] = this.project(st.r.x, st.r.y);
+      const st = stateAt(el, w.star.mu, w.t);
+      const [cx, cy] = this.project(st.r.x, st.r.y, st.r.z ?? 0);
       this.hit(cx - 10, cy - 10, 20, 20, m.archetype === 'SAIL_KINETIC' ? 'D7' : m.warhead ? 'D5' : m.archetype === 'SLOW_PUSH' ? 'D6' : 'D3', `${m.id}: HOW IT WORKS`);
       const ang = Math.atan2(-st.v.y, st.v.x);
       const r = 5;
       const craftRole = m.archetype === 'SAIL_KINETIC' ? 'sail' : m.warhead ? 'nuclear' : 'craft';
       s.stroke([cx + Math.cos(ang) * r * 1.6, cy + Math.sin(ang) * r * 1.6, cx + Math.cos(ang + 2.5) * r, cy + Math.sin(ang + 2.5) * r, cx + Math.cos(ang - 2.5) * r, cy + Math.sin(ang - 2.5) * r], { closed: true, color: s.spectrum ? s.role(craftRole) : p.hot, glow: 1.2 });
-      const trail = new Float64Array(10 * 2);
+      const trail = new Float64Array(10 * 3);
       for (let i = 0; i < 10; i++) {
         const t = Math.max(m.launchTime, w.t - (i * 20 * DAY));
-        const ts = propagate(el, w.star.mu, t);
-        trail[i * 2] = ts.r.x;
-        trail[i * 2 + 1] = ts.r.y;
+        const ts = stateAt(el, w.star.mu, t);
+        trail[i * 3] = ts.r.x;
+        trail[i * 3 + 1] = ts.r.y;
+        trail[i * 3 + 2] = ts.r.z ?? 0;
       }
       this.polyline(trail, { color: s.spectrum ? s.role(craftRole) : p.ink, glow: 0.4, width: 1, alpha: 0.7, ...(s.spectrum && ROLE_STYLE[craftRole].dash.length > 0 ? { dash: ROLE_STYLE[craftRole].dash } : {}) });
       drawText(s, m.id, cx + 8, cy - 12, 9, { color: p.dim, glow: 0 });
@@ -1573,14 +1578,15 @@ export class SystemScreen implements Screen {
     for (const leg of m.legs) {
       if (leg.kind === 'COAST') {
         const n = 40;
-        const arc = new Float64Array(n * 2);
+        const arc = new Float64Array(n * 3);
         for (let i = 0; i < n; i++) {
           const t = leg.tFrom + ((leg.tTo - leg.tFrom) * i) / (n - 1);
-          const st = propagate(leg.elements, w.star.mu, t);
-          arc[i * 2] = st.r.x;
-          arc[i * 2 + 1] = st.r.y;
+          const st = stateAt(leg.elements, w.star.mu, t);
+          arc[i * 3] = st.r.x;
+          arc[i * 3 + 1] = st.r.y;
+          arc[i * 3 + 2] = st.r.z ?? 0;
         }
-        this.polyline(arc, { color: p.ink, glow: 0, width: 1, alpha: 0.35, dash: [2, 5] });
+        this.polyline(arc, { color: p.ink, glow: 0, width: 1, alpha: 0.35, dash: [2, 5] }, 3);
       } else if (leg.kind === 'SAIL') {
         // Every 8th sample keeps the stroke cheap; the arc is smooth anyway.
         const n = Math.floor(leg.samples.length / 2);
@@ -1597,7 +1603,7 @@ export class SystemScreen implements Screen {
     if (w.t < m.launchTime || w.t >= m.arrivalTime) return;
     const pos = craftPosition(m, w.star.mu, w.t);
     if (!pos) return;
-    const [cx, cy] = this.project(pos.x, pos.y);
+    const [cx, cy] = this.project(pos.x, pos.y, pos.z ?? 0);
     const prev = craftPosition(m, w.star.mu, Math.max(m.launchTime, w.t - 2 * DAY));
     const ang = prev ? Math.atan2(-(pos.y - prev.y), pos.x - prev.x) : 0;
     const r = 5;
@@ -1640,9 +1646,10 @@ export class SystemScreen implements Screen {
     const th = w.threat;
     if (!th) return;
     const el = this.result ? elementsAt(this.result.segments, w.t) : th.elements;
-    if (!this.threatOrbitCache || this.threatOrbitCache.el !== el) this.threatOrbitCache = { el, pts: orbitPoints(el, 360) };
+    if (!this.threatOrbitCache || this.threatOrbitCache.el !== el) this.threatOrbitCache = { el, pts: is3D(el) ? orbitPoints3(el, 360) : orbitPoints(el, 360) };
     const orbitStyle = { closed: el.e < 1, color: s.spectrum ? s.role('threat') : p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] };
-    if (th.incl) {
+    if (is3D(el)) this.polyline(this.threatOrbitCache.pts, orbitStyle, 3);
+    else if (th.incl) {
       // Off the plane (3-D lite): the track is tilted about the impact node; tilt the camera (I) to see it rise.
       const pts = this.threatOrbitCache.pts;
       const buf3: number[] = [];
@@ -1664,7 +1671,7 @@ export class SystemScreen implements Screen {
     const buf: number[] = [];
     for (const b of bodies) {
       const bel = elementsAt(b.segments, w.t);
-      let st = propagate(bel, w.star.mu, w.t);
+      let st = stateAt(bel, w.star.mu, w.t);
       // During a push segment (a finite tFrom..tTo followed by the pushed orbit) blend toward the post-push orbit
       // by the square of the elapsed fraction (displacement under constant thrust grows as t^2), so the body
       // drifts onto its new path instead of jumping at the end of the push (IDEAS 18).
@@ -1673,11 +1680,12 @@ export class SystemScreen implements Screen {
       const after = b.segments[si + 1];
       if (sg && after && Number.isFinite(sg.tTo) && sg.tTo - sg.tFrom > 86400 && after.tFrom === sg.tTo) {
         const f = (w.t - sg.tFrom) / (sg.tTo - sg.tFrom);
-        const post = propagate(after.elements, w.star.mu, w.t);
+        const post = stateAt(after.elements, w.star.mu, w.t);
         const k2 = f * f;
-        st = { ...st, r: { x: st.r.x + (post.r.x - st.r.x) * k2, y: st.r.y + (post.r.y - st.r.y) * k2 } };
+        const z = st.r.z !== undefined || post.r.z !== undefined ? { z: (st.r.z ?? 0) + ((post.r.z ?? 0) - (st.r.z ?? 0)) * k2 } : {};
+        st = { ...st, r: { x: st.r.x + (post.r.x - st.r.x) * k2, y: st.r.y + (post.r.y - st.r.y) * k2, ...z } };
       }
-      const [tx, ty] = this.threat3(st.r.x, st.r.y);
+      const [tx, ty] = this.threat3(st.r.x, st.r.y, st.r.z);
       this.hit(tx - 12, ty - 12, 24, 24, b.role === 'FRAGMENT' ? 'D4' : 'T5', b.role === 'FRAGMENT' ? `${b.id}: FRAGMENTS` : `${th.name}: WHAT IT IS MADE OF`);
       const n = th.shape.length;
       const size = b.role === 'THREAT' ? 6 : b.role === 'REMNANT' ? 4.5 : Math.max(1.5, Math.min(3.5, b.D / 30));
@@ -1698,8 +1706,8 @@ export class SystemScreen implements Screen {
       if (b.role !== 'FRAGMENT') drawText(s, b.role === 'THREAT' ? th.name : `${th.name} ${b.id}`, tx + 10, ty - 14, 10, { color: col === p.dim ? p.dim : col, glow: 0.5 });
     }
     if (bodies.length === 0) {
-      const st = propagate(el, w.star.mu, w.t);
-      const [tx, ty] = this.threat3(st.r.x, st.r.y);
+      const st = stateAt(el, w.star.mu, w.t);
+      const [tx, ty] = this.threat3(st.r.x, st.r.y, st.r.z);
       drawText(s, th.name, tx + 10, ty - 14, 10, { color: p.dim, glow: 0 });
     }
   }

@@ -23,6 +23,7 @@ import type { PorkchopGrid } from '../../planner/porkchop';
 import type { PlannerClient } from '../../planner/workerClient';
 import type { Mission } from '../../sim/mission';
 import { bodyAlive, elementsAt, resolveRound, type Body, type RoundResult } from '../../sim/resolver';
+import { stateAt } from '../../sim/orbit3';
 import { planetById, type World } from '../../sim/world';
 import { formatCountdown } from '../../ui/hud';
 import type { Input } from '../../ui/input';
@@ -195,7 +196,7 @@ export class PlannerOverlay {
       impactorTier: s.impactorTier,
       budget: s.budget,
       committedAt: w.t,
-      targetVelocity: (t) => propagate(elementsAt(target.segments, t), w.star.mu, t).v,
+      targetVelocity: (t) => stateAt(elementsAt(target.segments, t), w.star.mu, t).v,
       resolve: (ms) => {
         const r = resolveRound(w, [...s.missions, ...ms], { betaOverride: betaMid });
         return { outcome: r.outcome, marginRadii: r.ca.marginRadii, hitEnergyMt: r.hitEnergyMt, producedFragments: r.producedFragments };

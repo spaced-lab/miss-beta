@@ -4,8 +4,10 @@
 // WHY:  The rounds fly a flat system, but visitors from other stars (and real NEAs) arrive from above and below
 //       it. Tilting the orbit about the line through the impact point keeps the impact exact (the node is where
 //       the rock meets HOME) while the earlier track rises off the plane, which is what makes them hard to see.
-// HOW:  Pure functions. The resolver never sees the tilt: dynamics stay in the plane, only seeing does not.
-//       Full 3-D orbits (inclination and node in the physics, the Python mirror and the resolver) are M14.
+// HOW:  Pure functions. Since M14 phase 2 visitors carry true 3-D elements (sim/orbit3.ts) and only viewGeometry3,
+//       trailingLoss and coverage are used for them; tiltAboutNode remains for the gauge's practice rocks and old
+//       threats. Tilting a planar Kepler orbit about a line through the Sun is a rigid rotation, so the tilted orbit
+//       is the 3-D orbit {i = incl, raan = node, w = w_planar - node} exactly (tests/visitor3d.test.ts).
 // LORE: F12 (visitors from other stars), F11 (the detection gauge), F3 (the sunward blind spot)
 
 import { KNOBS } from '../config/knobs';

@@ -34,6 +34,23 @@ def lambert(r1x: float, r1y: float, r2x: float, r2y: float, dt: float, mu: float
         return None
 
     A = math.sin(dtheta) * math.sqrt(r1 * r2 / (1 - math.cos(dtheta)))
+    root = _solve_universal(r1, r2, A, dt, mu)
+    if root is None:
+        return None
+    z, yy, C = root
+    f = 1 - yy / r1
+    g = A * math.sqrt(yy / mu)
+    gd = 1 - yy / r2
+    v1x = (r2x - f * r1x) / g
+    v1y = (r2y - f * r1y) / g
+    v2x = (gd * r2x - r1x) / g
+    v2y = (gd * r2y - r1y) / g
+    a = yy / (C * z) if abs(z) > 1e-12 else math.inf
+    return LambertResult(v1x, v1y, v2x, v2y, z, dtheta, a)
+
+
+def _solve_universal(r1: float, r2: float, A: float, dt: float, mu: float) -> tuple[float, float, float] | None:
+    """The universal-variable root shared by lambert and lambert3: (z, y(z), C(z)) or None. Mirror of solveUniversal."""
     sqrt_mu_dt = math.sqrt(mu) * dt
 
     def y(z: float) -> float:
@@ -81,13 +98,40 @@ def lambert(r1x: float, r1y: float, r2x: float, r2y: float, dt: float, mu: float
         z = zn
 
     yy = y(z)
-    C = stumpff_c(z)
+    return z, yy, stumpff_c(z)
+
+
+@dataclass(frozen=True)
+class Lambert3Result:
+    v1: tuple[float, float, float]
+    v2: tuple[float, float, float]
+    z: float
+    dtheta: float
+    a: float
+
+
+def lambert3(r1v: tuple[float, float, float], r2v: tuple[float, float, float], dt: float, mu: float, prograde: bool = True) -> Lambert3Result | None:
+    """Lambert in 3-D, in the plane of r1 and r2; prograde sense from (r1 x r2)_z. Mirror of lambert3."""
+    if not dt > 0:
+        return None
+    r1 = math.hypot(*r1v)
+    r2 = math.hypot(*r2v)
+    cz = r1v[0] * r2v[1] - r1v[1] * r2v[0]
+    cosd = max(-1.0, min(1.0, (r1v[0] * r2v[0] + r1v[1] * r2v[1] + r1v[2] * r2v[2]) / (r1 * r2)))
+    dtheta = math.acos(cosd)
+    if (cz < 0) if prograde else (cz >= 0):
+        dtheta = 2 * math.pi - dtheta
+    if dtheta < LAMBERT_DEGENERATE or abs(dtheta - math.pi) < LAMBERT_DEGENERATE or 2 * math.pi - dtheta < LAMBERT_DEGENERATE:
+        return None
+    A = math.sin(dtheta) * math.sqrt(r1 * r2 / (1 - math.cos(dtheta)))
+    root = _solve_universal(r1, r2, A, dt, mu)
+    if root is None:
+        return None
+    z, yy, C = root
     f = 1 - yy / r1
     g = A * math.sqrt(yy / mu)
     gd = 1 - yy / r2
-    v1x = (r2x - f * r1x) / g
-    v1y = (r2y - f * r1y) / g
-    v2x = (gd * r2x - r1x) / g
-    v2y = (gd * r2y - r1y) / g
+    v1 = tuple((r2v[k] - f * r1v[k]) / g for k in range(3))
+    v2 = tuple((gd * r2v[k] - r1v[k]) / g for k in range(3))
     a = yy / (C * z) if abs(z) > 1e-12 else math.inf
-    return LambertResult(v1x, v1y, v2x, v2y, z, dtheta, a)
+    return Lambert3Result(v1, v2, z, dtheta, a)  # type: ignore[arg-type]

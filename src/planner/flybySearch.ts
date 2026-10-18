@@ -10,6 +10,7 @@
 // LORE: O11 (gravity assists), O10 (A to B), G3 (the planner)
 
 import { KNOBS } from '../config/knobs';
+import { is3D } from '../sim/orbit3';
 import { c3FromVinf, payloadForC3, type LauncherTier } from '../physics/estimates';
 import { signedAngle, turnAngleMax } from '../physics/flyby';
 import { propagate, type Elements } from '../physics/kepler';
@@ -69,6 +70,9 @@ export interface FlybyResult {
 export function flybySearch(req: FlybyRequest): FlybyResult {
   const lead = req.tImpact - req.tMin;
   const step = Math.max(KNOBS.FLYBY_STEP, lead / KNOBS.FLYBY_MAX_AXIS);
+  // NOTE: flyby arcs are planar; a target off the ecliptic (M14 phase 2) gets no flyby plans rather than
+  //       plans aimed at the wrong place. A 3-D flyby search is listed under STATUS.md M14 remaining.
+  if (is3D(req.threat)) return { cells: [], windows: {}, step };
   const tL0 = req.tMin;
   const tAmax = req.tImpact - KNOBS.PORKCHOP_RESOLVE_MARGIN;
   const n = Math.max(0, Math.floor((tAmax - tL0) / step) + 1);

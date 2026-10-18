@@ -11,21 +11,24 @@
 //       the flat model does not over-count hits. Outcome: MISS (nothing damaging hits), PARTIAL (hits carry
 //       less than PARTIAL_ENERGY_FRACTION of the original energy), else HIT. Betas and fragment draws come
 //       from per-(seed, round, mission, sample) streams: order independent and exactly replayable.
+//       M14 phase 2: a threat whose elements carry i and raan (a visitor from another star) is resolved in 3-D
+//       through sim/orbit3.ts: the same code, with z parts in the states, kinetic dv, nuclear pushes and
+//       Lambert retargets, 3-D close approaches, and along-track pushes run in the orbit's own plane. A planar
+//       threat takes exactly the old arithmetic (tests/planarReplay.test.ts).
 // LORE: O12 (close approach), D3 (kinetic and beta), D4 (fragmentation), G7 (under the hood)
 
 import { targetCloseApproach, targetOf } from './targets';
 import { KNOBS } from '../config/knobs';
 import { AU, DAY, YEAR } from '../physics/constants';
 import { bCrit as bCritOf, impactCategory, impactEnergy, sphereMass, type CloseApproach, type ImpactCategory, type ImpactEnergy } from '../physics/closeApproach';
-import { OrbitError, stateToElements } from '../physics/elements';
+import { OrbitError } from '../physics/elements';
 import { disrupt, f3D, harmlessDiameter, qStar, specificEnergy } from '../physics/fragment';
 import { propagate, type Elements } from '../physics/kepler';
-import { alongTrack, kineticImpact } from '../physics/kinetic';
 import { fuzeOk, nuclearBurst } from '../physics/nuclear';
-import { integratePush, pushForce, type PushMethod } from '../physics/slowPush';
+import { pushForce, type PushMethod } from '../physics/slowPush';
 import { betaAssessDelay } from '../physics/uncertainty';
-import { lambert } from '../physics/lambert';
 import { craftState } from '../planner/legs';
+import { hasZ, kineticAny, lambertAny, pushArc, stateAt, toElements, vadd, vdiv, vlen, vscale, vsub, type V } from './orbit3';
 import { matchingRules, RULE_PRESETS, type Facts, type RuleEvent } from '../planner/rules';
 import type { EventLog } from './eventLog';
 import type { Mission } from './mission';
@@ -174,7 +177,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   let piDamageMt = 0;
 
   /** Replace `target` by a remnant and fragments at time t given the delivered Q and impactor momentum. */
-  const disruptBody = (target: Body, current: Elements, st: { r: { x: number; y: number }; v: { x: number; y: number } }, m: Mission, Q: number, Qs: number, Uvec: { x: number; y: number }, mImp: number, t: number): void => {
+  const disruptBody = (target: Body, current: Elements, st: { r: V; v: V }, m: Mission, Q: number, Qs: number, Uvec: V, mImp: number, t: number): void => {
     const rng = streamFor(world, `frag#${m.id}`, sample);
     const nFrag = rng.int(KNOBS.FRAG_N_MIN, KNOBS.FRAG_N_MAX);
     const R = target.D / 2;
@@ -186,13 +189,18 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     tLast = t;
     let escaped = 0;
     let meanEj = 0;
-    for (const f of pieces) meanEj += Math.hypot(f.v.x - st.v.x, f.v.y - st.v.y);
+    // A body off the ecliptic (M14): the ejecta cloud stays flat in x-y (the f3D draw below still corrects for
+    // the cloud's thickness), and every piece shares the parent's z velocity plus the impactor's share of U_z.
+    const three = hasZ(st.v) || hasZ(Uvec);
+    const vzAll = (st.v.z ?? 0) + (mImp / (target.mass + mImp)) * (Uvec.z ?? 0);
+    const vOf = (f: { v: { x: number; y: number } }): V => (three ? { x: f.v.x, y: f.v.y, z: vzAll } : f.v);
+    for (const f of pieces) meanEj += vlen(vsub(vOf(f), st.v));
     meanEj /= Math.max(1, pieces.length);
     for (const f of pieces) {
       const id = f.largestRemnant ? `${target.id === 'THREAT' ? 'REMNANT' : target.id + 'R'}` : `F${++fragCounter}`;
       let el: Elements | null = null;
       try {
-        el = stateToElements(st.r, f.v, mu, t, current.e > 1);
+        el = toElements(st.r, vOf(f), mu, t, current.e > 1);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
       }
@@ -206,7 +214,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         segments: [{ tFrom: t, tTo: Infinity, elements: el ?? current }],
         harmless: f.D < harmlessDiameter(iron),
         escaped: el === null,
-        vEj: Math.hypot(f.v.x - st.v.x, f.v.y - st.v.y),
+        vEj: vlen(vsub(vOf(f), st.v)),
       };
       if (body.escaped) escaped++;
       bodies.push(body);
@@ -223,19 +231,20 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   const transferCache = new Map<string, Elements>();
 
   /** Craft state at time t: legs when present, else the single Lambert coast from HOME. */
-  const stateOf = (m: Mission, t: number): { r: { x: number; y: number }; v: { x: number; y: number } } | null => {
+  const stateOf = (m: Mission, t: number): { r: V; v: V } | null => {
     if (m.legs) return craftState(m, mu, t);
     let el = transferCache.get(m.id);
     if (!el) {
       const hs = propagate(home.elements, mu, m.launchTime);
       try {
-        el = stateToElements(hs.r, m.departureV, mu, m.launchTime);
+        // NOTE: a departure velocity with a z part (a 3-D target) gives a tilted transfer orbit.
+        el = toElements(hs.r, m.departureV, mu, m.launchTime);
       } catch {
         return null;
       }
       transferCache.set(m.id, el);
     }
-    const st = propagate(el, mu, t);
+    const st = stateAt(el, mu, t);
     return { r: st.r, v: st.v };
   };
 
@@ -254,14 +263,14 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     const st = stateOf(m, t);
     if (!st) return null;
     const bEl = elementsAt(b.segments, m.arrivalTime);
-    const target = propagate(bEl, mu, m.arrivalTime);
-    const sol = lambert(st.r, target.r, m.arrivalTime - t, mu);
+    const target = stateAt(bEl, mu, m.arrivalTime);
+    const sol = lambertAny(st.r, target.r, m.arrivalTime - t, mu);
     if (!sol) return null;
-    const dv = Math.hypot(sol.v1.x - st.v.x, sol.v1.y - st.v.y);
+    const dv = vlen(vsub(sol.v1, st.v));
     if (dv > (m.dvBudget ?? 0) - (m.dsmUsed ?? 0) + 1e-9) return null;
     let coastEl: Elements;
     try {
-      coastEl = stateToElements(st.r, sol.v1, mu, t);
+      coastEl = toElements(st.r, sol.v1, mu, t);
     } catch {
       return null;
     }
@@ -274,7 +283,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     m.targetId = b.id;
     m.interceptR = target.r;
     m.arrivalV = sol.v2;
-    m.U = Math.hypot(sol.v2.x - target.v.x, sol.v2.y - target.v.y);
+    m.U = vlen(vsub(sol.v2, target.v));
     m.dsmUsed = (m.dsmUsed ?? 0) + dv;
     return dv;
   };
@@ -343,10 +352,10 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
           }
           const st = stateOf(m, t);
           if (!st) continue;
-          const tgt = propagate(elementsAt(x.body.segments, m.arrivalTime), mu, m.arrivalTime);
-          const sol = lambert(st.r, tgt.r, m.arrivalTime - t, mu);
+          const tgt = stateAt(elementsAt(x.body.segments, m.arrivalTime), mu, m.arrivalTime);
+          const sol = lambertAny(st.r, tgt.r, m.arrivalTime - t, mu);
           if (!sol) continue;
-          const dv = Math.hypot(sol.v1.x - st.v.x, sol.v1.y - st.v.y);
+          const dv = vlen(vsub(sol.v1, st.v));
           if (dv <= (m.dvBudget ?? 0) - (m.dsmUsed ?? 0) && dv < bestDv) {
             best = m;
             bestDv = dv;
@@ -446,8 +455,9 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       continue;
     }
     const current = elementsAt(target.segments, m.arrivalTime);
-    const st = propagate(current, mu, m.arrivalTime);
-    const offset = Math.hypot(st.r.x - m.interceptR.x, st.r.y - m.interceptR.y);
+    const st = stateAt(current, mu, m.arrivalTime);
+    // NOTE: for a body off the ecliptic the offset is 3-D: a plan aimed at a planar point misses by the height.
+    const offset = vlen(vsub(st.r, m.interceptR));
     if (offset > KNOBS.TERMINAL_GUIDANCE_RANGE) {
       events.push({ t: m.arrivalTime, kind: 'IMPACT_MISS', missionId: m.id, offset });
       continue;
@@ -478,7 +488,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     if (m.push) {
       // Slow push (6.12): the craft has rendezvoused (the planner paid the mismatch); push along track for tau.
       const tEnd = Math.min(m.arrivalTime + m.push.tauMax, threat.tImpact - KNOBS.PUSH_END_MARGIN);
-      const rNow = Math.hypot(st.r.x, st.r.y);
+      const rNow = vlen(st.r);
       const pf = pushForce({ method: m.push.method as PushMethod, tier: m.push.tier }, target.mass, target.D / 2, rNow, iron);
       if (!pf.viable || pf.force <= 0 || tEnd <= m.arrivalTime) {
         events.push({ t: m.arrivalTime, kind: 'PUSH', missionId: m.id, targetId: target.id, method: m.push.method, force: pf.force, dv: 0, duration: 0, viable: false, note: pf.note });
@@ -487,7 +497,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       const a = (m.push.sign * pf.force) / target.mass;
       let arc;
       try {
-        arc = integratePush(current, mu, m.arrivalTime, tEnd, a);
+        arc = pushArc(current, mu, m.arrivalTime, tEnd, a);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
         events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
@@ -508,15 +518,15 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       // Nuclear (6.11): standoff pushes along the burst-to-centre line (the approach direction); surface and
       // subsurface disrupt when Q_nuc >= Q*. A pulse train sums bursts with a disruption check after each.
       usedWarhead = true;
-      const U = Math.hypot(m.arrivalV.x - st.v.x, m.arrivalV.y - st.v.y);
+      const rel = vsub(m.arrivalV, st.v);
+      const U = vlen(rel);
       const fuzed = m.warhead.mode !== 'STANDOFF' || fuzeOk(U, m.warhead.tier);
       if (!fuzed) {
         events.push({ t: m.arrivalTime, kind: 'NUKE', missionId: m.id, targetId: target.id, mode: m.warhead.mode, yieldMt: m.warhead.yieldMt, dv: 0, qRatio: 0, fuzed: false, pulses: m.warhead.pulses });
         continue;
       }
-      const ux = (m.arrivalV.x - st.v.x) / (U || 1);
-      const uy = (m.arrivalV.y - st.v.y) / (U || 1);
-      let v = { x: st.v.x, y: st.v.y };
+      const u = vdiv(rel, U || 1);
+      let v: V = st.v;
       let dvSum = 0;
       let qSum = 0;
       let disrupted = false;
@@ -524,7 +534,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         const nb = nuclearBurst(m.warhead.yieldMt, m.warhead.mode, target.mass, R, KNOBS.NUKE_STANDOFF_H_FRAC * R);
         dvSum += nb.dv;
         qSum += nb.Q;
-        v = { x: v.x + nb.dv * ux, y: v.y + nb.dv * uy };
+        v = vadd(v, vscale(u, nb.dv));
         if (qSum >= Qs) {
           disrupted = true;
           break;
@@ -533,13 +543,13 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       events.push({ t: m.arrivalTime, kind: 'NUKE', missionId: m.id, targetId: target.id, mode: m.warhead.mode, yieldMt: m.warhead.yieldMt, dv: dvSum, qRatio: qSum / Qs, fuzed: true, pulses: m.warhead.pulses });
       if (disrupted) {
         // The burst's momentum enters through the ejecta; the fragments carry the standoff push too.
-        disruptBody(target, current, { r: st.r, v }, m, qSum, Qs, { x: ux * dvSum * 1, y: uy * dvSum * 1 }, 0, m.arrivalTime);
+        disruptBody(target, current, { r: st.r, v }, m, qSum, Qs, vscale(u, dvSum), 0, m.arrivalTime);
         autonomy(m.arrivalTime, 'FRAGMENTATION', { 'fragments.count': liveBodies(m.arrivalTime).length, 'predicted.miss_radii': predictedMargin(m.arrivalTime) });
         continue;
       }
       let next: Elements;
       try {
-        next = stateToElements(st.r, v, mu, m.arrivalTime, current.e > 1);
+        next = toElements(st.r, v, mu, m.arrivalTime, current.e > 1);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
         events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
@@ -553,15 +563,15 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     }
 
     const beta = opts.betaOverride ?? drawBeta(world, m.id, threat.type.id, sample);
-    const k = kineticImpact(m.impactorKg, target.mass, m.arrivalV, st.v, beta);
+    const k = kineticAny(m.impactorKg, target.mass, m.arrivalV, st.v, beta);
     const Q = specificEnergy(m.impactorKg, target.mass, k.U);
 
     if (Q < Qs) {
       // Cratering: an impulse, new elements, same body.
-      const v2 = { x: st.v.x + k.dv.x, y: st.v.y + k.dv.y };
+      const v2 = vadd(st.v, k.dv);
       let next: Elements;
       try {
-        next = stateToElements(st.r, v2, mu, m.arrivalTime, current.e > 1);
+        next = toElements(st.r, v2, mu, m.arrivalTime, current.e > 1);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
         events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
@@ -572,13 +582,13 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       target.segments.push({ tFrom: m.arrivalTime, tTo: Infinity, elements: next });
       tLast = m.arrivalTime;
       const knownAt = m.arrivalTime + betaAssessDelay(opts.trackingTier ?? 0);
-      events.push({ t: m.arrivalTime, kind: 'IMPACT', missionId: m.id, U: k.U, beta, dvAlong: alongTrack(k.dv, st.v), dvTotal: Math.hypot(k.dv.x, k.dv.y), massKg: m.impactorKg, targetId: target.id, qRatio: Q / Qs, betaKnownAt: knownAt });
+      events.push({ t: m.arrivalTime, kind: 'IMPACT', missionId: m.id, U: k.U, beta, dvAlong: k.along, dvTotal: vlen(k.dv), massKg: m.impactorKg, targetId: target.id, qRatio: Q / Qs, betaKnownAt: knownAt });
       assessments.push({ t: knownAt, missionId: m.id, beta, targetId: target.id });
       continue;
     }
 
     // Disruption: the body dies; a remnant and fragments are born; in-flight autonomy reacts.
-    disruptBody(target, current, st, m, Q, Qs, { x: m.arrivalV.x - st.v.x, y: m.arrivalV.y - st.v.y }, m.impactorKg, m.arrivalTime);
+    disruptBody(target, current, st, m, Q, Qs, vsub(m.arrivalV, st.v), m.impactorKg, m.arrivalTime);
     autonomy(m.arrivalTime, 'FRAGMENTATION', { 'fragments.count': liveBodies(m.arrivalTime).length, 'predicted.miss_radii': predictedMargin(m.arrivalTime) });
   }
   settleBefore(Infinity);
@@ -611,9 +621,9 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       let el = elementsAt(b.segments, Infinity);
       let t = Math.max(since, b.tBirth === -Infinity ? since : b.tBirth, tLast);
       const inRange = (tt: number): boolean => {
-        const a = propagate(el, mu, tt);
+        const a = stateAt(el, mu, tt);
         const h = propagate(home.elements, mu, tt);
-        return Math.hypot(a.r.x - h.r.x, a.r.y - h.r.y) < range;
+        return vlen(vsub(a.r, h.r)) < range;
       };
       // Each pass through the range is one firing window; the body coasts on the pushed orbit between them.
       for (let windows = 0; windows < 8 && t < tEnd; ) {
@@ -625,7 +635,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         if (tOut - tIn < DAY) continue;
         const force = KNOBS.LASER_CM_N_PER_W * powerW;
         try {
-          const arc = integratePush(el, mu, tIn, tOut, force / b.mass);
+          const arc = pushArc(el, mu, tIn, tOut, force / b.mass);
           const lastSeg = b.segments[b.segments.length - 1];
           if (lastSeg) lastSeg.tTo = tIn;
           b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
@@ -660,7 +670,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         const el = elementsAt(b.segments, Infinity);
         const F = force(b);
         try {
-          const arc = integratePush(el, mu, tIn, tOut, F / b.mass);
+          const arc = pushArc(el, mu, tIn, tOut, F / b.mass);
           const lastSeg = b.segments[b.segments.length - 1];
           if (lastSeg) lastSeg.tTo = tIn;
           b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
@@ -685,7 +695,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         const dv = KNOBS.NANOFORGE_VE * Math.log(m0 / m1);
         const el = elementsAt(b.segments, Infinity);
         try {
-          const arc = integratePush(el, mu, tIn, tOut, dv / (tOut - tIn));
+          const arc = pushArc(el, mu, tIn, tOut, dv / (tOut - tIn));
           const lastSeg = b.segments[b.segments.length - 1];
           if (lastSeg) lastSeg.tTo = tIn;
           b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });

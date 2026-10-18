@@ -9,6 +9,7 @@ import { KNOBS } from '../config/knobs';
 import { OrbitError, stateToElements } from '../physics/elements';
 import { propagate, type Elements } from '../physics/kepler';
 import type { Leg, Mission } from '../sim/mission';
+import { stateAt, type V } from '../sim/orbit3';
 import type { Vec2 } from '../util/vec';
 import { missionCost } from './candidates';
 import type { FlybyCell } from './flybySearch';
@@ -88,11 +89,12 @@ export function missionFromSail(c: SailCell, ctx: LegContext, id: string, sailTi
 }
 
 /** Full state (r, v) of a craft at time t from its legs, or null when not in flight. */
-export function craftState(m: Mission, mu: number, t: number): { r: Vec2; v: Vec2 } | null {
+export function craftState(m: Mission, mu: number, t: number): { r: V; v: V } | null {
   if (!m.legs) return null;
   for (const leg of m.legs) {
     if (leg.kind === 'COAST' && t >= leg.tFrom && t < leg.tTo) {
-      const s = propagate(leg.elements, mu, t);
+      // NOTE: a coast retargeted onto a body off the ecliptic carries 3-D elements (stateAt handles both).
+      const s = stateAt(leg.elements, mu, t);
       return { r: s.r, v: s.v };
     }
     if (leg.kind === 'SAIL' && t >= leg.tFrom && t < leg.tTo) {
@@ -107,10 +109,10 @@ export function craftState(m: Mission, mu: number, t: number): { r: Vec2; v: Vec
 }
 
 /** Position of a craft with legs at time t, or null when not in flight. */
-export function craftPosition(m: Mission, mu: number, t: number): Vec2 | null {
+export function craftPosition(m: Mission, mu: number, t: number): V | null {
   if (!m.legs) return null;
   for (const leg of m.legs) {
-    if (leg.kind === 'COAST' && t >= leg.tFrom && t < leg.tTo) return propagate(leg.elements, mu, t).r;
+    if (leg.kind === 'COAST' && t >= leg.tFrom && t < leg.tTo) return stateAt(leg.elements, mu, t).r;
     if (leg.kind === 'SAIL' && t >= leg.tFrom && t < leg.tTo) {
       const n = leg.samples.length / 2;
       const f = ((t - leg.tFrom) / (leg.tTo - leg.tFrom)) * (n - 1);

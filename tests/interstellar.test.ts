@@ -1,6 +1,7 @@
-// REALISTIC visitors from other stars (owner backlog 10-12): the rate dial, 3-D lite tilt, discovery-derived lead.
+// REALISTIC visitors from other stars (owner backlog 10-12): the rate dial, 3-D orbits (M14), discovery-derived lead.
 import { describe, expect, it } from 'vitest';
 import { YEAR } from '../src/physics/constants';
+import { is3D } from '../src/sim/orbit3';
 import { resolveRound } from '../src/sim/resolver';
 import { generateThreat } from '../src/sim/roundGen';
 import { roundRng } from '../src/sim/rng';
@@ -28,8 +29,12 @@ describe('INTERSTELLAR rate dial', () => {
       world.threat = th;
       expect(th.flavor).toBe('INTERSTELLAR');
       expect(th.elements.e).toBeGreaterThan(1);
-      expect(th.incl ?? -1).toBeGreaterThanOrEqual(0);
-      expect(th.incl ?? 9).toBeLessThanOrEqual(Math.PI);
+      // M14 phase 2: a true 3-D orbit (i and raan in the elements), no 3-D lite tilt.
+      expect(is3D(th.elements)).toBe(true);
+      expect(th.incl).toBeUndefined();
+      const i = is3D(th.elements) ? th.elements.i : -1;
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(i).toBeLessThanOrEqual(Math.PI);
       expect(th.tImpact).toBeLessThan(2.1 * YEAR);
       if (!th.noWarning) warned++;
       expect(resolveRound(world, []).outcome).toBe('HIT');

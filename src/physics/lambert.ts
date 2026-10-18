@@ -7,10 +7,13 @@
 //       Bracket z in [-4pi^2, 4pi^2) where y > 0, bisect until the bracket is 1e-13 wide, then three Newton
 //       steps. Lagrange coefficients give v1 and v2. Returns null when the geometry is degenerate (dtheta
 //       within 1e-3 of 0 or pi: A -> 0 and the plane is undefined) or no root exists.
+//       lambert3 (M14 phase 2) is the same root in the plane of r1 and r2, with the prograde sense taken from
+//       the z part of r1 x r2, for targets off the ecliptic.
 //       Python mirror: pymiss/physics/lambert.py.
 // LORE: O10 (A to B), G3 (the planner)
 
 import type { Vec2 } from '../util/vec';
+import type { Vec3 } from './kepler3';
 import { stumpffC, stumpffS } from './stumpff';
 
 export interface LambertResult {
@@ -44,6 +47,25 @@ export function lambert(r1v: Vec2, r2v: Vec2, dt: number, mu: number): LambertRe
   if (dtheta < LAMBERT_DEGENERATE || Math.abs(dtheta - Math.PI) < LAMBERT_DEGENERATE || 2 * Math.PI - dtheta < LAMBERT_DEGENERATE) return null;
 
   const A = Math.sin(dtheta) * Math.sqrt((r1 * r2) / (1 - Math.cos(dtheta)));
+  const root = solveUniversal(r1, r2, A, dt, mu);
+  if (!root) return null;
+  const { z, yy, C } = root;
+  const f = 1 - yy / r1;
+  const g = A * Math.sqrt(yy / mu);
+  const gd = 1 - yy / r2;
+  const v1 = { x: (r2v.x - f * r1v.x) / g, y: (r2v.y - f * r1v.y) / g };
+  const v2 = { x: (gd * r2v.x - r1v.x) / g, y: (gd * r2v.y - r1v.y) / g };
+  const a = Math.abs(z) > 1e-12 ? yy / (C * z) : Infinity;
+  return { v1, v2, z, dtheta, a };
+}
+
+/**
+ * The universal-variable root shared by the planar and 3-D wrappers (Curtis 5.2): given |r1|, |r2|, the
+ * geometry constant A = sin(dtheta) sqrt(r1 r2 / (1 - cos dtheta)) and the flight time, find z with
+ * F(z) = (y/C)^1.5 S + A sqrt(y) - sqrt(mu) dt = 0. Returns z, y(z) and C(z), or null without a root.
+ * Units: m, s, m^3/s^2. Example: the Section 16 near-Hohmann case has z of about 9.71 (an ellipse, z > 0).
+ */
+function solveUniversal(r1: number, r2: number, A: number, dt: number, mu: number): { z: number; yy: number; C: number } | null {
   const sqrtMuDt = Math.sqrt(mu) * dt;
   const y = (z: number): number => r1 + r2 + (A * (z * stumpffS(z) - 1)) / Math.sqrt(stumpffC(z));
   const F = (z: number): number => {
@@ -95,11 +117,48 @@ export function lambert(r1v: Vec2, r2v: Vec2, dt: number, mu: number): LambertRe
 
   const yy = y(z);
   const C = stumpffC(z);
+  return { z, yy, C };
+}
+
+export interface Lambert3Result {
+  /** Heliocentric departure and arrival velocities, m/s. */
+  v1: Vec3;
+  v2: Vec3;
+  z: number;
+  /** Transfer angle in the transfer plane, rad in [0, 2pi). */
+  dtheta: number;
+  a: number;
+}
+
+/**
+ * Lambert in three dimensions (M14 phase 2): the same universal-variable root, in the plane spanned by r1 and r2.
+ *   cos(dtheta) = r1 . r2 / (|r1| |r2|);  prograde: dtheta = 2pi - acos(...) when (r1 x r2)_z < 0 (Curtis 5.2)
+ *   v1 = (r2 - f r1) / g;  v2 = (gdot r2 - r1) / g   with f, g, gdot from y(z) as in the planar function.
+ * The transfer orbit's angular momentum points along +(r1 x r2) for dtheta < pi and along -(r1 x r2) beyond, so
+ * a prograde transfer always has h_z >= 0. `prograde = false` takes the other way round. Degenerate (null) when
+ * dtheta is within LAMBERT_DEGENERATE of 0 or pi (the plane is undefined).
+ * Units: m, s, m^3/s^2 -> m/s. Example: r1 = (1 AU, 0, 0), r2 = (0, 1 AU, 0.2 AU), dt = 100 d, mu = MU_SUN
+ * gives dtheta = 90 deg and v1 ≈ (2.38, 28.33, 5.67) km/s (the craft climbs toward the target); with r2 in
+ * the plane (z = 0) the answer equals the planar lambert (and z = 0 parts).
+ */
+export function lambert3(r1v: Vec3, r2v: Vec3, dt: number, mu: number, prograde = true): Lambert3Result | null {
+  if (!(dt > 0)) return null;
+  const r1 = Math.hypot(r1v.x, r1v.y, r1v.z);
+  const r2 = Math.hypot(r2v.x, r2v.y, r2v.z);
+  const cz = r1v.x * r2v.y - r1v.y * r2v.x;
+  const cosd = Math.max(-1, Math.min(1, (r1v.x * r2v.x + r1v.y * r2v.y + r1v.z * r2v.z) / (r1 * r2)));
+  let dtheta = Math.acos(cosd);
+  if (prograde ? cz < 0 : cz >= 0) dtheta = 2 * Math.PI - dtheta;
+  if (dtheta < LAMBERT_DEGENERATE || Math.abs(dtheta - Math.PI) < LAMBERT_DEGENERATE || 2 * Math.PI - dtheta < LAMBERT_DEGENERATE) return null;
+  const A = Math.sin(dtheta) * Math.sqrt((r1 * r2) / (1 - Math.cos(dtheta)));
+  const root = solveUniversal(r1, r2, A, dt, mu);
+  if (!root) return null;
+  const { z, yy, C } = root;
   const f = 1 - yy / r1;
   const g = A * Math.sqrt(yy / mu);
   const gd = 1 - yy / r2;
-  const v1 = { x: (r2v.x - f * r1v.x) / g, y: (r2v.y - f * r1v.y) / g };
-  const v2 = { x: (gd * r2v.x - r1v.x) / g, y: (gd * r2v.y - r1v.y) / g };
+  const v1 = { x: (r2v.x - f * r1v.x) / g, y: (r2v.y - f * r1v.y) / g, z: (r2v.z - f * r1v.z) / g };
+  const v2 = { x: (gd * r2v.x - r1v.x) / g, y: (gd * r2v.y - r1v.y) / g, z: (gd * r2v.z - r1v.z) / g };
   const a = Math.abs(z) > 1e-12 ? yy / (C * z) : Infinity;
   return { v1, v2, z, dtheta, a };
 }

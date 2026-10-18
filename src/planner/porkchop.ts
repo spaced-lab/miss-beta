@@ -2,14 +2,18 @@
 // WHY:  Every kinetic plan is a cell of this grid: launch date, arrival date, departure energy (what the
 //       launcher must do), payload mass (what it can carry) and closing speed (what the impact delivers).
 //       Computed in the worker so the screen never stalls; this module is pure so tests run it directly.
-// HOW:  Steps are the larger of PORKCHOP_STEP and lead / PORKCHOP_MAX_AXIS so a 12-year lead still fits in
+// HOW:  A target whose elements carry i and raan (a visitor off the ecliptic) is solved with lambert3 against its
+//       3-D position, and the grid gains v1z, v2z and rz (M14 phase 2); planar targets are unchanged.
+//       Steps are the larger of PORKCHOP_STEP and lead / PORKCHOP_MAX_AXIS so a 12-year lead still fits in
 //       about 110 x 110 cells. Results are flat typed arrays indexed [iL * nA + iA] for cheap postMessage.
 // LORE: O10 (A to B), G3 (the planner)
 
 import { KNOBS } from '../config/knobs';
 import { c3FromVinf, payloadForC3, type LauncherTier } from '../physics/estimates';
 import { propagate, type Elements } from '../physics/kepler';
-import { lambert } from '../physics/lambert';
+import { propagate3 } from '../physics/kepler3';
+import { lambert, lambert3 } from '../physics/lambert';
+import { is3D } from '../sim/orbit3';
 
 export interface PorkchopRequest {
   home: Elements;
@@ -41,6 +45,10 @@ export interface PorkchopGrid {
   /** Threat position at arrival, m. */
   rx: Float64Array;
   ry: Float64Array;
+  /** Present only for a target off the ecliptic (3-D elements): the z parts of v1, v2 and the target position. */
+  v1z?: Float64Array;
+  v2z?: Float64Array;
+  rz?: Float64Array;
   feasible: number;
 }
 
@@ -71,6 +79,7 @@ export function computePorkchop(req: PorkchopRequest): PorkchopGrid {
     rx: new Float64Array(n), ry: new Float64Array(n),
     feasible: 0,
   };
+  if (is3D(req.threat)) return porkchop3(req, g);
   const homeStates = [];
   for (let iL = 0; iL < nL; iL++) homeStates.push(propagate(req.home, req.muSun, tL0 + iL * step));
   const threatStates = [];
@@ -104,5 +113,59 @@ export function computePorkchop(req: PorkchopRequest): PorkchopGrid {
       if (payload > 0) g.feasible++;
     }
   }
+  return g;
+}
+
+/**
+ * The grid for a target off the ecliptic (M14 phase 2): lambert3 from HOME (z = 0) to the target's 3-D position,
+ * so C3 and the closing speed U include the out-of-plane parts: v_inf = |v1 - v_HOME|, U = |v2 - v_T| in 3-D.
+ * Same cells, same steps, same knobs as the planar grid. Example: a visitor 0.3 AU below the plane at arrival
+ * costs more C3 than a planar target at the same place, because the craft must climb out of the ecliptic.
+ */
+function porkchop3(req: PorkchopRequest, g: PorkchopGrid): PorkchopGrid {
+  if (!is3D(req.threat)) return g;
+  const { nL, nA, tL0, tA0, step } = g;
+  const n = nL * nA;
+  const v1z = new Float64Array(n);
+  const v2z = new Float64Array(n);
+  const rz = new Float64Array(n);
+  const homeStates = [];
+  for (let iL = 0; iL < nL; iL++) homeStates.push(propagate(req.home, req.muSun, tL0 + iL * step));
+  const threatStates = [];
+  for (let iA = 0; iA < nA; iA++) threatStates.push(propagate3(req.threat, req.muSun, tA0 + iA * step));
+  for (let iL = 0; iL < nL; iL++) {
+    const hs = homeStates[iL];
+    if (!hs) continue;
+    const tL = tL0 + iL * step;
+    for (let iA = 0; iA < nA; iA++) {
+      const tA = tA0 + iA * step;
+      const dt = tA - tL;
+      if (dt < KNOBS.PORKCHOP_MIN_FLIGHT) continue;
+      const ts = threatStates[iA];
+      if (!ts) continue;
+      const sol = lambert3({ x: hs.r.x, y: hs.r.y, z: 0 }, ts.r, dt, req.muSun);
+      if (!sol) continue;
+      const i = iL * nA + iA;
+      const vinf = Math.hypot(sol.v1.x - hs.v.x, sol.v1.y - hs.v.y, sol.v1.z);
+      const c3 = c3FromVinf(vinf);
+      const payload = payloadForC3(req.tier, Math.max(0, c3 - (req.c3Bonus ?? 0)));
+      g.c3[i] = c3;
+      g.payload[i] = payload;
+      g.U[i] = Math.hypot(sol.v2.x - ts.v.x, sol.v2.y - ts.v.y, sol.v2.z - ts.v.z);
+      g.v1x[i] = sol.v1.x;
+      g.v1y[i] = sol.v1.y;
+      v1z[i] = sol.v1.z;
+      g.v2x[i] = sol.v2.x;
+      g.v2y[i] = sol.v2.y;
+      v2z[i] = sol.v2.z;
+      g.rx[i] = ts.r.x;
+      g.ry[i] = ts.r.y;
+      rz[i] = ts.r.z;
+      if (payload > 0) g.feasible++;
+    }
+  }
+  g.v1z = v1z;
+  g.v2z = v2z;
+  g.rz = rz;
   return g;
 }

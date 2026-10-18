@@ -14,6 +14,7 @@ import { rankCandidates } from '../planner/candidates';
 import { computePorkchop } from '../planner/porkchop';
 import type { Mission } from '../sim/mission';
 import { elementsAt, resolveRound, type RoundResult } from '../sim/resolver';
+import { stateAt } from '../sim/orbit3';
 import { roundRng } from '../sim/rng';
 import { generateThreat } from '../sim/roundGen';
 import { createWorld, planetById, type World } from '../sim/world';
@@ -59,7 +60,7 @@ export function buildAttract(seed: string): AttractRound {
         impactorTier: 1,
         budget: KNOBS.BUDGET_START,
         committedAt: 0,
-        targetVelocity: (t) => propagate(elementsAt(threatBody.segments, t), world.star.mu, t).v,
+        targetVelocity: (t) => stateAt(elementsAt(threatBody.segments, t), world.star.mu, t).v,
         resolve: (ms) => {
           const r = resolveRound(world, ms, { betaOverride: betaMid });
           return { outcome: r.outcome, marginRadii: r.ca.marginRadii, hitEnergyMt: r.hitEnergyMt, producedFragments: r.producedFragments };

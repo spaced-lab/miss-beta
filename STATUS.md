@@ -27,6 +27,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | Cinematics: finer launch pixels (2026-10-18) | done | `render/cinematics/launch.ts`: procedural rocket sprites at about 2x resolution (porthole, livery, interstage bands, roll marks, fins, L3 boosters with their own plumes), 5-cell lattice tower, plated pad with flame trench; plume head in a thermal false-colour ramp (`CINE_FALSE_RAMP` under NEON, hot/ink/alt/dim in mono) with a dithered hand-off to fire, shock diamonds, false-colour ember pixels; impact/breakup debris at `CINE_DEBRIS_PX_SCALE` 0.6 with hot false-colour ejecta and one-pixel motion tails. New `CINE_*` knobs at the end of KNOBS. Cost: launch L3 about 2.6k dots and 0.9 ms/frame in Chrome at DPR 2 (bench/cinematics.bench.ts: 0.19 ms JS) |
 | F12 visitors from other stars + LAB_INTERSTELLAR (2026-10-18) | done | topic F12 (the warning sum, tech levels, rate dial and EXAGGERATED, 3-D lite), `lore/labs/interstellar.ts` (orbit built backwards from impact, tilted about the node, discover() per network with `tilt`, about 12 ms per recompute, memoised), `pic-interstellar`; claims F12-3..5 added UNVERIFIED; defence thresholds in the lab (KINETIC 548 d, NUKE STANDBY 90 d, EVACUATE 21 d) are rules of thumb, not claims |
 | M14 phase 1: 3-D Kepler (2026-10-18) | done | physics only, game untouched: `physics/kepler3.ts` (Elements3 = Elements + i, raan; `propagate3`, `planeToEcliptic`, `angularMomentum3`, `orbitPoints3`, `liftElements`), `elements3.ts` (`stateToElements3`, equatorial and circular conventions), `closeApproach3.ts`; pymiss mirrors `kepler3.py`, `elements3.py`, `close_approach3.py`; vectors `kepler3.json`, `elements3.json`, `closeApproach3.json`; i = 0 gives the planar r, v and elements bit for bit (tests/kepler3.test.ts, pymiss/tests/test_kepler3.py). Phase 2 plan under Decisions |
+| M14 phase 2, first slice: 3-D visitors (2026-10-18) | done | visitors from other stars (REALISTIC dial and SCI-FI INTERSTELLAR) are generated in 3-D (`roundGen.ts drawCollidingOrbit3`: HOME's state plus an isotropic v_inf, stateToElements3; Threat.elements holds the Elements3) and stay 3-D through discovery (`detection.ts` reads i, raan), resolver (`sim/orbit3.ts`: kinetic dv via `kineticImpact3`, nuclear and DSM retargets via `lambert3`, along-track pushes in the orbit's plane, fragments 3-D, `targets.ts` closeApproach3 and a 3-D moon scan), planner (`porkchop.ts porkchop3` with v1z/v2z/rz, missions carry z), SAVE.md (`i_rad`, `raan_rad`), system/SKY/planet/mini views. New physics `lambert3`, `kineticImpact3`, `alongTrack3` mirrored in pymiss, vectors `lambert3.json`. Planar rounds bit-for-bit (`tests/planarReplay.test.ts`, fixture captured before the change); `tests/visitor3d.test.ts`. Remaining under Decisions |
 
 ## M12 walk (2026-10-17): plan versus code
 
@@ -193,21 +194,34 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   M0 is the argument of latitude; radial throws OrbitError RETROGRADE (the planar kind for h <= 0). Retrograde is
   i > 90 deg, not an error. No measured choice, so nothing in docs/DECISIONS.md.
 
-- M14 phase 2 (to wire, not started): (1) round generation: build threats with stateToElements3 from HOME's state
-  plus a v_inf with an out-of-plane part (the impact stays exact at the node), store Elements3 in the round and in
-  SAVE.md (persistence type guard and the SAVE.md parser need i and raan, with 0 defaults for old saves);
-  (2) resolver and planner close approach on closeApproach3, per-body for fragments, then drop the f3D cloud
-  correction in fragment.ts for a real 3-D ejection cone (A8); (3) Lambert in 3-D: lambert.ts is planar
-  (dtheta from the 2-D cross product); the universal-variable form generalises with the transfer-plane normal
-  r1 x r2 and a prograde/retrograde choice, and kinetic.ts / flyby.ts need Vec3 dv; (4) rendering: orbitPoints3
-  through camera3d (already a tilt camera), the planet view and SKY using the true z instead of sky.ts
-  tiltAboutNode (retire 3-D lite, A15). Risks: (a) the near-equatorial node is ill-conditioned: a tiny dv near
-  i = 0 can swing raan and w by large amounts while the orbit barely moves, so anything that compares or animates
-  elements (debrief scrubber, autoplay heuristics, the brief's orbit card) must compare states, not angles;
-  (b) every planar round must replay identically: lift with liftElements and keep the bit-for-bit tests as the
-  gate; (c) the porkchop worker cost grows if Lambert gains a plane search; (d) the 2-D code treats h <= 0 as an
-  error and some callers may rely on that rejection (retrograde comets would become possible); (e) Python mirrors
-  of lambert/fragment/flyby must grow in step, with new vectors.
+- M14 phase 2, first slice (2026-10-18): the tilt lives in the element set itself (Threat.elements is an
+  Elements3 for a visitor) rather than a separate `elements3` field, so every spread copy ({ ...elements, M0 })
+  in cheats, MULTIVERSE and epoch shifts keeps it and the resolver's segments carry it with no new field. The
+  price is that planar code fed an Elements3 silently reads the in-plane orbit; every consumer of threat or
+  segment elements was audited and routed through `sim/orbit3.ts` (stateAt, toElements, topDownOutline).
+  orbit3 branches on the data (a vector with no `z` takes the exact 2-D arithmetic: Math.hypot(x, y, 0) can differ
+  from Math.hypot(x, y) in the last bit), which is what keeps the planar replay bit for bit. Along-track pushes
+  run the planar integrator on the in-plane elements and re-attach i and raan (the thrust never leaves the
+  plane), so no 3-D integrator was needed. Fragments of a 3-D body: ejecta stay flat in x-y, every piece gets
+  the parent's v_z plus the impactor's share of U_z; the f3D draw still applies. lambert3's prograde sense is
+  the sign of (r1 x r2)_z (Curtis 5.2), so the transfer always has h_z >= 0; porkchop3 costs the same as the
+  planar grid (about 40 ms for 107 x 107 cells, measured once, no choice made, so nothing in DECISIONS). Isotropic
+  arrival makes most SCI-FI visitors unreachable from HOME (4 of ISO-1..30 have feasible cells at tier 3 versus
+  9 for the same orbits flattened): physics, not a bug; tests/scifi.test.ts uses reachable seeds. The gauge keeps
+  its 3-D lite practice rocks: the tilt about the impact node is a rigid rotation, i.e. the same 3-D orbit
+  (checked in tests/visitor3d.test.ts, including identical discovery). Old saves never stored orbits (rounds
+  regenerate from the seed); SAVE.md now records i_rad and raan_rad for a 3-D threat, optional on read.
+- M14 phase 2, what remains: (1) ordinary NEAs still planar (draw real inclinations, then the planar replay gate
+  is retired on purpose with a new fixture); (2) flyby (`flybySearch`) and sail (`sailSearch`) searches return no
+  plans for a 3-D target, and `legs.ts missionFromFlyby/Sail` are planar; (3) fragment ejection cone in 3-D and
+  dropping f3D (A8); (4) retrograde comets for LONG_PERIOD (needs 3-D draw for that flavor); (5) the brief's orbit
+  card and the debrief scrubber read a, e, w only (compare states, not angles, near i = 0: risk (a) below);
+  (6) camera3d draws other bodies at z = 0 and the planet view shows a 3-D miss in the b-plane without the
+  approach corridor; (7) cheats TELEPORT/TIMEFOLD act on the in-plane elements (correct for along-track moves).
+  Risks kept from the plan: (a) the near-equatorial node is ill-conditioned: a tiny dv near i = 0 can swing
+  raan and w by large amounts while the orbit barely moves, so anything that compares or animates elements
+  (debrief scrubber, autoplay heuristics, the brief's orbit card) must compare states, not angles;
+  (c) porkchop cost if Lambert gains a plane search; (e) Python mirrors of fragment and flyby must grow in step.
 
 ## Unverified
 
