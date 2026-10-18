@@ -33,7 +33,8 @@ import { formatCountdown } from '../../ui/hud';
 import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertainty';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { withAlpha } from '../palettes';
+import { uiColors, withAlpha } from '../palettes';
+import { Autopilot, type Pane } from '../../game/autoplay';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
@@ -114,6 +115,11 @@ export class SystemScreen implements Screen {
   pendingRun: RunState | null = null;
   private mv: Multiverse | null = null;
   private glitch = false;
+  /** AUTOPLAY (IDEAS 19): the autopilot, whether this run started from the title (no saves), and the pane up now. */
+  autoplayNext = false;
+  private auto: Autopilot | null = null;
+  private autoFresh = false;
+  private autoPane: { pane: Pane; t: number } | null = null;
   /** TUTORIAL on the title: the next NEW RUN is the guided round (GAME_PLAN 25). */
   tutorialNext = false;
   private tut: TutorialState | null = null;
@@ -251,6 +257,11 @@ export class SystemScreen implements Screen {
   }
 
   enter(): void {
+    // AUTOPLAY from the title watches a fresh run that never touches the save or the leaderboard.
+    this.auto = this.autoplayNext ? new Autopilot() : null;
+    this.autoFresh = this.autoplayNext;
+    this.autoplayNext = false;
+    this.autoPane = null;
     this.newRun();
   }
   exit(): void {
@@ -380,7 +391,7 @@ export class SystemScreen implements Screen {
     this.glitch = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
     this.run.evacuatedAt = null;
     this.tutSeen = { maxWarp: 0, plannerOpened: false, planetOpened: false, programsOpened: false };
-    if (!this.run.tutorial) saveRun(this.run, this.world, null);
+    if (!this.run.tutorial && !this.autoFresh) saveRun(this.run, this.world, null);
     this.missions = [];
     this.result = resolveRound(this.world, this.missions, this.resolveOpts());
     this.requestMc();
@@ -587,16 +598,17 @@ export class SystemScreen implements Screen {
       this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
       this.phase = 'debrief';
-      if (!this.run.tutorial) saveRun(this.run, this.world, null);
+      if (!this.run.tutorial && !this.autoFresh) saveRun(this.run, this.world, null);
     } else {
       this.phase = 'over';
-      this.rank = this.run.sandbox || this.run.tutorial ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted }, boardFor(this.run.mode));
+      this.rank = this.run.sandbox || this.run.tutorial || this.autoFresh ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted }, boardFor(this.run.mode));
     }
   }
 
   update(dtMs: number): void {
     const k = this.keys;
     const w = this.world;
+    this.updateAutoplay(dtMs);
     this.trackTutorial(dtMs);
     if (this.cine.isOpen) {
       // The clock does not advance while a scene plays; any key skips it (GAME_PLAN 29).
@@ -701,8 +713,10 @@ export class SystemScreen implements Screen {
       if (k.pressed('KeyH')) this.panelHidden = !this.panelHidden;
     }
     if (this.phase === 'debrief') {
-      if (k.pressed('KeyG')) syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
-      this.programs.show();
+      if (k.pressed('KeyG')) {
+        syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
+        this.programs.show();
+      }
       if (k.pressed('KeyT')) this.tech.show();
       if (k.pressed('Space') || k.pressed('Enter')) {
         if (this.run.tutorial) {
@@ -805,6 +819,80 @@ export class SystemScreen implements Screen {
     }
   }
 
+  /** AUTOPLAY: the A key toggles it; while on, the autopilot reads the screen and presses keys for the player. */
+  private updateAutoplay(dtMs: number): void {
+    const k = this.keys;
+    if (this.autoPane) {
+      this.autoPane.t += (dtMs / 1000) * (this.auto?.speed ?? 1);
+      if (this.autoPane.t >= this.autoPane.pane.hold) this.autoPane = null;
+    }
+    const typing = this.console.isOpen || this.lore.isOpen;
+    if (!typing && k.realKey() && k.pressed('KeyA')) {
+      if (this.auto) {
+        this.auto = null;
+        this.autoPane = null;
+        this.note('AUTOPLAY OFF: YOU HAVE CONTROL', 4);
+      } else {
+        this.auto = new Autopilot();
+        this.run.assisted = true;
+        this.note('AUTOPLAY ON: WATCH AND LEARN (A TAKES OVER)', 4);
+      }
+      return;
+    }
+    if (!this.auto) return;
+    const w = this.world;
+    const th = w.threat;
+    const res = this.result;
+    const out = this.auto.step({
+      round: this.run.round,
+      phase: this.phase,
+      threat: th && res ? { name: th.name, D: th.D, energyMt: res.energy.energyMt, leadS: th.tImpact - w.t, kind: th.type.kind === 'comet' ? 'comet' : 'asteroid' } : null,
+      missions: this.missions.length,
+      craftInFlight: craftRemaining(res?.missionsResolved ?? this.missions, w.t),
+      predicted: res?.outcome ?? null,
+      margin: res?.ca.marginRadii ?? 0,
+      budget: budgetAt(this.run.economy, w.t),
+      warp: w.warp,
+      planner: this.planner.autoView(),
+      overlayOpen: this.programs.isOpen || this.tech.isOpen || this.planetOpen || this.lore.isOpen,
+      teleModal: this.tele.isOpen && this.tele.isModal,
+      teleComplete: this.tele.complete,
+      cine: this.cine.isOpen,
+      canEvacuate: this.run.evacuatedAt === null && budgetAt(this.run.economy, w.t) >= KNOBS.EVACUATE_COST,
+      debrief: this.score ? { outcome: this.run.history[this.run.history.length - 1]?.outcome.split(' ')[0] ?? '', score: this.score.roundScore } : null,
+    }, dtMs / 1000);
+    for (const c of out.keys) k.inject(c);
+    if (out.pane) this.autoPane = { pane: out.pane, t: 0 };
+  }
+
+  private drawAutoPane(): void {
+    const s = this.s;
+    if (!this.auto) return;
+    const ui = uiColors(s.palette, s.spectrum);
+    drawText(s, `AUTOPLAY  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, s.width / 2, 6, 10, { align: 'center', color: ui.title, glow: 1 });
+    const ap = this.autoPane;
+    if (!ap) return;
+    // Bottom left: the teletype docks bottom right and the HUD owns the top.
+    const w = Math.min(560, s.width * 0.42, s.width - 32);
+    const lines = wrapText(ap.pane.body, w - 28, 11);
+    const h = 44 + lines.length * 16 + 10;
+    const x = 16;
+    const y = s.height - 70 - h;
+    const fade = Math.min(1, ap.t * 4, (ap.pane.hold - ap.t) * 3);
+    s.ctx.fillStyle = withAlpha(s.palette.bg, 0.88 * fade);
+    s.ctx.fillRect(x, y, w, h);
+    s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: ui.sub, glow: 1, alpha: fade });
+    drawText(s, ap.pane.title, x + 14, y + 12, 13, { color: ui.title, glow: 1.2, alpha: fade });
+    let ly = y + 36;
+    for (const l of lines) {
+      drawText(s, l, x + 14, ly, 11, { color: ui.text, glow: 0.4, alpha: fade, lower: true });
+      ly += 16;
+    }
+    // Time left on this pane, so the viewer knows the next step is coming.
+    const frac = 1 - ap.t / ap.pane.hold;
+    s.stroke([x + 14, y + h - 6, x + 14 + (w - 28) * frac, y + h - 6], { color: ui.sub, glow: 0.5, alpha: fade });
+  }
+
   private project(x: number, y: number): [number, number] {
     const s = this.s;
     const base = (Math.min(s.width, s.height) / 2) * 0.9 * this.zoom;
@@ -831,6 +919,7 @@ export class SystemScreen implements Screen {
     const w = this.world;
     if (this.cine.isOpen) {
       this.cine.render(formatCountdown((w.threat?.tImpact ?? 0) - w.t));
+      this.drawAutoPane();
       return;
     }
     s.clear();
@@ -903,6 +992,7 @@ export class SystemScreen implements Screen {
       if (h) drawText(s, `${h.label}  (CLICK: LEARN ${h.topic})`, mp.x + 14, mp.y + 14, 9, { color: s.spectrum ? s.role('program') : p.hot, glow: 0.6 });
     }
     this.lore.render();
+    this.drawAutoPane();
     this.console.render(this.gameContext());
     if (this.glitch && !this.settings.reduceMotion) {
       const now = performance.now();

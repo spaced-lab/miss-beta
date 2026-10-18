@@ -74,6 +74,15 @@ export class TitleScreen implements Screen {
         },
       },
       {
+        label: 'AUTOPLAY  (WATCH AND LEARN)',
+        hotkey: 'KeyA',
+        action: () => {
+          const sys = this.getSystem();
+          if (sys) sys.autoplayNext = true;
+          router.go('system');
+        },
+      },
+      {
         label: 'TUTORIAL  (GUIDED FIRST ROUND)',
         hotkey: 'KeyT',
         action: () => this.startTutorial(),

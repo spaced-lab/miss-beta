@@ -34,6 +34,7 @@ export class Input {
       if (this.remap.has(e.code) && e.code.startsWith('F')) e.preventDefault();
       const code = this.code(e.code);
       this.lastRaw = e.code;
+      this.real = true;
       if (!this.down.has(code)) this.edge.add(code);
       this.down.add(code);
       if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') this.keyEvents.push(e.key);
@@ -148,6 +149,16 @@ export class Input {
     return this.edge.size > 0;
   }
 
+  /** AUTOPLAY: press a logical code for one frame, as if the player had (game/autoplay.ts). */
+  inject(code: string): void {
+    this.edge.add(code);
+  }
+  private real = false;
+  /** True when a physical key went down this frame (AUTOPLAY hands control back on one). */
+  realKey(): boolean {
+    return this.real;
+  }
+
   /** The physical code of the latest key-down (OPTIONS > KEYS listens to this while waiting for a key). */
   lastRaw = '';
 
@@ -211,6 +222,7 @@ export class Input {
   /** Call once per frame after screens have read the edges. */
   endFrame(): void {
     this.edge.clear();
+    this.real = false;
     this.keyEvents.length = 0;
   }
 }

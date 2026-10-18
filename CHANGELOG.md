@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- AUTOPLAY (title, or A in a run): the game plays itself and explains every step in panes held long enough to
+  read; it stacks partial plans when no single plan works, waits for budget, evacuates late. Title AUTOPLAY runs
+  are never saved or ranked. Fixed: the debrief no longer reopens PROGRAMS every frame.
+
 - NEON is the default colour (older saved settings switch once): cyan reading text, a brighter glowing cyan
   selection, pink titles, purple levels and group headers. Keys are assignable in OPTIONS > KEYS; MANUAL moved
   from F1 to M (bind it back to F1 if you like). Fixed: the planner's axis label and flyby list overlapped.

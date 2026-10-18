@@ -27,6 +27,7 @@ import { formatCountdown } from '../../ui/hud';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
+import type { AutoCand } from '../../game/autoplay';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export interface PlannerSession {
@@ -79,6 +80,17 @@ export class PlannerOverlay {
 
   get isOpen(): boolean {
     return this.open;
+  }
+
+  /** AUTOPLAY's read-only view of the list (game/autoplay.ts). */
+  autoView(): { open: boolean; ready: boolean; sel: number; cands: AutoCand[] } {
+    const budget = this.session?.budget ?? 0;
+    return {
+      open: this.open,
+      ready: this.grid !== null,
+      sel: this.sel,
+      cands: this.cands.map((c) => ({ label: this.label(c), outcome: c.verdict?.outcome ?? 'HIT', margin: c.verdict?.marginRadii ?? -9, cost: c.cost, affordable: c.cost <= budget, warhead: !!c.missions[0]?.warhead })),
+    };
   }
 
   private get target(): Body | null {
@@ -346,6 +358,11 @@ export class PlannerOverlay {
     }
   }
 
+  private label(c: Candidate): string {
+    const first = c.missions[0];
+    return c.archetype === 'PI' ? 'PI PENETRATOR ARRAY' : c.archetype === 'SPLIT' ? `SPLIT BUS X${first?.split?.count}` : c.archetype === 'SWARM' ? `SWARM X${c.missions.length}` : c.archetype === 'KINETIC_FLYBY' ? 'KINETIC-FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL-KINETIC' : c.archetype === 'NUKE_STANDOFF' ? `NUKE STANDOFF ${first?.warhead?.yieldMt} MT` : c.archetype === 'NUKE_DISRUPT' ? `NUKE SUBSURFACE ${first?.warhead?.yieldMt} MT` : c.archetype === 'SLOW_PUSH' ? `SLOW PUSH ${first?.push?.method}` : 'KINETIC';
+  }
+
   render(): void {
     if (!this.open || !this.session) return;
     const s = this.s;
@@ -452,7 +469,7 @@ export class PlannerOverlay {
       const v = c.verdict;
       const target = this.target;
       const dvMid = target ? (((range[0] + range[1]) / 2) * first.impactorKg * first.U) / target.mass : 0;
-      const label = c.archetype === 'PI' ? 'PI PENETRATOR ARRAY' : c.archetype === 'SPLIT' ? `SPLIT BUS X${first.split?.count}` : c.archetype === 'SWARM' ? `SWARM X${c.missions.length}` : c.archetype === 'KINETIC_FLYBY' ? 'KINETIC-FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL-KINETIC' : c.archetype === 'NUKE_STANDOFF' ? `NUKE STANDOFF ${first.warhead?.yieldMt} MT` : c.archetype === 'NUKE_DISRUPT' ? `NUKE SUBSURFACE ${first.warhead?.yieldMt} MT` : c.archetype === 'SLOW_PUSH' ? `SLOW PUSH ${first.push?.method}` : 'KINETIC';
+      const label = this.label(c);
       const fly = first.legs?.find((l) => l.kind === 'FLYBY');
       const sail = first.legs?.find((l) => l.kind === 'SAIL');
       const legLine = fly && fly.kind === 'FLYBY' ? ` FLYBY   ${fly.planetId} ${formatCountdown(th.tImpact - fly.t)}   TURN ${((fly.delta * 180) / Math.PI).toFixed(0)} DEG   dV +${(fly.dvHelio / 1000).toFixed(1)} KM/S   DSM ${(fly.dsm / 1000).toFixed(2)} KM/S` : sail && sail.kind === 'SAIL' ? ` SAIL    ${sail.law}  ARC ${((sail.tTo - sail.tFrom) / 86400).toFixed(0)} D   BUILT ${(sail.dvEquiv / 1000).toFixed(1)} KM/S   DROP ${formatCountdown(th.tImpact - sail.tTo)}   DSM ${((first.dsmUsed ?? 0) / 1000).toFixed(2)} KM/S` : null;

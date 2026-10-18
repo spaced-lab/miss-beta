@@ -63,6 +63,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Decisions where the plan was silent
 
+- AUTOPLAY (2026-10-18): the autopilot presses the same logical keys a player would (Input.inject), reads a
+  narrow AutoView, and waits while a pane is up (2.5 s + 0.32 s/word, 4-14 s). No single MISS plan: stack the
+  plan that improves the margin most (up to 4), else wait a year if lead > 1.5 y, else evacuate 120 d out.
 - Keys (2026-10-18): rebinding is a swap at the Input layer (physical -> logical code), so screens keep testing
   default codes and no key is ever lost; Escape and arrows are not bindable. MANUAL defaults to M.
 
@@ -195,6 +198,6 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    click-to-learn, materialize frames on overlays, orbit-plane grid fade under tilt, discovery in the worker;
    inert program effects warheadBuildYears and damageMult; more labs polish.
 5b. Owner queue 2026-10-18 (in order): NEXT colours (NEON default, cyan text, pink/purple headers), assignable
-   keys with MANUAL on M, planner overlap fix (all done); BACKLOG IDEAS 19 AUTOPLAY, 20 SUPER-DUPER-DEMO,
+   keys with MANUAL on M, planner overlap fix, IDEAS 19 AUTOPLAY (all done); BACKLOG 20 SUPER-DUPER-DEMO,
    21 voice-overs (Kokoro bf_emma / bm_fable, vocoded) and game sounds; then item 5's queue.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.
