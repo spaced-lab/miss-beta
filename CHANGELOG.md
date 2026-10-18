@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Labs batch B (2026-10-18): LAB_LAMBERT_PORKCHOP (the planner's porkchop grid as C3 / U contours with the picked
+  Lambert arc flown live), LAB_FLYBY (the hyperbola with in / out v_inf and a sun-frame vector inset), LAB_SAIL_SPIRAL
+  (the RK4 spiral and the dv it builds), LAB_SUNWARD (survey cones lighting up on discovery, days of warning),
+  LAB_MONTECARLO (propagated misses landing in a histogram, P(MISS) with its error bar), LAB_RK4 (Euler drifting off
+  the Kepler ellipse while RK4 holds; energy error vs step). All call the game's functions and cache by slider values.
+
 - Readable columns (2026-10-18, owner screenshots): the Learning Center is three panes at every level with prose
   capped at 72 characters and re-wrapped whenever the pane changes (the lab arriving no longer leaves text running
   under it), titles cut on whole words, lab plots clipped to their frame, code and tables fitted; the PERIMETER
