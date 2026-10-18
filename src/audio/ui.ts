@@ -1,18 +1,22 @@
 // WHAT: Main-game sounds (GAME_PLAN 13 / M8): menu ticks, commit, launch, impact, breakup, approach, round end.
 // WHY:  Short synthesized cues from the same Synth as the arcade mode; nothing sampled, nothing loaded.
 // HOW:  One method per cue with its numbers at the call site; `enabled` mirrors the SOUND option. The
-//       synth needs a user gesture to start, so `unlock()` is called on the first key press.
+//       synth needs a user gesture to start, so `unlock()` is called on the first key press. `voice` (voice.ts)
+//       plays the canned robot lines through the same synth; it has its own OFF/FEMALE/MALE switch, so the
+//       context unlocks when either the bleeps or the voice is on.
 // LORE: G8 (the look)
 
 import { Synth } from './synth';
+import { Voice } from './voice';
 
 export class UiSfx {
   readonly synth = new Synth();
+  readonly voice = new Voice(this.synth);
   enabled = true;
   private unlocked = false;
 
   unlock(): void {
-    if (this.unlocked || !this.enabled) return;
+    if (this.unlocked || (!this.enabled && this.voice.mode === 'OFF')) return;
     this.unlocked = this.synth.ensure();
     this.synth.setVolume(0.5);
   }

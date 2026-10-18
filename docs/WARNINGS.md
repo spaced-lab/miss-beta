@@ -43,3 +43,13 @@ it lives, what it can do, and what to do about it. Add an entry whenever a conve
 
 - Three dev dependencies (vite, typescript, vitest), zero at runtime. `npm run check` fails on any audit
   finding of moderate severity or higher. Adding a dependency needs a line in STATUS.md explaining why.
+
+## 7. The offline voice generator downloads and loads a model
+
+- **What:** `scripts/gen_voice.py` (run by hand, never by the game, the gate or CI) installs Kokoro, PyTorch and
+  spaCy into `.venv-voice/` and downloads the Kokoro-82M weights from Hugging Face into `~/.cache/huggingface`.
+  PyTorch weight files can carry pickled code, so loading them is trusting the publisher (hexgrad/Kokoro-82M).
+- **Where:** only on the developer's machine. The venv and the cache are outside version control (`.gitignore`);
+  the game ships only the rendered `.ogg` clips and loads them from its own origin (`connect-src 'self'`).
+- **Do:** run it in the venv, from the official repo id, and listen to the clips before committing. Never commit
+  weights, caches or the venv.

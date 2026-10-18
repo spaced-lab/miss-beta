@@ -107,3 +107,6 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     "IMPACT IMMINENT", outcomes) rendered offline with Kokoro (Apache-2.0) British voices bf_emma and bm_fable,
     vocoded through a synth chain, compressed small; OPTIONS VOICE OFF / FEMALE / MALE. PERIMETER's lo-fi cues in
     the main game and the menus, with their own OPTIONS switch.
+    Status 2026-10-18: voice-overs DONE (22 lines x 2 voices, 196 KB of Opus, `scripts/gen_voice.py`,
+    `src/audio/voice.ts`, OPTIONS > VOICE). AUTOPLAY and FINALE lines are rendered but wait for items 19 / 20 to
+    call them. PERIMETER cues in the main game with their own switch: still open.

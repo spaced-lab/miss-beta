@@ -6,7 +6,8 @@
 
 import type { Router, Screen } from '../../game/screen';
 import { topicForOption } from '../../game/loreLinks';
-import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, TEXT_SIZES, UNITS, type Settings } from '../../game/settings';
+import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
+import type { VoiceId } from '../../audio/voice';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors } from '../palettes';
@@ -27,6 +28,8 @@ export class OptionsScreen implements Screen {
   private valueX = 0;
   /** Set by main: open the Learning Center on a topic (Esc there returns here). */
   openCenter: ((id: string) => void) | null = null;
+  /** Set by main: speak a voice line (the VOICE row plays a sample on change). */
+  sayVoice: ((id: VoiceId) => void) | null = null;
   private readonly rows: Row[];
   /** OPTIONS > KEYS: open, the selected action, and whether the next key press binds it. */
   private keysOpen = false;
@@ -42,6 +45,7 @@ export class OptionsScreen implements Screen {
       { label: 'CRT EFFECTS', value: () => (st.crt ? 'ON' : 'OFF'), change: () => (st.crt = !st.crt), note: 'SCANLINES, VIGNETTE AND A FAINT FLICKER OVER THE WHOLE FRAME.' },
       { label: 'GLOW', value: () => st.glow.toUpperCase(), change: (d) => (st.glow = cycle(GLOW_MODES, st.glow, d)), note: 'UNDERSTROKE IS A WIDE FAINT LINE UNDER EVERY STROKE (CHEAP). SHADOW USES CANVAS BLUR (SOFTER, SLOWER).' },
       { label: 'SOUND', value: () => (st.sound ? 'ON' : 'OFF'), change: () => (st.sound = !st.sound), note: 'INTERFACE BLEEPS AND EVENT SOUNDS IN THE MAIN GAME. THE ARCADE MODE HAS ITS OWN SWITCH (KEY 4).' },
+      { label: 'VOICE', value: () => st.voice ?? 'FEMALE', change: (d) => { st.voice = cycle(VOICES, st.voice ?? 'FEMALE', d); this.sayVoice?.('LAUNCHING'); }, note: 'A LO-FI ROBOT MISSION VOICE FOR BIG MOMENTS. BRITISH KOKORO TTS VOICES (APACHE-2.0) THROUGH A VOCODER.' },
       { label: 'UNITS', value: () => st.units, change: (d) => (st.units = cycle(UNITS, st.units, d)), note: 'DISPLAY ONLY. THE SIMULATION IS SI INSIDE. IMPERIAL SHOWS MILES AND MPH WHERE A READOUT SUPPORTS IT.' },
       { label: 'REDUCE MOTION', value: () => (st.reduceMotion ? 'ON' : 'OFF'), change: () => (st.reduceMotion = !st.reduceMotion), note: 'NO FLICKER, NO GLITCH TEARS, NO SWEEPS.' },
       { label: 'TEXT SIZE', value: () => st.textSize, change: (d) => (st.textSize = cycle(TEXT_SIZES, st.textSize, d)), note: 'SCALES EVERY LABEL. LARGE MAY WRAP LONG READOUTS OFF SCREEN ON NARROW WINDOWS.' },

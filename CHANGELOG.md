@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Robot voice-overs (IDEAS 21): a lo-fi vocoded mission voice says launches, intercepts, deflection verdicts,
+  outcomes, evacuation, research and the round start. OPTIONS > VOICE: OFF, FEMALE, MALE. Lines rendered offline
+  with Kokoro-82M (Apache-2.0, voices bf_emma and bm_fable) by `scripts/gen_voice.py`; 196 KB for both voices.
+
 - NEON is the default colour (older saved settings switch once): cyan reading text, a brighter glowing cyan
   selection, pink titles, purple levels and group headers. Keys are assignable in OPTIONS > KEYS; MANUAL moved
   from F1 to M (bind it back to F1 if you like). Fixed: the planner's axis label and flyby list overlapped.
