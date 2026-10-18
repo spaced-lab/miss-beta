@@ -32,6 +32,9 @@ export class CenterScreen implements Screen {
   private chunk: Chunk | null = null;
   private lines: LoreLine[] = [];
   private linesCols = 0;
+  /** Mouse targets from the last frame: tree rows (list index) and level tabs. */
+  private rowHits: { y: number; h: number; idx: number }[] = [];
+  private tabHits: { x: number; y: number; level: Level }[] = [];
   private scroll = 0;
   private focus: Focus = 'TREE';
   private view: View = 'TOPICS';
@@ -172,6 +175,25 @@ export class CenterScreen implements Screen {
 
   update(): void {
     const k = this.keys;
+    // Mouse: click a topic row or a level tab; the wheel scrolls the reading column.
+    const click = k.takeClick();
+    if (click && !this.searching) {
+      const tab = this.tabHits.find((t) => Math.abs(click.x - t.x - 5) < 10 && Math.abs(click.y - t.y - 7) < 12);
+      if (tab) {
+        this.level = tab.level;
+        const t = this.list()[this.sel];
+        if (t) this.load(t);
+        return;
+      }
+      const row = this.rowHits.find((r) => click.x < this.treeW() + 16 && click.y >= r.y && click.y < r.y + r.h);
+      if (row) {
+        this.focus = 'TREE';
+        this.select(row.idx);
+        return;
+      }
+    }
+    const wheel = k.takeWheel();
+    if (wheel !== 0 && this.lines.length > 0) this.scroll = Math.max(0, Math.min(Math.max(0, this.lines.length - 8), this.scroll + Math.sign(wheel) * 3));
     if (this.searching) {
       for (const ev of k.takeKeyEvents()) {
         if (ev === 'Enter') this.searching = false;
@@ -240,6 +262,8 @@ export class CenterScreen implements Screen {
     const p = s.palette;
     s.clear();
     const m = 16;
+    this.rowHits.length = 0;
+    this.tabHits.length = 0;
     this.ensureLines();
     const { tw, cx0, cw, rx, rw } = this.layout();
     const lw = this.wantsLab() ? Math.min(rw, CenterScreen.LAB_MAX) : 0;
@@ -255,6 +279,7 @@ export class CenterScreen implements Screen {
     for (const lv of LEVELS) {
       const on = lv === this.level;
       drawText(s, LEVEL_TABS[lv], tx, m + 2, 12, { color: on ? p.hot : p.ink, glow: on ? 1.2 : 0.3 });
+      this.tabHits.push({ x: tx, y: m + 2, level: lv });
       tx += 22;
     }
     if (this.status) drawTextFit(s, this.status, m, m + 24, 10, s.width - 2 * m, { color: p.hot, glow: 0.5 });
@@ -277,6 +302,7 @@ export class CenterScreen implements Screen {
       }
       if (y > s.height - 60) break; // group headers take rows too: stop above the footer
       const on = i === this.sel;
+      this.rowHits.push({ y: y - 2, h: lineH, idx: i });
       const read = progress[t.id];
       const mark = bookmarks.includes(t.id) ? '*' : read ? (LEVEL_TABS[read as Level] ?? '.') : ' ';
       drawText(s, cutWords(`${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.2 });
@@ -368,7 +394,7 @@ export class CenterScreen implements Screen {
         }
       }
     }
-    drawTextFit(s, `UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `CLICK A TOPIC OR TAB   WHEEL SCROLLS   UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
   }
 }
 
