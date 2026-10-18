@@ -158,3 +158,38 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     - Terminal defense for the last weeks (PROPOSED): PI penetrator arrays and civil defense tuned for visitors.
     Also: show in the planner WHY no plan exists for a 3-D visitor (plane too steep, dv shown), so the player learns
     what would help. Status: queued (owner: put in backlog; build in turn).
+
+28. **Hosting origin (S).** Owner 2026-10-18: publish from the owner's GitHub account (in the keyring). Suggestion:
+    a free GitHub organization for the project (for example `spacedlab`) keeps the owner's account but gives the
+    game its own origin `<org>.github.io`, so no other project page shares its browser storage; a custom domain can
+    come later (then the X.509 items, IDEAS 23). Status: owner to choose before the first push.
+
+29. **Framing and response headers (S-M).** Owner: fine for now, understand and adjust later. GitHub Pages cannot
+    send `frame-ancestors` or other headers; options are a custom domain behind a CDN that sets headers, or a
+    small frame-busting check. Study the options and record the choice in docs/DECISIONS.md. Status: backlog.
+
+30. **Ordinary NEAs in 3-D (M).** Owner: one of the first updates after code review. Moving the ordinary rounds to
+    3-D changes every seed's rounds, so the planar replay fixture is retired on purpose; also flyby and sail plans
+    against 3-D targets, 3-D fragment cones, retrograde long-period comets (STATUS, M14 remains). Status: queued
+    first after review.
+
+31. **PERIMETER balance fixes as a learning item (S).** A start at level 10 outlasts a level-1 run (fresh hull,
+    full moon, reset pressure); HARD from level 40 is a 15-second wall. Fix with the bot table in
+    docs/MINIGAME_BACKLOG.md and write up how the measurement drove the fix. Status: backlog.
+
+32. **Saturn-like planet and its moons (M).** Needs a new planet in bodies.json, which changes every seed's world;
+    batch it with item 30's seed change. Status: backlog, skipped for v26.4.0.
+
+33. **Claims review to keep us honest (M).** Re-read every SOURCED claim's source and promote it to CHECKED, or
+    correct it; research the UNVERIFIED ones (docs/RESEARCH.md section 4). Status: backlog, recurring each release.
+
+34. **Flash measurement (S).** Measure each flash against the WCAG general-flash and red-flash thresholds (area
+    and luminance, claim G8-1); keep the notice and REDUCE MOTION for now, and add a dedicated REDUCE FLASHING
+    option if testing finds any effect over the line. Status: backlog.
+
+35. **Automated security steps (S).** Script the automatable parts of the docs/SAFETY.md checklist (clean
+    checkout gate and build, dist greps, CSP check, oversized and malformed SAVE.md import); reviewed by the owner;
+    the full manual security review still happens before every publish. Status: backlog.
+
+36. **Robot voice work (M).** Owner: voice will be worked on; more options; FEMALE stays the default. Listen to all
+    six voices, tune clarity (scripts/gen_voice.py), add options. Status: backlog.

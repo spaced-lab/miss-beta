@@ -53,6 +53,8 @@ export interface Settings {
   experimental?: boolean;
   /** OPTIONS INTERSTELLAR RATE; missing means REAL. */
   interstellarRate?: InterstellarRate;
+  /** SCI-FI share of visitors from other stars (KNOBS.SCIFI_VISITOR_SHARES); missing means RARE. */
+  scifiVisitors?: 'RARE' | 'COMMON';
 }
 
 export const AUTO_SPEED_LEVELS: readonly AutoSpeed[] = ['SLOW', 'NORMAL', 'FAST'];
@@ -92,7 +94,8 @@ export function isSettings(v: unknown): v is Settings {
     (o.demoLength === undefined || DEMO_LENGTH_LEVELS.includes(o.demoLength as DemoLength)) &&
     (o.photoAck === undefined || typeof o.photoAck === 'boolean') &&
     (o.experimental === undefined || typeof o.experimental === 'boolean') &&
-    (o.interstellarRate === undefined || INTERSTELLAR_RATES.includes(o.interstellarRate as InterstellarRate))
+    (o.interstellarRate === undefined || INTERSTELLAR_RATES.includes(o.interstellarRate as InterstellarRate)) &&
+    (o.scifiVisitors === undefined || o.scifiVisitors === 'RARE' || o.scifiVisitors === 'COMMON')
   );
 }
 

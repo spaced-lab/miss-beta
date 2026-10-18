@@ -74,6 +74,8 @@ export interface GenerateOpts {
   flavor?: ThreatFlavor;
   /** REALISTIC: chance this round is a visitor from another star (OPTIONS INTERSTELLAR RATE), 0 for none. */
   interstellarRate?: number;
+  /** SCI-FI: share of rounds that are visitors from other stars (OPTIONS SCI-FI VISITORS); default the knob. */
+  scifiVisitorShare?: number;
   /** Run seed, for the visitor draw's own stream (keeps every other draw of the round unchanged). */
   runSeed?: string;
   /** IDEAS 26: protected sites built so far; a share of rounds aim at one of them (own seeded stream). */
@@ -98,11 +100,11 @@ interface OrbitDrawOpts {
 }
 
 /** [knob] SCI-FI flavor shares per round: interstellar 0.3, long-period 0.25, giant 0.2, else the ordinary draw. */
-export function drawFlavor(rng: Rng): ThreatFlavor | null {
+export function drawFlavor(rng: Rng, interstellarShare: number = KNOBS.SCIFI_SHARE_INTERSTELLAR): ThreatFlavor | null {
   const u = rng.next();
-  if (u < KNOBS.SCIFI_SHARE_INTERSTELLAR) return 'INTERSTELLAR';
-  if (u < KNOBS.SCIFI_SHARE_INTERSTELLAR + KNOBS.SCIFI_SHARE_LONG_PERIOD) return 'LONG_PERIOD';
-  if (u < KNOBS.SCIFI_SHARE_INTERSTELLAR + KNOBS.SCIFI_SHARE_LONG_PERIOD + KNOBS.SCIFI_SHARE_GIANT) return 'GIANT';
+  if (u < interstellarShare) return 'INTERSTELLAR';
+  if (u < interstellarShare + KNOBS.SCIFI_SHARE_LONG_PERIOD) return 'LONG_PERIOD';
+  if (u < interstellarShare + KNOBS.SCIFI_SHARE_LONG_PERIOD + KNOBS.SCIFI_SHARE_GIANT) return 'GIANT';
   return null;
 }
 
@@ -183,7 +185,7 @@ function drawCollidingOrbit3(rng: Rng, world: World, tImpact: number, o: OrbitDr
  * epochs are shifted so the round clock starts at the discovery. Throws only if every attempt fails.
  */
 export function generateThreat(rng: Rng, world: World, k: number, now = world.t, opts: GenerateOpts = {}): Threat {
-  const flavor = opts.flavor ?? (opts.scifi ? drawFlavor(rng) : null);
+  const flavor = opts.flavor ?? (opts.scifi ? drawFlavor(rng, opts.scifiVisitorShare) : null);
   if (flavor) return generateFlavored(rng, world, k, now, flavor);
   // NOTE: the visitor chance draws from its own stream, so a seed's ordinary rounds are the same at any rate.
   if (!opts.scifi && !opts.skipDiscovery && (opts.interstellarRate ?? 0) > 0) {

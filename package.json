@@ -1,6 +1,6 @@
 {
   "name": "miss-beta",
-  "version": "0.1.0",
+  "version": "26.4.0",
   "description": "MISS β: planetary defense sim. Vector-line, green-on-black, real orbital mechanics underneath.",
   "private": true,
   "type": "module",

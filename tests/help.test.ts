@@ -20,7 +20,8 @@ describe('attribution (NOTICE, AGPL section 7(b))', () => {
     const text = [credits?.title ?? '', ...(credits?.lines ?? [])].join(' ');
     expect(text).toContain('CREATED BY SPACED');
     expect(text).toContain('RIDLEY DISIENA AKA SPACED');
-    expect(text).toContain('PATREON.COM/CW/SPACEDLAB');
+    expect(text).toContain('RUNS ON COFFEE');
+    expect(text).not.toContain('PATREON');
     // @ts-ignore node types are not installed; fs is available in the test runner
     const read = readFileSync as (p: string, e: string) => string;
     expect(read('LICENSE', 'utf8')).toContain('GNU AFFERO GENERAL PUBLIC LICENSE');

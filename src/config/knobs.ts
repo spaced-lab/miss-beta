@@ -177,6 +177,9 @@ export const KNOBS = {
   /** 21.2 SCI-FI round types: flavor shares per round, interstellar v_inf range (km/s), long-period comet
    *  apoapsis cap (AU), giant body diameter (m). */
   SCIFI_SHARE_INTERSTELLAR: 0.3,
+  /** OPTIONS SCI-FI VISITORS (owner 2026-10-18): RARE by default while the defences against out-of-plane visitors
+   *  are built (IDEAS 27); COMMON is the old 30 % share. */
+  SCIFI_VISITOR_SHARES: { RARE: 0.03, COMMON: 0.3 },
   SCIFI_SHARE_LONG_PERIOD: 0.25,
   SCIFI_SHARE_GIANT: 0.2,
   INTERSTELLAR_VINF_KMS: [50, 90] as readonly [number, number],

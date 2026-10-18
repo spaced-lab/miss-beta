@@ -5,6 +5,7 @@
 //       four-ring drawing with fake periods; it is replaced by kepler.ts output in M0.
 // LORE: G2 (screens and HUD), G8 (the look)
 
+import { VERSION } from '../../game/version';
 import { hasSavedRun, loadRun } from '../../game/savegame';
 import { createRun, type RunState } from '../../game/run';
 import { ConsoleOverlay } from './console';
@@ -308,7 +309,8 @@ export class TitleScreen implements Screen {
 
     if (this.noteT > 0) drawText(s, this.note, cx, s.height - 90, 12, { align: 'center', color: p.hot, alpha: Math.min(1, this.noteT) });
     if (this.pendingRun && this.pendingRun.cheatsUsed.length > 0) drawText(s, `CODES FOR THE NEXT RUN: ${this.pendingRun.cheatsUsed.join(' ')}   MODE ${this.pendingRun.mode}`, cx, s.height - 64, 11, { align: 'center', color: p.hot, glow: 0.8 });
-    drawText(s, 'MISS β v0.1   CREATED BY SPACED   ARROWS OR MOUSE SELECT   ENTER OR CLICK START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, `MISS β V${VERSION}   CREATED BY SPACED   ARROWS OR MOUSE SELECT   ENTER OR CLICK START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)`, cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'SELF-FUNDED AND RUNS ON COFFEE: DONATIONS FOR COFFEE ARE WELCOME (HOW TO PLAY > CREDITS)', cx, s.height - 22, 9, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0 });
     this.console.render({ run: this.pendingRun ?? createRun('PENDING'), round: null });
   }
 }

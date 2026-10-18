@@ -90,9 +90,9 @@ or run one for people over a network, you must offer its source under the same l
 
 ## Support this project
 
-Buying me a coffee or donating helps keep this content free and open source:
-[patreon.com/cw/spacedlab](https://www.patreon.com/cw/spacedlab). Support is always voluntary; the game and the
-code stay free for everyone either way.
+MISS β is self-funded and runs on coffee. Donations for coffee are welcome and help keep it free and open source:
+[the coffee fund](https://www.patreon.com/cw/spacedlab). Support is always voluntary; the game and the code stay
+free for everyone either way.
 
 Voice lines (`public/audio/voice/`) were rendered with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
 by hexgrad (Apache-2.0), voices `bf_emma` and `bm_fable`, then vocoded by `scripts/gen_voice.py`.

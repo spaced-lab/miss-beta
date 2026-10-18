@@ -2,7 +2,13 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
-## 0.1.0 (2026-10-17)
+## 26.4.0 (unreleased: first public publish, after code review)
+
+Versions are YY.Q.N (docs/RELEASING.md).
+
+- OPTIONS > SCI-FI VISITORS: RARE (3 %, default) or COMMON (30 %). The credits page and title explain that MISS beta
+  is self-funded and runs on coffee; C or a click on the credits support line opens the coffee fund in a new tab.
+  Version 26.4.0 on the title (YY.Q.N calendar versions).
 
 - M14 phase 2 (first slice): visitors from other stars fly in three dimensions through the whole round:
   generated from HOME's state plus an isotropic v_inf (retrograde ones too), discovered from their real 3-D

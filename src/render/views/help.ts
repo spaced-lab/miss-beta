@@ -4,6 +4,7 @@
 //       Left/Right page, Up/Down scroll, Esc back to wherever it was opened from.
 // LORE: G1 (how to play), G2 (screens and HUD), G3 (the planner)
 
+import { openSupport } from '../../game/support';
 import type { Router, Screen, ScreenId } from '../../game/screen';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
@@ -172,7 +173,8 @@ export const HELP_PAGES: readonly HelpPage[] = [
       '  SOURCE CODE: THE PUBLIC REPOSITORY (SEE NOTICE AND LICENSE). A CHANGED VERSION RUN ONLINE MUST OFFER ITS SOURCE TOO.',
       '',
       'ABOUT THIS GAME: CREATED BY RIDLEY DISIENA AKA SPACED.',
-      'SUPPORT: BUYING ME A COFFEE OR DONATING HELPS KEEP THIS CONTENT FREE AND OPEN SOURCE. PATREON.COM/CW/SPACEDLAB',
+      'SUPPORT: MISS BETA IS SELF-FUNDED AND RUNS ON COFFEE. DONATIONS FOR COFFEE ARE WELCOME AND HELP KEEP IT FREE AND OPEN.',
+      '  PRESS C OR CLICK THIS LINE TO OPEN THE COFFEE FUND IN A NEW TAB.',
     ],
   },
 ];
@@ -182,6 +184,8 @@ const SECTIONS = ['BASIC', 'STRATEGY', 'ADVANCED'] as const;
 export class HelpScreen implements Screen {
   private page = 0;
   private scroll = 0;
+  /** Screen y of the CREDITS support line in the last frame (click target), or null. */
+  private supportY: number | null = null;
   private get section(): (typeof SECTIONS)[number] {
     return HELP_PAGES[this.page]?.section ?? 'BASIC';
   }
@@ -196,6 +200,13 @@ export class HelpScreen implements Screen {
   exit(): void {}
   update(): void {
     const k = this.keys;
+    // CREDITS: C or a click on the support lines opens the coffee fund (src/game/support.ts).
+    const onCredits = HELP_PAGES[this.page]?.title.startsWith('CREDITS') === true;
+    const click = k.takeClick();
+    if (onCredits && (k.pressed('KeyC') || (click && this.supportY !== null && click.y >= this.supportY - 4 && click.y <= this.supportY + 34))) {
+      openSupport();
+      return;
+    }
     if (k.pressed('Escape') || k.pressed('KeyM')) {
       this.router.go(this.returnTo);
       return;
@@ -236,9 +247,11 @@ export class HelpScreen implements Screen {
     const size = Math.max(9, Math.min(12, (s.width - 2 * m) / 105 / (5.5 / 6)));
     const lineH = size * 1.7;
     let y = m + 36;
+    this.supportY = null;
     for (let i = this.scroll; i < page.lines.length; i++) {
       if (y > s.height - 60) break;
       const line = page.lines[i] as string;
+      if (line.startsWith('SUPPORT:')) this.supportY = y;
       // Hand-aligned lines (key tables): never re-wrapped, shrunk to the window instead.
       drawTextFit(s, line, m, y, size, s.width - 2 * m, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
       y += lineH;

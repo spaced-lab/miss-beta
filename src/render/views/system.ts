@@ -426,7 +426,7 @@ export class SystemScreen implements Screen {
       this.run.spawnNext = null;
     } else if (this.run.leadTimeNext !== null) {
       // LEADTIME n: the plain draw with the lead forced (the clock starts now).
-      const th = generateThreat(rng, this.world, round, 0, { skipDiscovery: true, scifi: this.run.mode !== 'REALISTIC' });
+      const th = generateThreat(rng, this.world, round, 0, { skipDiscovery: true, scifi: this.run.mode !== 'REALISTIC', scifiVisitorShare: KNOBS.SCIFI_VISITOR_SHARES[this.settings.scifiVisitors ?? 'RARE'] });
       // Re-time: keep the geometry, move the impact epoch by shifting the epoch of everything (world.t is 0 here).
       const shift = th.tImpact - this.run.leadTimeNext * YEAR;
       for (const p of this.world.planets) (p as { elements: typeof p.elements }).elements = shiftEpoch(p.elements, shift);
@@ -436,7 +436,7 @@ export class SystemScreen implements Screen {
       // OPTIONS INTERSTELLAR RATE: REALISTIC rounds may bring a visitor from another star (its own seeded stream).
       const rate = KNOBS.INTERSTELLAR_RATES[this.settings.interstellarRate ?? 'REAL'];
       if (this.run.mode === 'REALISTIC' && (this.settings.interstellarRate ?? 'REAL') !== 'REAL' && !this.run.tutorial) this.run.exaggerated = true;
-      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC', interstellarRate: this.run.tutorial ? 0 : rate, runSeed: this.run.seed, sites: this.run.tutorial ? [] : (this.run.effects.sites as TargetId[]) });
+      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC', interstellarRate: this.run.tutorial ? 0 : rate, runSeed: this.run.seed, scifiVisitorShare: KNOBS.SCIFI_VISITOR_SHARES[this.settings.scifiVisitors ?? 'RARE'], sites: this.run.tutorial ? [] : (this.run.effects.sites as TargetId[]) });
     }
     if (this.run.mode !== 'REALISTIC' && this.run.economy.perYear < KNOBS.BUDGET_PER_YEAR * budgetScale(this.run.mode)) {
       // SCI-FI and beyond: budget scale x10 (21.2), applied once.
