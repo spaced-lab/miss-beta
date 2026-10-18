@@ -674,7 +674,8 @@ export class SystemScreen implements Screen {
     const civ = finalOutcome !== 'HIT' ? advanceCivilization(this.run) : null;
     if (civ) this.note(civ, 8);
     if (finalOutcome !== 'HIT') {
-      this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
+      // researchMult (INTL_COORDINATION's '+10% research') scales research only; the score stays comparable.
+      this.run.score += this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
       this.phase = 'debrief';
       this.boundarySave = renderAfterRound(this.run, budgetAt(this.run.economy, this.world.t));
