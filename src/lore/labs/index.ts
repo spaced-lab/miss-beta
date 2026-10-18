@@ -25,6 +25,7 @@ const LOADERS: Readonly<Record<string, () => Promise<{ lab: Lab }>>> = {
   LAB_FLYBY: () => import('./flyby'),
   LAB_SAIL_SPIRAL: () => import('./sailSpiral'),
   LAB_SUNWARD: () => import('./sunward'),
+  LAB_GAUGE: () => import('./gauge'),
   LAB_MONTECARLO: () => import('./monteCarlo'),
   LAB_RK4: () => import('./rk4'),
 };

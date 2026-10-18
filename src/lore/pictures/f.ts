@@ -132,4 +132,19 @@ export const PICTURES_F: Readonly<Record<string, Gen>> = {
     labelBox(30, 200, 120, 40, 'GOVERNMENTS', p.ink),
     label(240, 290, 'WHO TELLS WHOM', { color: p.dim, anchor: 'middle' }),
   ]),
+  // A size ruler from 1 m to 10 km: rocks drawn small to large, a red danger stretch, and "seen in time" arrows.
+  'pic-gauge': (p) => {
+    const X = (D: number): number => Math.round(40 + (Math.log10(D) / 4) * 400);
+    const f: string[] = [label(240, 40, 'ROCK SIZE', { color: p.dim, anchor: 'middle' })];
+    f.push(line(40, 200, 440, 200, { color: p.dim }));
+    const ticks: [number, string][] = [[1, '1 M'], [10, '10 M'], [100, '100 M'], [1000, '1 KM'], [10000, '10 KM']];
+    for (const [D, t] of ticks) f.push(line(X(D), 196, X(D), 206, { color: p.dim }), label(X(D), 222, t, { color: p.dim, anchor: 'middle', size: 10 }));
+    f.push(rect(X(20), 70, X(140) - X(20), 125, { color: p.hot, dash: '4 3' }), label((X(20) + X(140)) / 2, 64, 'MOSTLY UNSEEN', { color: p.hot, anchor: 'middle', size: 10 }));
+    f.push(rock(X(1.5), 180, 3, 2, { color: p.ink }), rock(X(30), 176, 7, 3, { color: p.ink }), rock(X(400), 170, 13, 5, { color: p.ink }), rock(X(4000), 160, 22, 7, { color: p.ink }));
+    f.push(arrow(X(80), 110, 440, 110, { color: p.ink }), label(X(80) - 4, 104, 'IN TIME TO DEFLECT', { color: p.ink, size: 9 }));
+    f.push(arrow(X(35), 140, 440, 140, { color: p.ink }), label(X(35) - 4, 134, 'IN TIME TO EVACUATE', { color: p.ink, size: 9 }));
+    f.push(arrow(X(1), 90, X(4), 90, { color: p.dim }), label(X(1), 84, 'FIREBALLS', { color: p.dim, size: 9 }));
+    f.push(label(240, 270, 'FUND TELESCOPES: THE ARROWS GROW LEFT', { color: p.dim, anchor: 'middle' }));
+    return picture(p, f);
+  },
 };

@@ -11,6 +11,9 @@
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
+import { yearOf } from '../../sim/detection';
+import { drawGauge, gaugeHeight } from '../gaugeView';
+import { gaugeVerdict, type GaugeReading } from '../../sim/gauge';
 import { KNOBS } from '../../config/knobs';
 import { keyName } from '../../game/keybinds';
 import { budgetAt, spend } from '../../game/economy';
@@ -123,6 +126,9 @@ export class SystemScreen implements Screen {
   private auto: Autopilot | null = null;
   private autoFresh = false;
   private autoPane: { pane: Pane; t: number } | null = null;
+  /** Detection gauge (backlog 9): computed in the worker whenever the network set or the calendar year changes. */
+  private gauge: GaugeReading | null = null;
+  private gaugeKey = '';
   /** TUTORIAL on the title: the next NEW RUN is the guided round (GAME_PLAN 25). */
   tutorialNext = false;
   private tut: TutorialState | null = null;
@@ -625,6 +631,7 @@ export class SystemScreen implements Screen {
     const k = this.keys;
     const w = this.world;
     this.updateAutoplay(dtMs);
+    if (this.programs.isOpen || this.phase !== 'planning') this.refreshGauge();
     this.trackTutorial(dtMs);
     if (this.cine.isOpen) {
       // The clock does not advance while a scene plays; any key skips it (GAME_PLAN 29).
@@ -848,6 +855,21 @@ export class SystemScreen implements Screen {
     }
   }
 
+  /** Ask the worker for a fresh gauge when the networks or the whole calendar year changed (cheap to test per frame). */
+  private refreshGauge(): void {
+    const nets = this.world.networks;
+    const year = Math.floor(yearOf(this.world.t));
+    const key = `${[...nets.active].sort().join(',')}|${Object.entries(nets.since).map(([k, v]) => `${k}:${Math.floor(v)}`).sort().join(',')}|${year}`;
+    if (key === this.gaugeKey) return;
+    this.gaugeKey = key;
+    this.client
+      .gauge(nets.active, nets.since, year)
+      .then((r) => {
+        if (this.gaugeKey === key) this.gauge = r;
+      })
+      .catch(() => undefined);
+  }
+
   /** AUTOPLAY: the A key toggles it; while on, the autopilot reads the screen and presses keys for the player. */
   private updateAutoplay(dtMs: number): void {
     const k = this.keys;
@@ -921,18 +943,23 @@ export class SystemScreen implements Screen {
     const ui = uiColors(s.palette, s.spectrum);
     const a = this.auto;
     const games = KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].games;
-    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1} OF ${games}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, 16, s.height - 64, 10, { color: ui.title, glow: 1 });
+    // Bottom left by default (the teletype docks bottom right); with the planner open the porkchop owns the left,
+    // so everything docks bottom right under the plan list.
+    const right = this.planner.isOpen;
+    const hx = right ? s.width - 16 : 16;
+    const align = right ? 'right' : 'left';
+    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1} OF ${games}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, s.height - 64, 10, { align, color: ui.title, glow: 1 });
     // How to change the pace, always on screen while the game plays itself.
     const lv = this.settings.autoSpeed ?? 'NORMAL';
     const pace = AUTO_SPEED_LEVELS.map((l) => (l === lv ? `[${l}]` : l)).join(' ');
-    drawText(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, 16, s.height - 50, 9, { color: ui.sub, glow: 0.5 });
+    drawText(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, s.height - 50, 9, { align, color: ui.sub, glow: 0.5 });
     const ap = this.autoPane;
     if (!ap) return;
     // Bottom left: the teletype docks bottom right and the HUD owns the top.
     const w = Math.min(560, s.width * 0.42, s.width - 32);
     const lines = wrapText(ap.pane.body, w - 28, 11);
     const h = 44 + lines.length * 16 + 10;
-    const x = 16;
+    const x = right ? s.width - 16 - w : 16;
     const y = s.height - 74 - h;
     const fade = Math.min(1, ap.t * 4, (ap.pane.hold - ap.t) * 3);
     s.ctx.fillStyle = withAlpha(s.palette.bg, 0.88 * fade);
@@ -1025,13 +1052,13 @@ export class SystemScreen implements Screen {
     }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
-    this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t);
+    this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge);
     this.tech.render(this.run);
     if (!this.panelHidden && !this.tele.isModal) {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
     } else if (this.phase !== 'planning') {
-      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
+      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 62, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
     if (this.planner.isOpen && this.tut) {
@@ -1600,7 +1627,7 @@ export class SystemScreen implements Screen {
     if (!th || !res || !sc) return;
     const events = res.events.slice(-8);
     const pw = Math.min(900, s.width - 32);
-    const { x, y } = this.panel(pw, 150 + events.length * 15 + 116);
+    const { x, y } = this.panel(pw, 150 + events.length * 15 + 60 + gaugeHeight(undefined, false, true) + 24);
     const fitW = pw - 32;
     const cx = s.width / 2;
     // A hit that the run survives (evacuated, shielded, or a practice round) says so instead of "MISS BY -x".
@@ -1617,7 +1644,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     });
     ly += 8;
-    drawText(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, { align: 'center' });
+    drawTextFit(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, fitW, { align: 'center' });
     const cf = this.counterfactual;
     if (cf) {
       // The lesson in one line: what the round would have done without the player's missions.
@@ -1627,6 +1654,10 @@ export class SystemScreen implements Screen {
     }
     drawTextFit(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, fitW, { align: 'center', color: p.hot, glow: 1 });
     drawTextFit(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, fitW, { align: 'center', color: p.dim, glow: 0 });
+    // Where this rock sat on the detection gauge: seen by design, or by luck.
+    drawTextFit(s, gaugeVerdict(th.D, th.tImpact, th.noWarning, this.gauge?.needles.DEFLECT ?? null), cx, ly + 54, 10, fitW, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0.5 });
+    drawGauge(s, this.gauge, x + 16, ly + 72, pw - 32, { rock: th.D, title: false });
+    ly += gaugeHeight(undefined, false, true) + 24;
     drawTextFit(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 

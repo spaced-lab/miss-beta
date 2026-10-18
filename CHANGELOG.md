@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- DETECTION GAUGE (PROGRAMS and the debrief): a 1 m to 10 km bar with DEFLECT (1 yr), EVACUATE, SUNWARD and
+  INTERSTELLAR (3 wk) and AFTERMATH needles, computed in the worker by the discovery model over 59 reference
+  impactors (tilted orbits, trailing loss, each survey counted from its start year). The debrief places the
+  round's rock on it. New topic F11, picture pic-gauge, LAB_GAUGE (57 topics, 21 labs). Fixed: the AUTOPLAY pane
+  docks bottom right while the planner is open; the debrief REPLAY line no longer sits on the key bar.
+
 - AUTOPLAY pace SLOW / NORMAL / FAST (1x, 1.5x default, 2.25x on panes, step waits and the sim clock): `-` and `=`
   change it while it plays, the hint sits under the pane bottom left; OPTIONS > AUTOPLAY SPEED stores it.
   OPTIONS > DEMO LENGTH: SUPER-DUPER-DEMO SHORT (2-3 min), MEDIUM (5 min, default), LONG (10 min).

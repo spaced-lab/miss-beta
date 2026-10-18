@@ -428,6 +428,31 @@ DEMO: none
 NOTES: Legal backdrop: the Outer Space Treaty (1967) governs liability; a nuclear deflection would need an exception to the Partial Test Ban Treaty (1963) and the Outer Space Treaty's ban on nuclear weapons in space, which is why the game attaches a political cost to warheads.
 MORE: IAWN (iawn.net) and SMPAG (smpag.net) public documents; NASA Planetary Defense Strategy and Action Plan 2023; the Planetary Defense Conference hypothetical exercises (2013 to 2025) published at cneos.jpl.nasa.gov/pd/cs.
 
+## F11 The detection gauge
+meta: related=[F5,F3,F7,T6,F2]  game=[PROGRAMS gauge, debrief gauge line]  tags=[detection,networks]
+### SIMPLE
+PICTURE: pic-gauge  A long ruler of rock sizes from a pebble to a mountain, a red stretch in the middle, and arrows showing where our telescopes start seeing rocks in time.
+TEXT: We see big rocks early and tiny ones as they burn up. The middle sizes slip through.
+### BEGINNER
+Rocks of every size hit the Earth. The smallest, a metre or two, we see often, but only as fireballs when they burn up in the sky. The biggest, a kilometre and up, we have mostly found already. In between is a dangerous gap: a rock of 20 m can break windows across a city (Chelyabinsk, 2013), one of 140 m can wipe out a region, yet most of them are still unknown. The gauge in PROGRAMS shows this for your own telescopes: each row is a kind of warning (a year to fly a mission, three weeks to evacuate), and its bar starts at the smallest rock you would usually catch in time. Funding new surveys moves the bars to the left and shrinks the red zone.
+### INTERMEDIATE
+The gauge is computed, not drawn by hand. The game keeps a fixed set of practice impactors: rocks on colliding orbits from 24 directions at three speeds, plus fast visitors from other stars. For each one it runs the same night-by-night discovery search the rounds use and asks: at each size, would your networks have found it with enough warning? A needle sits where half of the practice rocks are found in time. Three corrections keep it honest. Real orbits are tilted, so a rock's earlier passes are not all exact crossings; fast nearby rocks smear into streaks and look fainter (trailing loss); and a telescope only helps from the year it opened, so Rubin (2026) moves the needles over the following years as its catalog fills. The debrief then drops each round's rock on the same bar: "THIS ROCK: 85 M. YOUR DEFLECT NEEDLE: 140 M. YOU SAW IT BY LUCK."
+### ADVANCED
+```
+needle(W) = smallest D with  share{ impactors found with warning >= W }(D) >= 0.5   (GAUGE_CATCH_SHARE)
+DEFLECT W = 1 yr; EVACUATE, SUNWARD, INTERSTELLAR W = 21 d; AFTERMATH = fireball sensors (1 m, not simulated)
+per night, per network: Hmax = V_lim - moon - trail - 5 log10(r delta) - 0.035 alpha   (ground, eps >= eps_min)
+                        Hmax = H(D_ref r delta / (r delta)_ref)                            (space IR, eps in band)
+found on night k if min(Hmax[k-2..k]) >= H(D)   (three nights in a row); running max over k resolves every size
+trail = 2.5 log10(1 + omega t_exp / seeing),  omega = |v_rel x l| / delta   (30 s, 1.5 arcsec)
+tilt: in-plane orbit rotated by i about the impact node line, i in {4, 10, 18, 30} deg (visitors 20 to 90 deg)
+```
+Model reading with today's networks (game year 2026): DEFLECT about 85 m, EVACUATE about 37 m, SUNWARD about 56 m, INTERSTELLAR about 270 m; by 2036 DEFLECT falls to about 45 m. These are the game's survey model, not measured catalog completeness. The real-world comparison point is the 2005 US goal of finding 90 percent of objects of 140 m and up, which surveys have not yet met; the share found so far is estimated at a little under half (UNVERIFIED: see docs/RESEARCH.md, claim F11-1).
+### EXPERT
+DEMO: LAB_GAUGE
+NOTES: The gauge lives in src/sim/gauge.ts (pure, tested in tests/gauge.test.ts) and runs in the planner worker; src/render/gaugeView.ts draws it. The rounds still fly a flat system without trailing loss, so the gauge is a little stricter than round generation; both meet at the 3-D orbits milestone. Common random numbers (one coverage draw per night shared by every size) keep each curve rising with size.
+MORE: The NEO population models of Granvik et al. 2018 (Icarus) and Nesvorny et al. 2024 are the standard references for how many rocks of each size exist; CNEOS discovery statistics give the found share by size; the George E. Brown, Jr. Near-Earth Object Survey Act (2005) set the 140 m goal.
+
 ---
 
 # O. ORBITS AND THE MATH BEHIND THEM
@@ -1335,6 +1360,7 @@ Each lab: sliders on the left, a live vector plot on the right, the formula show
 | LAB_ROCKET_EQ          | Isp, mass fraction, stages; C3                     | dv; payload vs C3 curve for each launcher tier                  | economy tables           |
 | LAB_MAGNITUDE          | D, p, r, delta, alpha; network                     | H, V; detectable or not per network; distance where V = V_lim   | photometry.ts, detection |
 | LAB_SUNWARD            | approach direction, D; sentinel on/off             | when each network first sees it; days of warning                | detection.ts             |
+| LAB_GAUGE              | game year; four planned networks on/off            | the five needles; share found in time vs size for each warning  | gauge.ts                 |
 | LAB_MONTECARLO         | N, sigma_v, beta range                             | histogram of miss distances; P(MISS) with error bar             | monteCarlo.ts            |
 | LAB_RK4                | step size, method (Euler/RK4), thrust on/off       | integrated path vs Kepler; energy error vs step                 | integrate.ts             |
 | LAB_IMPACT_ENERGY      | D, rho, v_inf                                      | mass, energy in Mt, category; comparison bars (Hiroshima, Tsar) | estimates.ts             |

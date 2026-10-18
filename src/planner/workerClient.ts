@@ -6,11 +6,12 @@
 
 import type { Mission } from '../sim/mission';
 import type { World } from '../sim/world';
-import { runJob, type FlybyJob, type MonteCarloJob, type PorkchopJob, type SailJob, type WorkerReply } from '../worker/planner.worker';
+import { runJob, type FlybyJob, type GaugeJob, type MonteCarloJob, type PorkchopJob, type SailJob, type WorkerReply } from '../worker/planner.worker';
 import type { FlybyResult } from './flybySearch';
 import type { MonteCarloResult } from './monteCarlo';
 import type { PorkchopGrid } from './porkchop';
 import type { SailResult } from './sailSearch';
+import type { GaugeReading } from '../sim/gauge';
 
 export class PlannerClient {
   private worker: Worker | null = null;
@@ -42,7 +43,7 @@ export class PlannerClient {
     }
   }
 
-  private submit<T>(full: PorkchopJob | MonteCarloJob | FlybyJob | SailJob, unwrap: (r: WorkerReply) => T): Promise<T> {
+  private submit<T>(full: PorkchopJob | MonteCarloJob | FlybyJob | SailJob | GaugeJob, unwrap: (r: WorkerReply) => T): Promise<T> {
     if (!this.worker) return Promise.resolve(unwrap(runJob(full)));
     return new Promise((resolve, reject) => {
       this.pending.set(full.id, (r) => {
@@ -85,6 +86,15 @@ export class PlannerClient {
     return this.submit(full, (r) => {
       if (r.type !== 'montecarlo') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
       return r.result;
+    });
+  }
+
+  /** The detection gauge for a network set in a calendar year (the first job builds the tables, about 2 s). */
+  gauge(active: readonly string[], since: Readonly<Record<string, number>>, year: number): Promise<GaugeReading> {
+    const full: GaugeJob = { id: this.nextId++, type: 'gauge', active: [...active], since: { ...since }, year };
+    return this.submit(full, (r) => {
+      if (r.type !== 'gauge') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.reading;
     });
   }
 }

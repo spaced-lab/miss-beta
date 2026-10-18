@@ -277,6 +277,40 @@ export const KNOBS = {
   VOICE_IMMINENT_S: 90 * DAY,
   /** Fade applied when a newer line cuts a playing one off, s. */
   VOICE_CUT_S: 0.06,
+  /** Detection gauge (owner backlog 9, src/sim/gauge.ts): log size bar from GAUGE_MIN_M to GAUGE_MAX_M sampled
+   *  GAUGE_GRID_PER_DECADE times a decade. A needle is the smallest size where GAUGE_CATCH_SHARE of the reference
+   *  impactors are found with its warning (DEFLECT and SUNWARD 1 year, EVACUATE and INTERSTELLAR 3 weeks). */
+  GAUGE_MIN_M: 1,
+  GAUGE_MAX_M: 10000,
+  GAUGE_GRID_PER_DECADE: 6,
+  GAUGE_CATCH_SHARE: 0.5,
+  GAUGE_DEFLECT_WARNING: YEAR,
+  GAUGE_EVACUATE_WARNING: 21 * DAY,
+  /** Reference population: GAUGE_ANGLES approach directions at each speed, impact dates spread over a year. */
+  GAUGE_ANGLES: 24,
+  GAUGE_VINF_KMS: [8, 15, 22] as readonly number[],
+  GAUGE_INTERSTELLAR_VINF_KMS: [30, 50] as readonly number[],
+  /** Years searched before impact: ordinary rocks, then hyperbolic visitors (they are far and faint earlier). */
+  GAUGE_WINDOW_YEARS: 25,
+  /** The reference rocks hit this many years after the gauge's year (spread between the two), years. */
+  GAUGE_AHEAD_YEARS: [1, 3] as readonly [number, number],
+  GAUGE_HYPERBOLIC_YEARS: 3,
+  /** Albedo of the reference rocks (H 22 at 140 m) and of the dark interstellar nuclei. */
+  GAUGE_ALBEDO: 0.14,
+  GAUGE_INTERSTELLAR_ALBEDO: 0.04,
+  /** A rock arriving from within this angle of the Sun (seen from HOME) counts toward the SUNWARD needle, deg. */
+  GAUGE_SUNWARD_DEG: 75,
+  /** The rounds still fly a flat 2-D system; the gauge tilts each reference orbit about its impact node so earlier
+   *  passes are not all exact crossings (NEA inclinations are mostly 0-30 deg; visitors arrive from anywhere). */
+  GAUGE_INCL_DEG: [4, 10, 18, 30] as readonly number[],
+  GAUGE_INTERSTELLAR_INCL_DEG: [20, 45, 70, 90] as readonly number[],
+  /** Trailing loss for ground surveys: exposure, s, and seeing, arcsec (Rubin 30 s, about 1 arcsec; others worse). */
+  GAUGE_EXPOSURE_S: 30,
+  GAUGE_SEEING_ARCSEC: 1.5,
+  /** Fireball sensors (the AIRBURST network) see metre-class rocks, but only as they hit, m. */
+  GAUGE_AFTERMATH_M: 1,
+  /** The danger band drawn red on the gauge: damage begins near 20 m, the catalog is fairly complete from 140 m. */
+  GAUGE_DANGER_M: [20, 140] as readonly [number, number],
   /** SUPER-DUPER-DEMO (IDEAS 20): games watched before the montage, the starting speed and the growth per
    *  game (speed = START x GROWTH^games, capped). 2 x 1.15^n puts the whole run near ten minutes (LONG); the
    *  OPTIONS DEMO LENGTH row picks a row of DEMO_LENGTHS, which replaces games and start. */

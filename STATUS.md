@@ -61,7 +61,14 @@ scale up (seeker cap 3 -> 6 and volleys to 4, swarm cap 2 -> 5 and drones to 32,
 PULSE_KILLS +2): the probe showed permanent drone cover made the planet untouchable from level 3 on. Hit points
 were the only rock axis that produced impacts against a full arsenal; speed and density were killed as spawned.
 
-## Decisions where the plan was silent
+## Decisions
+
+- Gauge (2026-10-18): the rounds fly a flat system; the gauge alone tilts each reference orbit about its impact
+  node (GAUGE_INCL_DEG) and charges ground surveys a trailing loss, because a flat model read the DEFLECT needle
+  at about 8 m (every earlier pass an exact crossing). Each network counts from its start year with the reference
+  rocks hitting 1-3 years ahead, so Rubin moves the needle over the years (2026: 85 m, 2036: 45 m, 2046: 30 m).
+  SUNWARD uses the 3-week warning (with 1 year it matched DEFLECT: sunward rocks are found on earlier passes).
+  The needles are the game model; real completeness figures are claims (docs/RESEARCH.md). `[unverified]` where the plan was silent
 
 - AUTOPLAY (2026-10-18): the autopilot presses the same logical keys a player would (Input.inject), reads a
   narrow AutoView, and waits while a pane is up (2.5 s + 0.32 s/word, 4-14 s). No single MISS plan: stack the
@@ -191,6 +198,17 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    feasibility studies (6), interstellar dial + sky coverage (10-12, 3-D orbits first), then item 5's queue; then
    refine cinematics toward detailed wireframes. Done: AUTOPLAY pace SLOW/NORMAL/FAST (`AUTO_SPEEDS`, - and =),
    DEMO LENGTH SHORT/MEDIUM/LONG (`DEMO_LENGTHS`, MEDIUM default). NEON shades approved for now (owner reviews later).
+   Done: detection gauge (backlog 9): src/sim/gauge.ts in the worker, PROGRAMS + debrief, F11, LAB_GAUGE.
+   Next in order: feasibility studies (backlog 6), then interstellar dial + sky coverage (10-12).
+   Queue added 2026-10-18 (owner "enhancement" notes go here and are built in turn, no asking):
+   - research backlog + claim registry: unchecked real-world numbers show UNVERIFIED in game text; scientific
+     method for proposing items (docs/RESEARCH.md); Learning Center section for ideas found UNFEASIBLE.
+   - title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
+     spelled-out words green.
+   - PERIMETER: a self-playing demo at 75 % speed; use it to tune the minigame and log suggestions/fixes in a
+     minigame feature backlog (docs/MINIGAME_BACKLOG.md) for review; difficulty levels; start at level 10/20/30/40
+     from the menu. Challenging but not too hard.
+   - finer launch-cinematic pixels, false-colour thrust head and spark pixels (side agent, in progress).
    Older questions (kept for the record):
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24
       lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).

@@ -14,6 +14,8 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
+import { drawGauge, gaugeHeight } from '../gaugeView';
+import type { GaugeReading } from '../../sim/gauge';
 
 export class ProgramsOverlay {
   /** Mouse targets from the last frame: each row's y and the progress / funding column's x. */
@@ -66,7 +68,7 @@ export class ProgramsOverlay {
     if (k.pressed('Enter')) st.funding = st.funding > 0 ? 0 : 1;
   }
 
-  render(run: RunState, budget: number, t: number): void {
+  render(run: RunState, budget: number, t: number, gauge: GaugeReading | null = null): void {
     if (!this.open) return;
     const s = this.s;
     const p = s.palette;
@@ -102,8 +104,16 @@ export class ProgramsOverlay {
     });
     const sel = run.programs[this.sel];
     if (sel) drawText(s, programById(sel.id).note.toUpperCase(), m, y + 6, 10, { color: p.hot, glow: 0.5 });
-    // Networks.
+    // Networks, with the detection gauge beside them (or under them on a narrow screen).
     let ny = y + 30;
+    const gx = Math.max(m + 560, s.width - 16 - 680);
+    const gw = s.width - 16 - gx;
+    let listBottom = s.height - 50;
+    if (gw >= 380) drawGauge(s, gauge, gx, ny, gw);
+    else {
+      listBottom = s.height - 64 - gaugeHeight();
+      drawGauge(s, gauge, m, listBottom + 8, s.width - 2 * m);
+    }
     drawText(s, 'ACTIVE NETWORKS', m, ny, 11, { color: p.dim, glow: 0 });
     ny += 15;
     const active = NETWORKS.filter((n) => run.networks.active.includes(n.id));
@@ -111,7 +121,7 @@ export class ProgramsOverlay {
       const since = run.networks.since[n.id] ?? n.since;
       drawText(s, `${n.id.padEnd(22)} ${n.tag.padEnd(10)} ${n.kind.padEnd(15)} SINCE ${Math.floor(since)}`, m, ny, 10, { color: p.ink, glow: 0.2 });
       ny += 13;
-      if (ny > s.height - 50) break;
+      if (ny > listBottom) break;
     }
     void t;
     drawTextFit(s, 'UP / DOWN OR CLICK SELECT    LEFT / RIGHT OR CLICK FUNDING    <ENTER> FULL / NONE    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
