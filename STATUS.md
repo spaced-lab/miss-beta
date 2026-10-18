@@ -22,7 +22,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M8 Polish | done | TUTORIAL round 0 (GAME_PLAN 25) with eight step predicates, OPTIONS + settings record, CRT pass (scanlines, vignette, flicker), attract mode via game/attract.ts, DAILY RUN seed, UI sound cues, touch input, frame bench (state cost per frame printed by `npm run bench`). Hershey font not adopted (see BUILD_PLAN M8). Units IMPERIAL is stored but readouts still show SI |
 | M7 Modes, cheats, fiction | done | modes nesting (REALISTIC > SCIFI > SIMULATION > MULTIVERSE) with per-mode leaderboards, console (`) on the title and in a run with the public cheat-code table (REVEAL, FASTBUILD, GODTRACK, LEADTIME, SPAWN scenarios, DART, KARDASHEV1/2), FICTION commands with their forbidding quantities, SUMMONDEVS knobs editor, SCI-FI programs and methods (CNT net capture, DE-STAR in-range firing, fusion/Orion tugs, disassembler decay), hyperbolic Kepler branch (TS + Python, shared vectors) for INTERSTELLAR rounds plus LONG_PERIOD and GIANT flavors, MULTIVERSE tiles with COLLAPSE and WORMHOLE, glitch pass. Civilization-level auto-unlock of SCI-FI is computed (civilizationLevel) but only the codes move the mode so far |
 | M12 Exhaustion check | done | walked GAME_PLAN 19, 20, 22.2 and the EDUCATION topic map and LAB registry against the code (findings below); IDEAS.md numbered with a recommendation each |
-| M13 Cinematics and narratives | building | GAME_PLAN 29: event cinematics, auto warp-down, canned teletype narratives (user request 2026-10-17) |
+| M13 Cinematics and narratives | done | GAME_PLAN 29: `render/cinematics/*` (scene data built deterministically from the event, drawn as a pure function of elapsed time; launch, impact, breakup by body type, nuclear, PI, close approach; any key skips; reduce-motion = still frame), `config/narratives.json` + `game/narrative.ts` (templated briefs, slot check, SPECTRUM roles) rendered by `views/teletype.ts`, `game/warpDown.ts` once-per-arrival warp drop with the HUD line |
 
 ## M12 walk (2026-10-17): plan versus code
 
@@ -120,6 +120,14 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 - The minigame's collision default is `auto` (naive under 20k pairs, grid above), from `bench/collision.bench.ts`
   on Apple Silicon / node 26: 100x20 naive 4.5 us vs grid 10.5 us; 800x120 naive 221 us vs grid 121 us.
 - Stroke font: hand-built arcade face now; Hershey evaluated in M8 behind the same interface.
+
+- M13 (29): the teletype is non-modal in a run (the key that clears it also does its normal job, the brief
+  clears itself after TELETYPE_HOLD_S) and modal at the debrief (the panel waits for a key). No separate
+  CINEMATICS option: REDUCE MOTION turns scenes into a half-second still. An IMPACT or NUKE and the
+  FRAGMENTATION it causes in the same frame play as one breakup scene. Sound cues fire at each scene's hit
+  moment instead of when the event passes; the close-approach cue is not doubled by the debrief. The
+  MULTIVERSE tiles keep the old cue-only behaviour. Body radius on screen is logarithmic in D (10 m -> 60 px,
+  10 km -> 150 px): the scene is about shape and type, not scale.
 
 ## Unverified
 

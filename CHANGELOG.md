@@ -4,6 +4,13 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M13: event cinematics and narratives (GAME_PLAN 29). Launch, impact, breakup (rubble crumbles, stony
+  cracks, iron rings and sheds, comet puffs), nuclear burst, PI shredding and the close approach pause the
+  clock for a 2 to 5 second vector scene built from the resolved numbers (any key skips, reduce-motion gives
+  a still); a teletype brief types in at round start, after every event, on EVACUATE and at the debrief
+  from `config/narratives.json` in SPECTRUM colours; the warp drops to 1 DAY/S once when the last craft has
+  arrived, with the HUD saying why. Knobs CINEMATIC_SECONDS, CINEMATIC_FLASH_S, TELETYPE_*, WARP_DOWN_INDEX.
+
 - M12: the exhaustion check. GAME_PLAN 19, 20 and 22.2 and the EDUCATION topic map and LAB registry walked
   against the code: everything the plan lists exists; ten program effects are stored but never read (IDEAS 13),
   13 of 20 labs are still BUILDING (IDEAS 9). IDEAS.md renumbered with a recommendation per entry.

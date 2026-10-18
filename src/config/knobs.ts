@@ -221,4 +221,16 @@ export const KNOBS = {
   /** How many estimate-ranked candidates get a full deterministic resolve before the final ranking. */
   PLANNER_RESOLVE_TOP: 12,
   PLANNER_SHOW_TOP: 6,
+
+  /** 29: event cinematics, seconds per scene by event kind; any key skips. */
+  CINEMATIC_SECONDS: { LAUNCH: 2.5, IMPACT: 3, FRAGMENTATION: 4, NUKE: 3.5, PI: 3, CLOSE_APPROACH: 4 } as Readonly<Record<string, number>>,
+  /** 29: under reduce-motion a scene is a still frame of this length plus the brief. */
+  CINEMATIC_FLASH_S: 0.5,
+  /** 29: teletype speed: the whole brief in at most this many seconds, never slower than MIN chars per second. */
+  TELETYPE_MAX_S: 0.9,
+  TELETYPE_MIN_CPS: 600,
+  /** 29: a non-modal brief clears itself after this many seconds. */
+  TELETYPE_HOLD_S: 10,
+  /** 29: warp index the clock drops to when the last craft has arrived (1 = 1 DAY/S). */
+  WARP_DOWN_INDEX: 1,
 } as const;

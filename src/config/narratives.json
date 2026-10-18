@@ -1,0 +1,162 @@
+{
+  "_comment": "GAME_PLAN 29: canned briefs. {name} slots are filled by src/game/narrative.ts; a leading @role sets the SPECTRUM colour of a line (threat, craft, fragment, nuclear, sail, danger, program, planet, text). No LLM at play time: every sentence here was written by a person.",
+  "TYPE_CLAUSE": {
+    "RUBBLE": "A RUBBLE PILE: GRAVEL HELD TOGETHER BY ITS OWN WEAK GRAVITY",
+    "STONY": "A STONY BODY: SOLID ROCK, FRACTURED",
+    "IRON": "AN IRON BODY: DENSE, STRONG, HARD TO BREAK",
+    "ICY": "AN ICY BODY: A COMET OF DUST AND ICE"
+  },
+  "BREAKUP_VERB": {
+    "RUBBLE": "CRUMBLES",
+    "STONY": "CRACKS",
+    "IRON": "RINGS AND SHEDS",
+    "ICY": "PUFFS INTO DUST"
+  },
+  "FLAVOR_LABEL": {
+    "INTERSTELLAR": "INTERSTELLAR VISITOR",
+    "LONG_PERIOD": "LONG-PERIOD COMET",
+    "GIANT": "GIANT BODY",
+    "NONE": "TARGET"
+  },
+  "ROUND_START": {
+    "DISCOVERED": {
+      "header": "@threat {name}: SPOTTED BY {network}",
+      "lines": [
+        "@text AT V {mag}, {D} M ACROSS, {typeClause}.",
+        "@text LEAD {lead}. CLOSING AT {vinf} KM/S: {energy} MT, {category} CLASS IF IT HITS.",
+        "@text {hint}"
+      ]
+    },
+    "NO_WARNING": {
+      "header": "@danger {name}: NO WARNING",
+      "lines": [
+        "@text SENSED AT ATMOSPHERIC ENTRY. {D} M, {typeClause}.",
+        "@text {lead} TO IMPACT. {energy} MT, {category} CLASS.",
+        "@danger CIVIL DEFENSE ONLY: <E> EVACUATE. {lesson}"
+      ]
+    },
+    "ASSUMED": {
+      "header": "@threat {name}: {flavorLabel} ACQUIRED",
+      "lines": [
+        "@text {D} M ACROSS, {typeClause}.",
+        "@text LEAD {lead}. CLOSING AT {vinf} KM/S: {energy} MT, {category} CLASS IF IT HITS.",
+        "@text {hint}"
+      ]
+    }
+  },
+  "HINT": {
+    "DEFAULT": "PRESS P TO PLAN. EARLY BEATS BIG: A SMALL PUSH NOW IS A LARGE MISS LATER.",
+    "SHORT_LEAD": "TOO LATE FOR A SLOW PUSH. KINETIC NOW, OR EVACUATE.",
+    "GLOBAL": "A CIVILIZATION-SCALE BODY. EVERYTHING YOU HAVE, AS EARLY AS YOU CAN.",
+    "FRAGILE": "WEAK BODY: A HARD HIT MAY BREAK IT. WATCH Q/Q* IN THE PLANNER."
+  },
+  "LESSON": {
+    "SUNWARD": "FOUND {lead} BEFORE IMPACT. A SUNWARD SENTINEL WOULD HAVE SEEN IT WEEKS EARLIER (<G> PROGRAMS).",
+    "LEAD": "LEAD {lead}. MORE LEAD BUYS SLOWER, SAFER METHODS: FUND THE SURVEYS.",
+    "NONE": ""
+  },
+  "LAUNCH": {
+    "header": "@craft {missionId} LAUNCH",
+    "lines": [
+      "@craft L{tier} LAUNCHER, {mass} KG PAYLOAD, C3 {c3} KM2/S2.",
+      "@text IN FLIGHT. THE CYAN ARC IS ITS PATH; THE CLOCK IS YOURS."
+    ]
+  },
+  "IMPACT": {
+    "KNOWN": {
+      "header": "@craft {missionId} IMPACT ON {target}",
+      "lines": [
+        "@text CLOSING SPEED {U} KM/S. BETA {beta}: EJECTA ADDED {ejectaPct} % TO THE PUSH.",
+        "@threat DELTA-V {dv} MM/S ({along} MM/S ALONG TRACK). {qLine}"
+      ]
+    },
+    "HIDDEN": {
+      "header": "@craft {missionId} IMPACT ON {target}",
+      "lines": [
+        "@text CLOSING SPEED {U} KM/S. BETA UNKNOWN UNTIL THE NEW ORBIT IS MEASURED: ASSESSMENT IN {assess}.",
+        "@text THE TRACKING TIER SETS HOW LONG THAT TAKES. {qLine}"
+      ]
+    }
+  },
+  "IMPACT_MISS": {
+    "header": "@danger {missionId} MISSED {target}",
+    "lines": ["@text {reason}"]
+  },
+  "RETARGET": {
+    "header": "@craft {missionId} RETARGET",
+    "lines": ["@text AUTONOMY RULE FIRED: NEW TARGET {target}, DSM {dv} M/S, {remaining} M/S LEFT."]
+  },
+  "SPLIT": {
+    "header": "@craft {missionId} DEPLOYS",
+    "lines": ["@text {count} SUB-IMPACTORS RELEASED TOWARD {targets}."]
+  },
+  "BETA_ASSESSED": {
+    "header": "@craft {missionId} BETA ASSESSED",
+    "lines": ["@text BETA {beta}. PREDICTED MARGIN {margin} R."]
+  },
+  "FRAGMENTATION": {
+    "header": "@fragment {target} {verb}",
+    "lines": [
+      "@fragment Q/Q* {q}: {count} PIECES, THE LARGEST {largestD} M, EJECTED AT {vEj} M/S.{escaped}",
+      "@text THE PIECES SPREAD ALONG TRACK FOR DAYS. PRESS P: TAB PICKS A FRAGMENT TO TARGET."
+    ]
+  },
+  "NUKE": {
+    "FUZED": {
+      "header": "@nuclear {missionId} {mode} BURST ON {target}",
+      "lines": ["@nuclear {yield} MT{pulses}. DELTA-V {dv} MM/S. Q/Q* {q}: {intact}."]
+    },
+    "FAILED": {
+      "header": "@danger {missionId} FUZE FAILED",
+      "lines": ["@text CLOSING SPEED TOO HIGH FOR THE FUZE. THE DEVICE PASSED {target} UNFIRED."]
+    }
+  },
+  "PI": {
+    "OK": {
+      "header": "@fragment {missionId} PI ARRAY ON {target}",
+      "lines": ["@text {D} M SHREDDED INTO PIECES THAT AIRBURST HIGH. {damage} MT OF DAMAGE CREDITED."]
+    },
+    "FAILED": {
+      "header": "@danger {missionId} PI FAILED ON {target}",
+      "lines": ["@text {reason}"]
+    }
+  },
+  "PUSH": {
+    "VIABLE": {
+      "header": "@sail {missionId} {method} ON {target}",
+      "lines": ["@text FORCE {force}, {days} D OF PUSHING, DELTA-V {dv} MM/S."]
+    },
+    "NOT_VIABLE": {
+      "header": "@danger {missionId} {method}: NOT VIABLE",
+      "lines": ["@text {note}"]
+    }
+  },
+  "CLOSE_APPROACH": {
+    "MISS": {
+      "header": "@planet {body} CLOSE APPROACH: MISS",
+      "lines": ["@text CLOSEST {dMin} KM. FOCUSING RADIUS {bCrit} KM. MARGIN {margin} R."]
+    },
+    "IMPACT": {
+      "header": "@danger {body} IMPACT",
+      "lines": ["@text {dMin} KM, INSIDE THE FOCUSING RADIUS OF {bCrit} KM."]
+    }
+  },
+  "EVACUATE": {
+    "header": "@program EVACUATION ORDERED",
+    "lines": ["@text {countdown} BEFORE IMPACT. CREDIT NEEDS {minDays} D OR MORE OF WARNING."]
+  },
+  "DEBRIEF": {
+    "MISS": {
+      "header": "@planet ROUND {round}: MISS BY {margin} R",
+      "lines": ["@text PLAN {plan}. {nEvents} EVENTS. {lesson}", "@text SCORE {score}. RESEARCH {research}."]
+    },
+    "PARTIAL": {
+      "header": "@danger ROUND {round}: PARTIAL",
+      "lines": ["@text {through} MT GOT THROUGH. PLAN {plan}. {lesson}", "@text SCORE {score}. RESEARCH {research}."]
+    },
+    "HIT": {
+      "header": "@danger ROUND {round}: IMPACT",
+      "lines": ["@text {energy} MT, {category} CLASS. PLAN {plan}. {lesson}", "@text THE RUN ENDS HERE."]
+    }
+  }
+}

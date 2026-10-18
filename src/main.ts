@@ -98,7 +98,8 @@ function boot(): void {
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.
-  const stats = { cpuMs: 0, frameMs: 0, stale: false };
+  // `screens` is exposed too so an automated visual check can read a screen's state (dev only).
+  const stats = { cpuMs: 0, frameMs: 0, stale: false, screens };
   if (import.meta.env.DEV) (window as unknown as { __miss: typeof stats }).__miss = stats;
   // NOTE: accept hot updates here without re-booting, so a source save on the dev server never reloads
   // the page under a running game. The running code is simply stale until the player refreshes; a notice

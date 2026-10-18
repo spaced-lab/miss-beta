@@ -5,8 +5,10 @@
 // HOW:  A round is: createWorld + generateThreat, then resolveRound(world, missions) whenever missions
 //       change. The clock replays the result: craft fly their Lambert arcs (elements from the departure
 //       state), the threat follows its element segments, log lines appear as their time passes, and the
-//       close-approach time ends the round. Keys: Space pause, [ ] warp, P planner (pauses), R resolve
-//       now, S scale, Z reset camera, Esc title.
+//       close-approach time ends the round. Events that pass on the clock play a short cinematic (the
+//       clock waits) and a teletype brief (GAME_PLAN 29); when the last craft has arrived the warp drops
+//       to 1 DAY/S once. Keys: Space pause, [ ] warp, P planner (pauses), R resolve now, S scale, Z reset
+//       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
 import { KNOBS } from '../../config/knobs';
@@ -62,6 +64,12 @@ import { sphereMass } from '../../physics/closeApproach';
 import { boardFor } from '../../game/modes';
 import { advancePrograms } from '../../sim/programs';
 import { exportSave, saveRun } from '../../game/savegame';
+import { Teletype } from './teletype';
+import { Cinematics } from '../cinematics/index';
+import type { CineContext } from '../cinematics/scene';
+import { debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
+import { craftRemaining, WarpDown } from '../../game/warpDown';
+import type { SimEventRecord } from '../../sim/eventLog';
 
 export type ScaleMode = 'LINEAR' | 'COMPRESSED';
 type Phase = 'planning' | 'debrief' | 'over';
@@ -111,6 +119,13 @@ export class SystemScreen implements Screen {
   private pitchIdx = 0;
   private readonly mat = new Materialize();
   private matPhase: Phase = 'planning';
+  /** GAME_PLAN 29: briefs that type themselves in, event cinematics, and the once-per-arrival warp-down. */
+  private readonly tele: Teletype;
+  private readonly cine: Cinematics;
+  private warpDown = new WarpDown();
+  /** The close approach passed while its cinematic plays: finish the round when the scene ends. */
+  private pendingFinish = false;
+  private approachSounded = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
     this.lore = new LorePanel(s, keys);
@@ -122,6 +137,17 @@ export class SystemScreen implements Screen {
     this.programs = new ProgramsOverlay(s, keys);
     this.tech = new TechOverlay(s, keys);
     this.console = new ConsoleOverlay(s, keys);
+    this.tele = new Teletype(s);
+    this.cine = new Cinematics(s, () => this.settings.reduceMotion);
+    this.cine.onHit = (sc) => {
+      if (!this.sfx) return;
+      if (sc.kind === 'LAUNCH') this.sfx.launch();
+      else if (sc.kind === 'IMPACT') this.sfx.impact();
+      else if (sc.kind === 'CLOSE_APPROACH') {
+        this.sfx.approach(sc.approach?.impact ?? false);
+        this.approachSounded = true;
+      } else this.sfx.breakup();
+    };
   }
 
   /** Begin a run from a loaded run state (CONTINUE). */
@@ -296,6 +322,45 @@ export class SystemScreen implements Screen {
     const home = planetById(this.world, 'HOME');
     const hs = planetState(this.world, home, this.world.threat.tImpact);
     this.ghost = { x: hs.r.x, y: hs.r.y };
+    this.warpDown = new WarpDown();
+    this.cine.clear();
+    this.tele.clear();
+    this.pendingFinish = false;
+    this.approachSounded = false;
+    if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
+  }
+
+  private sunwardActive(): boolean {
+    return this.run.networks.active.includes('SUNWARD_SENTINEL');
+  }
+
+  private cineContext(passed: readonly SimEventRecord[]): CineContext | null {
+    const th = this.world.threat;
+    const res = this.result;
+    if (!th || !res) return null;
+    const betaHidden = !this.run.reveal && passed.some((e) => e.kind === 'IMPACT' && e.betaKnownAt !== undefined && this.world.t < e.betaKnownAt);
+    return { name: th.name, typeId: th.type.id, D: th.D, shape: th.shape, betaHidden, energyMt: res.energy.energyMt };
+  }
+
+  /** Events whose time passed this frame: a brief each, and a cinematic for the kinds that have one. */
+  private onEventsPassed(passed: readonly SimEventRecord[]): void {
+    const th = this.world.threat;
+    if (!th || passed.length === 0) return;
+    if (this.mv) {
+      // MULTIVERSE tiles share the clock; the sound cues stand in for the scenes.
+      for (const e of passed) {
+        if (e.kind === 'LAUNCH') this.sfx?.launch();
+        else if (e.kind === 'IMPACT') this.sfx?.impact();
+        else if (e.kind === 'FRAGMENTATION' || e.kind === 'NUKE' || e.kind === 'PI') this.sfx?.breakup();
+      }
+      return;
+    }
+    for (const e of passed) {
+      const n = eventNarrative(e, { threat: th, now: this.run.reveal ? undefined : this.world.t });
+      if (n) this.tele.push(n);
+    }
+    const ctx = this.cineContext(passed);
+    if (ctx) this.cine.enqueue(passed, ctx);
   }
 
   private plannerSession() {
@@ -382,10 +447,28 @@ export class SystemScreen implements Screen {
     this.panelHidden = false;
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
-    this.sfx?.approach(finalOutcome === 'HIT');
+    if (!this.approachSounded) this.sfx?.approach(finalOutcome === 'HIT');
     if (finalOutcome === 'MISS' && !this.run.sandbox && !this.run.tutorial && unlockSpectrum()) this.note('SPECTRUM UNLOCKED: SEMANTIC COLOURS IN OPTIONS.', 6);
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
     this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
+    this.cine.clear();
+    this.tele.clear();
+    this.tele.push(
+      debriefNarrative({
+        round: this.run.round,
+        outcome: finalOutcome,
+        marginRadii: res.ca.marginRadii,
+        throughMt: res.hitEnergyMt,
+        energyMt: res.energy.energyMt,
+        category: res.category,
+        plan,
+        nEvents: res.events.length,
+        score: this.score.roundScore,
+        research: this.score.research,
+        lesson: lessonFor(th, this.sunwardActive()),
+      }),
+      true,
+    );
     if (finalOutcome !== 'HIT') {
       this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
@@ -401,6 +484,21 @@ export class SystemScreen implements Screen {
     const k = this.keys;
     const w = this.world;
     this.trackTutorial(dtMs);
+    if (this.cine.isOpen) {
+      // The clock does not advance while a scene plays; any key skips it (GAME_PLAN 29).
+      this.cine.update(dtMs, k.anyKeyPressed());
+      if (!this.cine.isOpen && this.pendingFinish) {
+        this.pendingFinish = false;
+        this.finishRound();
+      }
+      return;
+    }
+    if (this.tele.isOpen) {
+      const modal = this.tele.isModal;
+      if (k.anyKeyPressed()) this.tele.key();
+      this.tele.update(dtMs);
+      if (modal) return;
+    }
     if (this.planner.isOpen) {
       this.planner.update();
       return;
@@ -507,6 +605,7 @@ export class SystemScreen implements Screen {
       if (spend(this.run.economy, w.t, KNOBS.EVACUATE_COST)) {
         this.run.evacuatedAt = w.t;
         this.note(`EVACUATION ORDERED  ${formatCountdown(w.threat.tImpact - w.t)}  (${this.run.effects.evacMinDays} D MINIMUM FOR CREDIT)`);
+        this.tele.push(evacuateNarrative(w.threat.tImpact - w.t, this.run.effects.evacMinDays));
       } else this.note('CANNOT AFFORD EVACUATION (COST 2)');
     }
     if (k.pressed('KeyP')) {
@@ -544,13 +643,12 @@ export class SystemScreen implements Screen {
     }
     const before = w.t;
     advance(w, Math.min(dtMs, 100) / 1000);
-    if (this.sfx && this.result && w.t > before) {
-      for (const e of this.result.events) {
-        if (e.t <= before || e.t > w.t) continue;
-        if (e.kind === 'LAUNCH') this.sfx.launch();
-        else if (e.kind === 'IMPACT') this.sfx.impact();
-        else if (e.kind === 'FRAGMENTATION' || e.kind === 'NUKE' || e.kind === 'PI') this.sfx.breakup();
-      }
+    if (this.result && w.t > before) this.onEventsPassed(this.result.events.filter((e) => e.t > before && e.t <= w.t));
+    // Auto warp-down (29): the last craft has arrived, so the player sees there is room to act.
+    const arrived = this.warpDown.check(this.result?.missionsResolved ?? this.missions, before, w.t);
+    if (arrived.length > 0 && !this.mv) {
+      if (w.warp > KNOBS.WARP_DOWN_INDEX) setWarp(w, KNOBS.WARP_DOWN_INDEX);
+      this.note('NO MORE CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', 6);
     }
     this.noteT = Math.max(0, this.noteT - dtMs / 1000);
     // Programs run on the sim clock and drain the budget; completions change the networks for later rounds.
@@ -561,7 +659,10 @@ export class SystemScreen implements Screen {
       if (w.t >= earliestEnd(this.mv)) this.finishRound();
       return;
     }
-    if (this.result && w.t >= this.result.ca.tCa) this.finishRound();
+    if (this.result && w.t >= this.result.ca.tCa) {
+      if (this.cine.isOpen) this.pendingFinish = true;
+      else this.finishRound();
+    }
   }
 
   private project(x: number, y: number): [number, number] {
@@ -588,6 +689,10 @@ export class SystemScreen implements Screen {
     const s = this.s;
     const p = s.palette;
     const w = this.world;
+    if (this.cine.isOpen) {
+      this.cine.render(formatCountdown((w.threat?.tImpact ?? 0) - w.t));
+      return;
+    }
     s.clear();
     this.stars.draw(s, this.panX, this.panY, !this.settings.reduceMotion);
     if (this.matPhase !== this.phase) {
@@ -632,7 +737,7 @@ export class SystemScreen implements Screen {
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t);
     this.tech.render(this.run);
-    if (!this.panelHidden) {
+    if (!this.panelHidden && !this.tele.isModal) {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
     } else if (this.phase !== 'planning') {
@@ -640,6 +745,7 @@ export class SystemScreen implements Screen {
     }
     this.planner.render();
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
+    if (this.tele.isModal || (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.planetOpen)) this.tele.render(this.tele.isModal ? 'center' : 'dock');
     this.lore.render();
     this.console.render(this.gameContext());
     if (this.glitch && !this.settings.reduceMotion) glitchPass(s, w.t / 86400, this.run.mode === 'MULTIVERSE' ? 1.5 : 1, `SIM  FRAME ${(1000 / 60).toFixed(1)} MS  ENTITIES ${this.result ? this.result.bodies.length + this.missions.length : 0}  T ${w.t.toFixed(0)}`);
@@ -984,6 +1090,7 @@ export class SystemScreen implements Screen {
     drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX (NOT RECORDED)' : ''}${this.run.tutorial ? '   TUTORIAL (NOT RECORDED)' : ''}`, m, m + 68, 12, { color: this.run.sandbox ? p.hot : p.dim, glow: 0 });
     if (this.noteT > 0) drawText(s, this.noteText, s.width / 2, m + 40, 12, { align: 'center', color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
     if (th.noWarning) drawText(s, 'NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY (<E> EVACUATE).', s.width / 2, m + 58, 12, { align: 'center', color: p.hot, glow: 1.2 });
+    if (this.phase === 'planning' && this.missions.length > 0 && !craftRemaining(res.missionsResolved, w.t)) drawText(s, 'NO CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', m, m + 96, 10, { color: p.dim, glow: 0 });
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);

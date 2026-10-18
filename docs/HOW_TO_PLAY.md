@@ -48,6 +48,23 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 | `?` | This manual |
 | `Esc` | Title |
 
+## Events, cinematics and briefs
+
+When a launch, impact, breakup, nuclear burst, PI shredding or the close approach passes on the clock, the clock
+waits while a two to five second vector scene plays, drawn from the resolved numbers: the launcher tier scales the
+ascent, beta scales the ejecta (only once beta has been assessed), the body type picks how it breaks (a rubble pile
+crumbles, a stony body cracks, an iron body rings and sheds, a comet puffs). Any key skips the scene; the warp that
+was running resumes. With REDUCE MOTION on in OPTIONS the scene is a still frame for half a second.
+
+Each event also gets a brief that types itself in at the lower right: what happened and what it means, in the
+SPECTRUM role colours when that layer is on (threat amber, craft cyan, fragments magenta). Any key renders the rest
+of the text at once; another key clears it; it clears itself after ten seconds. The round-start brief says who
+spotted the body, how bright it was, how big it is and how long you have. The debrief brief is modal: read it, then
+press any key for the numbers.
+
+When the last craft in flight has arrived the warp drops to 1 DAY/S once and the HUD says NO CRAFT IN FLIGHT: PLAN
+OR LET IT PLAY OUT, so a round never races past the moment you could still act.
+
 ## Reading a plan
 
 ```
