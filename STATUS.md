@@ -214,19 +214,21 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    DEMO LENGTH SHORT/MEDIUM/LONG (`DEMO_LENGTHS`, MEDIUM default). NEON shades approved for now (owner reviews later).
    Done: detection gauge (backlog 9): src/sim/gauge.ts in the worker, PROGRAMS + debrief, F11, LAB_GAUGE.
    Done: feasibility studies (backlog 6): src/sim/studies.ts, config/studies.json (12 cards), PROGRAMS > STUDIES
-   tab (Tab), OPTIONS EXPERIMENTAL TECH, HIVE_1..3 networks, D14 topic. Next: interstellar dial + sky coverage
-   (backlog 10-12), which needs 3-D orbits first.
+   tab (Tab), OPTIONS EXPERIMENTAL TECH, HIVE_1..3 networks, D14 topic.
+   Done: interstellar dial + sky coverage (3-D lite sky.ts, INTERSTELLAR RATE, SKY view K, F12, LAB_INTERSTELLAR);
+   full 3-D orbits remain milestone M14.
    Queue added 2026-10-18 (owner "enhancement" notes go here and are built in turn, no asking):
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
      spelled-out words green.
-   - PERIMETER: a self-playing demo at 75 % speed; use it to tune the minigame and log suggestions/fixes in a
+   - DONE PERIMETER: a self-playing demo at 75 % speed; use it to tune the minigame and log suggestions/fixes in a
      minigame feature backlog (docs/MINIGAME_BACKLOG.md) for review; difficulty levels; start at level 10/20/30/40
      from the menu. Challenging but not too hard.
    - GitHub Pages hosting (github.io): keep the code browser-safe; every hosting caveat in docs/WARNINGS.md;
      photosensitive (flashing lights) warning in game and docs (CRT flicker, glitch, montage, impact flashes).
-     Owner runs a full security assessment before going live; record it in docs/SAFETY.md.
+     Owner runs a full security assessment before going live; docs/SAFETY.md holds the automated baseline, six
+     findings to decide and the checklist (DONE: notice, WARNINGS 8-10, SAFETY baseline).
    - backlog: X.509 compliance enhancements (IDEAS.md).
    - owner 2026-10-18: after the backlog, usability and visual enhancement passes; browser efficiency (bloat,
      smallest footprint without losing quality) with every change recorded in docs/DECISIONS.md (analysis, type).
@@ -239,7 +241,8 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
      (patreon: spacedlab) and a voluntary support line in README, NOTICE and credits; CONTRIBUTING inbound =
      outbound. Still open: a CLA only if dual licensing is ever wanted; the repository URL in the credits once
      the GitHub remote exists (AGPL section 13 source offer); refine third-party attribution.
-   - finer launch-cinematic pixels, false-colour thrust head and spark pixels (side agent, in progress).
+   - DONE finer launch-cinematic pixels, false-colour thrust head and spark pixels; detailed wireframe rock.
+   - DONE efficiency pass (docs/DECISIONS.md D1-D9); usability passes ongoing (OPTIONS groups, TECH states, CODEX).
    Done 2026-10-18 (item 5 queue): AUTOPLAY buys tech and funds programs (chooseTech / chooseProgram), L4_L5_PICKET
    and SAIL_KITS programs (PICKET_*, KIT_* knobs), planner [?] and program-row click-to-learn. Item 5 closed:
    materialize frames on overlays and the tilt grid done; discovery stays on the main thread (DECISIONS D8).
