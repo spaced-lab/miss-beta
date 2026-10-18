@@ -181,8 +181,11 @@ describe('SAVE.md fuzz', () => {
         expect(parseSave(writeSave(v)), JSON.stringify(s)).toEqual(v);
       }
     }
-    // Numbers beyond SAVE_MAX_ABS are rejected rather than turned into Infinity by the next autosave.
-    expect(parseSave(writeSave(base).replace('budget: 14.5', 'budget: 1e308'))).toBeNull();
+    // Numbers beyond SAVE_MAX_ABS are clamped, never turned into Infinity by the next autosave, never a rejection.
+    const big = parseSave(writeSave(base).replace('budget: 14.5', 'budget: 1e308'));
+    expect(big?.budget).toBe(SAVE_MAX_ABS);
+    expect(big && parseSave(writeSave(big))?.budget).toBe(SAVE_MAX_ABS);
+    expect(parseSave(writeSave(base).replace('budget: 14.5', 'budget: 1e999'))).toBeNull();
     // lore_read keeps topic-id keys only (docs/SAFETY.md finding 9).
     expect(parseSave(writeSave(base).replace('lore_read: {', 'lore_read: {constructor: ADVANCED, __proto__: ADVANCED, '))?.lore_read).toEqual(base.lore_read);
   });

@@ -65,3 +65,19 @@ describe('SAVE.md', () => {
     expect(back?.cheats_used).toEqual([]);
   });
 });
+
+describe('cheat-scale numbers (code review 2026-10-18)', () => {
+  it('a SANDBOX run after three KARDASHEV2 and a KARDASHEV1 still saves and loads, budget clamped', async () => {
+    const { createRun } = await import('../src/game/run');
+    const { createEconomy } = await import('../src/game/economy');
+    const { renderSave } = await import('../src/game/savegame');
+    const { SAVE_MAX_ABS } = await import('../src/game/saveMd');
+    const run = createRun('SANDBOX-1');
+    // SANDBOX starts at createEconomy(1e6, 1e4); KARDASHEV2 multiplies both by 1000, KARDASHEV1 by 10.
+    run.economy = createEconomy(1e6 * 1000 ** 3 * 10, 1e4 * 1000 ** 3 * 10);
+    const sf = parseSave(renderSave(run, null));
+    expect(sf).not.toBeNull();
+    expect(sf?.budget).toBe(SAVE_MAX_ABS);
+    expect(sf?.budget_per_year).toBe(1e14);
+  });
+});

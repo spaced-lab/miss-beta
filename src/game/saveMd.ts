@@ -94,19 +94,19 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
     ['round', s.round],
     ['mode', s.mode],
     ['highest_mode', s.highest_mode],
-    ['civ_level', s.civ_level],
+    ['civ_level', cap(s.civ_level)],
     ['cheats_used', s.cheats_used],
-    ['budget', Math.round(s.budget * 100) / 100],
-    ['budget_per_year', s.budget_per_year],
-    ['research', s.research],
+    ['budget', Math.round(cap(s.budget) * 100) / 100],
+    ['budget_per_year', cap(s.budget_per_year)],
+    ['research', cap(s.research)],
     ['tech', s.tech],
     ['programs', s.programs.map((p) => ({ id: p.id, progress: Math.round(p.progress * 1000) / 1000, funding: p.funding }))],
     ...((s.studies?.length ?? 0) > 0 ? ([['studies', (s.studies ?? []).map((x) => ({ id: x.id, attempt: x.attempt, progress: Math.round(x.progress * 1000) / 1000, funding: x.funding, status: x.status }))]] as [string, Value][]) : []),
     ...(s.exaggerated ? ([['exaggerated', true]] as [string, Value][]) : []),
     ['networks_active', s.networks_active],
-    ['run_score', s.run_score],
-    ['rounds_survived', s.rounds_survived],
-    ['current_threat', s.current_threat ? { name: s.current_threat.name, type: s.current_threat.type, D_m: s.current_threat.D_m, t_impact_years: Math.round(s.current_threat.t_impact_years * 100) / 100, p_impact: s.current_threat.p_impact, ...(s.current_threat.i_rad !== undefined && s.current_threat.raan_rad !== undefined ? { i_rad: s.current_threat.i_rad, raan_rad: s.current_threat.raan_rad } : {}) } : null],
+    ['run_score', cap(s.run_score)],
+    ['rounds_survived', cap(s.rounds_survived)],
+    ['current_threat', s.current_threat ? { name: s.current_threat.name, type: s.current_threat.type, D_m: cap(s.current_threat.D_m), t_impact_years: Math.round(cap(s.current_threat.t_impact_years) * 100) / 100, p_impact: cap(s.current_threat.p_impact), ...(s.current_threat.i_rad !== undefined && s.current_threat.raan_rad !== undefined ? { i_rad: s.current_threat.i_rad, raan_rad: s.current_threat.raan_rad } : {}) } : null],
     ['learning_level', s.learning_level],
     ['lore_read', s.lore_read],
     ['color_mode', s.color_mode],
@@ -228,9 +228,13 @@ export function parseFrontMatter(text: string): Record<string, Value> {
 const isStr = (v: unknown): v is string => typeof v === 'string';
 // NOTE: every number in a save is bounded. A hand-edited `budget: 1e308` is finite, but the next autosave rounds
 // it (Math.round(x * 100) / 100) to Infinity and the save no longer loads (found by tests/saveFuzz.test.ts).
-// No real budget, score or count comes near 1e15, and 1e15 * 100 stays finite and exact to the cent.
+// 1e15 * 100 stays finite and exact to the cent. Out-of-range numbers are clamped, on write and on read, never a
+// reason to reject: the cheats (KARDASHEV1 x10, KARDASHEV2 x1000 a time) push a SANDBOX budget past 1e15, and
+// rejecting that save silently lost the run (code review 2026-10-18). Only non-finite numbers are rejected.
 export const SAVE_MAX_ABS = 1e15;
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= SAVE_MAX_ABS;
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+/** Clamp to +-SAVE_MAX_ABS. Example: cap(2e15) = 1e15; cap(-3) = -3. */
+export const cap = (v: number): number => Math.max(-SAVE_MAX_ABS, Math.min(SAVE_MAX_ABS, v));
 const isStrArr = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 
 /** Validate a parsed record into a SaveFile, or return null. Unknown keys are ignored. */
@@ -271,7 +275,7 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
     if (typeof ct !== 'object') return null;
     const o = ct as Record<string, unknown>;
     if (!isStr(o['name']) || !isStr(o['type']) || !isNum(o['D_m']) || !isNum(o['t_impact_years']) || !isNum(o['p_impact'])) return null;
-    threat = { name: o['name'], type: o['type'], D_m: o['D_m'], t_impact_years: o['t_impact_years'], p_impact: o['p_impact'] };
+    threat = { name: o['name'], type: o['type'], D_m: cap(o['D_m']), t_impact_years: cap(o['t_impact_years']), p_impact: cap(o['p_impact']) };
     // Both or neither, in range; anything else is a malformed save.
     const iR = o['i_rad'];
     const nR = o['raan_rad'];
@@ -292,21 +296,21 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
     version: 1,
     seed: r['seed'],
     started: r['started'],
-    round: r['round'],
+    round: cap(r['round']),
     mode: r['mode'] as SaveFile['mode'],
     highest_mode: r['highest_mode'] as SaveFile['mode'],
-    civ_level: r['civ_level'],
+    civ_level: cap(r['civ_level']),
     cheats_used: r['cheats_used'],
-    budget: r['budget'],
-    budget_per_year: r['budget_per_year'],
-    research: r['research'],
+    budget: cap(r['budget']),
+    budget_per_year: cap(r['budget_per_year']),
+    research: cap(r['research']),
     tech: r['tech'],
     programs: ps,
     ...(ss.length > 0 ? { studies: ss } : {}),
     ...(r['exaggerated'] === true ? { exaggerated: true } : {}),
     networks_active: r['networks_active'],
-    run_score: r['run_score'],
-    rounds_survived: r['rounds_survived'],
+    run_score: cap(r['run_score']),
+    rounds_survived: cap(r['rounds_survived']),
     current_threat: threat,
     learning_level: r['learning_level'] as SaveFile['learning_level'],
     lore_read: loreRead,

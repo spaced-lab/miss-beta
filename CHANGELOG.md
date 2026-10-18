@@ -21,6 +21,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - PERIMETER: the difficulty and skip-to-level options are easy to find. The start panel has a framed GAME SETUP box
   (9 DIFFICULTY, 0 START LEVEL 1/10/20/30/40, 8 SUPER DEMO, each choice spelled out), the game-over panel sets up
   the retry with the same keys, and OPTIONS has a PERIMETER group with both settings (`minigame/prefs.ts`).
+- Saves: a number beyond 1e15 in SAVE.md is clamped, on write and on read, instead of rejecting the save. A
+  SANDBOX run with the KARDASHEV cheats passed 1e15 and its autosave stopped loading, so CONTINUE vanished without
+  a word (code review 2026-10-18, findings 1-2). Non-finite numbers are still rejected.
 
 ## 26.4.0 (2026-10-18)
 
