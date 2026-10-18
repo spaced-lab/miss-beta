@@ -169,6 +169,12 @@ export const KNOBS = {
   /** RK4 step for push arcs, s. */
   PUSH_DT: 6 * 3600,
 
+  /** 6.14: tracking. sigma_v (m/s) by tier; assessment delay (s) before a kinetic beta is revealed; arc model. */
+  SIGMA_V_BY_TIER: [0.005, 0.001, 0.0002] as readonly number[],
+  BETA_ASSESS_DELAY: [60 * DAY, 20 * DAY, 5 * DAY] as readonly number[],
+  SIGMA_V_INITIAL: 0.02,
+  SIGMA_V_ARC_REF_DAYS: 30,
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 

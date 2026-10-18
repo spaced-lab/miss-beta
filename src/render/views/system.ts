@@ -28,6 +28,7 @@ import { roundRng } from '../../sim/rng';
 import { generateThreat } from '../../sim/roundGen';
 import { advance, createWorld, planetById, planetState, setWarp, warpLabel, type World } from '../../sim/world';
 import { formatCountdown } from '../../ui/hud';
+import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertainty';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
@@ -84,6 +85,11 @@ export class SystemScreen implements Screen {
     this.startRound();
   }
 
+  /** Tracking tier: the best of researched tracking, radar programs, and a radar network within range (6.14). */
+  private trackingTier(): number {
+    return Math.max(this.run.trackingTier, this.run.effects.trackingTier);
+  }
+
   private note(text: string, seconds = 3): void {
     this.noteText = text;
     this.noteT = seconds;
@@ -124,7 +130,7 @@ export class SystemScreen implements Screen {
     this.run.evacuatedAt = null;
     saveRun(this.run, this.world, null);
     this.missions = [];
-    this.result = resolveRound(this.world, this.missions);
+    this.result = resolveRound(this.world, this.missions, { trackingTier: this.trackingTier() });
     this.requestMc();
     this.planetOpen = false;
     this.phase = 'planning';
@@ -160,7 +166,7 @@ export class SystemScreen implements Screen {
         const cost = ms.reduce((a, m) => a + m.cost, 0);
         if (!spend(this.run.economy, this.world.t, cost)) return false;
         this.missions.push(...ms);
-        this.result = resolveRound(this.world, this.missions);
+        this.result = resolveRound(this.world, this.missions, { trackingTier: this.trackingTier() });
         this.requestMc();
         this.planner.refresh(this.plannerSession());
         return true;
@@ -516,15 +522,20 @@ export class SystemScreen implements Screen {
     drawText(s, `THREAT BRIEF  ${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, s.width / 2, m, 12, { align: 'center' });
     const margin = res.ca.marginRadii;
     const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
-    const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : res.outcome === 'MISS' ? '0.00' : '1.00';
+    // Tracking uncertainty (6.14): a Gaussian over the impact parameter with sigma_b = 3 sigma_v T_rem.
+    const tier = this.trackingTier();
+    const arcDays = Math.max(0, w.t) / DAY;
+    const sv = sigmaVWithArc(tier, arcDays) * this.run.effects.sigmaVMult;
+    const pTrack = impactProbability(res.ca.dMin, res.ca.bCrit, sigmaB(sv, Math.max(0, th.tImpact - w.t)));
+    const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : pTrack.toFixed(2);
     const frag = res.producedFragments ? `   BODIES ${res.outcomes.length}` : '';
-    drawText(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${pImpact}${this.mc ? ` (N ${this.mc.n})` : ''}${frag}`, s.width / 2, m + 18, 12, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
+    drawText(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${pImpact}${this.mc ? ` (MC N ${this.mc.n})` : ''}   TRACKING T${tier} SIGMA-V ${(sv * 1000).toFixed(1)} MM/S  P ${pTrack.toFixed(2)}${frag}`, s.width / 2, m + 18, 12, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
 
     // Play-by-play: the last six events whose time has passed.
     const passed = res.events.filter((e) => e.t <= w.t).slice(-6);
     let ly = s.height - m - 50 - passed.length * 15;
     for (const e of passed) {
-      drawText(s, formatEvent(e, th.tImpact), m, ly, 10, { color: p.dim, glow: 0 });
+      drawText(s, formatEvent(e, th.tImpact, w.t), m, ly, 10, { color: p.dim, glow: 0 });
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });

@@ -21,6 +21,7 @@ import { propagate, type Elements } from '../physics/kepler';
 import { alongTrack, kineticImpact } from '../physics/kinetic';
 import { fuzeOk, nuclearBurst } from '../physics/nuclear';
 import { integratePush, pushForce, type PushMethod } from '../physics/slowPush';
+import { betaAssessDelay } from '../physics/uncertainty';
 import type { EventLog } from './eventLog';
 import type { Mission } from './mission';
 import { hashSeed, Rng } from './rng';
@@ -85,6 +86,8 @@ export interface ResolveOpts {
   betaOverride?: number;
   /** Monte Carlo sample index; 0 is the canonical ground truth. */
   sampleSeed?: number;
+  /** Tracking tier (6.14): sets how long after an impact its beta is revealed. */
+  trackingTier?: number;
 }
 
 function streamFor(world: World, tag: string, sample: number): Rng {
@@ -280,7 +283,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       if (last) last.tTo = m.arrivalTime;
       target.segments.push({ tFrom: m.arrivalTime, tTo: Infinity, elements: next });
       tLast = m.arrivalTime;
-      events.push({ t: m.arrivalTime, kind: 'IMPACT', missionId: m.id, U: k.U, beta, dvAlong: alongTrack(k.dv, st.v), dvTotal: Math.hypot(k.dv.x, k.dv.y), massKg: m.impactorKg, targetId: target.id, qRatio: Q / Qs });
+      events.push({ t: m.arrivalTime, kind: 'IMPACT', missionId: m.id, U: k.U, beta, dvAlong: alongTrack(k.dv, st.v), dvTotal: Math.hypot(k.dv.x, k.dv.y), massKg: m.impactorKg, targetId: target.id, qRatio: Q / Qs, betaKnownAt: m.arrivalTime + betaAssessDelay(opts.trackingTier ?? 0) });
       continue;
     }
 

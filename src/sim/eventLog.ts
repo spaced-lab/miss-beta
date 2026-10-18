@@ -9,7 +9,7 @@ import { formatCountdown } from '../ui/hud';
 
 export type SimEventRecord =
   | { t: number; kind: 'LAUNCH'; missionId: string; c3: number; massKg: number; tier: number }
-  | { t: number; kind: 'IMPACT'; missionId: string; U: number; beta: number; dvAlong: number; dvTotal: number; massKg: number; targetId?: string; qRatio?: number }
+  | { t: number; kind: 'IMPACT'; missionId: string; U: number; beta: number; dvAlong: number; dvTotal: number; massKg: number; targetId?: string; qRatio?: number; betaKnownAt?: number }
   | { t: number; kind: 'IMPACT_MISS'; missionId: string; offset: number }
   | { t: number; kind: 'PUSH'; missionId: string; targetId: string; method: string; force: number; dv: number; duration: number; viable: boolean; note: string }
   | { t: number; kind: 'NUKE'; missionId: string; targetId: string; mode: string; yieldMt: number; dv: number; qRatio: number; fuzed: boolean; pulses: number }
@@ -24,15 +24,20 @@ function kms(v: number): string {
   return `${(v / 1000).toFixed(1)} KM/S`;
 }
 
-export function formatEvent(e: SimEventRecord, tImpact: number): string {
+/** `now` hides numbers the player cannot know yet (beta before its assessment); omit it for the debrief. */
+export function formatEvent(e: SimEventRecord, tImpact: number, now?: number): string {
   const stamp = formatCountdown(tImpact - e.t);
   switch (e.kind) {
     case 'ROUND_START':
       return `${stamp}  ${e.name} ACQUIRED  LEAD ${(e.lead / 3.15576e7).toFixed(1)} Y`;
     case 'LAUNCH':
       return `${stamp}  ${e.missionId} LAUNCH  L${e.tier}  C3 ${e.c3.toFixed(1)}  ${e.massKg.toFixed(0)} KG`;
-    case 'IMPACT':
-      return `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ${e.beta.toFixed(2)}  dV ${(e.dvTotal * 1000).toFixed(2)} MM/S (ALONG ${(e.dvAlong * 1000).toFixed(2)})${e.qRatio !== undefined ? `  Q/Q* ${e.qRatio.toFixed(2)}` : ''}`;
+    case 'IMPACT': {
+      const hidden = now !== undefined && e.betaKnownAt !== undefined && now < e.betaKnownAt;
+      return hidden
+        ? `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ?  (ASSESSMENT ${formatCountdown(tImpact - e.betaKnownAt!)})`
+        : `${stamp}  ${e.missionId} IMPACT ${e.targetId ?? 'THREAT'}  U ${kms(e.U)}  BETA ${e.beta.toFixed(2)}  dV ${(e.dvTotal * 1000).toFixed(2)} MM/S (ALONG ${(e.dvAlong * 1000).toFixed(2)})${e.qRatio !== undefined ? `  Q/Q* ${e.qRatio.toFixed(2)}` : ''}`;
+    }
     case 'IMPACT_MISS':
       return `${stamp}  ${e.missionId} MISSED THE TARGET${Number.isFinite(e.offset) ? `  OFF BY ${(e.offset / 1000).toFixed(0)} KM` : '  (TARGET GONE)'}`;
     case 'PUSH':

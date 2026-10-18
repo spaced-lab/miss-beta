@@ -24,6 +24,7 @@ from pymiss.physics.flyby import flyby, soi_radius, turn_angle  # noqa: E402
 from pymiss.physics.integrate import gravity_deriv, integrate  # noqa: E402
 from pymiss.physics.sail import characteristic_accel, integrate_sail, sail_accel  # noqa: E402
 from pymiss.physics.slow_push import gravity_tractor_force, integrate_push, tractor_propellant, yarkovsky_drift  # noqa: E402
+from pymiss.physics.uncertainty import impact_probability, phi, sigma_v_with_arc  # noqa: E402
 from pymiss.physics.nuclear import intercepted_fraction, nuclear_burst, warhead_mass  # noqa: E402
 from pymiss.physics.photometry import absolute_magnitude, apparent_magnitude, view_geometry  # noqa: E402
 from pymiss.physics.fragment import disrupt, f_3d, fragment_masses, largest_remnant_fraction, q_star, specific_energy  # noqa: E402
@@ -180,6 +181,12 @@ def slow_push_vectors() -> dict:
             "yarkovsky10y": yarkovsky_drift(10 * YEAR)}
 
 
+def uncertainty_vectors() -> dict:
+    return {"phi": [{"x": x, "p": phi(x)} for x in (-3, -1, -0.5, 0, 0.5, 1, 2, 3)],
+            "pImpact": [{"d": d, "b": b, "s": s, "p": impact_probability(d, b, s)} for d, b, s in ((0, 9.5e6, 1e6), (0, 9.5e6, 2e7), (2e7, 9.5e6, 1e7), (5e6, 9.5e6, 0))],
+            "arc": [{"tier": t, "days": d, "s": sigma_v_with_arc(t, d)} for t, d in ((0, 0), (0, 30), (0, 300), (1, 3000), (2, 3))]}
+
+
 def m4_vectors() -> dict:
     # RK4 two-body: one quarter orbit at 1 AU with 6 h steps, compare against Kepler in the TS test.
     from pymiss.physics.kepler import vis_viva
@@ -210,4 +217,5 @@ if __name__ == "__main__":
     write("photometry.json", photometry_vectors())
     write("nuclear.json", nuclear_vectors())
     write("slowPush.json", slow_push_vectors())
+    write("uncertainty.json", uncertainty_vectors())
     write("rng.json", rng_vectors())
