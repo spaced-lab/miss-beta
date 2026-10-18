@@ -85,6 +85,8 @@ export class SystemScreen implements Screen {
   phase: Phase = 'planning';
   scale: ScaleMode = 'COMPRESSED';
   private score: ScoreBreakdown | null = null;
+  /** The same round with no missions (programs still act): the debrief's "without you" line. */
+  private counterfactual: { outcome: string; margin: number } | null = null;
   private rank = -1;
   private zoom = 1;
   private panX = 0;
@@ -502,6 +504,12 @@ export class SystemScreen implements Screen {
     }
     this.world.t = res.ca.tCa;
     setWarp(this.world, 0);
+    try {
+      const cf = this.missions.length > 0 ? resolveRound(this.world, [], this.resolveOpts()) : null;
+      this.counterfactual = cf ? { outcome: cf.outcome, margin: cf.ca.marginRadii } : null;
+    } catch {
+      this.counterfactual = null;
+    }
     const available = this.run.economy.start + (this.run.economy.perYear * this.world.t) / YEAR;
     // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
     const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
@@ -1399,7 +1407,7 @@ export class SystemScreen implements Screen {
     if (!th || !res || !sc) return;
     const events = res.events.slice(-8);
     const pw = Math.min(900, s.width - 32);
-    const { x, y } = this.panel(pw, 150 + events.length * 15 + 100);
+    const { x, y } = this.panel(pw, 150 + events.length * 15 + 116);
     const fitW = pw - 32;
     const cx = s.width / 2;
     drawTextFit(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, fitW, { align: 'center', color: p.hot, glow: 2 });
@@ -1414,6 +1422,13 @@ export class SystemScreen implements Screen {
     });
     ly += 8;
     drawText(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, { align: 'center' });
+    const cf = this.counterfactual;
+    if (cf) {
+      // The lesson in one line: what the round would have done without the player's missions.
+      const moved = res.ca.marginRadii - cf.margin;
+      drawTextFit(s, `WITHOUT YOUR MISSIONS: ${cf.outcome === 'HIT' ? 'IMPACT' : cf.outcome}, MARGIN ${cf.margin >= 0 ? '+' : ''}${cf.margin.toFixed(2)} R.   YOU MOVED IT ${moved >= 0 ? '+' : ''}${moved.toFixed(2)} R.`, cx, ly + 20, 11, fitW, { align: 'center', color: s.spectrum ? s.role('craft') : p.ink, glow: 0.6 });
+      ly += 16;
+    }
     drawTextFit(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, fitW, { align: 'center', color: p.hot, glow: 1 });
     drawTextFit(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, fitW, { align: 'center', color: p.dim, glow: 0 });
     drawTextFit(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
@@ -1426,14 +1441,20 @@ export class SystemScreen implements Screen {
     const res = this.result;
     if (!th || !res) return;
     const pw = Math.min(900, s.width - 32);
-    const { y } = this.panel(pw, 260);
+    const { y } = this.panel(pw, 276);
     const fitW = pw - 32;
     const cx = s.width / 2;
     drawTextFit(s, 'IMPACT', cx, y + 26, 34, fitW, { align: 'center', color: p.hot, glow: 2 });
     drawTextFit(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M`, cx, y + 80, 14, fitW, { align: 'center' });
     drawTextFit(s, `${res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0)} MT   ${res.category}   V-IMPACT ${(res.ca.vImpact / 1000).toFixed(1)} KM/S`, cx, y + 106, 14, fitW, { align: 'center' });
     drawTextFit(s, `CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM   MARGIN ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 132, 12, fitW, { align: 'center', color: p.dim, glow: 0 });
-    drawTextFit(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 170, 12, fitW, { align: 'center' });
-    drawTextFit(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 214, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
+    const cf = this.counterfactual;
+    if (cf) {
+      // After a loss the useful number is how far short the plan fell.
+      const moved = res.ca.marginRadii - cf.margin;
+      drawTextFit(s, `YOUR MISSIONS MOVED IT ${moved >= 0 ? '+' : ''}${moved.toFixed(2)} R. IT NEEDED ${(-res.ca.marginRadii).toFixed(2)} R MORE: EARLIER, OR A SECOND IMPACTOR.`, cx, y + 156, 11, fitW, { align: 'center', color: s.spectrum ? s.role('craft') : p.ink, glow: 0.6 });
+    }
+    drawTextFit(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 184, 12, fitW, { align: 'center' });
+    drawTextFit(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 230, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 }
