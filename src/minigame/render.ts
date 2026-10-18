@@ -27,7 +27,8 @@ export interface RenderOpts {
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
 const NEON = {
-  tier: ['#33FF33', '#FFB000', '#00F0FF', '#FF2BD6'],
+  /** Rock hardness 0..5: green, amber, cyan, magenta, then violet and white-hot for tiers 4 and 5. */
+  tier: ['#33FF33', '#FFB000', '#00F0FF', '#FF2BD6', '#9D4DFF', '#FFF6D5'],
   bullet: ['#B6FFB6', '#00F0FF', '#FF2BD6'],
   core: '#FF3B3B',
   moon: '#7DF9FF',
@@ -38,7 +39,8 @@ const NEON = {
 /**
  * Pixel sizes. Everything is deliberately fine (owner's note, 2026-10-17: "all detail gets finer"):
  * sentry bullets are single pixels, player bullets barely bigger, dust is 1 px, outlines are sub-pixel at
- * DPR 1 and crisp at DPR 2. Hardness still reads through colour and the width ladder (ROCK_W + tier * ROCK_W_STEP).
+ * DPR 1 and crisp at DPR 2. Hardness still reads through colour and the width ladder (ROCK_W + tier * ROCK_W_STEP,
+ * six tiers: 0.55 px to 1.45 px).
  */
 const PX = {
   particle: 1,
@@ -47,7 +49,7 @@ const PX = {
   bullet: 1.0,
   bulletStep: 0.3,
   rockW: 0.55,
-  rockWStep: 0.22,
+  rockWStep: 0.18,
   coreRing: 0.5,
   moonW: 0.75,
   moonDetail: 0.5,

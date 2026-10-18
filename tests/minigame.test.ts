@@ -9,7 +9,7 @@ import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, densestSector, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmLife, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmLife, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -40,21 +40,72 @@ describe('progression tables', () => {
     expect(levelAt(MG.LEVEL_SECONDS)).toBe(2);
     expect(levelAt(MG.LEVEL_SECONDS * 20)).toBe(21);
     let prev = Infinity;
-    for (let l = 1; l < 40; l++) {
+    for (let l = 1; l < 80; l++) {
       expect(baseSpawnInterval(l)).toBeLessThanOrEqual(prev);
-      expect(baseSpawnInterval(l)).toBeGreaterThanOrEqual(MG.SPAWN_MIN);
+      expect(baseSpawnInterval(l)).toBeGreaterThanOrEqual(MG.SPAWN_FLOOR_ABS);
       prev = baseSpawnInterval(l);
     }
     expect(baseSpeed(1)).toBe(MG.AST_SPEED_0);
-    expect(baseSpeed(1000)).toBe(MG.AST_SPEED_MAX);
+    expect(baseSpeed(MG.AST_SPEED_CAP_FROM_LEVEL)).toBeLessThanOrEqual(MG.AST_SPEED_MAX);
+    expect(baseSpeed(1000)).toBeGreaterThan(MG.AST_SPEED_MAX);
     expect(launcherCount(1)).toBe(1);
     expect(launcherCount(1000)).toBe(8);
     expect(streamCount(1)).toBe(1);
     expect(streamCount(1000)).toBe(5);
     expect(maxTier(1)).toBe(0);
-    expect(maxTier(1000)).toBe(3);
+    expect(maxTier(9)).toBe(3);
+    expect(maxTier(1000)).toBe(MAX_TIER);
+    expect(MAX_TIER).toBe(5);
+    expect(MG.TIER_MASS_MULT.length).toBe(MG.TIER_HP_MULT.length);
+    expect(MG.TIER_SCORE_MULT.length).toBe(MG.TIER_HP_MULT.length);
     expect(spectrumStage(1)).toBe(0);
     expect(spectrumStage(1000)).toBe(3);
+  });
+
+  it('the first five levels are untouched by the late-game growths', () => {
+    for (let l = 1; l <= 5; l++) {
+      expect(baseSpawnInterval(l)).toBeCloseTo(MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, l - 1), 12);
+      expect(baseSpeed(l)).toBeCloseTo(MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (l - 1), 12);
+      expect(hpMult(l)).toBe(1);
+      expect(pressureMax(l)).toBe(MG.PRESSURE_MAX);
+      expect(damageMax(l)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, l));
+      expect(maxTier(l)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('no plateau: level 45 is strictly harder than level 30 on every axis', () => {
+    expect(baseSpawnInterval(45)).toBeLessThan(baseSpawnInterval(30));
+    expect(spawnFloor(45)).toBeLessThan(spawnFloor(30));
+    expect(baseSpeed(45)).toBeGreaterThan(baseSpeed(30));
+    expect(speedCap(45)).toBeGreaterThan(speedCap(30));
+    expect(hpMult(45)).toBeGreaterThan(hpMult(30));
+    expect(maxTier(45)).toBeGreaterThanOrEqual(maxTier(30));
+    expect(maxTier(30)).toBeGreaterThan(maxTier(9)); // tiers 4 and 5 are reachable
+    expect(maxTier(45)).toBe(MAX_TIER);
+    expect(pressureMax(45)).toBeGreaterThan(pressureMax(30));
+    expect(damageMax(45)).toBeGreaterThan(damageMax(30));
+    expect(maxAsteroids(45)).toBeGreaterThanOrEqual(maxAsteroids(30));
+    // The growths are slow: 15 levels change each axis by less than a factor of two.
+    expect(baseSpawnInterval(30) / baseSpawnInterval(45)).toBeLessThan(2);
+    expect(baseSpeed(45) / baseSpeed(30)).toBeLessThan(2);
+    expect(hpMult(45) / hpMult(30)).toBeLessThan(2);
+    // Rocks spawned at level 45 carry more hit points than the same rock at level 30.
+    const hpAt = (level: number) => {
+      const st = createState(1);
+      start(st);
+      st.t = (level - 1) * MG.LEVEL_SECONDS + 0.5;
+      st.spawnTimer = 1e9;
+      step(st, NO_INPUT, MG.DT);
+      expect(st.level).toBe(level);
+      st.asteroids.length = 0;
+      st.spawnTimer = 0;
+      step(st, NO_INPUT, MG.DT);
+      const a = st.asteroids[0];
+      if (!a) throw new Error('no spawn');
+      return a.maxHp / Math.max(1, Math.round(a.r / MG.AST_HP_UNIT)) / (MG.TIER_HP_MULT[a.tier] ?? 1);
+    };
+    expect(hpAt(45)).toBeGreaterThan(hpAt(30));
+    expect(hpAt(5)).toBe(1);
   });
 
   it('stream strength follows the centre-strongest rule', () => {
@@ -77,6 +128,14 @@ describe('progression tables', () => {
     expect(displayTier(a)).toBe(2);
     a.hp = 1;
     expect(displayTier(a)).toBe(1);
+    // A tier-5 rock walks the whole ladder 5, 4, 3, 2, 1.
+    const h = rock(st, 3, 0, 0, 0, 0.42, 5);
+    const seen = new Set<number>();
+    for (let hp = h.maxHp; hp >= 1; hp--) {
+      h.hp = hp;
+      seen.add(displayTier(h));
+    }
+    expect([...seen].sort()).toEqual([1, 2, 3, 4, 5]);
     const z = rock(st, 3, 0, 0, 0, 0.42, 0);
     z.hp = 1;
     expect(displayTier(z)).toBe(0);
@@ -142,7 +201,7 @@ describe('simulation', () => {
       step(st, FIRE, MG.DT);
       expect(st.bullets.length).toBeLessThanOrEqual(MG.MAX_BULLETS);
       expect(st.particles.length).toBeLessThanOrEqual(MG.MAX_PARTICLES);
-      expect(st.asteroids.length).toBeLessThanOrEqual(MG.MAX_ASTEROIDS);
+      expect(st.asteroids.length).toBeLessThanOrEqual(maxAsteroids(st.level));
     }
   });
 });

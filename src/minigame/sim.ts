@@ -6,7 +6,10 @@
 //       Entities live in plain arrays and are removed with swap-pop to avoid per-frame allocation.
 //       Progression is by level (one per LEVEL_SECONDS) read from the tables in config.ts, then scaled
 //       by an adaptive `pressure` that rises while the player is healthy and falls on every hull hit.
-//       Rocks have a hardness tier 0..3 (hit points, mass, score); bullets carry a damage 1..3 decided by
+//       Nothing plateaus: past the early tables the spawn floor keeps shrinking (spawnFloor), the speed cap
+//       keeps rising (speedCap), rock hit points scale with level (hpMult) and so do the pressure ceiling and
+//       the hull damage cap; all are slow linear or geometric growths with their knobs in config.ts.
+//       Rocks have a hardness tier 0..5 (hit points, mass, score); bullets carry a damage 1..3 decided by
 //       their stream position (centre strongest), and every hit also pushes the rock (impulse / mass),
 //       so passing rocks can be nudged and heavy rocks barely move. A moon orbits the planet from
 //       MOON_LEVEL: rocks inside its influence are bent toward it, anything touching it is absorbed.
@@ -47,7 +50,7 @@ export interface Asteroid {
   vx: number;
   vy: number;
   r: number;
-  /** Hardness tier 0..3. */
+  /** Hardness tier 0..MAX_TIER (5). */
   tier: number;
   hp: number;
   maxHp: number;
@@ -247,14 +250,35 @@ export interface MinigameState {
 // --- progression ---------------------------------------------------------------------------------------
 
 export const levelAt = (t: number): number => 1 + Math.floor(t / MG.LEVEL_SECONDS);
-export const baseSpawnInterval = (level: number): number => Math.max(MG.SPAWN_MIN, MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, level - 1));
-export const baseSpeed = (level: number): number => Math.min(MG.AST_SPEED_MAX, MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (level - 1));
+/** Levels past `from`, never negative: the argument of every slow late-game growth below. */
+const past = (level: number, from: number): number => Math.max(0, level - from);
+/**
+ * Spawn floor: SPAWN_MIN until SPAWN_FLOOR_FROM_LEVEL, then shrinking SPAWN_FLOOR_FACTOR per level toward
+ * SPAWN_FLOOR_ABS. Defaults: 0.3 s at level 9, 0.218 s at level 30, 0.174 s at level 45.
+ */
+export const spawnFloor = (level: number): number => Math.max(MG.SPAWN_FLOOR_ABS, MG.SPAWN_MIN * Math.pow(MG.SPAWN_FLOOR_FACTOR, past(level, MG.SPAWN_FLOOR_FROM_LEVEL)));
+/** Seconds between spawns at pressure 1: the geometric curve from SPAWN_0, never below the level's floor. */
+export const baseSpawnInterval = (level: number): number => Math.max(spawnFloor(level), MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, level - 1));
+/** Speed cap: AST_SPEED_MAX, then +AST_SPEED_CAP_PER_LEVEL per level past AST_SPEED_CAP_FROM_LEVEL (2.2 at 15, 2.575 at 30, 2.95 at 45). */
+export const speedCap = (level: number): number => MG.AST_SPEED_MAX + MG.AST_SPEED_CAP_PER_LEVEL * past(level, MG.AST_SPEED_CAP_FROM_LEVEL);
+/** Rock speed at pressure 1: the linear ramp from AST_SPEED_0, never above the level's cap. */
+export const baseSpeed = (level: number): number => Math.min(speedCap(level), MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (level - 1));
+/** Hit-point multiplier applied on spawn: 1 up to HP_MULT_FROM_LEVEL, then +HP_MULT_PER_LEVEL per level (x2 at 30, x2.75 at 45). */
+export const hpMult = (level: number): number => 1 + MG.HP_MULT_PER_LEVEL * past(level, MG.HP_MULT_FROM_LEVEL);
+/** Pressure ceiling: PRESSURE_MAX, then +PRESSURE_MAX_PER_LEVEL per level past PRESSURE_MAX_FROM_LEVEL (1.6 at 10, 2.0 at 30, 2.3 at 45). */
+export const pressureMax = (level: number): number => MG.PRESSURE_MAX + MG.PRESSURE_MAX_PER_LEVEL * past(level, MG.PRESSURE_MAX_FROM_LEVEL);
+/** Rock budget: MAX_ASTEROIDS + MAX_ASTEROIDS_PER_LEVEL per level, capped at MAX_ASTEROIDS_CAP. */
+export const maxAsteroids = (level: number): number => Math.min(MG.MAX_ASTEROIDS_CAP, MG.MAX_ASTEROIDS + MG.MAX_ASTEROIDS_PER_LEVEL * past(level, 1));
 export const launcherCount = (level: number): number => byLevel(MG.LAUNCHERS_BY_LEVEL, level);
 export const streamCount = (level: number): number => byLevel(MG.STREAMS_BY_LEVEL, level);
 export const maxTier = (level: number): number => byLevel(MG.MAX_TIER_BY_LEVEL, level);
+/** The hardest tier that exists (the tier tables' last index). Hard-core shards never exceed it. */
+export const MAX_TIER = MG.TIER_HP_MULT.length - 1;
+/** Hull damage cap for a level: the table's entry, then +DAMAGE_MAX_PER_LEVEL per level past DAMAGE_MAX_FROM_LEVEL (25 at 10, 33 at 30, 39 at 45). */
+export const damageMax = (level: number): number => byLevel(MG.DAMAGE_MAX_BY_LEVEL, level) + MG.DAMAGE_MAX_PER_LEVEL * past(level, MG.DAMAGE_MAX_FROM_LEVEL);
 /** Hull points one rock removes: DAMAGE_PER_R * r * (1 + 0.5 tier), clamped to the level's cap. */
 export const hullDamage = (level: number, r: number, tier: number): number =>
-  clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, byLevel(MG.DAMAGE_MAX_BY_LEVEL, level));
+  clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, Math.round(damageMax(level)));
 export const moonActive = (level: number): boolean => level >= MG.MOON_LEVEL;
 export const moonAlive = (st: MinigameState): boolean => moonActive(st.level) && st.moonHp > 0;
 /** Sentry tier from level: one step per TURRET_TIER_LEVELS after TURRET_LEVEL, capped at 2. */
@@ -402,7 +426,9 @@ export function rockMass(a: Asteroid): number {
 }
 
 function makeAsteroid(st: MinigameState, x: number, y: number, vx: number, vy: number, r: number, tier: number, core: boolean, passing: boolean): Asteroid {
-  const hp = Math.max(1, Math.round(r / MG.AST_HP_UNIT)) * (MG.TIER_HP_MULT[tier] ?? 1);
+  // Hit points: size units times the tier multiplier times the level multiplier (hpMult), whole numbers so the
+  // display-tier ladder steps cleanly.
+  const hp = Math.max(1, Math.round(Math.max(1, Math.round(r / MG.AST_HP_UNIT)) * (MG.TIER_HP_MULT[tier] ?? 1) * hpMult(st.level)));
   return {
     id: st.nextId++,
     x, y, vx, vy, r,
@@ -459,7 +485,8 @@ export function spawnBinary(st: MinigameState, x: number, y: number, vx: number,
 }
 
 function spawnAsteroid(st: MinigameState): void {
-  if (st.asteroids.length >= MG.MAX_ASTEROIDS) return;
+  const budget = maxAsteroids(st.level);
+  if (st.asteroids.length >= budget) return;
   const theta = st.rng.float(0, Math.PI * 2);
   const x = MG.FIELD_R * Math.cos(theta);
   const y = MG.FIELD_R * Math.sin(theta);
@@ -471,7 +498,7 @@ function spawnAsteroid(st: MinigameState): void {
   const d = Math.hypot(dx, dy);
   const v = baseSpeed(st.level) * (0.8 + 0.2 * st.pressure) * st.rng.float(0.8, 1.2);
   const tier = drawTier(st, maxTier(st.level));
-  if (!passing && st.level >= MG.BINARY_LEVEL && st.asteroids.length + 2 <= MG.MAX_ASTEROIDS && st.rng.chance(MG.BINARY_PROB)) {
+  if (!passing && st.level >= MG.BINARY_LEVEL && st.asteroids.length + 2 <= budget && st.rng.chance(MG.BINARY_PROB)) {
     spawnBinary(st, x, y, (dx / d) * v * 0.9, (dy / d) * v * 0.9, tier);
     return;
   }
@@ -566,7 +593,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
   emit(st, { type: 'break', tier: a.tier, r: a.r });
   swapRemove(st.asteroids, i);
 
-  if (allowSplit && !a.core && a.r >= MG.AST_SPLIT_R && st.asteroids.length + 2 <= MG.MAX_ASTEROIDS) {
+  if (allowSplit && !a.core && a.r >= MG.AST_SPLIT_R && st.asteroids.length + 2 <= maxAsteroids(st.level)) {
     const speed = Math.hypot(a.vx, a.vy);
     const hardCoreAt = a.tier >= 1 && st.rng.chance(MG.HARD_CORE_PROB) ? st.rng.int(0, 1) : -1;
     let k = 0;
@@ -574,7 +601,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
       const ang = Math.atan2(a.vy, a.vx) + side * st.rng.float(0.35, 0.8);
       const isCore = k === hardCoreAt;
       const cr = a.r * (isCore ? MG.HARD_CORE_SCALE : MG.AST_CHILD_SCALE);
-      const tier = isCore ? Math.min(3, a.tier + 1) : Math.max(0, a.tier - 1);
+      const tier = isCore ? Math.min(MAX_TIER, a.tier + 1) : Math.max(0, a.tier - 1);
       st.asteroids.push(
         makeAsteroid(st, a.x + side * cr * 0.6 * -Math.sin(ang), a.y + side * cr * 0.6 * Math.cos(ang), Math.cos(ang) * speed * 1.1, Math.sin(ang) * speed * 1.1, cr, tier, isCore, false),
       );
@@ -1176,7 +1203,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   // Adaptive pressure: creeps up while healthy and un-hit, eases off when the hull is low.
   if (st.hp / MG.MAX_HP > 0.6 && st.sinceHit > MG.PRESSURE_CALM_SECONDS) st.pressure += MG.PRESSURE_GAIN * dt;
   if (st.hp / MG.MAX_HP < MG.PRESSURE_LOW_HP && st.pressure > MG.PRESSURE_LOW_TARGET) st.pressure -= MG.PRESSURE_LOW_RATE * dt;
-  st.pressure = clamp(st.pressure, MG.PRESSURE_MIN, MG.PRESSURE_MAX);
+  st.pressure = clamp(st.pressure, MG.PRESSURE_MIN, pressureMax(st.level));
 
   // Player: left is counter-clockwise (angle increases), right is clockwise.
   if (input.left) st.launcherAngle = wrapAngle(st.launcherAngle + MG.LAUNCHER_SPEED * dt);
@@ -1294,7 +1321,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (!st.cheats.god) st.hp -= dmg;
       st.shake += dmg * MG.SHAKE_PER_HP;
       st.sinceHit = 0;
-      st.pressure = clamp(st.pressure - MG.PRESSURE_HIT_DROP, MG.PRESSURE_MIN, MG.PRESSURE_MAX);
+      st.pressure = clamp(st.pressure - MG.PRESSURE_HIT_DROP, MG.PRESSURE_MIN, pressureMax(st.level));
       spawnParticles(st, a.x, a.y, MG.PARTICLES_PER_IMPACT, 3, -1);
       emit(st, { type: 'impact' });
       swapRemove(st.asteroids, i);

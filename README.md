@@ -24,7 +24,8 @@ ten seconds (earned per 22 kills; more drones and a longer burn at higher levels
 keep clear of the moon). Launchers and bullet streams multiply as time goes on. Keep the hull above
 zero. In play: `1` debug HUD, `2` cycle glow strategy, `3` cycle collision strategy, `4` sound, `5` sound kit,
 `Esc` title. Firing builds heat; an overheated launcher locks until it cools. Levels add streams (centre stream
-strongest), launchers, rock hardness tiers (colour steps down as a rock weakens), passing rocks you can nudge,
+strongest), launchers, rock hardness tiers 0-5 (colour steps down as a rock weakens; past level 10 every rock also
+gains hit points, speed and spawn rate keep climbing slowly and nothing plateaus), passing rocks you can nudge,
 a moon that bends paths and absorbs hits, and sentries earned per 60 direct hits from level 6, each of a random
 archetype: ORBITER rides the ring, SWEEPER patrols an arc and fires in bursts, PICKET parks at the densest
 incoming sector, CHASER drifts toward the biggest threat on a leash. A game in progress is autosaved in the

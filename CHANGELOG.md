@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v3.2 no plateau: the spawn floor shrinks per level from level 9 (`SPAWN_FLOOR_FACTOR`, `SPAWN_FLOOR_ABS`),
+  the speed cap rises past level 15 (`AST_SPEED_CAP_PER_LEVEL`), rock hit points scale from level 10 (`hpMult`,
+  `HP_MULT_PER_LEVEL`), the pressure ceiling and hull damage cap keep rising, hardness tiers 4 (violet, level 14)
+  and 5 (white-hot, level 22); level 45 is tested strictly harder than level 30, levels 1-5 unchanged.
+
 - M6: tech tree (T), autonomy tiers with the rules DSL and presets, split impactor carriers, nuclear
   standoff / surface / subsurface / HAIV / pulse trains, the slow-push family with honest NOT VIABLE numbers,
   PI, tracking tiers with impact probability and the beta reveal delay, debrief timeline scrubber,
