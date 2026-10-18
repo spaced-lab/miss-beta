@@ -1378,3 +1378,26 @@ SOI               sphere of influence
 - **Narratives**: canned templated briefs (no LLM at play time) at round start ("spotted by what, at what magnitude, how big, how long") and after every event (post-impact summary, breakup summary, fuze, civil defense, debrief). A teletype overlay types the header first, then the body, fast; a key renders the rest at once; another clears it. Narratives use the SPECTRUM role colours (threat amber, craft cyan, fragments magenta) so the screen is not only green; the whole game keeps the minigame's neon feel.
 - Implementation home: `src/render/cinematics/*`, `src/config/narratives.json`, `src/render/views/teletype.ts`; BUILD_PLAN M13.
 
+
+## 30. Unproven tech, deadpan fiction, and "Earth must be protected by all means" (added 2026-10-18)
+
+Owner's core tenet: Earth must be protected by all means, and nothing is ruled out. The game keeps three tiers.
+
+- **REALISTIC** stays pure science: only REAL and PROPOSED methods, honest numbers.
+- **SCI-FI** adds the SPECULATIVE tier: "unproven, might work someday". Physics-consistent but unbuilt at scale:
+  carbon-nanotube nets (since M7), the disassembler swarm, DE-STAR, and since 2026-10-18 three standing
+  capabilities that act on every threat without a flight once their program is complete:
+  - **NANOFORGE SEEDS**: self-replicating, reconfigurable-matter seeds land, grow over the body (NANOFORGE_GROW_DAYS),
+    then run a mass driver from the rock's own regolith: F = mdot v_e. The rock becomes its own rocket.
+  - **SELF-ASSEMBLING THRUSTER SWARM**: hundreds of small units land, lock together, despin the body (eta_spin) and push.
+  - **SHEPHERD NETWORK**: a standing fleet steering captured 25 m rocks; one is fired into every new threat
+    (dv = beta m U / M), the planetary-defense infrastructure that uses objects already in space.
+  Ideas queued for the same tier: seed fleets that build more of themselves from what they find, attachable
+  sail and tether kits, a picket line of parked impactors at L4/L5.
+- **SIMULATION / MULTIVERSE** are FICTION played straight. Inside those modes nothing breaks character: commands
+  answer in deadpan bureaucratic voice as if this were ordinary procedure (Alice in Wonderland, Hitchhiker's
+  Guide, the Bureau of Paperwork). The honest physics line that GAME_PLAN 20.4 printed first now lives behind
+  the console command REALITY ON (and in the CODEX), so the joke lands and the science is one keystroke away.
+  Themes allowed: paradox fiction, theoretical-physics flights (micro black holes, timefolds, branch swaps,
+  spacetime detours), and harmless popular "theories" played for deadpan laughs (the Moon was always a ship, the
+  hollow asteroid, a ticket to the simulation's operators). Nothing distasteful, nothing about real people.

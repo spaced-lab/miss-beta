@@ -178,6 +178,11 @@ export class SystemScreen implements Screen {
         disassemblerTauYears: this.run.effects.disassemblerTauYears,
         disassemblerSince: done('DISASSEMBLER_SWARM'),
         netTier: this.run.netTier,
+        nanoforgeSince: done('NANOFORGE_SEEDS'),
+        thrusterSwarmSince: done('THRUSTER_SWARM'),
+        shepherdSince: done('SHEPHERD_NETWORK'),
+        fusionTugN: this.run.effects.fusionTugN,
+        fusionTugSince: done('FUSION_TUG_FLEET'),
       },
     };
   }

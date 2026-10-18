@@ -111,6 +111,13 @@ export interface SciFiOpts {
   disassemblerSince: number | null;
   /** CNT net tier owned (tech NET1/NET2): bodies under NET_CAPTURE_D that would hit are captured instead. */
   netTier: number;
+  /** 30: speculative standing capabilities: program completion times (round time) or null when not owned. */
+  nanoforgeSince?: number | null;
+  thrusterSwarmSince?: number | null;
+  shepherdSince?: number | null;
+  /** FUSION_TUG_FLEET thrust (N) and completion time. */
+  fusionTugN?: number;
+  fusionTugSince?: number | null;
 }
 
 function streamFor(world: World, tag: string, sample: number): Rng {
@@ -620,6 +627,39 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         }
       }
     }
+  }
+
+  // 30: speculative standing pushes (SCI-FI): each acts on the threat or its largest remnant from a start time
+  // to the push end margin with a constant force, like DE-STAR's windows but without a range limit.
+  if (sf) {
+    const tEnd = threat.tImpact - KNOBS.PUSH_END_MARGIN;
+    const standing = (label: string, method: string, since: number | null | undefined, delay: number, force: (b: Body) => number, duration?: number): void => {
+      if (since === null || since === undefined) return;
+      for (const b of bodies) {
+        if (b.escaped || b.tDeath !== Infinity || b.harmless || b.role === 'FRAGMENT') continue;
+        const tIn = Math.max(since, b.tBirth === -Infinity ? 0 : b.tBirth, tLast, 0) + delay;
+        const tOut = Math.min(tEnd, duration !== undefined ? tIn + duration : tEnd);
+        if (tOut - tIn < 3600) continue;
+        const el = elementsAt(b.segments, Infinity);
+        const F = force(b);
+        try {
+          const arc = integratePush(el, mu, tIn, tOut, F / b.mass);
+          const lastSeg = b.segments[b.segments.length - 1];
+          if (lastSeg) lastSeg.tTo = tIn;
+          b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
+          b.segments.push({ tFrom: tOut, tTo: Infinity, elements: arc.elements });
+          events.push({ t: tIn, kind: 'PUSH', missionId: label, targetId: b.id, method, force: F, dv: arc.dv, duration: tOut - tIn, viable: true, note: label });
+        } catch (e) {
+          if (!(e instanceof OrbitError)) throw e;
+          events.push({ t: tIn, kind: 'NOTE', text: `${label} PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+        }
+      }
+    };
+    standing('NANOFORGE', 'NANOFORGE', sf.nanoforgeSince, KNOBS.NANOFORGE_GROW_DAYS, () => KNOBS.NANOFORGE_MDOT * KNOBS.NANOFORGE_VE);
+    standing('THRUSTER-SWARM', 'THRUSTER_SWARM', sf.thrusterSwarmSince, KNOBS.THRUSTER_TRANSIT, () => KNOBS.THRUSTER_ETA * KNOBS.THRUSTER_SWARM_N * KNOBS.THRUSTER_UNIT_N);
+    if ((sf.fusionTugN ?? 0) > 0) standing('FUSION-TUG', 'FUSION_TUG', sf.fusionTugSince, KNOBS.FUSION_TUG_TRANSIT, () => sf.fusionTugN ?? 0);
+    // The shepherd rock: one kinetic hit, delivered as a one-hour push of the same impulse.
+    standing('SHEPHERD', 'SHEPHERD', sf.shepherdSince, KNOBS.SHEPHERD_DELAY, () => (KNOBS.SHEPHERD_BETA * KNOBS.SHEPHERD_KG * KNOBS.SHEPHERD_U) / 3600, 3600);
   }
 
   // Close approach of every live body.

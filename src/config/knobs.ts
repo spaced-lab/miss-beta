@@ -233,4 +233,24 @@ export const KNOBS = {
   TELETYPE_HOLD_S: 10,
   /** 29: warp index the clock drops to when the last craft has arrived (1 = 1 DAY/S). */
   WARP_DOWN_INDEX: 1,
+
+  /** 30 (owner, 2026-10-18): speculative standing capabilities, SCI-FI only. "Unproven, might work someday."
+   *  NANOFORGE: self-replicating seeds land, double every NANOFORGE_DOUBLING_DAYS until they cover the body
+   *  (NANOFORGE_GROW_DAYS in all), then run a mass driver out of the regolith: F = mdot v_e. */
+  NANOFORGE_GROW_DAYS: 240 * DAY,
+  NANOFORGE_MDOT: 40,
+  NANOFORGE_VE: 900,
+  /** THRUSTER SWARM: N self-assembling units, F_unit each, arrive after the transit, push at eta_spin (despun). */
+  THRUSTER_SWARM_N: 600,
+  THRUSTER_UNIT_N: 25,
+  THRUSTER_ETA: 0.6,
+  THRUSTER_TRANSIT: 200 * DAY,
+  /** SHEPHERD NETWORK: a parked captured rock of SHEPHERD_KG fired into each new threat at SHEPHERD_U, beta
+   *  SHEPHERD_BETA, SHEPHERD_DELAY after the round starts (dv = beta m U / M). */
+  SHEPHERD_KG: 2e7,
+  SHEPHERD_U: 12000,
+  SHEPHERD_BETA: 2,
+  SHEPHERD_DELAY: 150 * DAY,
+  /** FUSION_TUG_FLEET (20.3): the tug reaches the threat after this transit, then pushes at fusionTugN. */
+  FUSION_TUG_TRANSIT: 365 * DAY,
 } as const;

@@ -132,4 +132,7 @@ export function nextRound(run: RunState, budgetNow: number): void {
   run.evacuatedAt = null;
   run.noclip = false;
   run.shield = false;
+  // A program finished in an earlier round is simply built: it acts from this round's start. (Its old
+  // completion time was on the previous round's clock, which could lie past this round's impact.)
+  for (const p of run.programs) if (p.completedAt !== null) p.completedAt = 0;
 }

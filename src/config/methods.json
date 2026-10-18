@@ -1,61 +1,556 @@
 {
   "_comment": "GAME_PLAN 20: every deflection method with its tag. status: IMPLEMENTED (in the planner/resolver now) or PLANNED (milestone). Tags are content: never change them here.",
   "methods": [
-    { "id": "KINETIC",            "name": "KINETIC IMPACTOR",              "tag": "REAL",        "status": "IMPLEMENTED", "equation": "dv = beta (m/M) U", "lore": "D3", "unlock": "start", "note": "DART calibration: 580 kg at 6.1 km/s, beta 3.6, dv 2.7 mm/s" },
-    { "id": "PRECURSOR",          "name": "PRECURSOR CRATERING PROBE",      "tag": "REAL",        "status": "PLANNED (M6)", "equation": "reveals strength multiplier and beta range", "lore": "D3", "unlock": "Tracking T1", "note": "Hayabusa2-SCI style slug" },
-    { "id": "CIVIL_DEFENSE",      "name": "CIVIL DEFENSE / EVACUATION",     "tag": "REAL",        "status": "IMPLEMENTED", "equation": "damage x {0.3 airburst, 0.4 city, 0.7 regional}; hit survivable if evacuated >= 7 d out (AIRBURST/CITY)", "lore": "D10", "unlock": "start", "note": "cost 2, any time" },
-    { "id": "NUKE_STANDOFF",      "name": "NUCLEAR STANDOFF (X-RAY ABLATION)", "tag": "REAL",     "status": "PLANNED (M6)", "equation": "f_omega = (1 - sqrt(1 - (R/(R+H))^2))/2;  dv = C_m eps f_omega Y / M", "lore": "D5", "unlock": "Warheads W1", "note": "lab-verified (Z machine 2024), never flown" },
-    { "id": "NUKE_SUBSURFACE",    "name": "NUCLEAR SURFACE / SUBSURFACE",   "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "f_omega 0.5 / 1.0, eps 0.5 / 0.9, then the disruption branch", "lore": "D5", "unlock": "W2" },
-    { "id": "HAIV",               "name": "HAIV",                           "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "leader crater + follower warhead; accuracy 0.7", "lore": "D5", "unlock": "W2 + I2" },
-    { "id": "HAMMER",             "name": "HAMMER (NASA/NNSA 2018)",        "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "8.8 t vehicle, kinetic or nuclear", "lore": "D5", "unlock": "L3" },
-    { "id": "PULSE_TRAIN",        "name": "NUCLEAR PULSE TRAIN",            "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "sum of standoff impulses, fragmentation check after each", "lore": "D5", "unlock": "W3" },
-    { "id": "GRAVITY_TRACTOR",    "name": "GRAVITY TRACTOR",                "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "a = G m_sc / d^2, d >= 1.5 R", "lore": "D6", "unlock": "G1" },
-    { "id": "ENHANCED_TRACTOR",   "name": "ENHANCED GRAVITY TRACTOR",       "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "m_sc += boulder (<= 20 t)", "lore": "D6", "unlock": "G1 + NET1" },
-    { "id": "ION_BEAM",           "name": "ION BEAM SHEPHERD",              "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "a = F_beam / M; F 0.1 / 0.5 / 2 N", "lore": "D6", "unlock": "G2" },
-    { "id": "LASER_ABLATION",     "name": "LASER ABLATION (DE-STARLITE)",   "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "F = 3e-5 N/W x P; 50 kW / 200 kW / 1 MW", "lore": "D6", "unlock": "G3" },
-    { "id": "GROUND_LASER",       "name": "GROUND-BASED LASER (PHIPPS)",    "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "F = C_m P x 0.3 within 0.05 AU", "lore": "D6", "unlock": "GROUND_LASER program" },
-    { "id": "MIRROR_BEES",        "name": "SOLAR CONCENTRATOR / MIRROR BEES", "tag": "PROPOSED",  "status": "PLANNED (M6)", "equation": "P = 0.6 x 1361 x A; F = 1e-4 P; A decays 10%/month", "lore": "D6", "unlock": "G2" },
-    { "id": "MASS_DRIVER",        "name": "MASS DRIVER",                    "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "F = m_dot v_e; 0.1 / 1 / 10 kg/s at 500 m/s", "lore": "D6", "unlock": "G3" },
-    { "id": "TUGBOAT",            "name": "TUGBOAT",                        "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "a = eta_spin F / M; eta_spin 0.3 unless despun", "lore": "D6", "unlock": "G2" },
-    { "id": "TETHER",             "name": "TETHER BALLAST",                 "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "dr = L m_b / (M + m_b): ~100 m. Shown so the number is on screen", "lore": "D6", "unlock": "G1" },
-    { "id": "ELECTROSTATIC",      "name": "ELECTROSTATIC TRACTOR",          "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "screened by solar-wind plasma (Debye ~10 m): F ~ 0. NOT VIABLE", "lore": "D6", "unlock": "G1" },
-    { "id": "MAGNETIC",           "name": "MAGNETIC TRACTOR (IRON)",        "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "contact induction tug, eta_spin 0.5", "lore": "D6", "unlock": "G2, iron only" },
-    { "id": "YARKOVSKY",          "name": "YARKOVSKY / ALBEDO PAINT",       "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "da/dt ~ 2e-4 AU/Myr: ~300 m in 10 years. NOT VIABLE at game timescales", "lore": "D9", "unlock": "always shown" },
-    { "id": "SAIL_ON_BODY",       "name": "SOLAR SAIL ON THE BODY",         "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "F = 2 P_rad A (AU/r)^2; 1 km^2 gives ~9 N", "lore": "D7", "unlock": "SL2 + NET1" },
-    { "id": "E_SAIL",             "name": "ELECTRIC / MAGNETIC SAIL TUG",   "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "F ~ 0.5 mN per km of tether at 1 AU", "lore": "D7", "unlock": "SL2" },
-    { "id": "PI",                 "name": "PI: PULVERIZE IT",               "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "penetrator array shreds < 100 m into < 10 m pieces; damage 0.05 E; down to T-12 h", "lore": "D10", "unlock": "PI tech" },
-    { "id": "CAPTURE_BAG",        "name": "CAPTURE BAG (ARM STYLE)",        "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "< 10 m body or fragment captured: resolved", "lore": "D10", "unlock": "NET1" },
-    { "id": "CONVENTIONAL",       "name": "CONVENTIONAL EXPLOSIVES",        "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "Q from 4.2 MJ/kg; weak; a fragmentation hazard", "lore": "D4", "unlock": "start" },
-    { "id": "DUST_CLOUD",         "name": "DUST CLOUD BRAKING",             "tag": "PROPOSED",    "status": "PLANNED (M6)", "equation": "drag impulse from a donor cloud within 0.05 AU; rare", "lore": "D6", "unlock": "G3" },
-    { "id": "SWARM",              "name": "MULTIPLE-MISSION CAMPAIGNS",     "tag": "PROPOSED",    "status": "IMPLEMENTED", "equation": "SWARM: k staggered launches; DISRUPT-and-sweep: Q >= Q*, then re-plan against fragments", "lore": "D12", "unlock": "start" },
-    { "id": "KINETIC_FLYBY",      "name": "GRAVITY-ASSIST KINETIC",         "tag": "REAL",        "status": "IMPLEMENTED", "equation": "delta = 2 asin(1 / (1 + r_p v_inf^2 / mu)); |dv| = 2 v_inf sin(delta/2)", "lore": "O11", "unlock": "NAV N1" },
-    { "id": "SAIL_KINETIC",       "name": "SAIL-BOOSTED KINETIC",           "tag": "REAL",        "status": "IMPLEMENTED", "equation": "a = a_c (AU/r)^2 cos^2(alpha) n_hat; a_c = 2 eta P_rad / sigma", "lore": "D7", "unlock": "SL1" },
-    { "id": "CNT_NET",            "name": "CARBON NANOTUBE NET + TUG",      "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "a = F_tug / M; 10 / 50 / 200 N", "lore": "D10", "unlock": "NET1 (SCI-FI)" },
-    { "id": "GRAPHENE_SAIL",      "name": "GRAPHENE SAIL (SL4)",            "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "sigma 3 g/m^2, a_c 2.7 mm/s^2", "lore": "D7", "unlock": "SL4 (SCI-FI)" },
-    { "id": "DE_STAR",            "name": "DE-STAR ORBITAL LASER ARRAY",    "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "F = 3e-5 P_opt, 1 to 70 GW, at range", "lore": "D6", "unlock": "ORBITAL_LASER_ARRAY (SCI-FI)" },
-    { "id": "ORION_TUG",          "name": "NUCLEAR PULSE TUG (ORION)",      "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "dv = N x 1e7 N s / M", "lore": "D5", "unlock": "SCI-FI" },
-    { "id": "FUSION_TUG",         "name": "FUSION TUG",                     "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "F = 50 kN: a year on 1e11 kg gives ~15 m/s", "lore": "D6", "unlock": "FUSION_TUG_FLEET (SCI-FI)" },
-    { "id": "ANTIMATTER",         "name": "ANTIMATTER STANDOFF",            "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "1 g = 1.8e14 J (~43 kt); eps 0.5; no fuze limit", "lore": "D5", "unlock": "SCI-FI" },
-    { "id": "LUNAR_MASS_DRIVER",  "name": "LUNAR MASS-DRIVER INTERCEPTOR",  "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "weekly 5 t impactors at C3 up to 60", "lore": "D8", "unlock": "LUNAR_MASS_DRIVER (SCI-FI)" },
-    { "id": "SAIL_SWARM_DEPOT",   "name": "PRE-ACCELERATED SAIL SWARM",     "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "6 sail impactors at 15 km/s parked at 0.6 AU", "lore": "D7", "unlock": "SAIL_SWARM_DEPOT (SCI-FI)" },
-    { "id": "BILLIARDS",          "name": "ASTEROID BILLIARDS",             "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "dv = beta 1e7 x 1e4 / M", "lore": "D3", "unlock": "SCI-FI" },
-    { "id": "DISASSEMBLER",       "name": "DISASSEMBLER SWARM",             "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "M(t) = M0 exp(-t / 5 yr)", "lore": "D10", "unlock": "DISASSEMBLER_SWARM (SCI-FI)" },
-    { "id": "ARCOLOGIES",         "name": "PLANETARY-SCALE CIVIL DEFENSE",  "tag": "SPECULATIVE", "status": "PLANNED (M7)", "equation": "damage x0.1 for CITY/REGIONAL", "lore": "D10", "unlock": "SCI-FI" },
-    { "id": "TELEPORT",           "name": "TELEPORT",                       "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "position += 1 AU along track", "lore": "G6", "unlock": "SIMULATION", "forbidden": "NO-CLONING THEOREM FORBIDS COPYING ITS STATE. ALSO NOBODY BUILT A RECEIVER." },
-    { "id": "OBSERVE",            "name": "OBSERVE (QUANTUM REDIRECTION)",  "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "re-roll the orbit; miss with P = 1/e", "lore": "G6", "unlock": "SIMULATION", "forbidden": "WAVEFUNCTIONS OF 1E11 KG BODIES HAVE DECOHERED. WE ARE PRETENDING." },
-    { "id": "REWIND",             "name": "REWIND N",                       "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "rewind the clock n years", "lore": "G6", "unlock": "SIMULATION", "forbidden": "CLOSED TIMELIKE CURVES NOT FOUND." },
-    { "id": "EDIT_G",             "name": "EDIT G",                         "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "change G live", "lore": "G6", "unlock": "SIMULATION", "forbidden": "G HAS BEEN 6.674E-11 FOR 13.8 GYR." },
-    { "id": "DELETE",             "name": "DELETE",                         "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "remove the threat", "lore": "G6", "unlock": "SIMULATION", "forbidden": "MASS-ENERGY CONSERVATION VIOLATED BY 9E27 J." },
-    { "id": "NOCLIP",             "name": "NOCLIP",                         "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "HOME non-colliding this round", "lore": "G6", "unlock": "SIMULATION", "forbidden": "PAULI EXCLUSION STILL APPLIES TO PLANETS." },
-    { "id": "TRACTORBEAM",        "name": "TRACTORBEAM",                    "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "1e6 N at any range, no reaction mass", "lore": "G6", "unlock": "SIMULATION", "forbidden": "MOMENTUM CONSERVATION: WHO IS PUSHING BACK?" },
-    { "id": "SINGULARITY",        "name": "SINGULARITY",                    "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "t_evap = 5120 pi G^2 M^3 / (hbar c^4)", "lore": "G6", "unlock": "SIMULATION", "forbidden": "A 1E4 KG HOLE LASTS 8E-5 S AND RELEASES 9E20 J (215 MT) NEXT TO YOUR PROBE. ROUND OVER." },
-    { "id": "WORMHOLE",           "name": "WORMHOLE",                       "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "route the threat into another branch", "lore": "G6", "unlock": "MULTIVERSE", "forbidden": "EXOTIC MATTER WITH NEGATIVE ENERGY DENSITY: 0 KG ON HAND." },
-    { "id": "DIPLOMACY",          "name": "DIPLOMACY",                      "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "effect 0", "lore": "G6", "unlock": "SIMULATION", "forbidden": "RESPONSE RECEIVED: 'NO.'" },
-    { "id": "DRILLCREW",          "name": "DRILLCREW",                      "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "the crew refuses", "lore": "G6", "unlock": "SIMULATION", "forbidden": "TEXAS-SIZED BODY (1.4E21 KG) NEEDS DV 6.5 M/S IN 18 D: >= 3E22 J, ABOUT 7 MILLION MEGATONS. YOU BROUGHT ONE." },
-    { "id": "PLANETTHRUSTERS",    "name": "PLANETTHRUSTERS",                "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "move HOME by dv", "lore": "G6", "unlock": "SIMULATION", "forbidden": "0.5 X 6E24 KG X (1 M/S)^2 = 3E24 J, ABOUT 7E8 MEGATONS." },
-    { "id": "SHIELD",             "name": "SHIELD",                         "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "absorb the impact energy in a dome", "lore": "G6", "unlock": "SIMULATION", "forbidden": "2E19 J DUMPED INTO ONE STRUCTURE. THE GRID IS A CRATER NOW." },
-    { "id": "SHRINK",             "name": "SHRINK",                         "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "D *= 0.1", "lore": "G6", "unlock": "SIMULATION", "forbidden": "WHERE DID 99.9% OF THE MASS GO?" },
-    { "id": "SUMMONDEVS",         "name": "SUMMONDEVS",                     "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "opens the knobs editor", "lore": "G6", "unlock": "SIMULATION", "forbidden": "YOU ARE NOW THE SIMULATION." },
-    { "id": "MULTIVERSE",         "name": "MULTIVERSE N",                   "tag": "FICTION",     "status": "PLANNED (M7)", "equation": "fork the round into n branches", "lore": "G6", "unlock": "SIMULATION", "forbidden": "EVERETT WOULD LIKE A WORD." }
+    {
+      "id": "KINETIC",
+      "name": "KINETIC IMPACTOR",
+      "tag": "REAL",
+      "status": "IMPLEMENTED",
+      "equation": "dv = beta (m/M) U",
+      "lore": "D3",
+      "unlock": "start",
+      "note": "DART calibration: 580 kg at 6.1 km/s, beta 3.6, dv 2.7 mm/s"
+    },
+    {
+      "id": "PRECURSOR",
+      "name": "PRECURSOR CRATERING PROBE",
+      "tag": "REAL",
+      "status": "PLANNED (M6)",
+      "equation": "reveals strength multiplier and beta range",
+      "lore": "D3",
+      "unlock": "Tracking T1",
+      "note": "Hayabusa2-SCI style slug"
+    },
+    {
+      "id": "CIVIL_DEFENSE",
+      "name": "CIVIL DEFENSE / EVACUATION",
+      "tag": "REAL",
+      "status": "IMPLEMENTED",
+      "equation": "damage x {0.3 airburst, 0.4 city, 0.7 regional}; hit survivable if evacuated >= 7 d out (AIRBURST/CITY)",
+      "lore": "D10",
+      "unlock": "start",
+      "note": "cost 2, any time"
+    },
+    {
+      "id": "NUKE_STANDOFF",
+      "name": "NUCLEAR STANDOFF (X-RAY ABLATION)",
+      "tag": "REAL",
+      "status": "PLANNED (M6)",
+      "equation": "f_omega = (1 - sqrt(1 - (R/(R+H))^2))/2;  dv = C_m eps f_omega Y / M",
+      "lore": "D5",
+      "unlock": "Warheads W1",
+      "note": "lab-verified (Z machine 2024), never flown"
+    },
+    {
+      "id": "NUKE_SUBSURFACE",
+      "name": "NUCLEAR SURFACE / SUBSURFACE",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "f_omega 0.5 / 1.0, eps 0.5 / 0.9, then the disruption branch",
+      "lore": "D5",
+      "unlock": "W2"
+    },
+    {
+      "id": "HAIV",
+      "name": "HAIV",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "leader crater + follower warhead; accuracy 0.7",
+      "lore": "D5",
+      "unlock": "W2 + I2"
+    },
+    {
+      "id": "HAMMER",
+      "name": "HAMMER (NASA/NNSA 2018)",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "8.8 t vehicle, kinetic or nuclear",
+      "lore": "D5",
+      "unlock": "L3"
+    },
+    {
+      "id": "PULSE_TRAIN",
+      "name": "NUCLEAR PULSE TRAIN",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "sum of standoff impulses, fragmentation check after each",
+      "lore": "D5",
+      "unlock": "W3"
+    },
+    {
+      "id": "GRAVITY_TRACTOR",
+      "name": "GRAVITY TRACTOR",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "a = G m_sc / d^2, d >= 1.5 R",
+      "lore": "D6",
+      "unlock": "G1"
+    },
+    {
+      "id": "ENHANCED_TRACTOR",
+      "name": "ENHANCED GRAVITY TRACTOR",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "m_sc += boulder (<= 20 t)",
+      "lore": "D6",
+      "unlock": "G1 + NET1"
+    },
+    {
+      "id": "ION_BEAM",
+      "name": "ION BEAM SHEPHERD",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "a = F_beam / M; F 0.1 / 0.5 / 2 N",
+      "lore": "D6",
+      "unlock": "G2"
+    },
+    {
+      "id": "LASER_ABLATION",
+      "name": "LASER ABLATION (DE-STARLITE)",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "F = 3e-5 N/W x P; 50 kW / 200 kW / 1 MW",
+      "lore": "D6",
+      "unlock": "G3"
+    },
+    {
+      "id": "GROUND_LASER",
+      "name": "GROUND-BASED LASER (PHIPPS)",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "F = C_m P x 0.3 within 0.05 AU",
+      "lore": "D6",
+      "unlock": "GROUND_LASER program"
+    },
+    {
+      "id": "MIRROR_BEES",
+      "name": "SOLAR CONCENTRATOR / MIRROR BEES",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "P = 0.6 x 1361 x A; F = 1e-4 P; A decays 10%/month",
+      "lore": "D6",
+      "unlock": "G2"
+    },
+    {
+      "id": "MASS_DRIVER",
+      "name": "MASS DRIVER",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "F = m_dot v_e; 0.1 / 1 / 10 kg/s at 500 m/s",
+      "lore": "D6",
+      "unlock": "G3"
+    },
+    {
+      "id": "TUGBOAT",
+      "name": "TUGBOAT",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "a = eta_spin F / M; eta_spin 0.3 unless despun",
+      "lore": "D6",
+      "unlock": "G2"
+    },
+    {
+      "id": "TETHER",
+      "name": "TETHER BALLAST",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "dr = L m_b / (M + m_b): ~100 m. Shown so the number is on screen",
+      "lore": "D6",
+      "unlock": "G1"
+    },
+    {
+      "id": "ELECTROSTATIC",
+      "name": "ELECTROSTATIC TRACTOR",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "screened by solar-wind plasma (Debye ~10 m): F ~ 0. NOT VIABLE",
+      "lore": "D6",
+      "unlock": "G1"
+    },
+    {
+      "id": "MAGNETIC",
+      "name": "MAGNETIC TRACTOR (IRON)",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "contact induction tug, eta_spin 0.5",
+      "lore": "D6",
+      "unlock": "G2, iron only"
+    },
+    {
+      "id": "YARKOVSKY",
+      "name": "YARKOVSKY / ALBEDO PAINT",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "da/dt ~ 2e-4 AU/Myr: ~300 m in 10 years. NOT VIABLE at game timescales",
+      "lore": "D9",
+      "unlock": "always shown"
+    },
+    {
+      "id": "SAIL_ON_BODY",
+      "name": "SOLAR SAIL ON THE BODY",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "F = 2 P_rad A (AU/r)^2; 1 km^2 gives ~9 N",
+      "lore": "D7",
+      "unlock": "SL2 + NET1"
+    },
+    {
+      "id": "E_SAIL",
+      "name": "ELECTRIC / MAGNETIC SAIL TUG",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "F ~ 0.5 mN per km of tether at 1 AU",
+      "lore": "D7",
+      "unlock": "SL2"
+    },
+    {
+      "id": "PI",
+      "name": "PI: PULVERIZE IT",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "penetrator array shreds < 100 m into < 10 m pieces; damage 0.05 E; down to T-12 h",
+      "lore": "D10",
+      "unlock": "PI tech"
+    },
+    {
+      "id": "CAPTURE_BAG",
+      "name": "CAPTURE BAG (ARM STYLE)",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "< 10 m body or fragment captured: resolved",
+      "lore": "D10",
+      "unlock": "NET1"
+    },
+    {
+      "id": "CONVENTIONAL",
+      "name": "CONVENTIONAL EXPLOSIVES",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "Q from 4.2 MJ/kg; weak; a fragmentation hazard",
+      "lore": "D4",
+      "unlock": "start"
+    },
+    {
+      "id": "DUST_CLOUD",
+      "name": "DUST CLOUD BRAKING",
+      "tag": "PROPOSED",
+      "status": "PLANNED (M6)",
+      "equation": "drag impulse from a donor cloud within 0.05 AU; rare",
+      "lore": "D6",
+      "unlock": "G3"
+    },
+    {
+      "id": "SWARM",
+      "name": "MULTIPLE-MISSION CAMPAIGNS",
+      "tag": "PROPOSED",
+      "status": "IMPLEMENTED",
+      "equation": "SWARM: k staggered launches; DISRUPT-and-sweep: Q >= Q*, then re-plan against fragments",
+      "lore": "D12",
+      "unlock": "start"
+    },
+    {
+      "id": "KINETIC_FLYBY",
+      "name": "GRAVITY-ASSIST KINETIC",
+      "tag": "REAL",
+      "status": "IMPLEMENTED",
+      "equation": "delta = 2 asin(1 / (1 + r_p v_inf^2 / mu)); |dv| = 2 v_inf sin(delta/2)",
+      "lore": "O11",
+      "unlock": "NAV N1"
+    },
+    {
+      "id": "SAIL_KINETIC",
+      "name": "SAIL-BOOSTED KINETIC",
+      "tag": "REAL",
+      "status": "IMPLEMENTED",
+      "equation": "a = a_c (AU/r)^2 cos^2(alpha) n_hat; a_c = 2 eta P_rad / sigma",
+      "lore": "D7",
+      "unlock": "SL1"
+    },
+    {
+      "id": "CNT_NET",
+      "name": "CARBON NANOTUBE NET + TUG",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "a = F_tug / M; 10 / 50 / 200 N",
+      "lore": "D10",
+      "unlock": "NET1 (SCI-FI)"
+    },
+    {
+      "id": "GRAPHENE_SAIL",
+      "name": "GRAPHENE SAIL (SL4)",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "sigma 3 g/m^2, a_c 2.7 mm/s^2",
+      "lore": "D7",
+      "unlock": "SL4 (SCI-FI)"
+    },
+    {
+      "id": "DE_STAR",
+      "name": "DE-STAR ORBITAL LASER ARRAY",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "F = 3e-5 P_opt, 1 to 70 GW, at range",
+      "lore": "D6",
+      "unlock": "ORBITAL_LASER_ARRAY (SCI-FI)"
+    },
+    {
+      "id": "ORION_TUG",
+      "name": "NUCLEAR PULSE TUG (ORION)",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "dv = N x 1e7 N s / M",
+      "lore": "D5",
+      "unlock": "SCI-FI"
+    },
+    {
+      "id": "FUSION_TUG",
+      "name": "FUSION TUG",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "F = 50 kN: a year on 1e11 kg gives ~15 m/s",
+      "lore": "D6",
+      "unlock": "FUSION_TUG_FLEET (SCI-FI)"
+    },
+    {
+      "id": "ANTIMATTER",
+      "name": "ANTIMATTER STANDOFF",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "1 g = 1.8e14 J (~43 kt); eps 0.5; no fuze limit",
+      "lore": "D5",
+      "unlock": "SCI-FI"
+    },
+    {
+      "id": "LUNAR_MASS_DRIVER",
+      "name": "LUNAR MASS-DRIVER INTERCEPTOR",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "weekly 5 t impactors at C3 up to 60",
+      "lore": "D8",
+      "unlock": "LUNAR_MASS_DRIVER (SCI-FI)"
+    },
+    {
+      "id": "SAIL_SWARM_DEPOT",
+      "name": "PRE-ACCELERATED SAIL SWARM",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "6 sail impactors at 15 km/s parked at 0.6 AU",
+      "lore": "D7",
+      "unlock": "SAIL_SWARM_DEPOT (SCI-FI)"
+    },
+    {
+      "id": "BILLIARDS",
+      "name": "ASTEROID BILLIARDS",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "dv = beta 1e7 x 1e4 / M",
+      "lore": "D3",
+      "unlock": "SCI-FI"
+    },
+    {
+      "id": "DISASSEMBLER",
+      "name": "DISASSEMBLER SWARM",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "M(t) = M0 exp(-t / 5 yr)",
+      "lore": "D10",
+      "unlock": "DISASSEMBLER_SWARM (SCI-FI)"
+    },
+    {
+      "id": "ARCOLOGIES",
+      "name": "PLANETARY-SCALE CIVIL DEFENSE",
+      "tag": "SPECULATIVE",
+      "status": "PLANNED (M7)",
+      "equation": "damage x0.1 for CITY/REGIONAL",
+      "lore": "D10",
+      "unlock": "SCI-FI"
+    },
+    {
+      "id": "TELEPORT",
+      "name": "TELEPORT",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "position += 1 AU along track",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "NO-CLONING THEOREM FORBIDS COPYING ITS STATE. ALSO NOBODY BUILT A RECEIVER."
+    },
+    {
+      "id": "OBSERVE",
+      "name": "OBSERVE (QUANTUM REDIRECTION)",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "re-roll the orbit; miss with P = 1/e",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "WAVEFUNCTIONS OF 1E11 KG BODIES HAVE DECOHERED. WE ARE PRETENDING."
+    },
+    {
+      "id": "REWIND",
+      "name": "REWIND N",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "rewind the clock n years",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "CLOSED TIMELIKE CURVES NOT FOUND."
+    },
+    {
+      "id": "EDIT_G",
+      "name": "EDIT G",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "change G live",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "G HAS BEEN 6.674E-11 FOR 13.8 GYR."
+    },
+    {
+      "id": "DELETE",
+      "name": "DELETE",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "remove the threat",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "MASS-ENERGY CONSERVATION VIOLATED BY 9E27 J."
+    },
+    {
+      "id": "NOCLIP",
+      "name": "NOCLIP",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "HOME non-colliding this round",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "PAULI EXCLUSION STILL APPLIES TO PLANETS."
+    },
+    {
+      "id": "TRACTORBEAM",
+      "name": "TRACTORBEAM",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "1e6 N at any range, no reaction mass",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "MOMENTUM CONSERVATION: WHO IS PUSHING BACK?"
+    },
+    {
+      "id": "SINGULARITY",
+      "name": "SINGULARITY",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "t_evap = 5120 pi G^2 M^3 / (hbar c^4)",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "A 1E4 KG HOLE LASTS 8E-5 S AND RELEASES 9E20 J (215 MT) NEXT TO YOUR PROBE. ROUND OVER."
+    },
+    {
+      "id": "WORMHOLE",
+      "name": "WORMHOLE",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "route the threat into another branch",
+      "lore": "G6",
+      "unlock": "MULTIVERSE",
+      "forbidden": "EXOTIC MATTER WITH NEGATIVE ENERGY DENSITY: 0 KG ON HAND."
+    },
+    {
+      "id": "DIPLOMACY",
+      "name": "DIPLOMACY",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "effect 0",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "RESPONSE RECEIVED: 'NO.'"
+    },
+    {
+      "id": "DRILLCREW",
+      "name": "DRILLCREW",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "the crew refuses",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "TEXAS-SIZED BODY (1.4E21 KG) NEEDS DV 6.5 M/S IN 18 D: >= 3E22 J, ABOUT 7 MILLION MEGATONS. YOU BROUGHT ONE."
+    },
+    {
+      "id": "PLANETTHRUSTERS",
+      "name": "PLANETTHRUSTERS",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "move HOME by dv",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "0.5 X 6E24 KG X (1 M/S)^2 = 3E24 J, ABOUT 7E8 MEGATONS."
+    },
+    {
+      "id": "SHIELD",
+      "name": "SHIELD",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "absorb the impact energy in a dome",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "2E19 J DUMPED INTO ONE STRUCTURE. THE GRID IS A CRATER NOW."
+    },
+    {
+      "id": "SHRINK",
+      "name": "SHRINK",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "D *= 0.1",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "WHERE DID 99.9% OF THE MASS GO?"
+    },
+    {
+      "id": "SUMMONDEVS",
+      "name": "SUMMONDEVS",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "opens the knobs editor",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "YOU ARE NOW THE SIMULATION."
+    },
+    {
+      "id": "MULTIVERSE",
+      "name": "MULTIVERSE N",
+      "tag": "FICTION",
+      "status": "PLANNED (M7)",
+      "equation": "fork the round into n branches",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "EVERETT WOULD LIKE A WORD."
+    },
+    {
+      "id": "NANOFORGE",
+      "name": "NANOFORGE: RECONFIGURABLE-MATTER SEEDS",
+      "tag": "SPECULATIVE",
+      "status": "BUILT (2026-10-18)",
+      "equation": "F = mdot v_e after the growth delay; the rock is its own propellant",
+      "lore": "D10",
+      "unlock": "NANOFORGE_SEEDS (SCI-FI)"
+    },
+    {
+      "id": "THRUSTER_SWARM",
+      "name": "SELF-ASSEMBLING THRUSTER SWARM",
+      "tag": "SPECULATIVE",
+      "status": "BUILT (2026-10-18)",
+      "equation": "F = eta_spin N F_unit, continuous from arrival",
+      "lore": "D6",
+      "unlock": "THRUSTER_SWARM (SCI-FI)"
+    },
+    {
+      "id": "SHEPHERD",
+      "name": "SHEPHERD NETWORK: PARKED IMPACTOR ROCKS",
+      "tag": "SPECULATIVE",
+      "status": "BUILT (2026-10-18)",
+      "equation": "dv = beta m_rock U / M, once per threat",
+      "lore": "D3",
+      "unlock": "SHEPHERD_NETWORK (SCI-FI)"
+    }
   ]
 }

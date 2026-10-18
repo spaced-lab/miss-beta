@@ -13,7 +13,7 @@ import { YEAR } from '../physics/constants';
 import type { Economy } from '../game/economy';
 import { yearOf } from './detection';
 
-export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER';
+export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD';
 
 export interface Effect {
   kind: EffectKind;
@@ -74,6 +74,10 @@ export interface RunEffects {
   lunarDriverC3: number;
   fusionTugN: number;
   disassemblerTauYears: number;
+  /** 30: speculative standing capabilities owned (0 / 1). */
+  nanoforge: number;
+  thrusterSwarm: number;
+  shepherd: number;
 }
 
 export function defaultEffects(): RunEffects {
@@ -98,6 +102,9 @@ export function defaultEffects(): RunEffects {
     lunarDriverC3: 0,
     fusionTugN: 0,
     disassemblerTauYears: 0,
+    nanoforge: 0,
+    thrusterSwarm: 0,
+    shepherd: 0,
   };
 }
 
@@ -182,6 +189,15 @@ export function applyEffects(def: ProgramDef, ctx: ProgramsContext, t: number): 
         break;
       case 'DISASSEMBLER':
         ctx.effects.disassemblerTauYears = v;
+        break;
+      case 'NANOFORGE':
+        ctx.effects.nanoforge = 1;
+        break;
+      case 'THRUSTER_SWARM':
+        ctx.effects.thrusterSwarm = 1;
+        break;
+      case 'SHEPHERD':
+        ctx.effects.shepherd = 1;
         break;
     }
   }

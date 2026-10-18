@@ -329,6 +329,51 @@
         }
       ],
       "note": "von Neumann mining swarm: consumes a threat with M(t) = M0 exp(-t / 5 yr)"
+    },
+    {
+      "id": "NANOFORGE_SEEDS",
+      "name": "NANOFORGE SEEDS (RECONFIGURABLE MATTER)",
+      "tag": "SPECULATIVE",
+      "years": 14,
+      "costPerYear": 12,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "NANOFORGE",
+          "value": 1
+        }
+      ],
+      "note": "self-replicating seeds land, grow over the body, and turn its own regolith into a mass driver: F = mdot v_e"
+    },
+    {
+      "id": "THRUSTER_SWARM",
+      "name": "SELF-ASSEMBLING THRUSTER SWARM",
+      "tag": "SPECULATIVE",
+      "years": 9,
+      "costPerYear": 8,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "THRUSTER_SWARM",
+          "value": 1
+        }
+      ],
+      "note": "hundreds of small units land, lock together, despin the body and push"
+    },
+    {
+      "id": "SHEPHERD_NETWORK",
+      "name": "SHEPHERD NETWORK (PARKED IMPACTOR ROCKS)",
+      "tag": "SPECULATIVE",
+      "years": 18,
+      "costPerYear": 14,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "SHEPHERD",
+          "value": 1
+        }
+      ],
+      "note": "a standing fleet steers captured 25 m rocks; one is fired into every new threat"
     }
   ]
 }

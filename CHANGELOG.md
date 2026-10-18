@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- SPECULATIVE standing capabilities (GAME_PLAN 30): NANOFORGE SEEDS (the rock becomes its own mass-driver rocket),
+  a SELF-ASSEMBLING THRUSTER SWARM, a SHEPHERD NETWORK of parked impactor rocks, and the FUSION TUG FLEET now
+  actually pushes. Fixed: programs completed in an earlier round never acted again (their completion time was on
+  the old round's clock).
+
 - 2026-10-18 build-out: COLOUR is a plain MONO / NEON option (orbits blue, stars warm white); rotating 3-D
   wireframe models (DART, Rubin, Goldstone, NEO Surveyor, sail, tractor, launcher, HAMMER, rubble pile) and real
   NASA/JPL data panels (fireballs, closest passes, Sentry list) in the Learning Center; pixel-art launch and
