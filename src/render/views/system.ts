@@ -49,7 +49,6 @@ import { drawMiniSystem } from '../miniSystem';
 import { CAMERA_PITCHES, polyhedron, tilt, type Camera } from '../camera3d';
 import { Materialize, StarField } from '../wire';
 import { ROLE_STYLE } from '../palettes';
-import { unlockSpectrum } from '../../game/settings';
 import type { UiSfx } from '../../audio/ui';
 import { advanceTutorial, createTutorial, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, TUTORIAL_STEPS, type TutorialFacts, type TutorialState } from '../../game/tutorial';
 import { saveJson } from '../../game/persistence';
@@ -456,7 +455,6 @@ export class SystemScreen implements Screen {
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
     if (!this.approachSounded) this.sfx?.approach(finalOutcome === 'HIT');
-    if (finalOutcome === 'MISS' && !this.run.sandbox && !this.run.tutorial && unlockSpectrum()) this.note('SPECTRUM UNLOCKED: SEMANTIC COLOURS IN OPTIONS.', 6);
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
     this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
     this.cine.clear();
@@ -711,10 +709,11 @@ export class SystemScreen implements Screen {
 
     const [sx, sy] = this.project(0, 0);
     const sr = 7;
-    s.circle(sx, sy, sr, { color: p.hot, glow: 2 });
+    const starC = s.spectrum ? s.role('star') : p.hot;
+    s.circle(sx, sy, sr, { color: starC, glow: 2 });
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      s.stroke([sx + Math.cos(a) * (sr + 3), sy + Math.sin(a) * (sr + 3), sx + Math.cos(a) * (sr + 8), sy + Math.sin(a) * (sr + 8)], { color: p.hot, glow: 1 });
+      s.stroke([sx + Math.cos(a) * (sr + 3), sy + Math.sin(a) * (sr + 3), sx + Math.cos(a) * (sr + 8), sy + Math.sin(a) * (sr + 8)], { color: starC, glow: 1 });
     }
 
     for (const pl of w.planets) {
@@ -723,11 +722,11 @@ export class SystemScreen implements Screen {
         pts = orbitPoints(pl.elements, 256);
         this.orbitCache.set(pl.id, pts);
       }
-      this.polyline(pts, { closed: true, color: p.dim, glow: 0, width: 1 });
+      this.polyline(pts, { closed: true, color: s.spectrum ? s.role('orbit') : p.dim, glow: 0, width: 1, alpha: s.spectrum ? 0.55 : 1 });
       const st = planetState(w, pl);
       const [px, py] = this.project(st.r.x, st.r.y);
       const pr = pl.id === 'GIANT' ? 7 : pl.id === 'HOME' ? 5 : 4;
-      s.circle(px, py, pr, { glow: pl.id === 'HOME' ? 1.6 : 1, color: pl.id === 'HOME' ? p.hot : p.ink });
+      s.circle(px, py, pr, { glow: pl.id === 'HOME' ? 1.6 : 1, color: pl.id === 'HOME' ? (s.spectrum ? s.role('planet') : p.hot) : s.spectrum ? s.role('orbit') : p.ink });
       for (let i = 0; i < pl.detailLines; i++) {
         const yy = py - pr * 0.5 + (i / Math.max(1, pl.detailLines - 1)) * pr * (pl.detailLines > 1 ? 1 : 0);
         const half = Math.sqrt(Math.max(0, pr * pr - (yy - py) * (yy - py))) * 0.8;

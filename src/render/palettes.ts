@@ -9,7 +9,7 @@
 export type ColorMode = 'PHOSPHOR' | 'AMBER' | 'ICE' | 'VAPOR' | 'BLACKLIGHT' | 'HOLO' | 'DAYLIGHT';
 
 /** Semantic roles. With SPECTRUM off every role maps to the mode's ink. */
-export type Role = 'threat' | 'danger' | 'craft' | 'fragment' | 'program' | 'sail' | 'nuclear' | 'planet' | 'text';
+export type Role = 'threat' | 'danger' | 'craft' | 'fragment' | 'program' | 'sail' | 'nuclear' | 'planet' | 'text' | 'orbit' | 'star';
 
 export interface Palette {
   readonly name: ColorMode;

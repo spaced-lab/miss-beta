@@ -332,7 +332,7 @@ export class CenterScreen implements Screen {
         s.ctx.beginPath();
         s.ctx.rect(lx - 2, ly + 4, lw + 4, plotH + 4);
         s.ctx.clip();
-        lab.draw(s, v, { x: lx, y: ly + 6, w: lw, h: plotH });
+        lab.draw(s, v, { x: lx, y: ly + 6, w: lw, h: plotH }, performance.now() / 1000);
         s.ctx.restore();
         ly += plotH + 14;
         for (const line of lab.lines(v)) {

@@ -77,7 +77,8 @@ export function saveSettings(st: Settings): void {
 export function applySettings(st: Settings, s: Surface): void {
   s.palette = PALETTES[st.colorMode];
   s.glowMode = st.glow;
-  s.spectrum = st.spectrum && spectrumUnlocked();
+  // NEON colours are a plain choice since 2026-10-18 (owner): no unlock, monochrome stays the default.
+  s.spectrum = st.spectrum;
   setTextScale(TEXT_SCALE[st.textSize]);
 }
 

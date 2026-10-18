@@ -34,7 +34,8 @@ export interface Lab {
   sliders: Slider[];
   /** Formula lines with the current numbers substituted. */
   lines(v: Record<string, number>): string[];
-  draw(s: Surface, v: Record<string, number>, box: Box): void;
+  /** `t` is seconds since the page loaded: labs may animate (a rotating model, a craft moving on its arc). */
+  draw(s: Surface, v: Record<string, number>, box: Box, t?: number): void;
   /** The real function(s) this lab calls, for SHOW CODE. */
   code: string[];
 }

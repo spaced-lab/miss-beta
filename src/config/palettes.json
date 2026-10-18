@@ -1,5 +1,5 @@
 {
-  "_comment": "GAME_PLAN 24.1 color modes. Every mode: bg / ink / dim / hot; alt for two-tone modes; glow false and thicker lines for DAYLIGHT. SPECTRUM is a layer: semantic roles get their own hue when unlocked (first clean miss) and switched on in OPTIONS. roleStyle pairs each role with a line style so colorblind players lose nothing.",
+  "_comment": "GAME_PLAN 24.1 color modes. Every mode: bg / ink / dim / hot; alt for two-tone modes; glow false and thicker lines for DAYLIGHT. SPECTRUM is a layer: semantic roles get their own hue when COLOUR is NEON in OPTIONS (monochrome is the default; 2026-10-18 the unlock was dropped). roleStyle pairs each role with a line style so colorblind players lose nothing.",
   "modes": {
     "PHOSPHOR": {
       "bg": "#000000",
@@ -69,7 +69,9 @@
     "sail": "#CCFF00",
     "nuclear": "#FF6A00",
     "planet": "#33FF33",
-    "text": "#E6FFE6"
+    "text": "#E6FFE6",
+    "orbit": "#3D8BFF",
+    "star": "#FFE9A8"
   },
   "roleStyle": {
     "threat": {
@@ -120,6 +122,14 @@
       "marker": "ring"
     },
     "text": {
+      "dash": [],
+      "marker": "none"
+    },
+    "orbit": {
+      "dash": [],
+      "marker": "none"
+    },
+    "star": {
       "dash": [],
       "marker": "none"
     }
