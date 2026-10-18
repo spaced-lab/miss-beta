@@ -534,6 +534,11 @@ export class SystemScreen implements Screen {
       this.planner.update();
       return;
     }
+    // The console takes every key while open (typing L, ? or Esc must not leave the screen).
+    if (this.console.isOpen) {
+      this.console.update(this.gameContext());
+      return;
+    }
     if (k.pressed('Escape')) {
       this.router.go('title');
       return;
@@ -555,10 +560,6 @@ export class SystemScreen implements Screen {
     }
     if (k.pressed('F1')) {
       this.router.go('help');
-      return;
-    }
-    if (this.console.isOpen) {
-      this.console.update(this.gameContext());
       return;
     }
     if (k.pressed('Backquote')) {
