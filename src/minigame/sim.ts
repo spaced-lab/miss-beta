@@ -120,6 +120,8 @@ export interface Turret {
   tier: number;
   /** SUPER sentry: 3-way spread, double rate, longer life, hue-cycling. */
   superb: boolean;
+  /** Seconds until this sentry's next beam (v3.4 sentry lasers, from SENTRY_LASER_LEVEL). */
+  laserCd: number;
 }
 
 /** A seeker missile: lead pursuit toward `targetId`, area blast on contact. */
@@ -148,6 +150,8 @@ export interface Drone {
   targetId: number;
   /** Fixed angle around its target this drone prefers, so a swarm spreads instead of stacking. */
   slot: number;
+  /** 0..SWARM_TIER_MAX from the release level: speed, damage and colour (v3.4). */
+  tier: number;
 }
 
 export interface Flash {
@@ -155,10 +159,15 @@ export interface Flash {
   t: number;
 }
 
-/** A fading laser beam for the renderer. */
+/** A fading laser beam for the renderer: from (x, y) along `angle` for `len` radii. `tier` picks the colour:
+ *  -1 the player's beam, 0..2 a sentry's tier, 5 the beam array. */
 export interface Beam {
   angle: number;
   t: number;
+  x: number;
+  y: number;
+  len: number;
+  tier: number;
 }
 
 /** Events the step emits for sound and effects; the host drains them each frame. */
@@ -183,6 +192,8 @@ export type SimEvent =
   | { type: 'blast' }
   | { type: 'swarm'; count: number }
   | { type: 'burnout' }
+  /** The sentries' beam array fired `beams` beams at one rock (v3.4). */
+  | { type: 'array'; beams: number }
   | { type: 'over' };
 
 export type Status = 'ready' | 'playing' | 'over';
@@ -242,6 +253,8 @@ export interface MinigameState {
   swarmProgress: number;
   flashes: Flash[];
   beams: Beam[];
+  /** Seconds until the beam array may fire again (v3.4). */
+  arrayCd: number;
   events: SimEvent[];
   /** Seconds since the player's last trigger pull; arms the laser. */
   sinceShot: number;
@@ -351,7 +364,16 @@ export const seekerHitsNeeded = (level: number): number => Math.max(MG.SEEKER_HI
 /** Kills per pulse: PULSE_KILLS + PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (14 to level 6, then rising). */
 export const pulseKillsNeeded = (level: number): number => MG.PULSE_KILLS + MG.PULSE_KILLS_PER_LEVEL * past(level, MG.PULSE_KILLS_FROM_LEVEL);
 /** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL, capped at SWARM_KILLS_CAP (22 to level 6, 102 at 10, 302 at 20, 400 from 25). */
-export const swarmKillsNeeded = (level: number): number => Math.min(MG.SWARM_KILLS_CAP, MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL));
+export const swarmKillsNeeded = (level: number): number => {
+  const rising = Math.min(MG.SWARM_KILLS_CAP, MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL));
+  // The late floor only ever lowers the eased value: early levels keep their smaller price.
+  return Math.max(Math.min(rising, MG.SWARM_KILLS_LATE_MIN), rising - MG.SWARM_KILLS_EASE_PER_LEVEL * past(level, MG.SWARM_KILLS_EASE_FROM_LEVEL));
+};
+/** Drone tier at a release level (v3.4): 0 below SWARM_TIER_FROM_LEVEL, then one step per SWARM_TIER_LEVELS levels. */
+export const droneTier = (level: number): number => (level < MG.SWARM_TIER_FROM_LEVEL ? 0 : Math.min(MG.SWARM_TIER_MAX, 1 + Math.floor((level - MG.SWARM_TIER_FROM_LEVEL) / MG.SWARM_TIER_LEVELS)));
+export const droneSpeed = (tier: number): number => MG.SWARM_SPEED * Math.pow(MG.SWARM_TIER_SPEED_MULT, tier);
+export const sentryLasersOn = (level: number): boolean => level >= MG.SENTRY_LASER_LEVEL;
+export const arrayOn = (level: number): boolean => level >= MG.SENTRY_ARRAY_LEVEL;
 /** Swarm stock cap: SWARM_MAX + one per SWARM_MAX_LEVELS levels, capped at SWARM_MAX_CAP (2, 3 at level 11, 4 at 21, 5 at 31). */
 export const swarmMax = (level: number): number => Math.min(MG.SWARM_MAX_CAP, MG.SWARM_MAX + Math.floor(past(level, 1) / MG.SWARM_MAX_LEVELS));
 /** Sentry cap: TURRET_MAX + one per TURRET_MAX_LEVELS levels after TURRET_LEVEL, capped at TURRET_MAX_CAP (3 at 6, 4 at 12, 5 at 18, 6 at 24). */
@@ -428,6 +450,7 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     swarmProgress: 0,
     flashes: [],
     beams: [],
+    arrayCd: 0,
     events: [],
     sinceShot: 99,
     shake: 0,
@@ -748,13 +771,18 @@ export function releaseSwarm(st: MinigameState): boolean {
   const range = swarmCountRange(st.level);
   const n = st.rng.int(range.min, range.max);
   const life = swarmLife(st.level);
+  const top = droneTier(st.level);
   for (let i = 0; i < n; i++) {
     const a = base + (n === 1 ? 0 : (i / (n - 1) - 0.5) * MG.SWARM_FAN);
+    // Two colours per swarm: the level's tier and the one below, half and half.
+    const tier = top > 0 && st.rng.chance(0.5) ? top - 1 : top;
+    const speed = droneSpeed(tier);
     st.drones.push({
       x: Math.cos(base) * muzzle, y: Math.sin(base) * muzzle,
-      vx: Math.cos(a) * MG.SWARM_SPEED, vy: Math.sin(a) * MG.SWARM_SPEED,
+      vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
       life, maxLife: life, cooldown: st.rng.float(0.2, 0.5), targetId: -1,
       slot: (i / n) * Math.PI * 2,
+      tier,
     });
   }
   flash(st, `SWARM X${n}`, 1);
@@ -938,7 +966,7 @@ function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: n
         gy += (ay / ad) * w;
       }
     }
-    steer(d, Math.atan2(gy - d.y, gx - d.x), MG.SWARM_TURN * dt, MG.SWARM_SPEED);
+    steer(d, Math.atan2(gy - d.y, gx - d.x), MG.SWARM_TURN * dt, droneSpeed(d.tier));
     d.x += d.vx * dt;
     d.y += d.vy * dt;
     if (zone) {
@@ -966,27 +994,31 @@ function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: n
     }
     d.cooldown -= dt;
     if (target && d.cooldown <= 0 && Math.hypot(target.x - d.x, target.y - d.y) <= MG.SWARM_RANGE) {
-      const speed = MG.BULLET_SPEED * MG.SWARM_BULLET_SPEED;
-      pushBullet(st, d.x, d.y, leadAngle(d.x, d.y, target, speed), MG.SWARM_DAMAGE, true, speed, MG.SWARM_BULLET_LIFE);
+      const speed = MG.BULLET_SPEED * MG.SWARM_BULLET_SPEED * Math.pow(MG.SWARM_TIER_BULLET_MULT, d.tier);
+      pushBullet(st, d.x, d.y, leadAngle(d.x, d.y, target, speed), MG.SWARM_DAMAGE + d.tier, true, speed, MG.SWARM_BULLET_LIFE);
       d.cooldown = MG.SWARM_COOLDOWN;
     }
   }
 }
 
 /** Instant beam along `angle` from the muzzle to laserRange(level): damages and pushes every rock it crosses. */
-function fireLaser(st: MinigameState, angle: number): void {
-  const damage = strengthLevel(st.streamCount) + MG.LASER_DAMAGE_BONUS;
-  const muzzle = MG.PLANET_R * 1.28;
-  const range = laserRange(st.level);
+/**
+ * An instant beam from (x0, y0) along `angle` for `len` radii: every rock it crosses takes `damage` and the laser's
+ * impulse; rocks it kills break up as usual. `tier` is only the renderer's colour. Shared by the player's laser,
+ * the sentry lasers and the beam array (v3.4).
+ */
+function beamHit(st: MinigameState, x0: number, y0: number, angle: number, len: number, damage: number, tier: number): void {
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
   const dead: number[] = [];
   for (let j = 0; j < st.asteroids.length; j++) {
     const a = st.asteroids[j];
     if (!a) continue;
-    const along = a.x * ca + a.y * sa;
-    const perp = Math.abs(-a.x * sa + a.y * ca);
-    if (along < muzzle || along > range || perp > a.r) continue;
+    const rx = a.x - x0;
+    const ry = a.y - y0;
+    const along = rx * ca + ry * sa;
+    const perp = Math.abs(-rx * sa + ry * ca);
+    if (along < 0 || along > len || perp > a.r) continue;
     a.hp -= damage;
     const k = (MG.BULLET_IMPULSE * MG.LASER_IMPULSE_MULT * damage) / rockMass(a);
     a.vx += ca * k;
@@ -998,7 +1030,32 @@ function fireLaser(st: MinigameState, angle: number): void {
   }
   dead.sort((p, q) => q - p);
   for (const j of dead) destroyAsteroid(st, j, 1, true);
-  st.beams.push({ angle, t: MG.BEAM_FADE });
+  st.beams.push({ angle, t: MG.BEAM_FADE, x: x0, y: y0, len, tier });
+}
+
+/** The player's beam along `angle` from the muzzle to laserRange(level). */
+function fireLaser(st: MinigameState, angle: number): void {
+  const damage = strengthLevel(st.streamCount) + MG.LASER_DAMAGE_BONUS;
+  const muzzle = MG.PLANET_R * 1.28;
+  beamHit(st, Math.cos(angle) * muzzle, Math.sin(angle) * muzzle, angle, laserRange(st.level) - muzzle, damage, -1);
+}
+
+/**
+ * The beam array (v3.4): every sentry fires at `target` at once. The target is eliminated outright, with no
+ * fragments, then each beam runs on past where it was and damages whatever else it crosses.
+ */
+function fireArray(st: MinigameState, target: Asteroid): void {
+  const shots: { x: number; y: number; angle: number; len: number }[] = [];
+  for (const tr of st.turrets) {
+    const p = turretPosition(tr);
+    const angle = Math.atan2(target.y - p.y, target.x - p.x);
+    shots.push({ x: p.x, y: p.y, angle, len: Math.hypot(target.x - p.x, target.y - p.y) + MG.SENTRY_LASER_RANGE });
+  }
+  const idx = st.asteroids.indexOf(target);
+  if (idx >= 0) destroyAsteroid(st, idx, MG.SENTRY_ARRAY_SCORE_MULT, false);
+  for (const sh of shots) beamHit(st, sh.x, sh.y, sh.angle, sh.len, MG.SENTRY_ARRAY_DAMAGE, 5);
+  flash(st, 'BEAM ARRAY', 1.2);
+  emit(st, { type: 'array', beams: shots.length });
 }
 
 /**
@@ -1044,7 +1101,7 @@ export function deployTurret(st: MinigameState, forceSuper?: boolean, forceKind?
   const superb = forceSuper ?? st.rng.chance(MG.TURRET_SUPER_PROB);
   const kind = forceKind ?? st.rng.pick(SENTRY_KINDS);
   const life = MG.TURRET_LIFE * (superb ? MG.TURRET_SUPER_LIFE_MULT : 1);
-  st.turrets.push({ kind, angle, radius: MG.TURRET_ORBIT_R, home: angle, phase: 0, burst: 0, life, maxLife: life, cooldown: 0.5, targetId: -1, tier: turretTier(st.level), superb });
+  st.turrets.push({ kind, angle, radius: MG.TURRET_ORBIT_R, home: angle, phase: 0, burst: 0, life, maxLife: life, cooldown: 0.5, targetId: -1, tier: turretTier(st.level), superb, laserCd: 1 });
   flash(st, `${superb ? 'SUPER ' : ''}${kind.toUpperCase()} SENTRY`, 1.6);
   emit(st, { type: 'turret' });
 }
@@ -1191,7 +1248,16 @@ function stepTurret(st: MinigameState, tr: Turret, dt: number): void {
   }
   tr.targetId = target ? target.id : -1;
   tr.cooldown -= dt;
-  if (!target || tr.cooldown > 0) return;
+  tr.laserCd -= dt;
+  if (!target) return;
+  if (sentryLasersOn(st.level) && tr.laserCd <= 0) {
+    // Sentry laser (v3.4): a beam along the aim, stronger with the sentry's tier.
+    const p = turretPosition(tr);
+    const dmg = strengthLevel(st.streamCount) + MG.SENTRY_LASER_TIER_DAMAGE * tr.tier + (tr.superb ? 1 : 0);
+    beamHit(st, p.x, p.y, Math.atan2(target.y - p.y, target.x - p.x), MG.SENTRY_LASER_RANGE, dmg, tr.tier);
+    tr.laserCd = MG.SENTRY_LASER_PERIOD / rate;
+  }
+  if (tr.cooldown > 0) return;
   const p = turretPosition(tr);
   sentryFire(st, tr, p.x, p.y, target);
   if (tr.kind === 'sweeper') {
@@ -1326,6 +1392,16 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       continue;
     }
     stepTurret(st, tr, dt);
+  }
+  if (arrayOn(st.level)) {
+    st.arrayCd -= dt;
+    if (st.arrayCd <= 0 && st.turrets.length >= MG.SENTRY_ARRAY_MIN) {
+      const target = pickTarget(st);
+      if (target) {
+        fireArray(st, target);
+        st.arrayCd = MG.SENTRY_ARRAY_PERIOD;
+      }
+    }
   }
 
   // Spawning.
@@ -1503,6 +1579,7 @@ export interface SavedGame {
   swarmProgress: number;
   flashes: Flash[];
   beams: Beam[];
+  arrayCd: number;
   sinceShot: number;
   shake: number;
   secAccum: number;
@@ -1524,11 +1601,11 @@ const shaped = (spec: Record<string, Pred>): Pred => (v) => isRecord(v) && Objec
 const ASTEROID = shaped({ id: num, x: num, y: num, vx: num, vy: num, r: num, tier: num, hp: num, maxHp: num, core: bool, passing: bool, shape: numArr, rot: num, spin: num });
 const BULLET = shaped({ x: num, y: num, vx: num, vy: num, life: num, r: num, damage: num, auto: bool });
 const PARTICLE = shaped({ x: num, y: num, vx: num, vy: num, life: num, max: num, tier: num });
-const TURRET = shaped({ kind: oneOf(...SENTRY_KINDS), angle: num, radius: num, home: num, phase: num, burst: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool });
+const TURRET = shaped({ kind: oneOf(...SENTRY_KINDS), angle: num, radius: num, home: num, phase: num, burst: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool, laserCd: opt(num) });
 const SEEKER = shaped({ x: num, y: num, vx: num, vy: num, life: num, targetId: num, trail: numArr, trailTick: num });
-const DRONE = shaped({ x: num, y: num, vx: num, vy: num, life: num, maxLife: num, cooldown: num, targetId: num, slot: num });
+const DRONE = shaped({ x: num, y: num, vx: num, vy: num, life: num, maxLife: num, cooldown: num, targetId: num, slot: num, tier: opt(num) });
 const FLASH = shaped({ text: str, t: num });
-const BEAM = shaped({ angle: num, t: num });
+const BEAM = shaped({ angle: num, t: num, x: opt(num), y: opt(num), len: opt(num), tier: opt(num) });
 const CRATER: Pred = (v) => numArr(v) && (v as number[]).length === 3;
 const CHEATS = shaped({ god: bool, launchers: opt(num), streams: opt(num), timeScale: num, assisted: bool, noHeat: bool });
 const SAVED = shaped({
@@ -1541,7 +1618,7 @@ const SAVED = shaped({
   turretProgress: num, moonAngle: num, moonHp: num, craters: arrOf(CRATER),
   pulses: num, pulseCharge: num, pulseR: num,
   seekers: arrOf(SEEKER), seekerStock: num, seekerProgress: num, drones: arrOf(DRONE), swarmStock: num, swarmProgress: num,
-  flashes: arrOf(FLASH), beams: arrOf(BEAM),
+  flashes: arrOf(FLASH), beams: arrOf(BEAM), arrayCd: opt(num),
   sinceShot: num, shake: num, secAccum: num, cheats: CHEATS, collision: oneOf('auto', 'naive', 'grid'),
 });
 
@@ -1576,6 +1653,7 @@ export function toSaved(st: MinigameState): SavedGame {
     bullets: st.bullets.map((b) => ({ ...b })),
     particles: st.particles.map((p) => ({ ...p })),
     turrets: st.turrets.map((t) => ({ ...t })),
+    arrayCd: st.arrayCd,
     turretProgress: st.turretProgress,
     moonAngle: st.moonAngle,
     moonHp: st.moonHp,
@@ -1626,7 +1704,8 @@ export function fromSaved(s: SavedGame): MinigameState {
     asteroids: s.asteroids.map((a) => ({ ...a, shape: Float64Array.from(a.shape) })),
     bullets: s.bullets.map((b) => ({ ...b })),
     particles: s.particles.map((p) => ({ ...p })),
-    turrets: s.turrets.map((t) => ({ ...t })),
+    turrets: s.turrets.map((t) => ({ ...t, laserCd: t.laserCd ?? 0 })),
+    arrayCd: s.arrayCd ?? 0,
     turretProgress: s.turretProgress,
     moonAngle: s.moonAngle,
     moonHp: s.moonHp,
@@ -1637,11 +1716,11 @@ export function fromSaved(s: SavedGame): MinigameState {
     seekers: s.seekers.map((k) => ({ ...k, trail: [...k.trail] })),
     seekerStock: s.seekerStock,
     seekerProgress: s.seekerProgress,
-    drones: s.drones.map((d) => ({ ...d })),
+    drones: s.drones.map((d) => ({ ...d, tier: d.tier ?? 0 })),
     swarmStock: s.swarmStock,
     swarmProgress: s.swarmProgress,
     flashes: s.flashes.map((f) => ({ ...f })),
-    beams: s.beams.map((b) => ({ ...b })),
+    beams: s.beams.map((b) => ({ ...b, x: b.x ?? 1.28 * Math.cos(b.angle), y: b.y ?? 1.28 * Math.sin(b.angle), len: b.len ?? MG.LASER_RANGE - 1.28, tier: b.tier ?? -1 })),
     events: [],
     sinceShot: s.sinceShot,
     shake: s.shake,

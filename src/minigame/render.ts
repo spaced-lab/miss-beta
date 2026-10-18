@@ -13,7 +13,7 @@ import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
+import { arrayOn, displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -33,6 +33,10 @@ const NEON = {
   core: '#FF3B3B',
   moon: '#7DF9FF',
   turret: ['#CCFF00', '#00F0FF', '#FF2BD6'],
+  /** Drone tiers 0..3 (v3.4): lime, cyan, magenta, white-hot. */
+  drone: ['#CCFF00', '#00F0FF', '#FF2BD6', '#FFF6D5'],
+  /** The beam array (tier 5 beams). */
+  array: '#FFF6D5',
   heat: '#FF6A00',
 } as const;
 
@@ -261,9 +265,9 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     s.dot(dx - Math.cos(facing) * 4, dy - Math.sin(facing) * 4, 1, p.hot, 0.6 + 0.4 * Math.abs(Math.sin(st.t * 60)));
   }
 
-  // Sentinel drones: a tiny three-fin mark along the velocity, blinking in the last second.
+  // Sentinel drones: a tiny three-fin mark along the velocity, blinking in the last second; colour by tier (v3.4).
   for (const d of st.drones) {
-    const dc = stage >= 3 ? NEON.turret[0] : p.ink;
+    const dc = stage >= 3 ? (NEON.drone[d.tier] ?? NEON.drone[0]) : p.ink;
     const blink = d.life < 1 ? 0.3 + 0.7 * Math.abs(Math.sin(d.life * 20)) : 1;
     const facing = Math.atan2(-d.vy, d.vx);
     const dx = X(d.x);
@@ -274,7 +278,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     pt(dx, dy, -2.2, -2.2, facing);
     pt(dx, dy, 0, 0, facing);
     pt(dx, dy, -2.2, 2.2, facing);
-    s.stroke(scratch, { color: dc, width: PX.sentryDetail, glow: 0.8, alpha: blink });
+    s.stroke(scratch, { color: dc, width: PX.sentryDetail + d.tier * 0.3, glow: 0.8 + d.tier * 0.3, alpha: blink });
     s.dot(dx, dy, 1, dc, blink);
   }
 
@@ -294,16 +298,17 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   }
 
   // Laser beams: a bright core line and a wider faint one, fading; a MESH pull leaves every fan on screen at once.
-  const reach = laserRange(st.level);
+  // Colour by source (v3.4): the player's beam, a sentry's tier colour (SUPER cycles), white-hot for the beam array.
   for (const b of st.beams) {
     const a = b.t / MG.BEAM_FADE;
-    const x0 = X(1.28 * Math.cos(b.angle));
-    const y0 = Y(1.28 * Math.sin(b.angle));
-    const x1 = X(reach * Math.cos(b.angle));
-    const y1 = Y(reach * Math.sin(b.angle));
-    const lc = stage >= 2 ? NEON.bullet[2] : p.hot;
-    s.stroke([x0, y0, x1, y1], { color: lc, width: 6, alpha: a * 0.25, glow: 0 });
-    s.stroke([x0, y0, x1, y1], { color: p.hot, width: 1.5, alpha: a, glow: 2 });
+    const x0 = X(b.x);
+    const y0 = Y(b.y);
+    const x1 = X(b.x + b.len * Math.cos(b.angle));
+    const y1 = Y(b.y + b.len * Math.sin(b.angle));
+    const array = b.tier === 5;
+    const lc = stage < 2 ? p.hot : array ? NEON.array : b.tier >= 0 ? (NEON.turret[b.tier] ?? p.hot) : NEON.bullet[2];
+    s.stroke([x0, y0, x1, y1], { color: lc, width: array ? 9 : 6, alpha: a * 0.25, glow: 0 });
+    s.stroke([x0, y0, x1, y1], { color: array ? NEON.array : b.tier >= 0 && stage >= 2 ? lc : p.hot, width: array ? 2.2 : 1.5, alpha: a, glow: array ? 3 : 2 });
   }
 
   // Shockwave.
@@ -393,6 +398,12 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     const need = turretHitsNeeded(st.level);
     drawText(s, `SENTRY ${st.turretProgress}/${need}`, bx, by - fs - 6, fs, { color: stage >= 3 ? NEON.turret[0] : p.ink });
     bar(s, bx, by, bw, bh, st.turretProgress / need, stage >= 3 ? NEON.turret[0] : p.ink, 0.6);
+    if (arrayOn(st.level)) {
+      // Beam array (v3.4): charge readout under the sentry bar.
+      const ready = st.turrets.length >= MG.SENTRY_ARRAY_MIN;
+      const label = !ready ? `BEAM ARRAY: NEEDS ${MG.SENTRY_ARRAY_MIN} SENTRIES` : st.arrayCd <= 0 ? 'BEAM ARRAY: READY' : `BEAM ARRAY IN ${st.arrayCd.toFixed(1)} S`;
+      drawText(s, label, bx, by + bh + 5, fs * 0.9, { color: stage >= 3 ? NEON.array : p.ink, alpha: ready ? 1 : 0.6 });
+    }
   }
 
   // Stream strength ladder: one dot per stream coloured by damage.

@@ -4,6 +4,13 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v3.4 (2026-10-18, owner follow-up): swarms cheaper to earn past level 20; drones in tiers (faster,
+  harder-hitting, lime / cyan / magenta / white, two per swarm) and more of them; sentry lasers from level 14 in
+  the sentry's tier colour, stronger with tier; the BEAM ARRAY from level 25 (three sentries coordinate and
+  eliminate the most threatening rock in one shot, no fragments); the ramp accelerates sooner (17 s levels,
+  faster spawn, speed and hit-point growth); every high-pitched cue lowered, the sentry-earned sound and the
+  game-over fall most of all.
+
 - M13: event cinematics and narratives (GAME_PLAN 29). Launch, impact, breakup (rubble crumbles, stony
   cracks, iron rings and sheds, comet puffs), nuclear burst, PI shredding and the close approach pause the
   clock for a 2 to 5 second vector scene built from the resolved numbers (any key skips, reduce-motion gives

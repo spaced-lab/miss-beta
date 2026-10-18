@@ -722,7 +722,9 @@ describe('weapons that scale with level', () => {
     expect(headings[0] ?? 0).toBeCloseTo(-1.5 * MG.SEEKER_VOLLEY_SPREAD, 6);
   });
   it('swarm and pulse charge requirements grow with level so neither becomes permanent cover', () => {
-    monotone(swarmKillsNeeded);
+    // v3.4: the swarm price rises to SWARM_KILLS_EASE_FROM_LEVEL, then eases back (owner: "not so hard to acquire
+    // past level 20"); the rocks' growths carry the late difficulty instead. Monotone up to the ease level only.
+    monotone((l: number) => swarmKillsNeeded(Math.min(l, MG.SWARM_KILLS_EASE_FROM_LEVEL)));
     expect(swarmKillsNeeded(1)).toBe(MG.SWARM_KILLS);
     expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL)).toBe(MG.SWARM_KILLS);
     expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL + 1)).toBe(MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL);
@@ -730,8 +732,9 @@ describe('weapons that scale with level', () => {
     // is the knob that matters late; the slope is the biggest cut the balance probe below accepts.
     expect(swarmKillsNeeded(10)).toBe(102);
     expect(swarmKillsNeeded(20)).toBe(302);
-    expect(swarmKillsNeeded(30)).toBe(MG.SWARM_KILLS_CAP);
-    expect(swarmKillsNeeded(1000)).toBe(MG.SWARM_KILLS_CAP);
+    expect(swarmKillsNeeded(25)).toBe(MG.SWARM_KILLS_CAP - 5 * MG.SWARM_KILLS_EASE_PER_LEVEL);
+    expect(swarmKillsNeeded(30)).toBe(MG.SWARM_KILLS_CAP - 10 * MG.SWARM_KILLS_EASE_PER_LEVEL);
+    expect(swarmKillsNeeded(1000)).toBe(MG.SWARM_KILLS_LATE_MIN);
     expect(MG.SWARM_KILLS_CAP).toBeLessThanOrEqual(400);
     monotone(pulseKillsNeeded);
     expect(pulseKillsNeeded(1)).toBe(MG.PULSE_KILLS);

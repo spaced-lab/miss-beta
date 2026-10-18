@@ -26,7 +26,7 @@ export const MG = {
   DAMAGE_MAX_PER_LEVEL: 0.4,
 
   /** Levels. */
-  LEVEL_SECONDS: 20,
+  LEVEL_SECONDS: 17,
   /** Index = level - 1; the last entry repeats. */
   STREAMS_BY_LEVEL: [1, 1, 2, 2, 3, 3, 4, 4, 5] as readonly number[],
   LAUNCHERS_BY_LEVEL: [1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 8] as readonly number[],
@@ -37,7 +37,7 @@ export const MG = {
    *  (tests/minigame.test.ts) showed this is the one axis that gets rocks through a full arsenal: faster or
    *  denser rocks were simply killed at the rate they spawned; tougher ones arrive. */
   HP_MULT_FROM_LEVEL: 10,
-  HP_MULT_PER_LEVEL: 0.15,
+  HP_MULT_PER_LEVEL: 0.18,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -69,13 +69,13 @@ export const MG = {
    *  geometric curve first meets SPAWN_MIN) down to SPAWN_FLOOR_ABS; the speed cap rises AST_SPEED_CAP_PER_LEVEL
    *  per level past AST_SPEED_CAP_FROM_LEVEL (where the linear ramp meets AST_SPEED_MAX). Levels 1-5 are untouched. */
   SPAWN_0: 2.2,
-  SPAWN_LEVEL_FACTOR: 0.78,
+  SPAWN_LEVEL_FACTOR: 0.75,
   SPAWN_MIN: 0.3,
   SPAWN_FLOOR_FROM_LEVEL: 9,
   SPAWN_FLOOR_FACTOR: 0.95,
   SPAWN_FLOOR_ABS: 0.08,
   AST_SPEED_0: 0.45,
-  AST_SPEED_PER_LEVEL: 0.12,
+  AST_SPEED_PER_LEVEL: 0.14,
   /** A second slope joins past AST_SPEED_LATE_FROM_LEVEL ("minigame needs to get faster"): the ramp steepens by
    *  AST_SPEED_LATE_PER_LEVEL per level there, under the cap below. */
   AST_SPEED_LATE_FROM_LEVEL: 10,
@@ -181,6 +181,23 @@ export const MG = {
   SENTRY_CHASE_LEASH: 1.7,
   SENTRY_CHASE_STANDOFF: 0.9,
   SENTRY_CHASE_R_MIN: 1.45,
+  /** Sentry lasers (v3.4): from SENTRY_LASER_LEVEL every sentry also fires a beam along its aim every
+   *  SENTRY_LASER_PERIOD s (divided by its fire-rate factor), reaching SENTRY_LASER_RANGE radii from the sentry, for
+   *  strength + SENTRY_LASER_TIER_DAMAGE x tier (+1 for SUPER) damage with the laser's impulse. Drawn in the sentry's
+   *  tier colour (lime, cyan, magenta; SUPER cycles): the beams get stronger and change colour as the sentries do. */
+  SENTRY_LASER_LEVEL: 14,
+  SENTRY_LASER_PERIOD: 2.4,
+  SENTRY_LASER_RANGE: 3.6,
+  SENTRY_LASER_TIER_DAMAGE: 2,
+  /** Beam array (v3.4, owner: "sentinels coordinate around level 25"): from SENTRY_ARRAY_LEVEL, every SENTRY_ARRAY_PERIOD s
+   *  with at least SENTRY_ARRAY_MIN sentries alive, all of them fire at the most threatening rock at once. That rock is
+   *  eliminated outright (no fragments, score x SENTRY_ARRAY_SCORE_MULT) and every other rock a beam crosses takes
+   *  SENTRY_ARRAY_DAMAGE. White-hot beams, a sub chord. */
+  SENTRY_ARRAY_LEVEL: 25,
+  SENTRY_ARRAY_PERIOD: 9,
+  SENTRY_ARRAY_MIN: 3,
+  SENTRY_ARRAY_DAMAGE: 6,
+  SENTRY_ARRAY_SCORE_MULT: 1,
 
   /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
    *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the
@@ -257,6 +274,22 @@ export const MG = {
   SWARM_KILLS_FROM_LEVEL: 6,
   SWARM_KILLS_PER_LEVEL: 20,
   SWARM_KILLS_CAP: 400,
+  /** v3.4 (owner, 2026-10-18: swarms "not so hard to acquire past level 20"): past SWARM_KILLS_EASE_FROM_LEVEL the
+   *  kills needed ease back SWARM_KILLS_EASE_PER_LEVEL per level, never below SWARM_KILLS_LATE_MIN (302 at 20, 340 at
+   *  25 where the cap and the ease cross, 280 at 30, 220 at 35, 160 from 40). The late rocks pay for it: the ramp
+   *  knobs above (LEVEL_SECONDS, SPAWN_LEVEL_FACTOR, AST_SPEED_PER_LEVEL, HP_MULT_PER_LEVEL) tightened the same day. */
+  SWARM_KILLS_EASE_FROM_LEVEL: 20,
+  SWARM_KILLS_EASE_PER_LEVEL: 12,
+  SWARM_KILLS_LATE_MIN: 160,
+  /** v3.4 drone tiers: tier = min(SWARM_TIER_MAX, floor(past(level, SWARM_TIER_FROM_LEVEL) / SWARM_TIER_LEVELS)), so 1 at
+   *  level 12, 2 at 18, 3 at 24; a release mixes the level's tier with the one below so a swarm shows two colours.
+   *  Tier t drones fly SWARM_TIER_SPEED_MULT^t faster (IDEAS 10: late drones could not catch late rocks), hit for
+   *  SWARM_DAMAGE + t, and shoot SWARM_TIER_BULLET_MULT^t faster bullets. Colours: render NEON.drone. */
+  SWARM_TIER_FROM_LEVEL: 12,
+  SWARM_TIER_LEVELS: 6,
+  SWARM_TIER_MAX: 3,
+  SWARM_TIER_SPEED_MULT: 1.22,
+  SWARM_TIER_BULLET_MULT: 1.1,
   /** Stock cap grows one per SWARM_MAX_LEVELS levels up to SWARM_MAX_CAP (2, then 3 at level 11, 4 at 21, 5 at 31). */
   SWARM_MAX: 2,
   SWARM_MAX_LEVELS: 10,
@@ -278,8 +311,8 @@ export const MG = {
   /** Growth with level: a release at level L adds floor(SWARM_GROWTH_PER_LEVEL * (L - 1)) drones to both ends
    *  of the count range, capped at SWARM_COUNT_CAP (level 1: 5-8, level 9: 9-12, level 17: 13-16, level 30: 19-22,
    *  level 49+: 32 flat); the burn-out life grows SWARM_LIFE_PER_LEVEL seconds per level up to SWARM_LIFE_MAX. */
-  SWARM_GROWTH_PER_LEVEL: 0.5,
-  SWARM_COUNT_CAP: 32,
+  SWARM_GROWTH_PER_LEVEL: 0.7,
+  SWARM_COUNT_CAP: 40,
   SWARM_LIFE_PER_LEVEL: 0.25,
   SWARM_LIFE_MAX: 14,
   /** The moon's no-fly zone: MOON_R + margin. Drones are steered away from it and never cross it (one that

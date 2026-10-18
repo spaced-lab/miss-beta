@@ -311,18 +311,18 @@ export const VARIANTS: Readonly<Record<SoundEvent, readonly Variant[]>> = {
       },
     },
     {
-      name: 'PING', about: 'A 660 HZ SINE PING OVER THE SUB: THE BLEEPY ONE', hz: 660, attackMs: 10, dur: 0.2,
+      name: 'PING', about: 'A 220 HZ SINE PING OVER THE SUB (V3.4: WAS 660)', hz: 220, attackMs: 10, dur: 0.2,
       play: (s) => {
-        s.tick({ wave: 'sine', freq: 660, dur: 0.06, gain: 0.06, attack: 0.01 });
+        s.tick({ wave: 'sine', freq: 220, dur: 0.06, gain: 0.06, attack: 0.01 });
         s.bass(48, 0.1, 0.14);
       },
     },
   ],
   SWARM: [
     {
-      name: 'CHIRPS', about: 'V3.2: ONE RISING HIGH CHIRP PER DRONE OVER A FIFTH OF A SECOND', hz: 2200, attackMs: 0, dur: 0.45,
+      name: 'CHIRPS', about: 'V3.4: ONE LOW RISING CHIRP PER DRONE OVER A FIFTH OF A SECOND (WAS 1.8 KHZ)', hz: 520, attackMs: 0, dur: 0.45,
       play: (s, c) => {
-        for (let i = 0; i < c.count; i++) s.tick({ wave: 'triangle', freq: 1800 + i * 160 + rnd(0, 120), dur: 0.012, gain: 0.035, delay: i * 0.028 + rnd(0, 0.01) });
+        for (let i = 0; i < c.count; i++) s.tick({ wave: 'triangle', freq: 380 + i * 24 + rnd(0, 30), dur: 0.015, gain: 0.035, delay: i * 0.028 + rnd(0, 0.01) });
         s.bass(58, 0.06, 0.1, 0.6, 1.5);
       },
     },
@@ -350,26 +350,26 @@ export const VARIANTS: Readonly<Record<SoundEvent, readonly Variant[]>> = {
   ],
   SENTRY: [
     {
-      name: 'THRUM', about: 'A LOW 110 HZ TRIANGLE STEPPING SLOWLY, 20 MS ATTACK, OVER THE SUB', hz: 140, attackMs: 20, dur: 0.4,
+      name: 'THRUM', about: 'V3.4: A LOW 72 HZ TRIANGLE STEPPING SLOWLY, 25 MS ATTACK, OVER THE SUB', hz: 90, attackMs: 25, dur: 0.4,
       play: (s) => {
-        s.lfoTone({ base: 110, spread: 0.25, stepDur: 0.08, dur: 0.35, wave: 'triangle', gain: 0.09, attack: 0.02 });
+        s.lfoTone({ base: 72, spread: 0.2, stepDur: 0.08, dur: 0.35, wave: 'triangle', gain: 0.09, attack: 0.025 });
         s.bass(55, 0.08, 0.12, 0.7, 1.6, 0.005);
       },
     },
     {
-      name: 'WARBLE', about: 'V3.2: SH-101 SAWTOOTH AT 330 HZ STEPPING EVERY 50 MS', hz: 1000, attackMs: 0, dur: 0.55,
-      play: (s) => s.lfoTone({ base: 330, spread: 0.6, stepDur: 0.05, dur: 0.5, wave: 'sawtooth', gain: 0.1 }),
+      name: 'WARBLE', about: 'V3.4: SH-101 SAWTOOTH AT 120 HZ STEPPING EVERY 50 MS (WAS 330)', hz: 400, attackMs: 4, dur: 0.55,
+      play: (s) => s.lfoTone({ base: 120, spread: 0.5, stepDur: 0.05, dur: 0.5, wave: 'sawtooth', gain: 0.09, attack: 0.004 }),
     },
     {
-      name: 'CLUNK', about: 'A MECHANICAL CLUNK: 90 HZ POP WITH A 600 HZ CRUNCH', hz: 600, attackMs: 4, dur: 0.15,
+      name: 'CLUNK', about: 'A MECHANICAL CLUNK: 70 HZ POP WITH A 300 HZ CRUNCH (V3.4: LOWER)', hz: 300, attackMs: 4, dur: 0.15,
       play: (s) => {
-        s.bass(90, 0.08, 0.2, 0.8, 1.6, 0.003);
-        s.crunch({ rate: 3000, bits: 3, dur: 0.08, cutoff: 600, gain: 0.1, attack: 0.004 });
+        s.bass(70, 0.08, 0.2, 0.8, 1.6, 0.003);
+        s.crunch({ rate: 2200, bits: 3, dur: 0.08, cutoff: 300, gain: 0.1, attack: 0.004 });
       },
     },
     {
-      name: 'TONE', about: 'ONE PLAIN 440 HZ SINE TONE, 20 MS ATTACK', hz: 440, attackMs: 20, dur: 0.2,
-      play: (s) => s.tick({ wave: 'sine', freq: 440, dur: 0.15, gain: 0.07, attack: 0.02 }),
+      name: 'TONE', about: 'ONE PLAIN 165 HZ SINE TONE, 20 MS ATTACK (V3.4: WAS 440)', hz: 165, attackMs: 20, dur: 0.2,
+      play: (s) => s.tick({ wave: 'sine', freq: 165, dur: 0.15, gain: 0.07, attack: 0.02 }),
     },
   ],
   MOONHIT: [
@@ -392,9 +392,9 @@ export const VARIANTS: Readonly<Record<SoundEvent, readonly Variant[]>> = {
       },
     },
     {
-      name: 'BELL', about: 'A 520 HZ SINE TAP OVER THE POP', hz: 520, attackMs: 10, dur: 0.2,
+      name: 'BELL', about: 'A 200 HZ SINE TAP OVER THE POP (V3.4: WAS 520)', hz: 200, attackMs: 10, dur: 0.2,
       play: (s) => {
-        s.tick({ wave: 'sine', freq: 520, dur: 0.1, gain: 0.06, attack: 0.01 });
+        s.tick({ wave: 'sine', freq: 200, dur: 0.1, gain: 0.06, attack: 0.01 });
         s.bass(44, 0.1, 0.14);
       },
     },
@@ -415,10 +415,10 @@ export const VARIANTS: Readonly<Record<SoundEvent, readonly Variant[]>> = {
       },
     },
     {
-      name: 'CHIME', about: 'TWO SINE NOTES, 660 THEN 990 HZ: A SMALL CHIME', hz: 990, attackMs: 15, dur: 0.4,
+      name: 'CHIME', about: 'TWO SINE NOTES, 220 THEN 330 HZ: A SMALL LOW CHIME (V3.4: WAS 660/990)', hz: 330, attackMs: 15, dur: 0.4,
       play: (s) => {
-        s.tick({ wave: 'sine', freq: 660, dur: 0.12, gain: 0.07, attack: 0.015 });
-        s.tick({ wave: 'sine', freq: 990, dur: 0.16, gain: 0.06, attack: 0.015, delay: 0.18 });
+        s.tick({ wave: 'sine', freq: 220, dur: 0.12, gain: 0.07, attack: 0.015 });
+        s.tick({ wave: 'sine', freq: 330, dur: 0.16, gain: 0.06, attack: 0.015, delay: 0.18 });
       },
     },
     {
@@ -659,13 +659,13 @@ export class SfxPlayer {
           this.synth.bass(46, 0.07, 0.14, 0.8, 1.8);
           break;
         case 'moonlost':
-          this.synth.sweep({ wave: 'sawtooth', freq: 120, freqEnd: 25, cutoff: 1500, cutoffEnd: 60, q: 6, dur: 1.0, gain: 0.28 });
+          this.synth.sweep({ wave: 'sawtooth', freq: 90, freqEnd: 24, cutoff: 500, cutoffEnd: 50, q: 5, dur: 1.0, gain: 0.28 });
           break;
         case 'overheat':
-          this.synth.sweep({ wave: 'square', freq: 160, freqEnd: 60, cutoff: 1200, cutoffEnd: 200, q: 6, dur: 0.4, gain: 0.18 });
+          this.synth.sweep({ wave: 'square', freq: 120, freqEnd: 50, cutoff: 500, cutoffEnd: 150, q: 5, dur: 0.4, gain: 0.18 });
           break;
         case 'cooled':
-          this.synth.tick({ wave: 'triangle', freq: 900, dur: 0.06, gain: 0.1 });
+          this.synth.tick({ wave: 'sine', freq: 240, dur: 0.07, gain: 0.1, attack: 0.006 });
           break;
         case 'blast':
           // Area blast: a thud with a longer crunch than a breakup.
@@ -675,14 +675,21 @@ export class SfxPlayer {
         case 'burnout':
           if (now - this.lastTick > 0.03) {
             this.lastTick = now;
-            this.synth.tick({ wave: 'sine', freq: 700, dur: 0.03, gain: 0.03 });
+            this.synth.tick({ wave: 'sine', freq: 220, dur: 0.035, gain: 0.03, attack: 0.004 });
           }
           break;
         case 'moon':
           this.synth.crunch({ rate: 4000, bits: 3, dur: 0.1, cutoff: 1500, gain: 0.12 });
           break;
         case 'over':
-          this.synth.sweep({ wave: 'sawtooth', freq: 220, freqEnd: 30, cutoff: 3000, cutoffEnd: 80, q: 8, dur: 1.2, gain: 0.3 });
+          // V3.4 (owner: "even the ending lost sound" too high): a low sawtooth fall under a closed filter plus a rumble.
+          this.synth.sweep({ wave: 'sawtooth', freq: 110, freqEnd: 24, cutoff: 700, cutoffEnd: 45, q: 5, dur: 1.4, gain: 0.3 });
+          this.synth.rumble(36, 1.2, 0.5, 90);
+          break;
+        case 'array':
+          // Beam array (v3.4): a sub chord, one soft pulse per beam a few ms apart, under a short rumble.
+          for (let i = 0; i < Math.min(6, e.beams); i++) this.synth.softPulse(41 + i * 7, 0.45, 0.12, 0.03, i * 0.035);
+          this.synth.rumble(40, 0.5, 0.3, 80);
           break;
       }
     }

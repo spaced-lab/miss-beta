@@ -181,5 +181,6 @@ Design addition from the user (recorded in GAME_PLAN.md Section 29). Build after
 - [x] v2 (2026-10-17): levels, adaptive pressure, hardness tiers + colours, stream strength ladder, heat, moon, bullet impulse, passing rocks, auto turrets, spectrum stages.
 - [x] v2.1: synthesized sound kits, laser pulse, difficulty ramp, shorter turrets, less halo.
 - [x] v2.2: rock gravity/bounces/binaries, continents v2, moon hit points and craters, sentry tiers and SUPER, bass voices, chaos static.
+- [x] v3.4 (2026-10-18): swarm price eases past level 20, drone tiers and colours, sentry lasers (level 14) and the BEAM ARRAY (level 25), faster ramp, every high cue lowered. Tests in `tests/minigame34.test.ts`.
 - [ ] Tuning pass with the user (knobs in `src/minigame/config.ts`, kits in `src/minigame/sfx.ts`).
 - [x] Moves to IDEAS.md for anything beyond tuning (power-ups, touch, sound, replay, daily seed): IDEAS 1 to 6 and 10.
