@@ -29,12 +29,12 @@ function isEntry(v: unknown): v is LeaderboardEntry {
     typeof o['seed'] === 'string' && o['seed'].length <= 32 && typeof o['date'] === 'string' && typeof o['tech'] === 'string' && typeof o['assisted'] === 'boolean' && (o['exaggerated'] === undefined || typeof o['exaggerated'] === 'boolean');
 }
 
-function isBoard(v: unknown): v is LeaderboardEntry[] {
-  return Array.isArray(v) && v.every(isEntry);
-}
-
+/**
+ * The stored board with each malformed entry dropped. NOTE: one bad entry used to reject the whole board, and the
+ * next recordRun then saved only the new run over it, deleting every valid entry (code review 2026-10-18).
+ */
 export function loadBoard(mode: Mode = 'REALISTIC'): LeaderboardEntry[] {
-  return loadJson(`leaderboard.${mode}`, isBoard, []);
+  return loadJson<unknown[]>(`leaderboard.${mode}`, (v): v is unknown[] => Array.isArray(v), []).filter(isEntry);
 }
 
 /** Insert, sort by score desc, trim to MAX, save. Returns the entry's rank (1-based) or -1 if it fell off. */

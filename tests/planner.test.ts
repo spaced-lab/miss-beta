@@ -206,7 +206,7 @@ describe('economy, scoring, run, leaderboard', () => {
       setItem: (k: string, v: string) => void store.set(k, v),
     };
     store.set('missb.leaderboard.REALISTIC', JSON.stringify([{ handle: 'OK', rounds: 2, score: 500, seed: 'A', date: '2026-10-17', tech: 'L1', assisted: false }, { bad: true }]));
-    expect(loadBoard().length).toBe(0); // one malformed entry invalidates the board; fall back to empty
+    expect(loadBoard().map((e) => e.handle)).toEqual(['OK']); // a malformed entry is dropped, the rest kept
     store.delete('missb.leaderboard.REALISTIC');
     for (let i = 0; i < 25; i++) recordRun({ handle: 'P', rounds: 1, score: i * 10, seed: `S${i}`, date: '2026-10-17', tech: 'L1', assisted: false });
     const board = loadBoard();

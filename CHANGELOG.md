@@ -50,6 +50,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - SCI-FI standing pushes that overlap (THRUSTER-SWARM with SHEPHERD, PICKET, SAIL KITS, NANOFORGE, ...) are integrated
   in time order with their accelerations added where they overlap. They were applied in code order, so a segment
   could run backwards and a push started from the wrong orbit; a second laser array had the same fault (finding 22).
+- Leaderboard: a malformed entry is dropped on its own; it used to empty the board and the next game over saved only the new run over the rest (finding 23).
 
 ## 26.4.0 (2026-10-18)
 
