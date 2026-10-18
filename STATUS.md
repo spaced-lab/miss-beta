@@ -225,9 +225,10 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 - Code review 2026-10-18: the AUTOPLAY, attract, tip and demo-montage tunables moved into `src/config/knobs.ts`
   (values unchanged) so every [knob] lives in one file and KNOB can set the numeric ones live. A second WORMHOLE
   from one branch, or into a branch already carrying a routed threat, is refused rather than overwriting it.
-- Node is pinned by `.nvmrc` (26) and CI reads it: the bit-for-bit planar replay fixture depends on the Node
-  major (on Node 22 it differs in the last bit of a few elements). Recapture the fixture only in a commit that
-  bumps .nvmrc and changes nothing else.
+- Node is pinned by `.nvmrc` (26) and CI reads it. The planar replay is bit for bit only on the runtime that
+  captured it (`tests/fixtures/planarReplay.env.json`: darwin arm64 Node 26); V8's Math differs in the last bit
+  across Node majors and CPUs (linux x64 CI drifts at most 1.1e-15 relative), so elsewhere it allows 1e-12
+  relative and keeps strings, counts and events exact. Recapture only in a commit that changes nothing else.
 
 ## Unverified
 

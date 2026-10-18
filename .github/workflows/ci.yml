@@ -17,8 +17,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # NOTE: the Node major comes from .nvmrc and must match the one tests/fixtures/planarReplay.json was
-          # captured on: V8's Math functions differ in the last bit between majors (22 fails the replay, 26 passes).
+          # NOTE: one Node major for CI and contributors (.nvmrc). The planar replay is exact only on the runtime
+          # that captured it and allows 1e-12 relative drift elsewhere (tests/planarReplay.test.ts).
           node-version-file: .nvmrc
           cache: npm
       - uses: actions/setup-python@v5

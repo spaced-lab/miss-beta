@@ -6,8 +6,9 @@
 //       the round stays ordinary, site targets), resolves them with no missions, a kinetic hammer, a disrupting
 //       hit on a rubble pile, a standoff warhead, a slow push and a standing SCI-FI push, and compares exactly
 //       (toEqual on numbers from JSON, which round-trips doubles). MISS_CAPTURE=1 rewrites the fixture.
-//       The fixture is Node-major specific (V8 Math rounds differently between majors): run on the .nvmrc major,
-//       and recapture only on a commit that changes nothing else.
+//       Exact only on the runtime that captured the fixture (planarReplay.env.json: platform, arch, Node major):
+//       V8's Math rounds a few results differently in the last bit across Node majors and CPUs. Elsewhere (CI is
+//       linux x64) numbers must agree to REL_TOL; strings, counts and event lists stay exact.
 // LORE: C3 (tests and the two-language trick), O7 (elements)
 
 // @ts-expect-error node built-in without @types/node (same pattern as tests/help.test.ts)
@@ -24,6 +25,37 @@ import { generateThreat, type GenerateOpts } from '../src/sim/roundGen';
 import { createWorld, planetById, type World } from '../src/sim/world';
 
 const FIXTURE = new URL('./fixtures/planarReplay.json', import.meta.url);
+const FIXTURE_ENV = new URL('./fixtures/planarReplay.env.json', import.meta.url);
+// NOTE: measured 2026-10-18, darwin arm64 fixture vs linux x64 CI (both Node 26): worst relative drift 1.1e-15
+// (a few ulps). 1e-12 leaves a 1000x margin and is still far below any real change in the physics.
+const REL_TOL = 1e-12;
+
+interface NodeProcess { env: Record<string, string | undefined>; platform: string; arch: string; versions: { node: string } }
+const proc = (globalThis as { process?: NodeProcess }).process;
+
+function runtimeEnv(): string {
+  return JSON.stringify({ platform: proc?.platform ?? '?', arch: proc?.arch ?? '?', node: (proc?.versions.node ?? '?').split('.')[0] });
+}
+
+/** First path where a and b differ, or null. Numbers may differ by REL_TOL relative; everything else exactly. */
+function nearDiff(a: unknown, b: unknown, path = '$'): string | null {
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a === b || Math.abs(a - b) <= REL_TOL * Math.max(Math.abs(a), Math.abs(b)) ? null : `${path}: ${a} vs ${b}`;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return `${path}: length ${a.length} vs ${b.length}`;
+    for (let i = 0; i < a.length; i++) { const d = nearDiff(a[i], b[i], `${path}[${i}]`); if (d) return d; }
+    return null;
+  }
+  if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
+    const ka = Object.keys(a).sort();
+    const kb = Object.keys(b).sort();
+    if (ka.join() !== kb.join()) return `${path}: keys ${ka.join()} vs ${kb.join()}`;
+    for (const k of ka) { const d = nearDiff((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${path}.${k}`); if (d) return d; }
+    return null;
+  }
+  return a === b ? null : `${path}: ${String(a)} vs ${String(b)}`;
+}
 
 function cellMission(g: PorkchopGrid, i: number, id: string, kg: number): Mission {
   const iL = Math.floor(i / g.nA);
@@ -101,10 +133,14 @@ function digest(): unknown[] {
 describe('planar replay (M14 phase 2 gate)', () => {
   it('fixed seeds give the same threats, grids and resolver results as before 3-D visitors', () => {
     const d = digest();
-    if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env['MISS_CAPTURE'] === '1' || !existsSync(FIXTURE)) {
+    if (proc?.env['MISS_CAPTURE'] === '1' || !existsSync(FIXTURE)) {
       writeFileSync(FIXTURE, JSON.stringify(d) + '\n');
+      writeFileSync(FIXTURE_ENV, runtimeEnv() + '\n');
       return;
     }
-    expect(d).toEqual(JSON.parse(readFileSync(FIXTURE, 'utf8')));
+    const want = JSON.parse(readFileSync(FIXTURE, 'utf8')) as unknown;
+    const capturedOn = existsSync(FIXTURE_ENV) ? (readFileSync(FIXTURE_ENV, 'utf8') as string).trim() : '';
+    if (capturedOn === runtimeEnv()) expect(d).toEqual(want);
+    else expect(nearDiff(d, want)).toBeNull();
   }, 120_000);
 });
