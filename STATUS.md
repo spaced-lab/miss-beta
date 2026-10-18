@@ -227,8 +227,8 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   from one branch, or into a branch already carrying a routed threat, is refused rather than overwriting it.
 - Node is pinned by `.nvmrc` (26) and CI reads it. The planar replay is bit for bit only on the runtime that
   captured it (`tests/fixtures/planarReplay.env.json`: darwin arm64 Node 26); V8's Math differs in the last bit
-  across Node majors and CPUs (linux x64 CI drifts at most 1.1e-15 relative), so elsewhere it allows 1e-12
-  relative and keeps strings, counts and events exact. Recapture only in a commit that changes nothing else.
+  across Node majors and CPUs (x64 drifts up to 1.9e-10 relative in close-approach outputs, ulps elsewhere),
+  so elsewhere it allows 1e-8 relative and keeps strings, counts and events exact. Recapture only in a commit that changes nothing else.
 
 ## Unverified
 

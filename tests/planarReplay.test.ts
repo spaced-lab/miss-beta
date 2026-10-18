@@ -8,7 +8,7 @@
 //       (toEqual on numbers from JSON, which round-trips doubles). MISS_CAPTURE=1 rewrites the fixture.
 //       Exact only on the runtime that captured the fixture (planarReplay.env.json: platform, arch, Node major):
 //       V8's Math rounds a few results differently in the last bit across Node majors and CPUs. Elsewhere (CI is
-//       linux x64) numbers must agree to REL_TOL; strings, counts and event lists stay exact.
+//       linux x64) numbers must agree to REL_TOL (1e-8); strings, counts and event lists stay exact.
 // LORE: C3 (tests and the two-language trick), O7 (elements)
 
 // @ts-expect-error node built-in without @types/node (same pattern as tests/help.test.ts)
@@ -26,9 +26,12 @@ import { createWorld, planetById, type World } from '../src/sim/world';
 
 const FIXTURE = new URL('./fixtures/planarReplay.json', import.meta.url);
 const FIXTURE_ENV = new URL('./fixtures/planarReplay.env.json', import.meta.url);
-// NOTE: measured 2026-10-18, darwin arm64 fixture vs linux x64 CI (both Node 26): worst relative drift 1.1e-15
-// (a few ulps). 1e-12 leaves a 1000x margin and is still far below any real change in the physics.
-const REL_TOL = 1e-12;
+// NOTE: measured 2026-10-18, darwin arm64 fixture vs x64 (linux CI and darwin x64 under Rosetta agree), Node 26:
+// 112 of the numbers differ. Element sets drift by ulps (<= 2e-13 after long slow pushes); close-approach outputs
+// drift up to 1.9e-10, because golden-section stops on a 1 s bracket and one flipped comparison moves the point
+// inside it. 1e-8 leaves a 50x margin and is far below any real physics change; the exact gate stays on the
+// capture runtime.
+const REL_TOL = 1e-8;
 
 interface NodeProcess { env: Record<string, string | undefined>; platform: string; arch: string; versions: { node: string } }
 const proc = (globalThis as { process?: NodeProcess }).process;
