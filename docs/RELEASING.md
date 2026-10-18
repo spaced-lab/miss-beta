@@ -22,3 +22,12 @@ git tag `vYY.Q.N`.
 3. Move the CHANGELOG items under a new `## YY.Q.N (date)` heading.
 4. `bash scripts/gate.sh && npm run build && node scripts/smoke.mjs`.
 5. Commit `release: vYY.Q.N`, tag `vYY.Q.N`, push; CI deploys `main` to GitHub Pages.
+
+## First public publish only (v26.4.0)
+
+- [ ] Make the repository public, then enable Pages (Settings > Pages > Source: GitHub Actions; keep "Enforce
+      HTTPS" on). The deploy job skips itself while the repository is private.
+- [ ] Add a macOS arm64 runner to the CI matrix next to ubuntu-latest (free on a public repository, 10x minutes on a
+      private one). On it `tests/planarReplay.test.ts` runs bit for bit, because the fixture was captured on
+      darwin arm64 Node 26 (`tests/fixtures/planarReplay.env.json`); linux x64 keeps the 1e-8 tolerance path. Keep
+      the Pages artifact upload and deploy on the linux job only.
