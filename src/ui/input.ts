@@ -67,6 +67,8 @@ export class Input {
     const dist = (t: TouchList): number => (t.length < 2 ? 0 : Math.hypot((t[0] as Touch).clientX - (t[1] as Touch).clientX, (t[0] as Touch).clientY - (t[1] as Touch).clientY));
     target.addEventListener('touchstart', (e) => {
       const t = e.touches;
+      this.setTouches(t);
+      if (t.length >= 2) this.multiTap = true;
       if (t.length === 1) {
         this.dragging = true;
         this.lastMouse = { x: (t[0] as Touch).clientX, y: (t[0] as Touch).clientY };
@@ -77,6 +79,7 @@ export class Input {
     }, { passive: true });
     target.addEventListener('touchmove', (e) => {
       const t = e.touches;
+      this.setTouches(t);
       if (t.length === 1 && this.dragging) {
         const a = t[0] as Touch;
         this.dragAcc.x += a.clientX - this.lastMouse.x;
@@ -90,6 +93,7 @@ export class Input {
       e.preventDefault();
     }, { passive: false });
     target.addEventListener('touchend', (e) => {
+      this.setTouches(e.touches);
       if (e.touches.length === 0) this.dragging = false;
       pinch = 0;
     });
@@ -161,6 +165,19 @@ export class Input {
   takeKeyEvents(): string[] {
     const v = this.keyEvents;
     this.keyEvents = [];
+    return v;
+  }
+
+  /** Active touch points in CSS px (screens that want direct touch, like PERIMETER, read these). */
+  touchPoints: { x: number; y: number }[] = [];
+  private multiTap = false;
+  private setTouches(t: TouchList): void {
+    this.touchPoints = Array.from({ length: t.length }, (_, i) => ({ x: (t[i] as Touch).clientX, y: (t[i] as Touch).clientY }));
+  }
+  /** True once after a touch began with two or more fingers down. */
+  takeMultiTap(): boolean {
+    const v = this.multiTap;
+    this.multiTap = false;
     return v;
   }
 

@@ -93,6 +93,8 @@ export class MinigameScreen implements Screen {
 
   /** DAILY mode on: new games use today's seed. */
   private daily = false;
+  /** A touch was down last frame (edge detection for tap-to-start). */
+  private touchWas = false;
   /** Recording of the current game (null when it cannot be replayed: resumed, or a cheat was used). */
   private rec: Recorder | null = null;
   /** Playing a saved replay instead of the keyboard. */
@@ -106,6 +108,7 @@ export class MinigameScreen implements Screen {
   }
 
   enter(): void {
+    this.keys.takeMultiTap?.(); // a two-finger pinch on another screen must not fire a pulse here
     this.st = createState(this.newSeed(), this.st.collision);
     // NOTE: the save is validated by isSavedGame before anything is read from it; only a game still in
     // progress is worth offering.
@@ -177,6 +180,15 @@ export class MinigameScreen implements Screen {
       this.st = createState(this.newSeed(), st.collision);
       return;
     }
+    const touches = k.touchPoints ?? [];
+    const touchStart = touches.length > 0 && !this.touchWas;
+    this.touchWas = touches.length > 0;
+    if (touchStart && (st.status === 'ready' || st.status === 'over')) {
+      if (st.status === 'ready' && !this.saved) start(st);
+      else if (st.status === 'ready' && this.saved) { this.st = this.saved; this.saved = null; }
+      else { this.st = createState(this.newSeed(), st.collision); start(this.st); }
+      return;
+    }
     if (st.status === 'ready') {
       // NOTE: with a save present Space RESUMES (so does R); only Backspace, a key nobody hits by reflex while
       // firing, throws the save away. Without a save Space starts a fresh game as it always did.
@@ -217,11 +229,19 @@ export class MinigameScreen implements Screen {
     }
 
     // NOTE: Comma and Period are the `<` and `>` keys on a US layout; KeyboardEvent.code is layout independent.
+    // Touch (IDEAS 2): left third turns left, right third turns right, the middle fires; a two-finger tap
+    // pulses, and any touch starts or resumes a game from the panels.
+    const W = this.s.width;
+    const tp = k.touchPoints ?? [];
+    const tLeft = tp.some((t) => t.x < W / 3);
+    const tRight = tp.some((t) => t.x > (2 * W) / 3);
+    const tFire = tp.some((t) => t.x >= W / 3 && t.x <= (2 * W) / 3);
+    const tPulse = k.takeMultiTap?.() ?? false;
     const input: Input = {
-      left: k.anyHeld('ArrowLeft', 'KeyA'),
-      right: k.anyHeld('ArrowRight', 'KeyD'),
-      fire: k.held('Space'),
-      pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight'),
+      left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft,
+      right: k.anyHeld('ArrowRight', 'KeyD') || tRight,
+      fire: k.held('Space') || tFire,
+      pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight') || tPulse,
       seeker: k.pressed('Comma'),
       swarm: k.pressed('Period'),
     };

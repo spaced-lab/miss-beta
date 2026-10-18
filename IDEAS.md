@@ -11,6 +11,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 2. **PERIMETER touch and gamepad controls (S).** Left/right thirds of the screen move, tap-and-hold fires,
    two-finger tap pulses; Gamepad API for sticks. Needed before the minigame is phone-playable.
    Recommendation: LATER, together with 7, when a phone or a controller is on the test desk.
+   Status 2026-10-18: DONE for PERIMETER (thirds steer and fire, two-finger tap pulses, a tap starts or resumes),
+   gamepad everywhere (7). Touch in the main game still pans and pinches.
 3. **PERIMETER sound (S).** WebAudio square-wave bleeps for fire, hit, pulse and hull damage, sharing the
    `render`-free audio module the main game will need in M8.
    Recommendation: DONE (v2.1 kits, v3.2 bass voices, v3.3 SOUND LAB; `src/audio/synth.ts` is the shared module).
