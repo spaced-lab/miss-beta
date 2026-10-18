@@ -35,6 +35,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - Release notes come only from a dated `## YY.Q.N (YYYY-MM-DD)` heading with real content; an `(unreleased: ...)`
   heading or a blank section stops the run before the immutable release is created (finding 9).
 - The workflow files carry the full WHAT / WHY / HOW / LORE header (finding 16).
+- Saves: a hand-edited SAVE.md may put a `# note` after a list item, or blank and comment lines inside a list
+  (programs, studies); both used to reject the file (findings 5-6).
 
 ## 26.4.0 (2026-10-18)
 

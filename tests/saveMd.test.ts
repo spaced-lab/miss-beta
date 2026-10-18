@@ -81,3 +81,17 @@ describe('cheat-scale numbers (code review 2026-10-18)', () => {
     expect(sf?.budget_per_year).toBe(1e14);
   });
 });
+
+describe('hand-edited block lists (code review 2026-10-18 findings 5-6)', () => {
+  const text = writeSave(sample);
+  it('a trailing # comment on a list item is ignored', () => {
+    const edited = text.replace('  - { id: SPACE_IR_SURVEYOR, progress: 0.62, funding: 1 }', '  - { id: SPACE_IR_SURVEYOR, progress: 0.62, funding: 1 } # testing');
+    expect(edited).not.toBe(text);
+    expect(parseSave(edited)?.programs).toEqual(sample.programs);
+  });
+  it('a comment or blank line inside a list does not end it', () => {
+    const edited = text.replace(/programs:[ ]*\n/, 'programs:\n  # finished ones\n\n');
+    expect(edited).not.toBe(text);
+    expect(parseSave(edited)?.programs).toEqual(sample.programs);
+  });
+});

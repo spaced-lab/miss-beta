@@ -210,11 +210,16 @@ export function parseFrontMatter(text: string): Record<string, Value> {
     const key = m[1] as string;
     const rest = stripComment(m[2] as string);
     if (rest.trim() === '') {
-      // Block list of flow maps.
+      // Block list of flow maps. Blank and comment lines inside it are skipped and an item may carry a trailing
+      // ` # note`, as on a top-level line: the header promises a hand-edited save still loads (code review
+      // 2026-10-18).
       const items: Record<string, Scalar>[] = [];
-      while (i < lines.length && /^\s+-\s*\{/.test(lines[i] as string)) {
-        items.push(parseFlowMap((lines[i] as string).replace(/^\s+-\s*/, '')));
-        i++;
+      for (;;) {
+        let j = i;
+        while (j < lines.length && ((lines[j] as string).trim() === '' || (lines[j] as string).trim().startsWith('#'))) j++;
+        if (j >= lines.length || !/^\s+-\s*\{/.test(lines[j] as string)) break;
+        items.push(parseFlowMap(stripComment((lines[j] as string).replace(/^\s+-\s*/, ''))));
+        i = j + 1;
       }
       out[key] = items;
     } else {
