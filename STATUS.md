@@ -265,7 +265,11 @@ Ubuntu 26 `ubuntu-latest` runner; then tick it in docs/RELEASING.md "After the f
 
 **PUBLISHED 2026-10-18: v26.4.0 is live at https://spaced-lab.github.io/miss-beta/** (release
 https://github.com/spaced-lab/miss-beta/releases/tag/v26.4.0, immutable, attested). Open: macOS arm64 CI runner and the
-Node 20 action upgrades (docs/RELEASING.md); the Fable code review was dropped by the owner. Earlier note: The tree is committed and
+Node 20 action upgrades (docs/RELEASING.md); the Fable code review was dropped by the owner. Pre-publish work recorded late (code review
+2026-10-18 finding 17: these commits skipped STATUS): 80c8343 the seeded SAVE.md fuzz (tests/saveFuzz.test.ts) and the
+four save-loss bugs it found; 203669c the tag-driven release pipeline (.github/workflows/release.yml: checksums, keyless
+provenance, docs/RELEASING.md); 8cbc66d docs/SAFETY.md findings 1-10 closed (1 and 5 by the owner's recorded answers).
+The 26.4.0 CHANGELOG section is the published release's notes and stays as released. Earlier note: The tree is committed and
 the gate is green. The owner runs the code review (planned in Fable) and the full security review
 (docs/SAFETY.md checklist) before publishing; after the review: fix findings, follow docs/RELEASING.md, push from
 the organization `spaced-lab` (created 2026-10-18; repository spaced-lab/miss-beta pushed PRIVATE for the
@@ -295,7 +299,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).
      Done: P1 part 3, finale montage (SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 -> BLUR_CUTS 12, ending unchanged).
      Done: P2, PERIMETER GAME SETUP box, retry setup on game over, OPTIONS > PERIMETER.
-     Review findings done: 1-2 (save numbers clamped, not rejected), 7 (actions pinned by SHA), 8 (version via env), 3 (CI and release run check.sh), 4 (no stale-tag deploy), 9 (dated release notes only), 16 (workflow headers), 5-6 (comments in save lists), 10 (lore_read keys), 11 (byte cap), 12 (one quote scanner), 13-15 (fuzz test: Rng.pick, parse once, FUZZ_N check).
+     Review findings done: 1-2 (save numbers clamped, not rejected), 7 (actions pinned by SHA), 8 (version via env), 3 (CI and release run check.sh), 4 (no stale-tag deploy), 9 (dated release notes only), 16 (workflow headers), 5-6 (comments in save lists), 10 (lore_read keys), 11 (byte cap), 12 (one quote scanner), 13-15 (fuzz test: Rng.pick, parse once, FUZZ_N check), 17 (late STATUS lines).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
