@@ -14,7 +14,12 @@ import { runFromSave } from '../src/game/savegame';
 import { hashSeed, Rng } from '../src/sim/rng';
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-const N = Number(env['FUZZ_N'] ?? 20000);
+// FUZZ_N must be a positive whole number: '20k' or an empty value would run zero cases and fail on a confusing line.
+const N = ((raw: string | undefined): number => {
+  const n = Number(raw ?? 20000);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`FUZZ_N must be a positive whole number, got ${JSON.stringify(raw)}`);
+  return n;
+})(env['FUZZ_N']);
 
 const base: SaveFile = {
   version: 1, seed: '8F3A21C9', started: '2026-10-17', round: 4, mode: 'REALISTIC', highest_mode: 'SCIFI', civ_level: 0, cheats_used: [],
@@ -36,8 +41,6 @@ const DICT = [
 ];
 const KEYS = ['version', 'seed', 'started', 'round', 'mode', 'highest_mode', 'civ_level', 'cheats_used', 'budget', 'budget_per_year', 'research', 'tech', 'programs', 'studies', 'exaggerated', 'networks_active', 'run_score', 'rounds_survived', 'current_threat', 'learning_level', 'lore_read', 'color_mode', '__proto__', 'constructor'];
 
-const pick = <T>(r: Rng, a: readonly T[]): T => a[r.int(0, a.length - 1)] as T;
-
 function mutate(r: Rng, text: string): string {
   let t = text;
   const ops = r.int(1, 4);
@@ -49,24 +52,24 @@ function mutate(r: Rng, text: string): string {
       case 0: { // flip one character to a random printable or special one
         if (t.length === 0) break;
         const i = r.int(0, t.length - 1);
-        const c = r.next() < 0.8 ? String.fromCharCode(r.int(32, 126)) : pick(r, ['\n', '\r', '\t', '\u0000', '"', '#', ':', ',', '{', '}']);
+        const c = r.next() < 0.8 ? String.fromCharCode(r.int(32, 126)) : r.pick(['\n', '\r', '\t', '\u0000', '"', '#', ':', ',', '{', '}']);
         t = t.slice(0, i) + c + t.slice(i + 1);
         break;
       }
       case 1: // splice a dictionary token at a random place
-        { const i = r.int(0, t.length); t = t.slice(0, i) + pick(r, DICT) + t.slice(i); }
+        { const i = r.int(0, t.length); t = t.slice(0, i) + r.pick(DICT) + t.slice(i); }
         break;
       case 2: // replace a value after "key:"
-        { const m = /^(\s*-?\s*[A-Za-z_][A-Za-z0-9_]*:\s*)/.exec(line); if (m) lines[li] = m[1] + pick(r, DICT); t = lines.join('\n'); }
+        { const m = /^(\s*-?\s*[A-Za-z_][A-Za-z0-9_]*:\s*)/.exec(line); if (m) lines[li] = m[1] + r.pick(DICT); t = lines.join('\n'); }
         break;
       case 3: // replace a value inside a flow map or list
-        lines[li] = line.replace(/(:\s*)[^,}\]]+/, (_s, p: string) => p + pick(r, DICT)); t = lines.join('\n');
+        lines[li] = line.replace(/(:\s*)[^,}\]]+/, (_s, p: string) => p + r.pick(DICT)); t = lines.join('\n');
         break;
       case 4: lines.splice(li, 1); t = lines.join('\n'); break;
       case 5: lines.splice(li, 0, line); t = lines.join('\n'); break;
-      case 6: lines.splice(li, 0, `${pick(r, KEYS)}: ${pick(r, DICT)}`); t = lines.join('\n'); break;
+      case 6: lines.splice(li, 0, `${r.pick(KEYS)}: ${r.pick(DICT)}`); t = lines.join('\n'); break;
       case 7: t = t.slice(0, r.int(0, t.length)); break;
-      default: lines[li] = `${pick(r, KEYS)}: ${pick(r, DICT)}`; t = lines.join('\n');
+      default: lines[li] = `${r.pick(KEYS)}: ${r.pick(DICT)}`; t = lines.join('\n');
     }
   }
   return t;
@@ -74,16 +77,16 @@ function mutate(r: Rng, text: string): string {
 
 /** A valid SaveFile with random but legal values, including awkward strings. */
 function randomValid(r: Rng): SaveFile {
-  const str = (): string => (r.next() < 0.5 ? pick(r, DICT) : Array.from({ length: r.int(1, 12) }, () => String.fromCharCode(r.int(32, 126))).join(''));
-  const num = (): number => pick(r, [0, -0, 1, -1, 0.1 + 0.2, 1e15, -1e15, 5e-324, 123456.789, r.float(-1e6, 1e6), r.int(-1000, 1000)]);
+  const str = (): string => (r.next() < 0.5 ? r.pick(DICT) : Array.from({ length: r.int(1, 12) }, () => String.fromCharCode(r.int(32, 126))).join(''));
+  const num = (): number => r.pick([0, -0, 1, -1, 0.1 + 0.2, 1e15, -1e15, 5e-324, 123456.789, r.float(-1e6, 1e6), r.int(-1000, 1000)]);
   const modes = ['REALISTIC', 'SCIFI', 'SIMULATION', 'MULTIVERSE'] as const;
   const seed = str().slice(0, 32);
   return {
     ...base,
-    seed, started: str(), round: r.int(1, 1e6), mode: pick(r, modes), highest_mode: pick(r, modes), civ_level: num(), cheats_used: [str()],
+    seed, started: str(), round: r.int(1, 1e6), mode: r.pick(modes), highest_mode: r.pick(modes), civ_level: num(), cheats_used: [str()],
     budget: num(), budget_per_year: num(), research: num(), tech: [str(), 'L2'], networks_active: [str()], run_score: num(), rounds_survived: num(),
     current_threat: r.next() < 0.2 ? null : { name: str(), type: str(), D_m: num(), t_impact_years: num(), p_impact: num() },
-    lore_read: { [pick(r, ['T1', 'D3', 'constructor', 'toString', 'x y'])]: pick(r, ['BEGINNER', 'EXPERT', str()]) },
+    lore_read: { [r.pick(['T1', 'D3', 'constructor', 'toString', 'x y'])]: r.pick(['BEGINNER', 'EXPERT', str()]) },
     color_mode: str(),
   };
 }
@@ -108,18 +111,19 @@ function invariant(s: SaveFile): string | null {
 
 interface Failure { kind: string; i: number; detail: string; input: string }
 
-function check(input: string, i: number, kind: string, fails: Failure[], slow: { ms: number; i: number }): void {
+/** Run every check on one input; returns the parsed save (null when rejected) so the caller need not parse again. */
+function check(input: string, i: number, kind: string, fails: Failure[], slow: { ms: number; i: number }): SaveFile | null {
   const t0 = performance.now();
   let sf: SaveFile | null;
   try {
     sf = parseSave(input);
   } catch (e) {
     fails.push({ kind: 'parseSave threw', i, detail: String(e), input });
-    return;
+    return null;
   }
   const ms = performance.now() - t0;
   if (ms > slow.ms) { slow.ms = ms; slow.i = i; }
-  if (!sf) return;
+  if (!sf) return null;
   const bad = invariant(sf);
   if (bad) fails.push({ kind: `invariant ${bad}`, i, detail: kind, input });
   // The game re-renders an imported run with writeSave on its next autosave; that text must load again and be
@@ -133,6 +137,7 @@ function check(input: string, i: number, kind: string, fails: Failure[], slow: {
   } catch (e) {
     fails.push({ kind: 'runFromSave threw', i, detail: String(e), input });
   }
+  return sf;
 }
 
 describe('SAVE.md fuzz', () => {
@@ -147,11 +152,11 @@ describe('SAVE.md fuzz', () => {
       const roll = r.next();
       const valid = roll < 0.6 ? null : randomValid(r);
       const input = valid === null ? mutate(r, seedText) : roll < 0.9 ? writeSave(valid) : mutate(r, writeSave(valid));
-      // A save the game itself could hold must survive its own writer.
-      if (valid && roll < 0.9 && !parseSave(input)) fails.push({ kind: 'writeSave of a valid save rejected', i, detail: JSON.stringify(valid).slice(0, 300), input });
       const before = fails.length;
-      check(input, i, roll < 0.6 ? 'mutated' : roll < 0.9 ? 'random valid' : 'mutated random', fails, slow);
-      if (fails.length === before && parseSave(input)) accepted++;
+      const sf = check(input, i, roll < 0.6 ? 'mutated' : roll < 0.9 ? 'random valid' : 'mutated random', fails, slow);
+      if (fails.length === before && sf) accepted++;
+      // A save the game itself could hold must survive its own writer.
+      if (valid && roll < 0.9 && !sf) fails.push({ kind: 'writeSave of a valid save rejected', i, detail: JSON.stringify(valid).slice(0, 300), input });
     }
     // Size limits: just under the cap parses, just over is rejected without throwing.
     const pad = (n: number): string => seedText + 'X'.repeat(Math.max(0, n - seedText.length));
