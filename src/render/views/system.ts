@@ -77,7 +77,7 @@ import { stateToElements as toElements } from '../../physics/elements';
 import { sphereMass } from '../../physics/closeApproach';
 import { boardFor } from '../../game/modes';
 import { advancePrograms } from '../../sim/programs';
-import { exportSave, saveRun } from '../../game/savegame';
+import { exportSave, saveAfterRound, saveRun } from '../../game/savegame';
 import { Teletype } from './teletype';
 import { Cinematics } from '../cinematics/index';
 import type { CineContext } from '../cinematics/scene';
@@ -675,7 +675,7 @@ export class SystemScreen implements Screen {
       this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
       this.phase = 'debrief';
-      if (!this.run.tutorial && !this.autoFresh) saveRun(this.run, this.world, null);
+      if (!this.run.tutorial && !this.autoFresh) saveAfterRound(this.run, budgetAt(this.run.economy, this.world.t));
     } else {
       this.phase = 'over';
       this.rank = this.run.sandbox || this.run.tutorial || this.autoFresh ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted, ...(this.run.exaggerated ? { exaggerated: true } : {}) }, boardFor(this.run.mode));

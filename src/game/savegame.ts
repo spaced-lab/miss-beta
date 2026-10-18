@@ -10,7 +10,7 @@ import { asProgram, studyById } from '../sim/studies';
 import type { World } from '../sim/world';
 import { budgetAt, createEconomy } from './economy';
 import { loadJson, saveJson } from './persistence';
-import { createRun, type RunState } from './run';
+import { createRun, nextRound, type RunState } from './run';
 import { loadSettings } from './settings';
 import { mergeProgress, progress } from '../lore/store';
 import { reapplyTech } from './tech';
@@ -55,6 +55,18 @@ export function renderSave(run: RunState, world: World | null): string {
 /** Mirror the save in localStorage (as the markdown text). */
 export function saveRun(run: RunState, world: World | null, _unused: null): boolean {
   return saveJson(KEY, renderSave(run, world));
+}
+
+/**
+ * Save a finished round as the start of the next one: a copy of the run goes through nextRound (round + 1, rounds
+ * survived + 1, the budget banked at `budgetNow`) and that is saved, with no threat yet. NOTE: the debrief used to
+ * save the finished round itself with its score already added, so CONTINUE replayed the same round from the same
+ * seed and paid its score again (code review 2026-10-18). The live run is not touched.
+ */
+export function saveAfterRound(run: RunState, budgetNow: number): boolean {
+  const next = structuredClone(run);
+  nextRound(next, budgetNow);
+  return saveRun(next, null, null);
 }
 
 /** True only for a save that parses, so the title never offers a run CONTINUE would refuse. */
