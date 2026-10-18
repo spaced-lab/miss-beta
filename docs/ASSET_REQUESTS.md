@@ -23,7 +23,7 @@ Only public-domain or clearly licensed material: NASA images are generally publi
 
 ## Data the agent baked or wants (src/config/*.json, all with a source field)
 
-- [ ] JPL SSD/CNEOS close-approach data (cad.api) for the 100 closest approaches of the last decade: date, distance, H, v_rel.
-- [ ] JPL Sentry risk table (sentry.api) snapshot: designation, H, Torino, Palermo, impact probability.
-- [ ] CNEOS fireball data (fireball.api): date, energy, location, for a "THEY ALREADY HIT" lab.
+- [x] JPL close-approach data (cad.api), the Sentry risk table (sentry.api) and fireball data (fireball.api): baked by
+  `scripts/fetch_realdata.py` into `src/config/realdata.json` (2026-10-18), drawn on topics T3, O12, F9.
+- [ ] A low-resolution public-domain coastline (Natural Earth 110 m, public domain) as a polyline set, for the fireball map.
 - [ ] NEO discovery statistics by survey and year (CNEOS discovery stats) for the F5 survey topic.

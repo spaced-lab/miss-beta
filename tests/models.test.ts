@@ -30,3 +30,18 @@ describe('3-D model catalog', () => {
     expect(modelForTopic('ZZ')).toBeNull();
   });
 });
+
+describe('real-data panels', () => {
+  it('the snapshot has data, sizes from H are sane, and every panel topic exists', async () => {
+    const { PANELS, panelForTopic, diameterFromHm } = await import('../src/lore/data/panels');
+    const md = (readFileSync as (p: string, e: string) => string)('EDUCATION.md', 'utf8');
+    for (const p of PANELS) for (const id of p.topics) expect(md).toMatch(new RegExp(`^## ${id} `, 'm'));
+    expect(diameterFromHm(22)).toBeGreaterThan(100);
+    expect(diameterFromHm(22)).toBeLessThan(180);
+    expect(panelForTopic('T3')?.id).toBe('FIREBALLS');
+    const data = JSON.parse((readFileSync as (p: string, e: string) => string)('src/config/realdata.json', 'utf8')) as { approaches: unknown[]; risks: unknown[]; fireballs: unknown[] };
+    expect(data.approaches.length).toBeGreaterThan(10);
+    expect(data.risks.length).toBeGreaterThan(10);
+    expect(data.fireballs.length).toBeGreaterThan(10);
+  });
+});
