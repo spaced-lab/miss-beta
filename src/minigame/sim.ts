@@ -1023,7 +1023,8 @@ function beamHit(st: MinigameState, x0: number, y0: number, angle: number, len: 
     const k = (MG.BULLET_IMPULSE * MG.LASER_IMPULSE_MULT * damage) / rockMass(a);
     a.vx += ca * k;
     a.vy += sa * k;
-    creditHit(st);
+    // Only the player's own beam charges the seeker counter: sentry and array beams are already the reward.
+    if (tier === -1) creditHit(st);
     spawnParticles(st, a.x - ca * a.r, a.y - sa * a.r, 5, 2, a.tier);
     emit(st, { type: 'hit', tier: a.tier });
     if (a.hp <= 0) dead.push(j);
@@ -1040,22 +1041,38 @@ function fireLaser(st: MinigameState, angle: number): void {
   beamHit(st, Math.cos(angle) * muzzle, Math.sin(angle) * muzzle, angle, laserRange(st.level) - muzzle, damage, -1);
 }
 
+/** True when a beam from (x0, y0) along `angle` for `len` would pass through the planet's disc: the planet blocks it. */
+export function blockedByPlanet(x0: number, y0: number, angle: number, len: number): boolean {
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  // Closest approach of the ray to the origin, clamped to the segment.
+  const along = Math.max(0, Math.min(len, -(x0 * ca + y0 * sa)));
+  const px = x0 + ca * along;
+  const py = y0 + sa * along;
+  return Math.hypot(px, py) < MG.PLANET_R;
+}
+
 /**
  * The beam array (v3.4): every sentry fires at `target` at once. The target is eliminated outright, with no
  * fragments, then each beam runs on past where it was and damages whatever else it crosses.
  */
-function fireArray(st: MinigameState, target: Asteroid): void {
+function fireArray(st: MinigameState, target: Asteroid): boolean {
   const shots: { x: number; y: number; angle: number; len: number }[] = [];
   for (const tr of st.turrets) {
     const p = turretPosition(tr);
     const angle = Math.atan2(target.y - p.y, target.x - p.x);
-    shots.push({ x: p.x, y: p.y, angle, len: Math.hypot(target.x - p.x, target.y - p.y) + MG.SENTRY_LASER_RANGE });
+    const len = Math.hypot(target.x - p.x, target.y - p.y) + MG.SENTRY_LASER_RANGE;
+    // A sentry on the far side cannot see the target through the planet.
+    if (blockedByPlanet(p.x, p.y, angle, len)) continue;
+    shots.push({ x: p.x, y: p.y, angle, len });
   }
+  if (shots.length === 0) return false;
   const idx = st.asteroids.indexOf(target);
   if (idx >= 0) destroyAsteroid(st, idx, MG.SENTRY_ARRAY_SCORE_MULT, false);
   for (const sh of shots) beamHit(st, sh.x, sh.y, sh.angle, sh.len, MG.SENTRY_ARRAY_DAMAGE, 5);
   flash(st, 'BEAM ARRAY', 1.2);
   emit(st, { type: 'array', beams: shots.length });
+  return true;
 }
 
 /**
@@ -1254,7 +1271,8 @@ function stepTurret(st: MinigameState, tr: Turret, dt: number): void {
     // Sentry laser (v3.4): a beam along the aim, stronger with the sentry's tier.
     const p = turretPosition(tr);
     const dmg = strengthLevel(st.streamCount) + MG.SENTRY_LASER_TIER_DAMAGE * tr.tier + (tr.superb ? 1 : 0);
-    beamHit(st, p.x, p.y, Math.atan2(target.y - p.y, target.x - p.x), MG.SENTRY_LASER_RANGE, dmg, tr.tier);
+    const aim = Math.atan2(target.y - p.y, target.x - p.x);
+    if (!blockedByPlanet(p.x, p.y, aim, MG.SENTRY_LASER_RANGE)) beamHit(st, p.x, p.y, aim, MG.SENTRY_LASER_RANGE, dmg, tr.tier);
     tr.laserCd = MG.SENTRY_LASER_PERIOD / rate;
   }
   if (tr.cooldown > 0) return;
@@ -1397,10 +1415,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     st.arrayCd -= dt;
     if (st.arrayCd <= 0 && st.turrets.length >= MG.SENTRY_ARRAY_MIN) {
       const target = pickTarget(st);
-      if (target) {
-        fireArray(st, target);
-        st.arrayCd = MG.SENTRY_ARRAY_PERIOD;
-      }
+      if (target && fireArray(st, target)) st.arrayCd = MG.SENTRY_ARRAY_PERIOD;
     }
   }
 

@@ -401,7 +401,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     if (arrayOn(st.level)) {
       // Beam array (v3.4): charge readout under the sentry bar.
       const ready = st.turrets.length >= MG.SENTRY_ARRAY_MIN;
-      const label = !ready ? `BEAM ARRAY: NEEDS ${MG.SENTRY_ARRAY_MIN} SENTRIES` : st.arrayCd <= 0 ? 'BEAM ARRAY: READY' : `BEAM ARRAY IN ${st.arrayCd.toFixed(1)} S`;
+      const label = !ready ? `ARRAY NEEDS ${MG.SENTRY_ARRAY_MIN}` : st.arrayCd <= 0 ? 'ARRAY READY' : `ARRAY ${st.arrayCd.toFixed(1)} S`;
       drawText(s, label, bx, by + bh + 5, fs * 0.9, { color: stage >= 3 ? NEON.array : p.ink, alpha: ready ? 1 : 0.6 });
     }
   }

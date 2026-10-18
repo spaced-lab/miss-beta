@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MG } from '../src/minigame/config';
 import { SOUND_EVENTS, VARIANTS } from '../src/minigame/sfx';
 import {
-  arrayOn, createState, deployTurret, deserialize, droneSpeed, droneTier, releaseSwarm, sentryLasersOn, serialize, start, step, swarmKillsNeeded,
+  arrayOn, blockedByPlanet, createState, deployTurret, deserialize, droneSpeed, droneTier, releaseSwarm, sentryLasersOn, serialize, start, step, swarmKillsNeeded,
   NO_INPUT, type Asteroid, type MinigameState,
 } from '../src/minigame/sim';
 
@@ -84,6 +84,8 @@ describe('PERIMETER v3.4 (owner follow-up 2026-10-18)', () => {
     const st = atLevel(9, MG.SENTRY_ARRAY_LEVEL);
     for (let i = 0; i < MG.SENTRY_ARRAY_MIN; i++) deployTurret(st, false, 'orbiter');
     expect(st.turrets.length).toBe(MG.SENTRY_ARRAY_MIN);
+    // All three on the target's side of the planet, so no beam is blocked by it.
+    st.turrets.forEach((tr, i) => { tr.angle = Math.PI / 2 + (i - 1) * 0.6; });
     const big = rock(st, 0, 4.5, 0.9, 3, 1e6);
     const bigId = big.id;
     st.arrayCd = 0;
@@ -105,6 +107,18 @@ describe('PERIMETER v3.4 (owner follow-up 2026-10-18)', () => {
     st2.arrayCd = 0;
     for (let i = 0; i < 30; i++) step(st2, NO_INPUT, MG.DT);
     expect(st2.events.some((e) => e.type === 'array')).toBe(false);
+  });
+
+  it('the planet blocks beams: a sentry on the far side does not join the array', () => {
+    const st = atLevel(9, MG.SENTRY_ARRAY_LEVEL);
+    for (let i = 0; i < 3; i++) deployTurret(st, false, 'orbiter');
+    st.turrets.forEach((tr, i) => { tr.angle = i < 2 ? Math.PI / 2 + (i - 0.5) * 0.6 : -Math.PI / 2; });
+    rock(st, 0, 4.5, 0.9, 3, 1e6);
+    st.arrayCd = 0;
+    step(st, NO_INPUT, MG.DT);
+    expect(st.beams.filter((b) => b.tier === 5).length).toBe(2);
+    expect(blockedByPlanet(0, -2, Math.PI / 2, 6)).toBe(true);
+    expect(blockedByPlanet(0, 2, Math.PI / 2, 6)).toBe(false);
   });
 
   it('the new fields round-trip through a save, and a v3.3 save without them still loads', () => {

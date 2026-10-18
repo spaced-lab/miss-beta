@@ -8,8 +8,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   harder-hitting, lime / cyan / magenta / white, two per swarm) and more of them; sentry lasers from level 14 in
   the sentry's tier colour, stronger with tier; the BEAM ARRAY from level 25 (three sentries coordinate and
   eliminate the most threatening rock in one shot, no fragments); the ramp accelerates sooner (17 s levels,
-  faster spawn, speed and hit-point growth); every high-pitched cue lowered, the sentry-earned sound and the
-  game-over fall most of all.
+  faster spawn, speed and hit-point growth: +30 % hit points per level past 10, the one axis the balance probe
+  found that still bites against the new weapons); the planet blocks beams; every high-pitched cue lowered, the
+  sentry-earned sound and the game-over fall most of all.
 
 - M13: event cinematics and narratives (GAME_PLAN 29). Launch, impact, breakup (rubble crumbles, stony
   cracks, iron rings and sheds, comet puffs), nuclear burst, PI shredding and the close approach pause the

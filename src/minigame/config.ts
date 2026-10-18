@@ -37,7 +37,7 @@ export const MG = {
    *  (tests/minigame.test.ts) showed this is the one axis that gets rocks through a full arsenal: faster or
    *  denser rocks were simply killed at the rate they spawned; tougher ones arrive. */
   HP_MULT_FROM_LEVEL: 10,
-  HP_MULT_PER_LEVEL: 0.18,
+  HP_MULT_PER_LEVEL: 0.3,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -72,8 +72,8 @@ export const MG = {
   SPAWN_LEVEL_FACTOR: 0.75,
   SPAWN_MIN: 0.3,
   SPAWN_FLOOR_FROM_LEVEL: 9,
-  SPAWN_FLOOR_FACTOR: 0.95,
-  SPAWN_FLOOR_ABS: 0.08,
+  SPAWN_FLOOR_FACTOR: 0.93,
+  SPAWN_FLOOR_ABS: 0.05,
   AST_SPEED_0: 0.45,
   AST_SPEED_PER_LEVEL: 0.14,
   /** A second slope joins past AST_SPEED_LATE_FROM_LEVEL ("minigame needs to get faster"): the ramp steepens by
@@ -122,7 +122,7 @@ export const MG = {
   PRESSURE_MIN: 0.6,
   PRESSURE_MAX: 1.6,
   PRESSURE_MAX_FROM_LEVEL: 10,
-  PRESSURE_MAX_PER_LEVEL: 0.02,
+  PRESSURE_MAX_PER_LEVEL: 0.03,
   PRESSURE_GAIN: 0.015,
   PRESSURE_HIT_DROP: 0.08,
   PRESSURE_CALM_SECONDS: 6,
@@ -194,7 +194,7 @@ export const MG = {
    *  eliminated outright (no fragments, score x SENTRY_ARRAY_SCORE_MULT) and every other rock a beam crosses takes
    *  SENTRY_ARRAY_DAMAGE. White-hot beams, a sub chord. */
   SENTRY_ARRAY_LEVEL: 25,
-  SENTRY_ARRAY_PERIOD: 9,
+  SENTRY_ARRAY_PERIOD: 12,
   SENTRY_ARRAY_MIN: 3,
   SENTRY_ARRAY_DAMAGE: 6,
   SENTRY_ARRAY_SCORE_MULT: 1,
