@@ -875,7 +875,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   ` CONSOLE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   BACKQUOTE CONSOLE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {

@@ -156,7 +156,7 @@ export class TitleScreen implements Screen {
 
     if (this.noteT > 0) drawText(s, this.note, cx, s.height - 90, 12, { align: 'center', color: p.hot, alpha: Math.min(1, this.noteT) });
     if (this.pendingRun && this.pendingRun.cheatsUsed.length > 0) drawText(s, `CODES FOR THE NEXT RUN: ${this.pendingRun.cheatsUsed.join(' ')}   MODE ${this.pendingRun.mode}`, cx, s.height - 64, 11, { align: 'center', color: p.hot, glow: 0.8 });
-    drawText(s, 'MISS β v0.1   ARROWS SELECT   ENTER START   ` CONSOLE (CHEAT CODES)', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'MISS β v0.1   ARROWS SELECT   ENTER START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
     this.console.render({ run: this.pendingRun ?? createRun('PENDING'), round: null });
   }
 }
