@@ -26,6 +26,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   a word (code review 2026-10-18, findings 1-2). Non-finite numbers are still rejected.
 - CI and release: every GitHub Action is pinned by commit SHA instead of a movable major tag, so a retagged or
   compromised action cannot run in the jobs that publish releases, mint provenance or deploy Pages (finding 7).
+- Release: the version reaches the shell steps through `env:` instead of being pasted in with `${{ }}`, and only a
+  plain YY.Q.N version passes the first step (template injection, finding 8).
 
 ## 26.4.0 (2026-10-18)
 

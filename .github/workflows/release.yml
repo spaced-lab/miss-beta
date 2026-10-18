@@ -35,6 +35,8 @@ jobs:
         name: Tag must match package.json
         run: |
           v="$(node -p "require('./package.json').version")"
+          # Only a plain YY.Q.N version goes any further (it names files and ends up in shell lines and URLs).
+          if ! printf '%s' "${v}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then echo "package.json version is not YY.Q.N"; exit 1; fi
           if [ "${GITHUB_REF_NAME}" != "v${v}" ]; then echo "tag ${GITHUB_REF_NAME} does not match package.json ${v}"; exit 1; fi
           echo "version=${v}" >> "$GITHUB_OUTPUT"
       - run: npm ci
@@ -47,8 +49,11 @@ jobs:
       - run: python3 scripts/build_lore.py && npm run build
       - run: node scripts/smoke.mjs
       - name: Zip, checksums and release notes
+        # NOTE: values reach the script through env:, never pasted into it with ${{ }} (template injection).
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          v="${{ steps.version.outputs.version }}"
+          v="${VERSION}"
           mkdir -p release
           (cd dist && zip -qrX "../release/miss-beta-${v}.zip" .)
           (cd release && sha256sum "miss-beta-${v}.zip" > SHA256SUMS && cat SHA256SUMS)
@@ -81,8 +86,9 @@ jobs:
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          v="${{ needs.build.outputs.version }}"
+          v="${VERSION}"
           gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "MISS β ${v}" \
             --notes-file release/NOTES.md "release/miss-beta-${v}.zip" release/SHA256SUMS
   deploy:
