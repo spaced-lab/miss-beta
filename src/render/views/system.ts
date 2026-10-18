@@ -232,6 +232,10 @@ export class SystemScreen implements Screen {
       this.router.go('title');
       return;
     }
+    if (k.pressed('Slash')) {
+      this.router.go('help');
+      return;
+    }
     if (this.programs.isOpen) {
       this.programs.update(this.run);
       return;

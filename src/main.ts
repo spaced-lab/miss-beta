@@ -10,6 +10,7 @@ import { createSurface } from './render/canvas';
 import { PALETTES } from './render/palettes';
 import { drawText } from './render/vectorFont';
 import { CodexScreen } from './render/views/codex';
+import { HelpScreen } from './render/views/help';
 import { LeaderboardScreen } from './render/views/leaderboard';
 import { SystemScreen } from './render/views/system';
 import { TitleScreen } from './render/views/title';
@@ -25,12 +26,16 @@ function boot(): void {
 
   let current: Screen | null = null;
   const screens = new Map<ScreenId, Screen>();
+  let currentId: ScreenId = 'title';
   const router: Router = {
     go(id) {
       const next = screens.get(id);
       if (!next) throw new Error(`unknown screen ${id}`);
+      // The manual remembers where it was opened from.
+      if (id === 'help' && currentId !== 'help') (next as HelpScreen).returnTo = currentId;
       current?.exit();
       current = next;
+      currentId = id;
       current.enter();
     },
   };
@@ -39,6 +44,8 @@ function boot(): void {
   screens.set('system', new SystemScreen(surface, keys, router));
   screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
   screens.set('codex', new CodexScreen(surface, keys, router));
+  const help = new HelpScreen(surface, keys, router);
+  screens.set('help', help);
 
   const onResize = (): void => surface.resize();
   window.addEventListener('resize', onResize);
@@ -67,7 +74,7 @@ function boot(): void {
 
   // Deep link for quick testing: index.html#minigame
   const hash = location.hash.slice(1);
-  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' ? hash : 'title');
+  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' || hash === 'help' ? hash : 'title');
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.

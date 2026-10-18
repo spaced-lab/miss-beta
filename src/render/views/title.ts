@@ -46,6 +46,7 @@ export class TitleScreen implements Screen {
       { label: 'PERIMETER  (ARCADE MINIGAME)', hotkey: 'KeyP', action: () => router.go('minigame') },
       { label: 'CODEX', hotkey: 'KeyX', action: () => router.go('codex') },
       { label: 'LEADERBOARD', hotkey: 'KeyB', action: () => router.go('leaderboard') },
+      { label: 'HOW TO PLAY', hotkey: 'KeyH', action: () => router.go('help') },
       { label: 'LEARN', hotkey: 'KeyL', action: null },
       { label: 'OPTIONS', hotkey: 'KeyO', action: null },
     ];

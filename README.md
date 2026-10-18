@@ -32,6 +32,10 @@ tab; after a reload the ready panel offers `Space` (or `R`) to RESUME it and `Ba
 so a hand still on the fire key cannot wipe a run. Cheat codes are listed in `src/minigame/cheats.ts`; they
 flag the run ASSISTED.
 
+## How to play
+
+Read `docs/HOW_TO_PLAY.md`, or press `?` in a run (HOW TO PLAY on the title menu) for the same text in the game.
+
 ## Learn to code with this repo
 
 Every file opens with a WHAT / WHY / HOW / LORE header and every physics function carries its formula, units

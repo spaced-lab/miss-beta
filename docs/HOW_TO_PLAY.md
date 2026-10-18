@@ -1,0 +1,110 @@
+# MISS β: How to play
+
+You run BETA, the Ballistic Engagement of Threatening Asteroids office, for a planet called HOME. Each round an
+object is found on a collision course. You have a budget, launchers and a growing tech tree. Change its orbit
+enough that it misses, or lose the planet. The title equation says how: miss ≈ 3 · β · (m/M) · U · T. Early and
+fast beats late and big.
+
+## The round loop
+
+1. **Threat brief** (top of the screen): name, type, size, energy in megatons, class, closing speed, who found it
+   and how much lead time you have. The margin says how far inside the focusing ring it will pass (negative = hit).
+2. **Plan**: press `P`. The planner computes every launch window and lists the best plans with their numbers.
+   Pick one with Up/Down, commit with Enter. Commit several if one is not enough; the margin shown is the total.
+3. **Run the clock**: `]` and `[` change warp (1 day/s up to 1 year/s), Space pauses. Craft fly their arcs,
+   impacts land, the log at the bottom left prints what happened. Pause and press `P` again any time to add
+   missions; budget keeps accruing on the clock.
+4. **Resolve**: `R` jumps to the close approach. A miss opens the debrief (score, research earned, a replay you can
+   scrub with Left/Right). Space starts the next round, harder. A hit ends the run and records it on the leaderboard.
+
+## Keys in a run
+
+| Key | What |
+|---|---|
+| `P` | Planner |
+| `T` | Tech tree (spend research) |
+| `G` | Programs (fund long-term infrastructure) |
+| `V` | Planet view: HOME, the focusing ring, every body at closest approach |
+| `E` | Order an evacuation (cost 2 budget) |
+| `Space`, `[`, `]` | Pause, warp down, warp up |
+| `R` | Resolve now |
+| `S`, `Z`, wheel, drag | Scale toggle, reset camera, zoom, pan |
+| `X` | Export SAVE.md |
+| `?` | This manual |
+| `Esc` | Title |
+
+## Reading a plan
+
+```
+PLAN 1  DEFLECT (Q/Q* 0.11)  KINETIC   SCORE 0.96
+ LAUNCH  T-06Y 150D   C3 11.3   PAYLOAD 1500 KG
+ IMPACT  T-05Y 258D   U 26.5 KM/S   TARGET THREAT
+ PUSH    dV 9.17 MM/S (BETA 2.0..4.0)   EST 0.54 R
+ RESULT  MISS  MARGIN +1.03 R   P(MISS) 100%  N 120
+ COST    3 / 8.2
+```
+
+- **C3** is the launch energy the rocket must provide; payload falls as C3 rises.
+- **U** is the closing speed at impact: the push is β (m/M) U, so faster and heavier is better.
+- **Q/Q\*** says whether the hit shatters the body. Under 1 it craters (DEFLECT); over 1 it breaks (DISRUPT).
+  Breaking it early scatters the pieces past the planet; breaking it late aims a shotgun at yourself.
+- **β** is the momentum enhancement from ejecta. It is drawn when the impact happens and revealed only after
+  the tracking delay; until then the planner shows the range.
+- **EST** is the quick 3·dv·T estimate; **RESULT** is the real propagation; **P(MISS)** comes from 120 Monte Carlo
+  samples of β and fragment draws for the selected plan.
+- **MARGIN** is the distance outside the gravitational-focusing ring in planet radii. Positive misses.
+
+## Plan types (what the tech tree unlocks)
+
+- **KINETIC**: one impactor on a direct intercept. Always available.
+- **SWARM**: 2 to 3 launches on staggered windows. **SPLIT BUS** (swarm tiers 2, 3): one carrier that releases
+  3 or 8 sub-impactors late, each able to re-aim at its own fragment.
+- **KINETIC-FLYBY** (NAV): a planet rotates the craft's velocity for free; the line shows the planet, the turn
+  and the onboard dv that covers the mismatch. The FLYBY WINDOWS box lists the dates that work.
+- **SAIL-KINETIC** (SAIL): a sail spirals for months to build speed, drops, then intercepts.
+- **NUKE STANDOFF / SUBSURFACE** (WARHEADS): a standoff burst pushes without breaking if the approach is slow
+  enough to fuze; subsurface bursts shatter. Warheads cost extra and carry a score penalty.
+- **SLOW PUSH** (SLOW PUSH): rendezvous, then push for years: gravity tractor, ion beam, laser and the rest.
+  Tiny forces; good for small bodies, fine-tuning and sweeping fragments. The planner also lists the methods that
+  do not work (tether, electrostatic) with their honest numbers.
+- **PI** (TERMINAL): a penetrator array shreds a body under 100 m hours before impact into pieces that airburst.
+
+After a breakup, press Tab in the planner to cycle the target over the surviving pieces.
+
+## Autonomy
+
+Assets already in flight can react. Tier 1 follows rules (press `R` in the planner to cycle the preset:
+DEFAULT, AGGRESSIVE, CONSERVATIVE). Tier 2 re-aims itself at the best fragment within its onboard dv. Tier 3
+assigns a whole fleet to fragments jointly. The log prints every retarget and deployment.
+
+## Programs (G)
+
+Long-term projects that take years and drain budget per year: more budget, civil-defense readiness, new survey
+networks (a space infrared surveyor, a sunward sentinel), radar, pre-built interceptors, launch cadence, an
+orbital depot. Networks change how early later threats are found. Lead time is the strongest multiplier in
+the game.
+
+## Civil defense (E)
+
+When nothing can be flown in time, evacuate. An evacuated airburst- or city-class hit, ordered early enough,
+scores as PARTIAL at a quarter value and the run continues. NO WARNING rounds (found only at atmospheric
+entry) are civil defense only.
+
+## Budget, research, score
+
+Budget accrues per year on the clock, so waiting buys launches but burns lead time. Research comes from round
+score and buys tech. Score: log10(megatons + 1) · 100 · (1 + 0.15 · round) · outcome · (1 + efficiency +
+timing + style); a clean miss is 1.0, a marginal miss 0.8, a partial 0.35; no warhead and no fragments earn
+style.
+
+## Saving
+
+The run saves at round boundaries. CONTINUE on the title resumes it. `X` downloads SAVE.md, a readable file
+whose front matter the game reads back; drop a SAVE.md onto the window to import it.
+
+## PERIMETER (arcade minigame)
+
+Arrows move the launcher, Space fires (watch the heat), Shift fires a pulse, `<` a seeker missile, `>` a swarm
+of sentinels. Levels raise streams, launchers and rock hardness; the moon arrives at level 3 and sentries are
+earned from level 6. Keys 1 to 5: debug, glow, collision, sound, sound kit. Cheat codes are listed in
+`src/minigame/cheats.ts`; they flag the run ASSISTED.
