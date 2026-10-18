@@ -66,6 +66,13 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 - AUTOPLAY (2026-10-18): the autopilot presses the same logical keys a player would (Input.inject), reads a
   narrow AutoView, and waits while a pane is up (2.5 s + 0.32 s/word, 4-14 s). No single MISS plan: stack the
   plan that improves the margin most (up to 4), else wait a year if lead > 1.5 y, else evacuate 120 d out.
+- Voice (2026-10-18, IDEAS 21): newest line wins (a new line cuts the old one with a 60 ms fade) instead of a
+  queue, except one explicit follow-up (HIT then GAME OVER, COMMITTED then BUILDING); the same line is not
+  repeated within 8 real seconds, and a batch of events speaks only its most important line (`voiceForEvents`),
+  so high warp cannot spam. Program completion says "Research complete." (no dedicated line). The vocoder mix
+  keeps 45 % dry voice: a Whisper transcription check scored the pure vocoder 8/24 lines, this mix 17/24.
+  Ogg Opus decodes in Chromium and Firefox and in Safari 18.4+; older Safari stays silent (logged, no error).
+
 - Keys (2026-10-18): rebinding is a swap at the Input layer (physical -> logical code), so screens keep testing
   default codes and no key is ever lost; Escape and arrows are not bindable. MANUAL defaults to M.
 
@@ -200,4 +207,8 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 5b. Owner queue 2026-10-18 (in order): NEXT colours (NEON default, cyan text, pink/purple headers), assignable
    keys with MANUAL on M, planner overlap fix, IDEAS 19 AUTOPLAY (all done); BACKLOG 20 SUPER-DUPER-DEMO,
    21 voice-overs (Kokoro bf_emma / bm_fable, vocoded) and game sounds; then item 5's queue.
+   21 voice-overs DONE 2026-10-18: `scripts/gen_voice.py` (venv `.venv-voice`, py3.12) bakes 22 lines x 2 voices
+   to `public/audio/voice/` (196 KB Opus 20 kbit/s), `src/audio/voice.ts` lazy-loads and plays them through the
+   synth's master bus, OPTIONS > VOICE OFF/FEMALE/MALE (default FEMALE). New knobs `VOICE_*`. AUTOPLAY and
+   FINALE clips exist; items 19/20 call `sfx.voice.say('AUTOPLAY')` / `say('FINALE')`. Game-sound half open.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.

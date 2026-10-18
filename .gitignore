@@ -20,3 +20,4 @@ public/lore/*
 
 # Owner scratch: screenshots for the agent, never committed
 temp/
+.venv-voice/

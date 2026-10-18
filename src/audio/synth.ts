@@ -118,6 +118,11 @@ export class Synth {
     if (this.master) this.master.gain.value = v;
   }
 
+  /** The running context and master bus, or null: lets a sample player (audio/voice.ts) share the compressor. */
+  bus(): { ctx: AudioContext; master: GainNode } | null {
+    return this.out();
+  }
+
   private out(): { ctx: AudioContext; master: GainNode } | null {
     if (!this.ctx || !this.master || this.ctx.state !== 'running') return null;
     return { ctx: this.ctx, master: this.master };

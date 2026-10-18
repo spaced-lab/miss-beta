@@ -52,6 +52,7 @@ import { CAMERA_PITCHES, polyhedron, tilt, type Camera } from '../camera3d';
 import { Materialize, StarField } from '../wire';
 import { ROLE_STYLE } from '../palettes';
 import type { UiSfx } from '../../audio/ui';
+import { voiceForEvents } from '../../audio/voice';
 import { advanceTutorial, createTutorial, stepsOf, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, type TutorialFacts, type TutorialState } from '../../game/tutorial';
 import { saveJson } from '../../game/persistence';
 import { DEFAULT_SETTINGS, type Settings } from '../../game/settings';
@@ -164,6 +165,8 @@ export class SystemScreen implements Screen {
     return null;
   }
   private approachSounded = false;
+  /** IDEAS 21: "IMPACT IMMINENT" is said once per round. */
+  private imminentSaid = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
     this.lore = new LorePanel(s, keys);
@@ -413,6 +416,8 @@ export class SystemScreen implements Screen {
     this.tele.clear();
     this.pendingFinish = false;
     this.approachSounded = false;
+    this.imminentSaid = false;
+    this.sfx?.voice.say('ROUND_START', true, 'THREAT_DETECTED');
     this.detourAt = null;
     this.nibiru = false;
     this.ticketFiled = false;
@@ -449,6 +454,8 @@ export class SystemScreen implements Screen {
       }
       return;
     }
+    const line = voiceForEvents(passed);
+    if (line) this.sfx?.voice.say(line);
     const cas = passed.filter((e): e is Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }> => e.kind === 'CLOSE_APPROACH');
     for (const e of passed) {
       if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
@@ -507,6 +514,7 @@ export class SystemScreen implements Screen {
           this.note('BOOTSTRAP: THIS ONE WAS ALWAYS PAID FOR.', 4);
         }
         this.sfx?.commit();
+        this.sfx?.voice.say('PLAN_COMMITTED', true, ms.some((m) => m.launchTime > this.world.t) ? 'BUILDING' : undefined);
         if (branch) {
           branch.missions.push(...ms);
           resolveBranch(branch, this.resolveOpts());
@@ -572,6 +580,7 @@ export class SystemScreen implements Screen {
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
     if (!this.approachSounded) this.sfx?.approach(finalOutcome === 'HIT');
+    this.sfx?.voice.say(finalOutcome === 'HIT' ? 'HIT' : finalOutcome === 'PARTIAL' ? 'PARTIAL' : 'MISS', true, finalOutcome === 'HIT' ? 'GAME_OVER' : undefined);
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
     this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
     this.cine.clear();
@@ -691,11 +700,15 @@ export class SystemScreen implements Screen {
       }
     }
     if (this.programs.isOpen) {
+      const funded = this.run.programs.filter((p) => p.funding > 0).length;
       this.programs.update(this.run);
+      if (this.run.programs.filter((p) => p.funding > 0).length > funded) this.sfx?.voice.say('PROGRAM_FUNDED');
       return;
     }
     if (this.tech.isOpen) {
+      const research = this.run.research;
       this.tech.update(this.run);
+      if (this.run.research < research) this.sfx?.voice.say('RESEARCHING', true);
       return;
     }
     if (this.phase === 'debrief' || this.phase === 'over') {
@@ -750,6 +763,7 @@ export class SystemScreen implements Screen {
     if (k.pressed('KeyE') && this.run.evacuatedAt === null && w.threat) {
       if (spend(this.run.economy, w.t, KNOBS.EVACUATE_COST)) {
         this.run.evacuatedAt = w.t;
+        this.sfx?.voice.say('EVACUATE', true);
         this.note(`EVACUATION ORDERED  ${formatCountdown(w.threat.tImpact - w.t)}  (${this.run.effects.evacMinDays} D MINIMUM FOR CREDIT)`);
         this.tele.push(evacuateNarrative(w.threat.tImpact - w.t, this.run.effects.evacMinDays));
       } else this.note('CANNOT AFFORD EVACUATION (COST 2)');
@@ -761,7 +775,9 @@ export class SystemScreen implements Screen {
       return;
     }
     if (k.pressed('Space')) setWarp(w, w.warp === 0 ? 1 : 0);
+    if (k.pressed('Space') && w.warp === 0) this.sfx?.voice.say('PAUSED');
     if (k.pressed('BracketRight')) setWarp(w, w.warp + 1);
+    if (k.pressed('BracketRight') && w.warp === KNOBS.WARP_LEVELS.length - 1) this.sfx?.voice.say('WARP');
     if (k.pressed('BracketLeft')) setWarp(w, w.warp - 1);
     if (k.pressed('KeyS')) this.scale = this.scale === 'LINEAR' ? 'COMPRESSED' : 'LINEAR';
     if (k.pressed('KeyI')) {
@@ -798,6 +814,10 @@ export class SystemScreen implements Screen {
     const before = w.t;
     advance(w, Math.min(dtMs, 100) / 1000);
     if (this.result && w.t > before) this.onEventsPassed(this.result.events.filter((e) => e.t > before && e.t <= w.t));
+    if (!this.imminentSaid && this.result?.outcome === 'HIT' && w.threat && w.threat.tImpact - w.t < KNOBS.VOICE_IMMINENT_S) {
+      this.imminentSaid = true;
+      this.sfx?.voice.say('IMPACT_IMMINENT', true);
+    }
     // Auto warp-down (29): the last craft has arrived, so the player sees there is room to act.
     const arrived = this.warpDown.check(this.result?.missionsResolved ?? this.missions, before, w.t);
     if (arrived.length > 0 && !this.mv) {
@@ -808,6 +828,7 @@ export class SystemScreen implements Screen {
     // Programs run on the sim clock and drain the budget; completions change the networks for later rounds.
     const done = advancePrograms(this.run.programs, { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, w.t, w.t - before);
     for (const id of done) this.note(`PROGRAM COMPLETE: ${id}`, 4);
+    if (done.length > 0) this.sfx?.voice.say('RESEARCHING');
     if (this.mv) {
       tickMultiverse(this.mv, w.t - before);
       if (w.t >= earliestEnd(this.mv)) this.finishRound();

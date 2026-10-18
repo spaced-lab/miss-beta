@@ -161,8 +161,8 @@ TUTORIAL on the title (also the first launch) plays a guided round 0 on a fixed 
 years of warning: eight steps (brief, clock, planner, commit, flight, impact, approach, debrief) that each wait
 for you to do the thing; Tab skips, and Space at the debrief starts round 1 for real on a fresh seed. The
 tutorial is never recorded or saved. DAILY RUN uses the seed of today's UTC date so everyone gets the same
-rounds. OPTIONS: color mode (seven palettes), CRT effects, glow style, sound, units, reduce motion, text size
-and the learning level for the Learning Center. Touch: one finger pans, two fingers pinch to zoom.
+rounds. OPTIONS: color mode (seven palettes), CRT effects, glow style, sound, voice (a vocoded robot mission
+voice: OFF, FEMALE or MALE), units, reduce motion, text size and the learning level for the Learning Center. Touch: one finger pans, two fingers pinch to zoom.
 
 ## Gamepad
 

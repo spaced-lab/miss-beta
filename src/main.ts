@@ -78,6 +78,11 @@ function boot(): void {
   };
   help.openCenter = toCenter;
   options.openCenter = toCenter;
+  options.sayVoice = (id) => {
+    sfx.voice.mode = settings.voice ?? 'FEMALE';
+    sfx.unlock();
+    sfx.voice.say(id, true);
+  };
 
   const onResize = (): void => surface.resize();
   window.addEventListener('resize', onResize);
@@ -123,14 +128,21 @@ function boot(): void {
   }
 
   let last = performance.now();
+  let welcomed = false;
   const frame = (now: number): void => {
     const dt = now - last;
     last = now;
     const t0 = performance.now();
     sfx.enabled = settings.sound;
+    sfx.voice.mode = settings.voice ?? 'FEMALE';
     if (!settings.reduceMotion) surface.holoDrift = (surface.holoDrift + dt * 0.01) % 360;
     keys.pollGamepads();
     if (keys.anyKeyPressed()) sfx.unlock();
+    // IDEAS 21: the mission computer greets once, as soon as audio is allowed to start on the title.
+    if (!welcomed && currentId === 'title' && sfx.synth.ready) {
+      welcomed = true;
+      sfx.voice.say('WELCOME');
+    }
     current?.update(dt);
     keys.endFrame();
     current?.render();

@@ -13,6 +13,7 @@ import { loadJson, saveJson } from './persistence';
 
 export type TextSize = 'SMALL' | 'NORMAL' | 'LARGE';
 export type Units = 'SI' | 'IMPERIAL';
+export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE';
 export type LearningLevel = 'SIMPLE' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
 
 export interface Settings {
@@ -30,16 +31,19 @@ export interface Settings {
   tips?: boolean;
   /** 2 once the NEON-default migration ran (2026-10-18); older records get NEON once, then keep the choice. */
   colourV?: number;
+  /** Robot voice-overs (IDEAS 21, 2026-10-18). Optional so older saved settings stay valid; missing means FEMALE. */
+  voice?: VoiceSetting;
 }
 
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
 export const GLOW_MODES: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 export const TEXT_SIZES: readonly TextSize[] = ['SMALL', 'NORMAL', 'LARGE'];
 export const UNITS: readonly Units[] = ['SI', 'IMPERIAL'];
+export const VOICES: readonly VoiceSetting[] = ['OFF', 'FEMALE', 'MALE'];
 export const LEARNING_LEVELS: readonly LearningLevel[] = ['SIMPLE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 const TEXT_SCALE: Record<TextSize, number> = { SMALL: 0.9, NORMAL: 1, LARGE: 1.15 };
 
-export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: true, colourV: 2 };
+export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: true, colourV: 2, voice: 'FEMALE' };
 
 const KEY = 'settings';
 
@@ -57,7 +61,8 @@ export function isSettings(v: unknown): v is Settings {
     LEARNING_LEVELS.includes(o.learningLevel as LearningLevel) &&
     (o.spectrum === undefined || typeof o.spectrum === 'boolean') &&
     (o.tips === undefined || typeof o.tips === 'boolean') &&
-    (o.colourV === undefined || typeof o.colourV === 'number')
+    (o.colourV === undefined || typeof o.colourV === 'number') &&
+    (o.voice === undefined || VOICES.includes(o.voice as VoiceSetting))
   );
 }
 

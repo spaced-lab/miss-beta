@@ -73,3 +73,6 @@ CI (`.github/workflows/ci.yml`) runs the same gate on every push and deploys `ma
 
 Read `docs/WARNINGS.md` before exposing the dev server to a network. Design: `GAME_PLAN.md`. Lore and Learning Center content: `EDUCATION.md`. Work order: `docs/BUILD_PLAN.md`.
 Ideas not in the plan: `IDEAS.md`. License: AGPL-3.0.
+
+Voice lines (`public/audio/voice/`) were rendered with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
+by hexgrad (Apache-2.0), voices `bf_emma` and `bm_fable`, then vocoded by `scripts/gen_voice.py`.

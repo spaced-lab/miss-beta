@@ -7,6 +7,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - AUTOPLAY (title, or A in a run): the game plays itself and explains every step in panes held long enough to
   read; it stacks partial plans when no single plan works, waits for budget, evacuates late. Title AUTOPLAY runs
   are never saved or ranked. Fixed: the debrief no longer reopens PROGRAMS every frame.
+- Robot voice-overs (IDEAS 21): a lo-fi vocoded mission voice says launches, intercepts, deflection verdicts,
+  outcomes, evacuation, research and the round start. OPTIONS > VOICE: OFF, FEMALE, MALE. Lines rendered offline
+  with Kokoro-82M (Apache-2.0, voices bf_emma and bm_fable) by `scripts/gen_voice.py`; 196 KB for both voices.
 
 - NEON is the default colour (older saved settings switch once): cyan reading text, a brighter glowing cyan
   selection, pink titles, purple levels and group headers. Keys are assignable in OPTIONS > KEYS; MANUAL moved

@@ -266,4 +266,15 @@ export const KNOBS = {
   SEED_FLEET_DELAY: 365 * DAY,
   SEED_FLEET_DOUBLING: 1.5 * 365 * DAY,
   SEED_FLEET_MAX: 16,
+
+  /** 13 / IDEAS 21: robot voice-overs. Clip gain into the shared master bus (the master sits at 0.5). */
+  VOICE_GAIN: 1.6,
+  /** A line whose clip finishes loading later than this after it was asked for is dropped (it would be stale), s. */
+  VOICE_STALE_S: 1.5,
+  /** The same line is not repeated within this many real seconds (no spam during warp). */
+  VOICE_REPEAT_S: 8,
+  /** "IMPACT IMMINENT" once per round when the plan still hits and the impact is this close on the sim clock, s. */
+  VOICE_IMMINENT_S: 90 * DAY,
+  /** Fade applied when a newer line cuts a playing one off, s. */
+  VOICE_CUT_S: 0.06,
 } as const;
