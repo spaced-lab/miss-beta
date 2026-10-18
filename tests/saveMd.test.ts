@@ -102,3 +102,15 @@ describe('lore_read keys from storage (code review 2026-10-18 finding 10)', () =
     expect(parseSave(writeSave(sf))?.lore_read).toEqual({ T1: 'EXPERT', D3: 'BEGINNER' });
   });
 });
+
+describe('size cap in bytes (code review 2026-10-18 finding 11)', () => {
+  it('a save under the cap in characters but over it in UTF-8 bytes is refused', async () => {
+    const { SAVE_MAX_BYTES } = await import('../src/game/saveMd');
+    const text = writeSave(sample);
+    // A comment of 3-byte characters: about SAVE_MAX_BYTES / 2 characters, 1.5 x SAVE_MAX_BYTES bytes.
+    const padded = text.replace('---\n', `---\n# ${'€'.repeat(Math.floor(SAVE_MAX_BYTES / 2))}\n`);
+    expect(padded.length).toBeLessThan(SAVE_MAX_BYTES);
+    expect(() => parseFrontMatter(padded)).toThrow('save too large');
+    expect(parseSave(text)).not.toBeNull();
+  });
+});

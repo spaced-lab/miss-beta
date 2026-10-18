@@ -120,6 +120,11 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
   return lines.join('\n') + '\n';
 }
 
+/** UTF-8 size of a string in bytes. Example: utf8Bytes('a€') = 4 (1 + 3). */
+function utf8Bytes(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
+
 /** A Learning Center topic id: T1, D13, LAB_X. Example: isTopicKey('T1') = true; isTopicKey('a"b') = false. */
 const isTopicKey = (k: string): boolean => /^[A-Z][A-Z0-9_]{0,31}$/.test(k);
 
@@ -201,7 +206,9 @@ function stripComment(s: string): string {
 
 /** Parse the YAML front matter into a plain record. Throws on malformed input or oversized text. */
 export function parseFrontMatter(text: string): Record<string, Value> {
-  if (text.length > SAVE_MAX_BYTES) throw new Error('save too large');
+  // NOTE: the cap is in UTF-8 bytes. text.length counts UTF-16 units, so a save of 3-byte characters passed at
+  // three times the size (code review 2026-10-18). The cheap length test first; bytes only when it could pass.
+  if (text.length > SAVE_MAX_BYTES || utf8Bytes(text) > SAVE_MAX_BYTES) throw new Error('save too large');
   const lines = text.split(/\r?\n/);
   if (lines[0]?.trim() !== '---') throw new Error('no front matter');
   const out: Record<string, Value> = {};
