@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Photosensitivity notice on first boot (acknowledged once); the SUPER-DUPER-DEMO montage never cuts more than
+  three times a second (once with REDUCE MOTION). Title screen spells out MISS: and BETA: (purple labels, green
+  words). docs/WARNINGS.md 8 (flashing) and 9 (GitHub Pages: shared origin, meta-tag CSP limits).
+
 - DETECTION GAUGE (PROGRAMS and the debrief): a 1 m to 10 km bar with DEFLECT (1 yr), EVACUATE, SUNWARD and
   INTERSTELLAR (3 wk) and AFTERMATH needles, computed in the worker by the discovery model over 59 reference
   impactors (tilted orbits, trailing loss, each survey counted from its start year). The debrief places the

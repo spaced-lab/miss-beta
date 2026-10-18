@@ -209,6 +209,10 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    - PERIMETER: a self-playing demo at 75 % speed; use it to tune the minigame and log suggestions/fixes in a
      minigame feature backlog (docs/MINIGAME_BACKLOG.md) for review; difficulty levels; start at level 10/20/30/40
      from the menu. Challenging but not too hard.
+   - GitHub Pages hosting (github.io): keep the code browser-safe; every hosting caveat in docs/WARNINGS.md;
+     photosensitive (flashing lights) warning in game and docs (CRT flicker, glitch, montage, impact flashes).
+     Owner runs a full security assessment before going live; record it in docs/SAFETY.md.
+   - backlog: X.509 compliance enhancements (IDEAS.md).
    - finer launch-cinematic pixels, false-colour thrust head and spark pixels (side agent, in progress).
    Older questions (kept for the record):
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24

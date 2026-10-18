@@ -45,6 +45,8 @@ export interface Settings {
   autoSpeed?: AutoSpeed;
   /** SUPER-DUPER-DEMO length; optional for old records, missing means MEDIUM (5 minutes). */
   demoLength?: DemoLength;
+  /** True once the photosensitivity notice on the title screen was acknowledged (optional for old records). */
+  photoAck?: boolean;
 }
 
 export const AUTO_SPEED_LEVELS: readonly AutoSpeed[] = ['SLOW', 'NORMAL', 'FAST'];
@@ -80,7 +82,8 @@ export function isSettings(v: unknown): v is Settings {
     (o.voice === undefined || VOICES.includes(o.voice as VoiceSetting)) &&
     (o.soundStyle === undefined || SOUND_STYLES.includes(o.soundStyle as SoundStyle)) &&
     (o.autoSpeed === undefined || AUTO_SPEED_LEVELS.includes(o.autoSpeed as AutoSpeed)) &&
-    (o.demoLength === undefined || DEMO_LENGTH_LEVELS.includes(o.demoLength as DemoLength))
+    (o.demoLength === undefined || DEMO_LENGTH_LEVELS.includes(o.demoLength as DemoLength)) &&
+    (o.photoAck === undefined || typeof o.photoAck === 'boolean')
   );
 }
 

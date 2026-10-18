@@ -18,7 +18,8 @@ import type { SystemScreen } from './system';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawText, measureText, wrapText } from '../vectorFont';
+import { saveSettings, type Settings } from '../../game/settings';
 
 interface Item {
   label: string;
@@ -39,7 +40,7 @@ export class TitleScreen implements Screen {
   private attract: AttractRound | null = null;
   private attractN = 0;
 
-  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly getSystem: () => SystemScreen | null = () => null, private readonly sfx: UiSfx | null = null) {
+  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly getSystem: () => SystemScreen | null = () => null, private readonly sfx: UiSfx | null = null, private readonly settings: Settings | null = null) {
     this.console = new ConsoleOverlay(s, keys);
     this.items = [
       {
@@ -148,6 +149,14 @@ export class TitleScreen implements Screen {
     this.t += dtMs / 1000;
     this.noteT = Math.max(0, this.noteT - dtMs / 1000);
     const k = this.keys;
+    // Photosensitivity notice: shown until a key acknowledges it once; the choice is saved with the settings.
+    if (this.settings && !this.settings.photoAck) {
+      if (k.anyKeyPressed() || k.takeClick()) {
+        this.settings.photoAck = true;
+        saveSettings(this.settings);
+      }
+      return;
+    }
     if (this.console.isOpen) {
       if (!this.pendingRun) this.pendingRun = createRun(Date.now().toString(36).toUpperCase());
       this.console.update({ run: this.pendingRun, round: null });
@@ -206,12 +215,44 @@ export class TitleScreen implements Screen {
     }
   }
 
+  /** First-boot photosensitivity notice (docs/WARNINGS.md 7). Steady text only: nothing on this page flashes. */
+  private drawPhotoNotice(): void {
+    const s = this.s;
+    const p = s.palette;
+    const ui = uiColors(p, s.spectrum);
+    const w = Math.min(760, s.width - 32);
+    const x = (s.width - w) / 2;
+    const size = 12;
+    const body = [
+      'THIS GAME CONTAINS FLASHING AND FAST-CHANGING IMAGES: IMPACT AND NUCLEAR FLASHES, THE SUPER-DUPER-DEMO MONTAGE, THE SIMULATION-MODE GLITCH EFFECT, THE OPTIONAL CRT FLICKER, AND SCREEN SHAKE AND BRIGHT LASER BEAMS IN THE PERIMETER ARCADE MODE.',
+      '',
+      'A SMALL NUMBER OF PEOPLE MAY HAVE A SEIZURE WHEN EXPOSED TO FLASHING LIGHTS OR PATTERNS, EVEN WITH NO HISTORY OF EPILEPSY. IF YOU FEEL DIZZY, SEE ALTERED VISION, TWITCHING OR DISORIENTATION, STOP PLAYING AND REST.',
+      '',
+      'OPTIONS > REDUCE MOTION TURNS THE FLASHES, THE GLITCH AND THE FLICKER OFF AND SLOWS THE MONTAGE TO ONE CUT A SECOND. EVEN WITHOUT IT THE MONTAGE NEVER CUTS MORE THAN THREE TIMES A SECOND. PLAY IN A LIT ROOM, AT A DISTANCE, AND TAKE BREAKS.',
+    ];
+    const lines = body.flatMap((l) => (l ? wrapText(l, w - 40, 11) : ['']));
+    const h = 70 + lines.length * 17 + 40;
+    const y = Math.max(16, (s.height - h) / 2);
+    s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: ui.title, glow: 1 });
+    drawText(s, 'PHOTOSENSITIVITY WARNING', s.width / 2, y + 18, 18, { align: 'center', color: ui.title, glow: 1.2 });
+    let ly = y + 58;
+    for (const l of lines) {
+      drawText(s, l, x + 20, ly, 11, { color: ui.text, glow: 0.3 });
+      ly += 17;
+    }
+    drawText(s, 'PRESS ANY KEY OR CLICK TO CONTINUE', s.width / 2, y + h - 26, size, { align: 'center', color: ui.sel, glow: 0.8 });
+  }
+
   render(): void {
     const s = this.s;
     const p = s.palette;
     s.clear();
     const cx = s.width / 2;
     const cy = s.height / 2;
+    if (this.settings && !this.settings.photoAck) {
+      this.drawPhotoNotice();
+      return;
+    }
 
     // Attract mode: a seeded round planning and resolving itself, dim, behind the menu.
     const R = Math.min(s.width, s.height) * 0.42;
@@ -230,8 +271,15 @@ export class TitleScreen implements Screen {
 
     const big = Math.min(72, s.width / 9);
     drawText(s, 'MISS ∝ β', cx, cy - big * 1.9, big, { align: 'center', glow: 2.2, color: uiColors(p, s.spectrum).title, width: 2 });
-    drawText(s, 'MOMENTUM  IMPULSE  SAILS  SLINGSHOTS', cx, cy - big * 0.55, 12, { align: 'center' });
-    drawText(s, 'BALLISTIC ENGAGEMENT OF THREATENING ASTEROIDS', cx, cy - big * 0.55 + 20, 12, { align: 'center' });
+    // The acronyms spelled out (owner 2026-10-18): the label in purple, the words in green, centred as one line.
+    const spell = (tag: string, words: string, y: number): void => {
+      const wTag = measureText(tag, 12);
+      const x0 = cx - (wTag + measureText(words, 12)) / 2;
+      drawText(s, tag, x0, y, 12, { color: uiColors(p, s.spectrum).sub, glow: 1 });
+      drawText(s, words, x0 + wTag, y, 12, { color: p.ink });
+    };
+    spell('MISS:  ', 'MOMENTUM  IMPULSE  SAILS  SLINGSHOTS', cy - big * 0.55 + 5);
+    spell('BETA:  ', 'BALLISTIC ENGAGEMENT OF THREATENING ASTEROIDS', cy - big * 0.55 + 24);
 
     let y = cy + 4;
     const ui = uiColors(p, s.spectrum);

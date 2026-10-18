@@ -111,3 +111,16 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     Status 2026-10-18: voice-overs DONE (22 lines x 2 voices, 196 KB of Opus, `scripts/gen_voice.py`,
     `src/audio/voice.ts`, OPTIONS > VOICE). AUTOPLAY and FINALE lines are rendered but wait for items 19 / 20 to
     call them. PERIMETER cues in the main game with their own switch: still open.
+
+22. **PERIMETER self-play demo, difficulty levels, level skip (M).** Owner 2026-10-18. A self-playing PERIMETER at
+    75 % speed used to tune the minigame; its findings go to `docs/MINIGAME_BACKLOG.md` for review. Difficulty
+    levels and a menu start at level 10 / 20 / 30 / 40. Challenging but not too hard. Status: in progress.
+
+23. **X.509 compliance enhancements (S-M).** Owner 2026-10-18, for the github.io release. Scope to be set at the
+    security assessment: HTTPS-only with GitHub Pages' certificate (enforce HTTPS, HSTS behaviour of github.io),
+    no mixed content, a custom domain only with a valid certificate and CAA record, signed release tags/commits,
+    and checksums for downloadable builds. Status: backlog.
+
+24. **Research backlog and claim registry (M).** Owner 2026-10-18. Every real-world number that is not yet checked
+    against a source shows as UNVERIFIED in game text and lives in `docs/RESEARCH.md` with a method to check it;
+    findings feed the Learning Center; ideas found unfeasible get their own Learning Center section. Status: next.

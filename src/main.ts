@@ -53,7 +53,7 @@ function boot(): void {
       current.enter();
     },
   };
-  screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null, sfx));
+  screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null, sfx, settings));
   screens.set('minigame', new MinigameScreen(surface, keys, router));
   screens.set('system', new SystemScreen(surface, keys, router, settings, sfx, (id, level) => {
     center.openTopic(id, level);
@@ -72,7 +72,7 @@ function boot(): void {
   };
   const help = new HelpScreen(surface, keys, router);
   screens.set('help', help);
-  screens.set('demo', new DemoScreen(surface, keys, router, sfx));
+  screens.set('demo', new DemoScreen(surface, keys, router, sfx, settings));
   // Every screen with an L key opens the Learning Center on its topic; the center's Esc returns to the opener.
   const toCenter = (id: string): void => {
     center.openTopic(id);

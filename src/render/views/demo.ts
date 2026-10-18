@@ -18,7 +18,7 @@ import { drawText, wrapText } from '../vectorFont';
 import { wireSphere } from '../wire';
 
 /** Montage pacing [knob]: first scene length (s), shrink per pass, the blur floor, the pause, typing speed. */
-export const DEMO_MONTAGE = { SCENE_S0: 3.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_PASSES: 2, PAUSE_S: 2.4, TYPE_CPS: 16 } as const;
+export const DEMO_MONTAGE = { SCENE_S0: 3.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_PASSES: 2, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 } as const;
 
 /** The closing line (owner's text, spelling checked). */
 export const FINALE_TEXT = 'STRANGE GAME. THE ONLY OPTION IS TO KEEP WORKING TO PROTECT YOUR PLANET. SHALL WE PLAY A GAME OF CHESS, OR WILL YOU HELP US SAVE THE WORLD?';
@@ -49,7 +49,7 @@ export class DemoScreen implements Screen {
   private stageT = 0;
   private readonly scenes: Scene[];
 
-  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly sfx: UiSfx | null = null) {
+  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly sfx: UiSfx | null = null, private readonly settings: { reduceMotion: boolean } = { reduceMotion: false }) {
     this.scenes = [racks, worldMap, power, offWorld, portal, hints];
   }
 
@@ -65,8 +65,16 @@ export class DemoScreen implements Screen {
   }
   exit(): void {}
 
+  /**
+   * NOTE: photosensitive safety (WCAG 2.3.1, docs/WARNINGS.md): a full-screen cut is a flash, so the montage never
+   * cuts more than three times a second (SAFE_MIN_S), and once a second with REDUCE MOTION.
+   */
   private sceneLen(): number {
-    return Math.max(DEMO_MONTAGE.MIN_S, DEMO_MONTAGE.SCENE_S0 * Math.pow(DEMO_MONTAGE.SHRINK, this.pass));
+    const floor = Math.max(DEMO_MONTAGE.MIN_S, this.settings.reduceMotion ? DEMO_MONTAGE.CALM_MIN_S : DEMO_MONTAGE.SAFE_MIN_S);
+    return Math.max(floor, DEMO_MONTAGE.SCENE_S0 * Math.pow(DEMO_MONTAGE.SHRINK, this.pass));
+  }
+  private atFloor(): boolean {
+    return this.sceneLen() <= Math.max(DEMO_MONTAGE.MIN_S, this.settings.reduceMotion ? DEMO_MONTAGE.CALM_MIN_S : DEMO_MONTAGE.SAFE_MIN_S) + 1e-9;
   }
 
   update(dtMs: number): void {
@@ -88,7 +96,7 @@ export class DemoScreen implements Screen {
         if (this.sceneIdx >= this.scenes.length) {
           this.sceneIdx = 0;
           this.pass++;
-          if (this.sceneLen() <= DEMO_MONTAGE.MIN_S && ++this.blurPasses > DEMO_MONTAGE.BLUR_PASSES) {
+          if (this.atFloor() && ++this.blurPasses > DEMO_MONTAGE.BLUR_PASSES) {
             this.stage = 'pause';
             this.stageT = 0;
           }
