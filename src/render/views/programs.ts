@@ -63,17 +63,22 @@ export class ProgramsOverlay {
     s.ctx.fillRect(0, 0, s.width, s.height);
     const burn = programBurn(run.programs);
     drawText(s, `PROGRAMS   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS)`, m, m, 14, { color: p.hot, glow: 1.2 });
-    drawText(s, 'ID                          TAG       YEARS  COST/Y     PROGRESS                 FUNDING', m, m + 26, 10, { color: p.dim, glow: 0 });
+    // Columns are placed by x, not by padding, so a long tag (SPECULATIVE) never runs into YEARS.
+    const cTag = m + 300, cYr = m + 420, cCost = m + 470, bx = m + 540, bw = 150;
+    for (const [x, h] of [[m, 'ID'], [cTag, 'TAG'], [cYr, 'YEARS'], [cCost, 'COST/Y'], [bx, 'PROGRESS'], [bx + bw + 14, 'FUNDING']] as const) drawText(s, h, x, m + 26, 10, { color: p.dim, glow: 0 });
     let y = m + 44;
     run.programs.forEach((st, i) => {
       const def = programById(st.id);
       const selected = i === this.sel;
       const col = st.completedAt !== null ? p.dim : selected ? p.hot : p.ink;
-      const bx = m + 480;
-      const bw = 150;
-      const line = `${def.id.padEnd(26)} ${def.tag.padEnd(9)} ${String(def.years).padStart(3)}    ${String(def.costPerYear).padStart(3)}`;
       if (selected) drawText(s, '>', m - 12, y, 11, { color: p.hot, glow: 1 });
-      drawText(s, line, m, y, 11, { color: col, glow: selected ? 0.8 : 0.2 });
+      const sty = { color: col, glow: selected ? 0.8 : 0.2 };
+      drawText(s, def.id, m, y, 11, sty);
+      // Tag colour under NEON: real green, proposed cyan, speculative purple (the CODEX tiers).
+      const tagCol = st.completedAt !== null || !s.spectrum ? col : def.tag === 'REAL' ? s.role('planet') : def.tag === 'PROPOSED' ? s.role('craft') : s.role('program');
+      drawText(s, def.tag, cTag, y, 11, { ...sty, color: tagCol });
+      drawText(s, String(def.years), cYr + 30, y, 11, { ...sty, align: 'right' });
+      drawText(s, String(def.costPerYear), cCost + 40, y, 11, { ...sty, align: 'right' });
       s.stroke([bx, y + 2, bx + bw, y + 2, bx + bw, y + 10, bx, y + 10], { closed: true, color: p.dim, glow: 0 });
       if (st.progress > 0) s.stroke([bx + 2, y + 6, bx + 2 + (bw - 4) * st.progress, y + 6], { color: col, width: 4, glow: 0.5 });
       const fund = st.completedAt !== null ? 'DONE' : st.funding === 0 ? 'NONE' : st.funding >= 1 ? 'FULL' : `${(st.funding * 100).toFixed(0)}%`;
