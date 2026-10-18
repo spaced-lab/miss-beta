@@ -2,8 +2,8 @@
 // WHY:  Function keys are awkward on Mac keyboards, so MANUAL moved from F1 to M; anyone who prefers F keys (or
 //       any other key) rebinds in OPTIONS > KEYS. Screens keep asking for the default code; Input translates.
 // HOW:  A binding is action -> KeyboardEvent.code. `remapFor` turns the bindings into a physical -> logical
-//       table where every rebinding is a swap (new key gives the action's default code, the default key gives
-//       the new key's code), so no key is ever lost. Saved as one validated localStorage record.
+//       table that is always a permutation (a rebinding is a swap; a chain of them a rotation), so no key is
+//       ever lost. Saved as one validated localStorage record.
 // LORE: G2 (screens and HUD)
 
 import { loadJson, saveJson } from './persistence';
@@ -77,18 +77,35 @@ export function bind(b: KeyBindings, id: string, code: string): KeyBindings {
 }
 
 /**
- * Physical -> logical code table. For each action whose key differs from its default: the bound key reports
- * the default code, and the default key (unless it is itself bound) reports the bound key's code (the swap).
- * Example: MANUAL on F1 gives { F1: 'KeyM', KeyM: 'F1' }.
+ * Physical -> logical code table, always a permutation. Each moved action's bound key reports its default code.
+ * Each default key left free reports the code at the end of its chain of rebinds (the key whose own meaning was
+ * taken), so every logical code keeps exactly one physical key. NOTE: the old rule paired a default key only
+ * with its own action's new key, so after MANUAL -> X then PLANNER -> M nothing reported X and EXPORT was lost
+ * (code review 2026-10-18). Example: MANUAL on F1 gives { F1: 'KeyM', KeyM: 'F1' }; then PLANNER on M gives
+ * { F1: 'KeyM', KeyM: 'KeyP', KeyP: 'F1' }.
  */
 export function remapFor(b: KeyBindings): Map<string, string> {
   const map = new Map<string, string>();
-  const bound = new Set(Object.values(b));
+  /** default code -> the key its action is bound to now, for moved actions only */
+  const movedTo = new Map<string, string>();
   for (const a of KEY_ACTIONS) {
     const code = b[a.id] ?? a.def;
     if (code === a.def) continue;
     map.set(code, a.def);
-    if (!bound.has(a.def) && !map.has(a.def)) map.set(a.def, code);
+    movedTo.set(a.def, code);
+  }
+  for (const a of KEY_ACTIONS) {
+    const start = movedTo.get(a.def);
+    if (start === undefined || map.has(a.def)) continue;
+    // a.def is a free physical key: walk the chain def -> bound key -> (that key's action's) bound key ... to the
+    // first key that is no moved action's default; its meaning is the one with no key left.
+    let c = start;
+    for (let guard = 0; guard < KEY_ACTIONS.length; guard++) {
+      const next = movedTo.get(c);
+      if (next === undefined) break;
+      c = next;
+    }
+    map.set(a.def, c);
   }
   return map;
 }

@@ -52,6 +52,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   could run backwards and a push started from the wrong orbit; a second laser array had the same fault (finding 22).
 - Leaderboard: a malformed entry is dropped on its own; it used to empty the board and the next game over saved only the new run over the rest (finding 23).
 - Planner worker: a job that fails comes back as an error for that job; it used to take the worker down for the session and run all later planning on the UI thread (finding 24).
+- OPTIONS > KEYS: chained rebinds never lose a key (MANUAL to X, then PLANNER to M left nothing reporting X, so EXPORT was gone); the remap is always a permutation (finding 25).
 
 ## 26.4.0 (2026-10-18)
 
