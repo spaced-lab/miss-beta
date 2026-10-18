@@ -536,7 +536,8 @@ export class SystemScreen implements Screen {
     const available = this.run.economy.start + (this.run.economy.perYear * this.world.t) / YEAR;
     // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
     const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
-    const survivable = (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield);
+    // A guided DART replay is practice: a hit there scores like a survived partial and the run continues.
+    const survivable = (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield) || (res.outcome === 'HIT' && this.tut?.script === 'DART');
     if (this.run.noclip && res.outcome === 'HIT') {
       // NOCLIP: HOME is non-colliding this round; the resolver's numbers stand, the outcome is a miss.
       this.result = { ...res, outcome: 'MISS' };
