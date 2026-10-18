@@ -1,0 +1,5 @@
+/* Page chrome: full-window canvas on black. A linked stylesheet (not an inline <style>), so the production CSP
+   can say style-src 'self' without 'unsafe-inline'. */
+html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+canvas#game { display: block; width: 100vw; height: 100vh; image-rendering: auto; }
+noscript { color: #33ff33; font-family: monospace; padding: 2rem; display: block; }

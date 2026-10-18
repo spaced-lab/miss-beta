@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Security: the production CSP no longer allows inline styles or blob workers (page chrome moved to
+  src/style.css). docs/SAFETY.md findings 2-3 fixed; DECISIONS D10.
+
 - Usability: when no single plan makes the rock miss, the planner says so and how to stack pushes (commit one,
   reopen the planner) or wait for budget and research.
 

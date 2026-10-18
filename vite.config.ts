@@ -15,8 +15,8 @@ const bench = process.env['MISS_BENCH'] === '1';
 export const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "worker-src 'self' blob:",
-  "style-src 'self' 'unsafe-inline'",
+  "worker-src 'self'",
+  "style-src 'self'",
   "img-src 'self' data:",
   "connect-src 'self'",
   "object-src 'none'",

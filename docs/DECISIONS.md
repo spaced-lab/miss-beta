@@ -195,3 +195,17 @@ do not rewrite history.
 - **Alternatives rejected:** re-tuning games and growth (the game length varies with lead time and plans, so a
   game count can never promise minutes).
 - **Re-measure:** start the demo and read the header clock; `demoSpeed` is unit-tested.
+
+## D10. A stricter CSP: no inline styles, no blob workers (2026-10-18)
+
+- **TYPE:** security.
+- **Analysis:** the production CSP allowed `style-src 'unsafe-inline'` and `worker-src blob:`. The only inline
+  style was the page chrome in index.html (three rules); the planner worker is emitted as
+  `assets/planner.worker-*.js`, so no blob worker exists. The SAVE.md export uses a blob URL only as a download
+  link, which neither directive governs.
+- **Decision:** the chrome moved to `src/style.css` (vite emits a 0.2 kB linked stylesheet); the CSP is now
+  `style-src 'self'` and `worker-src 'self'`.
+- **Alternatives rejected:** a hash of the inline style (`'sha256-...'`): it breaks whenever the minifier changes
+  the text, and buys nothing over a linked file.
+- **Re-measure:** `npm run build && npx vite preview`, then play with a `securitypolicyviolation` listener and the
+  console open; `node scripts/smoke.mjs` checks the CSP tag.
