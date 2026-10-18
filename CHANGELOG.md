@@ -24,6 +24,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - Saves: a number beyond 1e15 in SAVE.md is clamped, on write and on read, instead of rejecting the save. A
   SANDBOX run with the KARDASHEV cheats passed 1e15 and its autosave stopped loading, so CONTINUE vanished without
   a word (code review 2026-10-18, findings 1-2). Non-finite numbers are still rejected.
+- CI and release: every GitHub Action is pinned by commit SHA instead of a movable major tag, so a retagged or
+  compromised action cannot run in the jobs that publish releases, mint provenance or deploy Pages (finding 7).
 
 ## 26.4.0 (2026-10-18)
 
