@@ -127,6 +127,10 @@ export class SystemScreen implements Screen {
   private warpDown = new WarpDown();
   /** The close approach passed while its cinematic plays: finish the round when the scene ends. */
   private pendingFinish = false;
+  /** GAME_PLAN 30 fiction props for this round: the detour sign's time and place, Planet X, one ticket per round. */
+  private detourAt: { t: number; x: number; y: number } | null = null;
+  private nibiru = false;
+  private ticketFiled = false;
   private approachSounded = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
@@ -346,6 +350,9 @@ export class SystemScreen implements Screen {
     this.tele.clear();
     this.pendingFinish = false;
     this.approachSounded = false;
+    this.detourAt = null;
+    this.nibiru = false;
+    this.ticketFiled = false;
     if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
   }
 
@@ -757,6 +764,7 @@ export class SystemScreen implements Screen {
     else {
       this.drawCraft();
       this.drawThreat();
+      this.drawFictionProps();
     }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
@@ -949,6 +957,76 @@ export class SystemScreen implements Screen {
           }
           return `${states.length} PROGRAMS COMPLETE.`;
         },
+        impulse: (dv, label) => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          const st = propagate(th.elements, this.world.star.mu, this.world.t);
+          const vm = Math.hypot(st.v.x, st.v.y) || 1;
+          try {
+            const el = toElements(st.r, { x: st.v.x * (1 + dv / vm), y: st.v.y * (1 + dv / vm) }, this.world.star.mu, this.world.t);
+            this.world.threat = { ...th, elements: el };
+          } catch {
+            return `${label}: THE ROCK LEFT THE SYSTEM. FILED AS A SUCCESS.`;
+          }
+          reresolve();
+          return `${label}: ${th.name} NUDGED ${dv.toExponential(2)} M/S ALONG TRACK. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        timefold: (days) => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          const n = Math.sqrt(this.world.star.mu / Math.abs(th.elements.a) ** 3);
+          this.world.threat = { ...th, elements: { ...th.elements, M0: th.elements.M0 - n * days * DAY } };
+          reresolve();
+          return `${th.name} NOW KEEPS ITS APPOINTMENT ${Math.abs(days)} DAY${Math.abs(days) === 1 ? '' : 'S'} ${days >= 0 ? 'LATE' : 'EARLY'}. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        detour: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          // The sign goes up a month ahead on the rock's path; the detour costs it a day and a half.
+          const ahead = propagate(th.elements, this.world.star.mu, Math.min(th.tImpact - DAY, this.world.t + 30 * DAY)).r;
+          this.detourAt = { t: this.world.t, x: ahead.x, y: ahead.y };
+          const n = Math.sqrt(this.world.star.mu / Math.abs(th.elements.a) ** 3);
+          this.world.threat = { ...th, elements: { ...th.elements, M0: th.elements.M0 - n * 1.5 * DAY } };
+          reresolve();
+          return `${th.name} HAS TAKEN THE DETOUR (1.5 DAYS). PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        hollow: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          this.world.threat = { ...th, mass: th.mass / 10 };
+          reresolve();
+          return `${th.name}: ${(th.mass / 10).toExponential(2)} KG, AS IT TURNS OUT. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        ticket: () => {
+          const th = this.world.threat;
+          if (!th) return 'TICKET CLOSED: CANNOT REPRODUCE.';
+          if (this.ticketFiled) return 'A TICKET IS ALREADY OPEN FOR THIS ROUND. PLEASE DO NOT BUMP.';
+          this.ticketFiled = true;
+          const rng = new Rng(hashSeed(`${this.run.seed}#ticket#${this.run.round}`));
+          const roll = rng.next();
+          if (roll < 0.25) {
+            this.world.threat = { ...th, D: 0.5, mass: 1 };
+            reresolve();
+            return `TICKET #${rng.int(1000, 9999)}: RESOLVED (PATCHED). ${th.name} HAS BEEN REMOVED IN THE NEXT BUILD, WHICH IS THIS ONE.`;
+          }
+          const replies = ['WONTFIX: WORKS AS INTENDED.', 'DUPLICATE OF TICKET #1 (1908, TUNGUSKA). CLOSED.', 'NEEDS MORE INFORMATION. PLEASE ATTACH A SCREENSHOT OF THE UNIVERSE.', 'ACKNOWLEDGED. PRIORITY: LOW. ESTIMATED FIX: NEXT EPOCH.'];
+          return `TICKET #${rng.int(1000, 9999)}: ${replies[rng.int(0, replies.length - 1)] ?? 'ACKNOWLEDGED.'}`;
+        },
+        nibiru: () => {
+          this.nibiru = true;
+          return 'PLANET X HAS BEEN ADDED TO THE CHART. IT WILL ARRIVE NEXT YEAR.';
+        },
+        mandela: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          const rng = new Rng(hashSeed(`${this.run.seed}#mandela#${this.run.round}#${this.world.t}`));
+          const name = th.name.replace(/[A-Z]{2}/, (m) => (m[1] ?? '') + (m[0] ?? ''));
+          const moved = rng.chance(1 / 3);
+          const n = Math.sqrt(this.world.star.mu / Math.abs(th.elements.a) ** 3);
+          this.world.threat = { ...th, name, elements: moved ? { ...th.elements, M0: th.elements.M0 + n * 3 * 3600 } : th.elements };
+          reresolve();
+          return `IT WAS ALWAYS CALLED ${name}.${moved ? ' IT WAS ALWAYS AIMED A LITTLE TO THE LEFT.' : ''} PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
       },
     };
   }
@@ -1048,6 +1126,28 @@ export class SystemScreen implements Screen {
     }
     if (trail.length >= 4) this.polyline(Float64Array.from(trail), { color: p.ink, glow: 0.4, width: 1, alpha: 0.7 });
     drawText(s, m.id, cx + 8, cy - 12, 9, { color: p.dim, glow: 0 });
+  }
+
+  /** GAME_PLAN 30 props: the detour sign with its cones, and Planet X circling far out (it never arrives). */
+  private drawFictionProps(): void {
+    const s = this.s;
+    const p = s.palette;
+    if (this.detourAt) {
+      const [x, y] = this.project(this.detourAt.x, this.detourAt.y);
+      const c = s.spectrum ? s.role('threat') : p.hot;
+      s.stroke([x - 18, y - 30, x + 18, y - 30, x + 18, y - 18, x - 18, y - 18], { closed: true, color: c, glow: 1 });
+      s.stroke([x, y - 18, x, y - 2], { color: c, glow: 0.6 });
+      drawText(s, 'DETOUR', x, y - 27, 7, { align: 'center', color: c, glow: 0.8 });
+      for (let i = -2; i <= 2; i++) s.stroke([x + i * 9 - 3, y + 6, x + i * 9, y, x + i * 9 + 3, y + 6], { closed: true, color: s.spectrum ? s.role('nuclear') : p.ink, glow: 0.5 });
+    }
+    if (this.nibiru) {
+      const a = (this.world.t / (365.25 * 86400)) * 0.05;
+      const r = Math.min(s.width, s.height) * 0.47;
+      const x = s.width / 2 + Math.cos(a) * r + this.panX;
+      const y = s.height / 2 + Math.sin(a) * r + this.panY;
+      s.circle(x, y, 9, { color: s.spectrum ? s.role('fragment') : p.dim, dash: [3, 3], glow: 0.6 });
+      drawText(s, 'PLANET X (ARRIVING)', x + 13, y - 4, 8, { color: s.spectrum ? s.role('fragment') : p.dim, glow: 0 });
+    }
   }
 
   private drawThreat(): void {

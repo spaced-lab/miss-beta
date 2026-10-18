@@ -17,7 +17,7 @@ function ctx(mode: 'REALISTIC' | 'SCIFI' | 'SIMULATION' | 'MULTIVERSE' = 'REALIS
   if (mode === 'SIMULATION' || mode === 'MULTIVERSE') enterMode(run, 'SIMULATION');
   if (mode === 'MULTIVERSE') enterMode(run, 'MULTIVERSE');
   const say = (s: string) => () => s;
-  return { run, round: { hasThreat: true, teleport: say('TP'), observe: say('OB'), rewind: () => 'RW', editG: () => 'EG', deleteThreat: say('DL'), tractorBeam: say('TB'), singularity: say('SG'), planetThrusters: () => 'PT', shrink: say('SH'), multiverse: (n) => `MV${n}`, wormhole: say('WH'), revealNow: say('RV'), completeAllPrograms: () => 'CP' } };
+  return { run, round: { hasThreat: true, teleport: say('TP'), observe: say('OB'), rewind: () => 'RW', editG: () => 'EG', deleteThreat: say('DL'), tractorBeam: say('TB'), singularity: say('SG'), planetThrusters: () => 'PT', shrink: say('SH'), multiverse: (n) => `MV${n}`, wormhole: say('WH'), revealNow: say('RV'), impulse: () => 'IMPULSE', timefold: () => 'FOLD', detour: () => 'DETOUR', hollow: () => 'HOLLOW', ticket: () => 'TICKET', nibiru: () => 'X', mandela: () => 'M', completeAllPrograms: () => 'CP' } };
 }
 
 describe('MODES (GAME_PLAN 21)', () => {
@@ -47,7 +47,12 @@ describe('MODES (GAME_PLAN 21)', () => {
     const r = runCommand('TELEPORT', ctx('REALISTIC'));
     expect(r[0]).toMatch(/FICTION: SIMULATION MODE ONLY/);
     const s = runCommand('teleport', ctx('SIMULATION'));
-    expect(s[0]).toBe('NO-CLONING THEOREM FORBIDS COPYING ITS STATE. ALSO NOBODY BUILT A RECEIVER.');
+    // GAME_PLAN 30: in character by default; REALITY ON states the forbidding physics first.
+    expect(s[0]).not.toContain('NO-CLONING');
+    const sim = ctx('SIMULATION');
+    runCommand('REALITY ON', sim);
+    expect(runCommand('TELEPORT', sim)[0]).toBe('REALITY: NO-CLONING THEOREM FORBIDS COPYING ITS STATE. ALSO NOBODY BUILT A RECEIVER.');
+    runCommand('REALITY OFF', sim);
     expect(s[1]).toBe('TP');
     expect(runCommand('WORMHOLE', ctx('SIMULATION'))[0]).toMatch(/MULTIVERSE MODE ONLY/);
     expect(runCommand('WORMHOLE', ctx('MULTIVERSE'))[1]).toBe('WH');
@@ -158,5 +163,19 @@ describe('MULTIVERSE', () => {
       }
     }
     expect(performance.now() - t0).toBeLessThan(200);
+  });
+});
+
+describe('GAME_PLAN 30 fiction', () => {
+  it('every new command runs in SIMULATION, stays in character, and is gated in REALISTIC', async () => {
+    const { flybyDeflection, DEADPAN } = await import('../src/game/fiction');
+    expect(flybyDeflection(1e15, 100, 20000)).toBeCloseTo(0.0667, 3);
+    for (const verb of ['MICROHOLE', 'TIMEFOLD 2', 'DETOUR', 'LUNA', 'HOLLOW', 'TICKET', 'NIBIRU', 'MANDELA']) {
+      const v = verb.split(' ')[0]!;
+      expect(runCommand(verb, ctx('REALISTIC'))[0]).toMatch(/SIMULATION MODE ONLY/);
+      const out = runCommand(verb, ctx('SIMULATION'));
+      expect(out.length).toBeGreaterThanOrEqual(2);
+      expect(DEADPAN[v]).toContain(out[0]);
+    }
   });
 });

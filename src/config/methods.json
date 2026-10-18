@@ -551,6 +551,86 @@
       "equation": "dv = beta m_rock U / M, once per threat",
       "lore": "D3",
       "unlock": "SHEPHERD_NETWORK (SCI-FI)"
+    },
+    {
+      "id": "MICROHOLE",
+      "name": "PRIMORDIAL MICRO BLACK HOLE FLY-BY",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "dv = 2 G M / (b v); 1e15 kg at 100 m, 20 km/s -> 0.067 m/s",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "A 1E15 KG BLACK HOLE IS 1.5E-12 M ACROSS; NONE HAS EVER BEEN FOUND."
+    },
+    {
+      "id": "TIMEFOLD",
+      "name": "TIMEFOLD (RESCHEDULE THE ROCK)",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "the threat arrives n days late",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "NO KNOWN PHYSICS SLIDES ONE OBJECT ALONG ITS OWN WORLDLINE."
+    },
+    {
+      "id": "DETOUR",
+      "name": "DETOUR SIGN IN DEEP SPACE",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "the rock takes a 1.5 day detour",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "ROCKS FOLLOW GEODESICS, NOT SIGNAGE."
+    },
+    {
+      "id": "LUNA",
+      "name": "LUNA PROTOCOL (THE MOON WAS ALWAYS A SHIP)",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "a hit this round scores as partial",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "THE MOON IS 7.3E22 KG OF ROCK WITH NO ENGINES."
+    },
+    {
+      "id": "HOLLOW",
+      "name": "HOLLOW ASTEROID",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "mass / 10",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "RUBBLE PILES ARE UP TO HALF EMPTY SPACE, NOT NINETY PERCENT."
+    },
+    {
+      "id": "TICKET",
+      "name": "A TICKET TO THE SIMULATION OPERATORS",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "one ticket per round; sometimes it is patched",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "THERE IS NO EVIDENCE OF OPERATORS."
+    },
+    {
+      "id": "NIBIRU",
+      "name": "PLANET X",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "cosmetic: it is always arriving next year",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "INFRARED SURVEYS RULE OUT A SATURN-SIZE PLANET WITHIN ABOUT 10,000 AU."
+    },
+    {
+      "id": "MANDELA",
+      "name": "MANDELA AMENDMENT",
+      "tag": "FICTION",
+      "status": "BUILT (2026-10-18)",
+      "equation": "renames the threat; sometimes it was always aimed elsewhere",
+      "lore": "G6",
+      "unlock": "SIMULATION",
+      "forbidden": "MEMORY IS RECONSTRUCTIVE. ORBITS ARE NOT."
     }
   ]
 }

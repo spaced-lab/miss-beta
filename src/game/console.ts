@@ -13,6 +13,7 @@ import { SCENARIOS, scenarioById } from '../sim/scenarios';
 import { allowsTag, enterMode, type Mode } from './modes';
 import type { RunState } from './run';
 import { TECH, techById, applyTech } from './tech';
+import { deadpanFor, EXTRA_FICTION, realityOn } from './fiction';
 
 /** What a command may touch. The system screen implements it; tests use a stub. */
 export interface GameContext {
@@ -33,6 +34,14 @@ export interface GameContext {
     wormhole(): string;
     revealNow(): string;
     completeAllPrograms(scifi: boolean): string;
+    /** GAME_PLAN 30 fiction hooks. */
+    impulse(dv: number, label: string): string;
+    timefold(days: number): string;
+    detour(): string;
+    hollow(): string;
+    ticket(): string;
+    nibiru(): string;
+    mandela(): string;
   } | null;
 }
 
@@ -66,7 +75,7 @@ function num(args: string[], i: number, fallback: number): number {
 }
 
 export const COMMANDS: readonly Command[] = [
-  { verb: 'HELP', tag: 'INFO', usage: 'HELP', help: 'list commands available in this mode', mode: 'REALISTIC', handler: (_a, ctx) => COMMANDS.filter((c) => allowsMode(ctx.run.mode, c.mode)).map((c) => `${c.usage.padEnd(16)} ${c.help}`) },
+  { verb: 'HELP', tag: 'INFO', usage: 'HELP', help: 'list commands available in this mode', mode: 'REALISTIC', handler: (_a, ctx) => ALL_COMMANDS.filter((c) => allowsMode(ctx.run.mode, c.mode)).map((c) => `${c.usage.padEnd(16)} ${c.help}`) },
   { verb: 'MODE', tag: 'INFO', usage: 'MODE', help: 'show the current mode and civilization level', mode: 'REALISTIC', handler: (_a, ctx) => [`MODE ${ctx.run.mode}  HIGHEST ${ctx.run.highestMode}  CIVILIZATION LEVEL ${ctx.run.civLevel}  CHEATS ${ctx.run.cheatsUsed.join(' ') || 'NONE'}`] },
   { verb: 'KARDASHEV1', tag: 'CHEAT', usage: 'KARDASHEV1', help: 'civilization level 1: all REAL + PROPOSED tech and programs complete, budget x10', mode: 'REALISTIC', handler: (_a, ctx) => { flag(ctx, 'KARDASHEV1'); for (const n of TECH) if (n.mode !== 'SCIFI' && !ctx.run.tech.includes(n.id)) { ctx.run.tech.push(n.id); applyTech(ctx.run, n); } ctx.run.economy.perYear *= 10; ctx.run.economy.start *= 10; ctx.run.civLevel = Math.max(ctx.run.civLevel, 1); const extra = ctx.round ? ctx.round.completeAllPrograms(false) : ''; return ['CIVILIZATION LEVEL 1. EVERY REAL AND PROPOSED TECH OWNED, PROGRAMS COMPLETE, BUDGET X10.', extra].filter(Boolean); } },
   { verb: 'KARDASHEV2', tag: 'CHEAT', usage: 'KARDASHEV2', help: 'civilization level 2: SCI-FI mode, all SPECULATIVE programs complete, budget x1000', mode: 'REALISTIC', handler: (_a, ctx) => { flag(ctx, 'KARDASHEV2'); for (const n of TECH) if (!ctx.run.tech.includes(n.id)) { ctx.run.tech.push(n.id); applyTech(ctx.run, n); } if (ctx.run.mode === 'REALISTIC') enterMode(ctx.run, 'SCIFI'); ctx.run.economy.perYear *= 1000; ctx.run.economy.start *= 1000; ctx.run.civLevel = 2; const extra = ctx.round ? ctx.round.completeAllPrograms(true) : ''; return ['CIVILIZATION LEVEL 2. SCI-FI MODE. EVERY TECH OWNED, EVERY PROGRAM COMPLETE, BUDGET X1000.', extra].filter(Boolean); } },
@@ -99,6 +108,9 @@ export const COMMANDS: readonly Command[] = [
   { verb: 'TECH', tag: 'DEV', usage: 'TECH id', help: 'unlock a tech node for free (cheat)', mode: 'REALISTIC', handler: (a, ctx) => { const id = (a[0] ?? '').toUpperCase(); try { const n = techById(id); flag(ctx, 'TECH'); if (!ctx.run.tech.includes(id)) { ctx.run.tech.push(id); applyTech(ctx.run, n); } return [`${id} OWNED.`]; } catch { return [`NO TECH ${id || '?'}`]; } } },
 ];
 
+/** The full table: the original commands and the GAME_PLAN 30 fiction. */
+export const ALL_COMMANDS: readonly Command[] = [...COMMANDS, ...EXTRA_FICTION];
+
 export function allowsMode(current: Mode, required: Mode): boolean {
   const order: Mode[] = ['REALISTIC', 'SCIFI', 'SIMULATION', 'MULTIVERSE'];
   return order.indexOf(current) >= order.indexOf(required);
@@ -114,12 +126,21 @@ export function runCommand(line: string, ctx: GameContext): string[] {
   const tokens = tokenize(line);
   const verb = (tokens[0] ?? '').toUpperCase();
   if (!verb) return [];
-  const cmd = COMMANDS.find((c) => c.verb === verb);
+  const cmd = ALL_COMMANDS.find((c) => c.verb === verb);
   if (!cmd) return [`UNKNOWN COMMAND ${verb}. TYPE HELP.`];
   if (!allowsMode(ctx.run.mode, cmd.mode)) {
     const why = cmd.mode === 'MULTIVERSE' ? 'MULTIVERSE' : cmd.mode === 'SIMULATION' ? 'SIMULATION' : 'SCI-FI';
     return [`${verb} IS ${cmd.tag === 'FICTION' ? 'FICTION' : 'GATED'}: ${why} MODE ONLY. YOU ARE IN ${ctx.run.mode}.`];
   }
   if (cmd.tag === 'FICTION' && !allowsTag(ctx.run.mode, 'FICTION')) return [`${verb} IS FICTION: SIMULATION MODE ONLY.`];
-  return cmd.handler(tokens.slice(1), ctx);
+  const out = cmd.handler(tokens.slice(1), ctx);
+  // GAME_PLAN 30: FICTION stays in character; REALITY ON states the forbidding physics first instead.
+  if (cmd.tag === 'FICTION' && out.length > 0) {
+    if (realityOn()) out[0] = `REALITY: ${out[0]}`;
+    else {
+      const dp = deadpanFor(verb, ctx.run.seed);
+      if (dp) out[0] = dp;
+    }
+  }
+  return out;
 }
