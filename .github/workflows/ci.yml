@@ -27,12 +27,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: python3 -m unittest discover -s pymiss/tests -t . -q
-      - run: python3 scripts/build_lore.py --check
-      - run: python3 scripts/gen_vectors.py --check
-      - run: npm audit --omit=dev --audit-level=high
+      # NOTE: the same gate as `npm run check` locally (typecheck, tests, pymiss, lore, vectors, npm audit of every
+      # dependency at moderate, and the static security greps), so nothing ships that the gate would refuse.
+      - run: bash scripts/check.sh
       - run: python3 scripts/build_lore.py && npm run build
       - run: node scripts/smoke.mjs
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
