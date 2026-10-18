@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v3.2 balance probe: a weapons-using scripted player (seekers, swarms, pulses, laser pauses) runs 600 s
+  god-off on seeds 1..4 and must reach level 12, lose most hull after level 10 and be dead or under 60 hull by
+  level 30; tuned with HP_MULT_PER_LEVEL 0.05 -> 0.15, SPAWN_FLOOR_FACTOR 0.985 -> 0.95 (floor 0.08), a late speed
+  slope (+0.1 per level past 10, cap +0.06 per level past 10), and swarm / pulse charge requirements that grow with
+  level (`swarmKillsNeeded` +30 per level past 6, `pulseKillsNeeded` +2) so drones are a burst, not permanent cover.
+
 - PERIMETER v3.2 sound: rock breakups are a bigger, lower hull thud (45-60 Hz sine, tail and weight scale with
   size and tier, crunch lowpassed to 480/900 Hz), hits are bass pops with almost no grain, shots have a softer
   attack and a lower blip, the ambient static gains an 80-120 Hz activity voice above chaos 0.5, a laser MESH

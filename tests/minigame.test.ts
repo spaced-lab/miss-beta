@@ -9,7 +9,7 @@ import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserFanOffsets, laserRange, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserFanOffsets, laserRange, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, pulseKillsNeeded, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmKillsNeeded, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -719,6 +719,15 @@ describe('weapons that scale with level', () => {
     expect(headings[3] ?? 0).toBeCloseTo(1.5 * MG.SEEKER_VOLLEY_SPREAD, 6);
     expect(headings[0] ?? 0).toBeCloseTo(-1.5 * MG.SEEKER_VOLLEY_SPREAD, 6);
   });
+  it('swarm and pulse charge requirements grow with level so neither becomes permanent cover', () => {
+    monotone(swarmKillsNeeded);
+    expect(swarmKillsNeeded(1)).toBe(MG.SWARM_KILLS);
+    expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL)).toBe(MG.SWARM_KILLS);
+    expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL + 1)).toBe(MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL);
+    monotone(pulseKillsNeeded);
+    expect(pulseKillsNeeded(1)).toBe(MG.PULSE_KILLS);
+    expect(pulseKillsNeeded(MG.PULSE_KILLS_FROM_LEVEL + 5)).toBe(MG.PULSE_KILLS + 5 * MG.PULSE_KILLS_PER_LEVEL);
+  });
   it('swarm stock cap and drone count keep growing, then cap', () => {
     monotone(swarmMax);
     expect(swarmMax(1)).toBe(MG.SWARM_MAX);
@@ -1235,6 +1244,61 @@ describe('balance probe', () => {
       expect(st.t, `seed ${seed} survival`).toBeGreaterThanOrEqual(60);
       expect(st.hp, `seed ${seed} hull at 150 s`).toBeLessThan(MG.MAX_HP);
     }
+  });
+  /**
+   * A weapons-using scripted player, still naive where a human is naive (no lead, overheats): fires and turns toward
+   * the nearest non-passing rock, pauses fire for the laser break every 3 s so the beam (or the mesh) arms, presses
+   * `<` and `>` whenever stock exists, and pulses when three threats are close or one is about to land.
+   */
+  function armed(st: MinigameState): Input {
+    let best: Asteroid | null = null;
+    let bestD = Infinity;
+    let close = 0;
+    for (const a of st.asteroids) {
+      if (a.passing) continue;
+      const d = Math.hypot(a.x, a.y);
+      if (d < 2.2) close++;
+      if (d < bestD) {
+        bestD = d;
+        best = a;
+      }
+    }
+    const stage = laserStage(st.streamCount, st.level);
+    const pause = (stage >= 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1) + 0.05;
+    const fire = !(stage > 0 && st.t % 3 < pause) && !st.overheated;
+    const pulse = st.pulses > 0 && st.pulseR < 0 && (close >= 3 || bestD < 1.6);
+    const seeker = st.seekerStock > 0 && best !== null;
+    const swarm = st.swarmStock > 0 && st.asteroids.length >= 5;
+    if (!best) return { ...NO_INPUT, fire, pulse, seeker, swarm };
+    const diff = wrapAngle(Math.atan2(best.y, best.x) - st.launcherAngle);
+    const sd = diff > Math.PI ? diff - 2 * Math.PI : diff;
+    return { left: sd > 0.02, right: sd < -0.02, fire, pulse, seeker, swarm };
+  }
+  it.each([1, 2, 3, 4])('with every weapon in use the ramp still bites, after level 10 (seed %i, 600 s, god off)', { timeout: 120000 }, (seed) => {
+    // Measured 2026-10-17 with the knobs of that day (HP_MULT_PER_LEVEL 0.15, SPAWN_FLOOR_FACTOR 0.95,
+    // SWARM_KILLS_PER_LEVEL 30): seeds 1..4 reach levels 27, 30, 30, 30; hull lost before / after level 10:
+    // 0/100, 45/55, 8/45, 0/91; two seeds die (530 s, 582 s), two end at 47 and 9 hull. Levels 10-15 are a
+    // fortress for any weapons-using player (no knob set produced more than one impact there), so the window
+    // runs to level 30, where the growths in config.ts (hit points, speed cap, spawn floor, pressure) take over.
+    const st = createState(seed);
+    start(st);
+    const n = Math.round(600 / MG.DT);
+    let lostBefore10 = 0;
+    let lostAfter10 = 0;
+    let hp = st.hp;
+    for (let i = 0; i < n && st.status === 'playing'; i++) {
+      step(st, armed(st), MG.DT);
+      st.events.length = 0;
+      if (st.hp < hp) {
+        if (st.level < 10) lostBefore10 += hp - st.hp;
+        else lostAfter10 += hp - st.hp;
+      }
+      hp = st.hp;
+    }
+    expect(st.level, 'reaches level 12 with every weapon in use').toBeGreaterThanOrEqual(12);
+    expect(lostAfter10, 'hull loss comes mostly after level 10').toBeGreaterThan(lostBefore10);
+    expect(lostBefore10, 'the opening is survivable').toBeLessThan(MG.MAX_HP / 2);
+    expect(st.status === 'over' || st.hp < 60, 'no plateau: by level 30 the ramp has cost most of the hull').toBe(true);
   });
   it('the hull damage cap is gentler in the first levels', () => {
     expect(hullDamage(1, 0.42, 0)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1));

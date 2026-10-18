@@ -259,16 +259,21 @@ export const levelAt = (t: number): number => 1 + Math.floor(t / MG.LEVEL_SECOND
 const past = (level: number, from: number): number => Math.max(0, level - from);
 /**
  * Spawn floor: SPAWN_MIN until SPAWN_FLOOR_FROM_LEVEL, then shrinking SPAWN_FLOOR_FACTOR per level toward
- * SPAWN_FLOOR_ABS. Defaults: 0.3 s at level 9, 0.218 s at level 30, 0.174 s at level 45.
+ * SPAWN_FLOOR_ABS. Defaults: 0.3 s at level 9, 0.22 s at level 15, 0.10 s at level 30, 0.08 s (the floor) from level 35.
  */
 export const spawnFloor = (level: number): number => Math.max(MG.SPAWN_FLOOR_ABS, MG.SPAWN_MIN * Math.pow(MG.SPAWN_FLOOR_FACTOR, past(level, MG.SPAWN_FLOOR_FROM_LEVEL)));
 /** Seconds between spawns at pressure 1: the geometric curve from SPAWN_0, never below the level's floor. */
 export const baseSpawnInterval = (level: number): number => Math.max(spawnFloor(level), MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, level - 1));
-/** Speed cap: AST_SPEED_MAX, then +AST_SPEED_CAP_PER_LEVEL per level past AST_SPEED_CAP_FROM_LEVEL (2.2 at 15, 2.575 at 30, 2.95 at 45). */
+/** Speed cap: AST_SPEED_MAX, then +AST_SPEED_CAP_PER_LEVEL per level past AST_SPEED_CAP_FROM_LEVEL (2.2 at 10, 2.5 at 15, 3.4 at 30, 4.3 at 45). */
 export const speedCap = (level: number): number => MG.AST_SPEED_MAX + MG.AST_SPEED_CAP_PER_LEVEL * past(level, MG.AST_SPEED_CAP_FROM_LEVEL);
-/** Rock speed at pressure 1: the linear ramp from AST_SPEED_0, never above the level's cap. */
-export const baseSpeed = (level: number): number => Math.min(speedCap(level), MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (level - 1));
-/** Hit-point multiplier applied on spawn: 1 up to HP_MULT_FROM_LEVEL, then +HP_MULT_PER_LEVEL per level (x2 at 30, x2.75 at 45). */
+/**
+ * Rock speed at pressure 1: the linear ramp from AST_SPEED_0 (AST_SPEED_PER_LEVEL), steepening by
+ * AST_SPEED_LATE_PER_LEVEL past AST_SPEED_LATE_FROM_LEVEL, never above the level's cap. Defaults: 0.45 at 1,
+ * 0.93 at 5, 1.53 at 10, then the cap from level 14 on.
+ */
+export const baseSpeed = (level: number): number =>
+  Math.min(speedCap(level), MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (level - 1) + MG.AST_SPEED_LATE_PER_LEVEL * past(level, MG.AST_SPEED_LATE_FROM_LEVEL));
+/** Hit-point multiplier applied on spawn: 1 up to HP_MULT_FROM_LEVEL, then +HP_MULT_PER_LEVEL per level (x1.75 at 15, x4 at 30, x6.25 at 45). */
 export const hpMult = (level: number): number => 1 + MG.HP_MULT_PER_LEVEL * past(level, MG.HP_MULT_FROM_LEVEL);
 /** Pressure ceiling: PRESSURE_MAX, then +PRESSURE_MAX_PER_LEVEL per level past PRESSURE_MAX_FROM_LEVEL (1.6 at 10, 2.0 at 30, 2.3 at 45). */
 export const pressureMax = (level: number): number => MG.PRESSURE_MAX + MG.PRESSURE_MAX_PER_LEVEL * past(level, MG.PRESSURE_MAX_FROM_LEVEL);
@@ -343,6 +348,10 @@ export const seekerMax = (level: number): number => Math.min(MG.SEEKER_MAX_CAP, 
 export const seekerVolley = (level: number): number => 1 + MG.SEEKER_VOLLEY_LEVELS.filter((l) => level >= l).length;
 /** Direct hits per seeker: SEEKER_HITS, easing SEEKER_HITS_EASE_PER_LEVEL per level past SEEKER_HITS_EASE_FROM_LEVEL, floored at SEEKER_HITS_MIN (35 -> 22 by level 23). */
 export const seekerHitsNeeded = (level: number): number => Math.max(MG.SEEKER_HITS_MIN, MG.SEEKER_HITS - MG.SEEKER_HITS_EASE_PER_LEVEL * past(level, MG.SEEKER_HITS_EASE_FROM_LEVEL));
+/** Kills per pulse: PULSE_KILLS + PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (14 to level 6, then rising). */
+export const pulseKillsNeeded = (level: number): number => MG.PULSE_KILLS + MG.PULSE_KILLS_PER_LEVEL * past(level, MG.PULSE_KILLS_FROM_LEVEL);
+/** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL (22 to level 6, then rising). */
+export const swarmKillsNeeded = (level: number): number => MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL);
 /** Swarm stock cap: SWARM_MAX + one per SWARM_MAX_LEVELS levels, capped at SWARM_MAX_CAP (2, 3 at level 11, 4 at 21, 5 at 31). */
 export const swarmMax = (level: number): number => Math.min(MG.SWARM_MAX_CAP, MG.SWARM_MAX + Math.floor(past(level, 1) / MG.SWARM_MAX_LEVELS));
 /** Sentry cap: TURRET_MAX + one per TURRET_MAX_LEVELS levels after TURRET_LEVEL, capped at TURRET_MAX_CAP (3 at 6, 4 at 12, 5 at 18, 6 at 24). */
@@ -614,7 +623,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
   const tierMult = MG.TIER_SCORE_MULT[a.tier] ?? 1;
   st.score += Math.floor(a.r * MG.SCORE_PER_R * tierMult * (a.core ? MG.HARD_CORE_SCORE_MULT : 1) * scoreMult);
   st.kills += 1;
-  st.pulseCharge += 1 / MG.PULSE_KILLS;
+  st.pulseCharge += 1 / pulseKillsNeeded(st.level);
   // NOTE: 14 * (1 / 14) is 0.9999999999999997 in floats; without the epsilon the pulse arrived one kill late.
   if (st.pulseCharge >= 1 - 1e-9) {
     st.pulseCharge -= 1;
@@ -623,7 +632,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
       flash(st, 'PULSE READY', 1.2);
     }
   }
-  if (++st.swarmProgress >= MG.SWARM_KILLS) {
+  if (++st.swarmProgress >= swarmKillsNeeded(st.level)) {
     st.swarmProgress = 0;
     if (st.swarmStock < swarmMax(st.level)) {
       st.swarmStock += 1;

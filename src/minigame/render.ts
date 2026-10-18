@@ -13,7 +13,7 @@ import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
+import { displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -385,7 +385,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   by += bh + 28;
   stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, seekerMax(st.level), st.seekerProgress / seekerHitsNeeded(st.level), stage >= 2 ? NEON.bullet[2] : p.hot);
   by += bh + 28;
-  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, swarmMax(st.level), st.swarmProgress / MG.SWARM_KILLS, stage >= 3 ? NEON.turret[0] : p.hot);
+  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, swarmMax(st.level), st.swarmProgress / swarmKillsNeeded(st.level), stage >= 3 ? NEON.turret[0] : p.hot);
 
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {

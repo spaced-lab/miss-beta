@@ -33,9 +33,11 @@ export const MG = {
   /** Tier 3 from level 9, tier 4 from level 14, tier 5 from level 22 (anti-plateau retune, 2026-10-17). */
   MAX_TIER_BY_LEVEL: [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5] as readonly number[],
   /** Rock hit points scale with level from HP_MULT_FROM_LEVEL: x(1 + HP_MULT_PER_LEVEL * levels past it), applied
-   *  on spawn (sim.hpMult). Level 10: x1, level 30: x2, level 45: x2.75. */
+   *  on spawn (sim.hpMult). Level 10: x1, level 15: x1.75, level 30: x4, level 45: x6.25. The balance probe
+   *  (tests/minigame.test.ts) showed this is the one axis that gets rocks through a full arsenal: faster or
+   *  denser rocks were simply killed at the rate they spawned; tougher ones arrive. */
   HP_MULT_FROM_LEVEL: 10,
-  HP_MULT_PER_LEVEL: 0.05,
+  HP_MULT_PER_LEVEL: 0.15,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -70,13 +72,17 @@ export const MG = {
   SPAWN_LEVEL_FACTOR: 0.78,
   SPAWN_MIN: 0.3,
   SPAWN_FLOOR_FROM_LEVEL: 9,
-  SPAWN_FLOOR_FACTOR: 0.985,
-  SPAWN_FLOOR_ABS: 0.12,
+  SPAWN_FLOOR_FACTOR: 0.95,
+  SPAWN_FLOOR_ABS: 0.08,
   AST_SPEED_0: 0.45,
   AST_SPEED_PER_LEVEL: 0.12,
+  /** A second slope joins past AST_SPEED_LATE_FROM_LEVEL ("minigame needs to get faster"): the ramp steepens by
+   *  AST_SPEED_LATE_PER_LEVEL per level there, under the cap below. */
+  AST_SPEED_LATE_FROM_LEVEL: 10,
+  AST_SPEED_LATE_PER_LEVEL: 0.1,
   AST_SPEED_MAX: 2.2,
-  AST_SPEED_CAP_FROM_LEVEL: 15,
-  AST_SPEED_CAP_PER_LEVEL: 0.025,
+  AST_SPEED_CAP_FROM_LEVEL: 10,
+  AST_SPEED_CAP_PER_LEVEL: 0.06,
   AST_R_MIN: 0.14,
   AST_R_MAX: 0.42,
   AST_SPLIT_R: 0.26,
@@ -197,8 +203,12 @@ export const MG = {
   LASER_FAN_SPREAD: 0.32,
   BEAM_FADE: 0.18,
 
-  /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. */
+  /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. The kills needed grow
+   *  PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (sim.pulseKillsNeeded): kill rates climb with the
+   *  spawn rate, and a field-clear every few seconds would undo the difficulty curve. */
   PULSE_KILLS: 14,
+  PULSE_KILLS_FROM_LEVEL: 6,
+  PULSE_KILLS_PER_LEVEL: 2,
   PULSE_MAX: 3,
   PULSE_SPEED: 9,
   PULSE_SCORE_MULT: 0.5,
@@ -236,6 +246,12 @@ export const MG = {
    *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
    *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. Count and life grow with level (below). */
   SWARM_KILLS: 22,
+  /** Kills per swarm grow SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL (sim.swarmKillsNeeded): 22 to
+   *  level 6, 142 at 10, 292 at 15, 742 at 30. Without this the swarm feeds itself (drones make kills, kills make
+   *  swarms) and the balance probe took no hull damage at all from level 3 to 15 whatever the rocks did. The swarms
+   *  themselves still grow (count, life, stock cap): bigger but rarer, a burst weapon rather than permanent cover. */
+  SWARM_KILLS_FROM_LEVEL: 6,
+  SWARM_KILLS_PER_LEVEL: 30,
   /** Stock cap grows one per SWARM_MAX_LEVELS levels up to SWARM_MAX_CAP (2, then 3 at level 11, 4 at 21, 5 at 31). */
   SWARM_MAX: 2,
   SWARM_MAX_LEVELS: 10,
