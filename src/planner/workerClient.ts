@@ -33,7 +33,9 @@ export class PlannerClient {
           }
         };
         this.worker.onerror = (): void => {
-          // NOTE: fall back for the rest of the session; pending jobs are re-run inline by their handlers.
+          // NOTE: only a worker that failed to load or crashed gets here (job errors come back as error replies,
+          // safeRunJob). Fall back for the rest of the session and stop the thread; pending jobs are re-run inline.
+          this.worker?.terminate();
           this.worker = null;
           for (const [id, p] of this.pending) {
             this.pending.delete(id);

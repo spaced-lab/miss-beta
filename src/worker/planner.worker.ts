@@ -228,11 +228,24 @@ export function runJob(job: WorkerJob): WorkerReply {
   return { id: (job as { id?: number }).id ?? -1, type: 'error', message: 'bad job' };
 }
 
+/**
+ * runJob that never throws: a job that fails becomes an error reply for that job. NOTE: an uncaught throw in
+ * onmessage fired the client's onerror, which dropped the worker for the rest of the session and ran every later
+ * porkchop, Monte Carlo and gauge job on the UI thread (code review 2026-10-18).
+ */
+export function safeRunJob(job: WorkerJob): WorkerReply {
+  try {
+    return runJob(job);
+  } catch (e) {
+    return { id: (job as { id?: number }).id ?? -1, type: 'error', message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 // Worker entry (ignored when this module is imported on the main thread for the fallback).
 const scope = globalThis as unknown as { onmessage?: ((e: MessageEvent) => void) | null; postMessage?: (m: unknown, t?: Transferable[]) => void; document?: unknown };
 if (typeof scope.document === 'undefined' && typeof scope.postMessage === 'function') {
   scope.onmessage = (e: MessageEvent): void => {
-    const reply = runJob(e.data as WorkerJob);
+    const reply = safeRunJob(e.data as WorkerJob);
     if (reply.type === 'porkchop') {
       const g = reply.grid;
       scope.postMessage?.(reply, [g.c3.buffer, g.payload.buffer, g.U.buffer, g.v1x.buffer, g.v1y.buffer, g.v2x.buffer, g.v2y.buffer, g.rx.buffer, g.ry.buffer, ...(g.v1z && g.v2z && g.rz ? [g.v1z.buffer, g.v2z.buffer, g.rz.buffer] : [])]);

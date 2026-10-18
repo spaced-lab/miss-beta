@@ -41,3 +41,15 @@ describe('planner ranking in the worker (D11)', () => {
     expect(bad.type).toBe('error');
   });
 });
+
+describe('worker job errors (code review 2026-10-18 finding 24)', () => {
+  it('a job that throws comes back as an error reply for that job, not an uncaught throw', async () => {
+    const { safeRunJob } = await import('../src/worker/planner.worker');
+    const { inp } = setup();
+    // Passes the shape guard but has no grid arrays: ranking throws inside the job.
+    const job = { id: 9, type: 'rank', input: inp, grid: { nL: 2, nA: 2 }, flyby: null, sail: null } as unknown as WorkerJob;
+    expect(() => runJob(job)).toThrow();
+    const r = safeRunJob(job);
+    expect(r).toMatchObject({ id: 9, type: 'error' });
+  });
+});
