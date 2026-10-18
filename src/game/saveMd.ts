@@ -158,22 +158,40 @@ function parseFlowMap(raw: string): Record<string, Scalar> {
   return out;
 }
 
-/** Split on commas outside quotes; a backslash inside quotes escapes the next character (JSON strings). */
-function splitTop(s: string): string[] {
-  const out: string[] = [];
-  let cur = '';
+/**
+ * Walk `s` telling `visit` whether each character is outside a quoted string; a backslash inside quotes escapes the
+ * next character (JSON strings) and the quote marks themselves count as inside. Return true from `visit` to stop.
+ * NOTE: one scanner for splitTop and stripComment, so comment stripping and comma splitting can never disagree
+ * about what is quoted (code review 2026-10-18).
+ */
+function scanTop(s: string, visit: (i: number, ch: string, outside: boolean) => boolean | void): void {
   let q = false;
   let esc = false;
-  for (const ch of s) {
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i] as string;
+    let outside = !q;
     if (esc) esc = false;
     else if (q && ch === '\\') esc = true;
-    else if (ch === '"') q = !q;
-    if (ch === ',' && !q) {
-      out.push(cur);
-      cur = '';
-    } else cur += ch;
+    else if (ch === '"') {
+      q = !q;
+      outside = false;
+    }
+    if (visit(i, ch, outside)) return;
   }
-  if (cur.trim() !== '') out.push(cur);
+}
+
+/** Split on commas outside quotes. Example: splitTop('a: 1, b: "x, y"') = ['a: 1', ' b: "x, y"']. */
+function splitTop(s: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  scanTop(s, (i, ch, outside) => {
+    if (outside && ch === ',') {
+      out.push(s.slice(start, i));
+      start = i + 1;
+    }
+  });
+  const last = s.slice(start);
+  if (last.trim() !== '') out.push(last);
   return out;
 }
 
@@ -192,16 +210,15 @@ function parseValue(raw: string): Value {
  * give it back whole (found by tests/saveFuzz.test.ts). stripComment('7 # note') -> '7'.
  */
 function stripComment(s: string): string {
-  let q = false;
-  let esc = false;
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    if (esc) esc = false;
-    else if (q && ch === '\\') esc = true;
-    else if (ch === '"') q = !q;
-    else if (!q && ch === '#' && i > 0 && /\s/.test(s[i - 1] as string)) return s.slice(0, i).trimEnd();
-  }
-  return s;
+  let cut = -1;
+  scanTop(s, (i, ch, outside) => {
+    if (outside && ch === '#' && i > 0 && /\s/.test(s[i - 1] as string)) {
+      cut = i;
+      return true;
+    }
+    return false;
+  });
+  return cut < 0 ? s : s.slice(0, cut).trimEnd();
 }
 
 /** Parse the YAML front matter into a plain record. Throws on malformed input or oversized text. */
