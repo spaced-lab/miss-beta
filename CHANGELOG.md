@@ -17,6 +17,10 @@ Versions are YY.Q.N (docs/RELEASING.md).
   CI can be started by hand (workflow_dispatch). Least privilege: only the deploy job gets `pages: write` and
   `id-token: write` (security review 2026-10-18, docs/SAFETY.md finding 7). docs/RELEASING.md gains a first-publish checklist (go public, enable Pages, add a macOS arm64 CI runner).
 
+- Photosensitivity: the notice can no longer be skipped. A first launch, a deep link (`#minigame`) or a dropped
+  SAVE.md went past it; now everything waits on the acknowledgement (`bootScreen`, docs/SAFETY.md finding 8). The
+  smoke test reports a build without the Learning Center plainly; the release recipe builds the lore first.
+
 - Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
   ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the
   routed threat; a dropped SAVE.md goes through the screen router; the lore index retries after a failed fetch

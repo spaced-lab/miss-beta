@@ -40,7 +40,8 @@ try {
   if (js.length < 50000) fail(`bundle too small (${js.length})`);
   if (/\beval\(|new Function\(/.test(js)) fail('eval in bundle');
   const idx = await fetch(`${base}/lore/index.json`);
-  if (!idx.ok) fail('lore index missing (run scripts/build_lore.py before build)');
+  // NOTE: vite preview answers a missing file with index.html (status 200), so check the type, not only ok.
+  if (!idx.ok || !/json/.test(idx.headers.get('content-type') ?? '')) fail('lore index missing (run scripts/build_lore.py before build)');
   const ix = await idx.json();
   if (!Array.isArray(ix.topics) || ix.topics.length < 50) fail('lore index incomplete');
   const chunk = await fetch(`${base}/lore/${ix.topics[0].id}/BEGINNER.json`);

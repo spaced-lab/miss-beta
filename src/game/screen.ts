@@ -16,3 +16,15 @@ export type ScreenId = 'title' | 'minigame' | 'system' | 'leaderboard' | 'codex'
 export interface Router {
   go(id: ScreenId): void;
 }
+
+const DEEP_LINKS: readonly ScreenId[] = ['minigame', 'system', 'leaderboard', 'codex', 'help', 'options', 'center'];
+
+/**
+ * The first screen for a URL hash. Until the photosensitivity notice is acknowledged every boot lands on the
+ * title, which shows it (docs/WARNINGS.md 8). bootScreen('minigame', true) -> 'minigame';
+ * bootScreen('minigame', false) -> 'title'; bootScreen('evil', true) -> 'title'.
+ */
+export function bootScreen(hash: string, photoAck: boolean): ScreenId {
+  if (!photoAck) return 'title';
+  return (DEEP_LINKS as readonly string[]).includes(hash) ? (hash as ScreenId) : 'title';
+}

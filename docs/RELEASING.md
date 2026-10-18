@@ -20,7 +20,8 @@ git tag `vYY.Q.N`.
 1. Code review done; `docs/SAFETY.md` assessment recorded for this commit.
 2. Bump `package.json`, `package-lock.json` (root entry) and `src/game/version.ts`.
 3. Move the CHANGELOG items under a new `## YY.Q.N (date)` heading.
-4. `bash scripts/gate.sh && npm run build && node scripts/smoke.mjs`.
+4. `bash scripts/gate.sh && python3 scripts/build_lore.py && npm run build && node scripts/smoke.mjs` (public/lore is
+   generated and gitignored; without build_lore the build ships no Learning Center).
 5. Commit `release: vYY.Q.N`, tag `vYY.Q.N`, push; CI deploys `main` to GitHub Pages.
 
 ## First public publish only (v26.4.0)

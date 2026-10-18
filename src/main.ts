@@ -4,7 +4,7 @@
 //       passes real elapsed ms to the screen, which decides how to step its own simulation.
 // LORE: C1 (how the game is built)
 
-import type { Router, Screen, ScreenId } from './game/screen';
+import { bootScreen, type Router, type Screen, type ScreenId } from './game/screen';
 import { createSurface } from './render/canvas';
 import { PALETTES } from './render/palettes';
 import { drawText } from './render/vectorFont';
@@ -107,6 +107,9 @@ function boot(): void {
         console.warn('[save] dropped file is not a valid SAVE.md');
         return;
       }
+      // NOTE: before the photosensitivity notice is acknowledged the save is only stored; the title keeps the
+      // notice up and CONTINUE resumes the run afterwards (docs/WARNINGS.md 8).
+      if (settings.photoAck !== true) return;
       const sys = screens.get('system');
       if (sys instanceof SystemScreen) {
         // NOTE: through the router like CONTINUE on the title, so currentId follows and enter() clears any
@@ -118,8 +121,7 @@ function boot(): void {
   });
 
   // Deep link for quick testing: index.html#minigame
-  const hash = location.hash.slice(1);
-  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' || hash === 'help' || hash === 'options' || hash === 'center' ? hash : 'title');
+  router.go(bootScreen(location.hash.slice(1), settings.photoAck === true));
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.

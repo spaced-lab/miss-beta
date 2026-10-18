@@ -129,7 +129,13 @@ export class TitleScreen implements Screen {
   enter(): void {
     this.sel = 0;
     if (!this.attract) this.nextAttract();
-    // First launch opens the tutorial (GAME_PLAN 25); it can be skipped with Tab and replayed from the menu.
+    // NOTE: the photosensitivity notice comes first; the first-launch tutorial waits for its acknowledgement
+    // (update() calls firstLaunch() on that keypress), so a new player always sees the notice (WARNINGS 8).
+    if (!this.settings || this.settings.photoAck) this.firstLaunch();
+  }
+
+  /** First launch opens the tutorial (GAME_PLAN 25); it can be skipped with Tab and replayed from the menu. */
+  private firstLaunch(): void {
     if (!loadJson(TUTORIAL_SEEN_KEY, (v): v is boolean => typeof v === 'boolean', false) && !hasSavedRun()) this.startTutorial();
   }
 
@@ -166,6 +172,7 @@ export class TitleScreen implements Screen {
       if (k.anyKeyPressed() || k.takeClick()) {
         this.settings.photoAck = true;
         saveSettings(this.settings);
+        this.firstLaunch();
       }
       return;
     }
@@ -227,7 +234,7 @@ export class TitleScreen implements Screen {
     }
   }
 
-  /** First-boot photosensitivity notice (docs/WARNINGS.md 7). Steady text only: nothing on this page flashes. */
+  /** First-boot photosensitivity notice (docs/WARNINGS.md 8). Steady text only: nothing on this page flashes. */
   private drawPhotoNotice(): void {
     const s = this.s;
     const p = s.palette;

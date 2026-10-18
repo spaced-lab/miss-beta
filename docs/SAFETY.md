@@ -46,18 +46,35 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 7. FIXED 2026-10-18 (security review, whole tree): CI granted `pages: write` and `id-token: write` to the whole
    workflow, so pull-request runs on same-repository branches held them (fork PRs never do). They now sit on the
    `deploy` job only, which runs on `main`; the workflow default is `contents: read`.
+8. FIXED 2026-10-18 (browser check, fresh site data): the photosensitivity notice could be skipped. The title's
+   enter() started the first-launch tutorial before the notice was acknowledged, the `#minigame` (and other) deep
+   links went straight past the title, and a dropped SAVE.md jumped into the run. Now `bootScreen()` lands on the
+   title until `photoAck`, the tutorial starts on the acknowledging keypress, and a pre-acknowledgement drop is
+   only stored (CONTINUE after). tests/bootScreen.test.ts; checked in the browser (fresh boot, `#minigame`).
+9. NOTED 2026-10-18 (not a security issue): a SAVE.md `lore_read` map may carry unknown keys; `__proto__` is
+   dropped, but e.g. `constructor: ADVANCED` is stored in `missb.lore.progress` as an inert unknown topic id.
 
 ## Assessment checklist (owner, before going live)
 
-- [ ] `npm ci && bash scripts/gate.sh && npm run build && node scripts/smoke.mjs` on a clean checkout
-- [ ] `grep -r "__dev\|localhost" dist` finds nothing that matters
+- [x] `npm ci && bash scripts/gate.sh && python3 scripts/build_lore.py && npm run build && node scripts/smoke.mjs` on a clean checkout
+      (2026-10-18, clone of d4c71da: 0 vulnerabilities, 414 tests, python, lore, vectors, build, smoke ok. The first
+      attempt without build_lore shipped no Learning Center; the command here and RELEASING step 4 now include it)
+- [x] `grep -r "__dev\|localhost" dist` finds nothing that matters (2026-10-18: nothing outside source maps; the
+      production page has no `window.__miss`)
 - [ ] Open the Pages URL: HTTPS only, "Enforce HTTPS" on, no mixed content (devtools console clean)
 - [ ] Devtools Network tab during play: every request is to the Pages origin
-- [ ] Import a hand-edited and an oversized SAVE.md: rejected cleanly, nothing breaks
-- [ ] Clear site data, reload: the photosensitivity notice shows; REDUCE MOTION calms every listed effect
-- [ ] Review findings 1-7 above and record the decision for each
-- [ ] Review docs/WARNINGS.md end to end
-- [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain
+- [x] Import a hand-edited and an oversized SAVE.md: rejected cleanly, nothing breaks (2026-10-18, synthetic drops:
+      hand-edited with `round: -9e999`, an `<img onerror>` research value and a `<script>` tail: rejected, nothing
+      stored, nothing executed; 280 KB: rejected by the parser cap; 400 KB: ignored by the drop cap; a `__proto__` /
+      `constructor` lore map: accepted, prototype untouched, see finding 9)
+- [x] Clear site data, reload: the photosensitivity notice shows; REDUCE MOTION calms every listed effect
+      (2026-10-18: failed first, finding 8, fixed; then shown on a fresh boot and on `#minigame`, tutorial after the
+      keypress. REDUCE MOTION: cinematics still (runtime), hit flash, glitch, peel, CRT flicker off and montage 1 cut/s
+      (code: draw.ts:221, system.ts:1231/1242, main.ts:166, demo.ts:71), PERIMETER shake 0 (unit test))
+- [ ] Review findings 1-9 above and record the decision for each
+- [x] Review docs/WARNINGS.md end to end (owner, 2026-10-18)
+- [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain (owner 2026-10-18: GitHub's certificate on
+      spaced-lab.github.io accepted as normal; still open: signed release tag, build checksums)
 - [ ] Record the result below with the commit hash
 
 ## Assessment log
@@ -65,4 +82,4 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 | Date | Who | Commit | Result | Notes |
 |---|---|---|---|---|
 | 2026-10-18 | Claude (automated baseline) | see git log | baseline above | manual assessment pending |
-| 2026-10-18 | Claude (/security-review, whole tree: 515 tracked files, ideas/ excluded) | b64dc32 | no HIGH or MEDIUM findings | checked DOM and code sinks, SAVE.md import and drag-drop, storage guards, lore and voice fetches, URL hash, worker and console, CSP and dev hooks in dist, CI triggers and tokens, Python scripts, secrets; one hardening applied (finding 7) |
+| 2026-10-18 | Claude (/security-review: one agent, ~1 min, a pattern sweep of 515 tracked files plus a trace of the entry points; not a line-by-line audit) | b64dc32 | no HIGH or MEDIUM findings from the sweep | checked DOM and code sinks, SAVE.md import and drag-drop, storage guards, lore and voice fetches, URL hash, worker and console, CSP and dev hooks in dist, CI triggers and tokens, Python scripts, secrets; one hardening applied (finding 7) |
