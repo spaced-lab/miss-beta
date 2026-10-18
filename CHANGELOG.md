@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v3.2 weapons that scale: seeker stock cap, volley (1 -> 4 by level 30, `SEEKER_VOLLEY_LEVELS`) and
+  charge easing (`seekerHitsNeeded`), swarm stock cap and drone cap 16 -> 32, sentry cap 3 -> 6 with easing hits
+  (`turretMax`, `turretHitsNeeded`), laser reach +0.5 radii per 5 levels to 8.6, and LASER MESH: from level 12
+  (5 streams) every launcher fans 3 beams after the same pause, 5 beams from level 20 (`laserStage` 3 and 4,
+  `LASER_FAN_SPREAD`, one `mesh` sound event per pull).
+
 - PERIMETER v3.2 no plateau: the spawn floor shrinks per level from level 9 (`SPAWN_FLOOR_FACTOR`, `SPAWN_FLOOR_ABS`),
   the speed cap rises past level 15 (`AST_SPEED_CAP_PER_LEVEL`), rock hit points scale from level 10 (`hpMult`,
   `HP_MULT_PER_LEVEL`), the pressure ceiling and hull damage cap keep rising, hardness tiers 4 (violet, level 14)

@@ -133,9 +133,17 @@ export const MG = {
   /** The moon is super solid: rocks chip it by their hull damage; bullets do nothing. At 0 it is lost. */
   MOON_HP: 600,
 
-  /** Auto turrets: earned every TURRET_HITS direct hits from TURRET_LEVEL on; orbit and fire on their own. */
+  /** Auto turrets: earned every TURRET_HITS direct hits from TURRET_LEVEL on; orbit and fire on their own.
+   *  Scaling (sim.turretHitsNeeded, sim.turretMax): the hits needed ease TURRET_HITS_EASE_PER_LEVEL per level past
+   *  TURRET_HITS_EASE_FROM_LEVEL down to TURRET_HITS_MIN; the cap grows one per TURRET_MAX_LEVELS levels after
+   *  TURRET_LEVEL up to TURRET_MAX_CAP (3 at level 6, 4 at 12, 5 at 18, 6 from 24). */
   TURRET_HITS: 60,
+  TURRET_HITS_EASE_FROM_LEVEL: 10,
+  TURRET_HITS_EASE_PER_LEVEL: 2,
+  TURRET_HITS_MIN: 36,
   TURRET_MAX: 3,
+  TURRET_MAX_LEVELS: 6,
+  TURRET_MAX_CAP: 6,
   TURRET_LIFE: 12,
   TURRET_ORBIT_R: 2.0,
   TURRET_ANGULAR_SPEED: 0.9,
@@ -170,13 +178,23 @@ export const MG = {
 
   /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
    *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the
-   *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied. */
+   *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied.
+   *  Reach grows LASER_RANGE_STEP radii every LASER_RANGE_STEP_LEVELS levels up to LASER_RANGE_CAP (the field
+   *  edge plus margin; sim.laserRange). MESH (stage 3, from LASER_MESH_LEVEL with 5 streams): every launcher
+   *  fires a fan of 3 beams at -LASER_FAN_SPREAD, 0, +LASER_FAN_SPREAD so neighbouring fans cross; stage 4
+   *  (from LASER_MESH2_LEVEL) fans 5 beams. The break needed stays LASER_BREAK_2. */
   LASER_BREAK_1: 1.2,
   LASER_BREAK_2: 0.6,
   LASER_DAMAGE_BONUS: 1,
   LASER_HEAT: 0.1,
   LASER_IMPULSE_MULT: 3,
   LASER_RANGE: 7.2,
+  LASER_RANGE_STEP: 0.5,
+  LASER_RANGE_STEP_LEVELS: 5,
+  LASER_RANGE_CAP: 8.6,
+  LASER_MESH_LEVEL: 12,
+  LASER_MESH2_LEVEL: 20,
+  LASER_FAN_SPREAD: 0.32,
   BEAM_FADE: 0.18,
 
   /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. */
@@ -189,9 +207,20 @@ export const MG = {
    *  the player's launcher at SEEKER_SPEED, a seeker turns toward the closest threatening rock (lead pursuit,
    *  turn rate capped at SEEKER_TURN rad/s), detonates on contact with a blast of radius SEEKER_BLAST_R that
    *  deals SEEKER_BLAST_DAMAGE and pushes rocks outward (SEEKER_BLAST_IMPULSE / mass), or fizzles after
-   *  SEEKER_LIFE seconds. */
+   *  SEEKER_LIFE seconds.
+   *  Scaling (sim.seekerHitsNeeded, sim.seekerMax, sim.seekerVolley): the hits needed ease
+   *  SEEKER_HITS_EASE_PER_LEVEL per level past SEEKER_HITS_EASE_FROM_LEVEL down to SEEKER_HITS_MIN; the stock cap
+   *  grows one per SEEKER_MAX_LEVELS levels up to SEEKER_MAX_CAP (3, then 4 at level 9, 5 at 17, 6 at 25); one
+   *  stock launches a volley of 1 + (levels in SEEKER_VOLLEY_LEVELS reached) seekers fanned SEEKER_VOLLEY_SPREAD apart. */
   SEEKER_HITS: 35,
+  SEEKER_HITS_EASE_FROM_LEVEL: 10,
+  SEEKER_HITS_EASE_PER_LEVEL: 1,
+  SEEKER_HITS_MIN: 22,
   SEEKER_MAX: 3,
+  SEEKER_MAX_LEVELS: 8,
+  SEEKER_MAX_CAP: 6,
+  SEEKER_VOLLEY_LEVELS: [10, 20, 30] as readonly number[],
+  SEEKER_VOLLEY_SPREAD: 0.3,
   SEEKER_SPEED: 4.2,
   SEEKER_TURN: 4.5,
   SEEKER_LIFE: 4.5,
@@ -207,7 +236,10 @@ export const MG = {
    *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
    *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. Count and life grow with level (below). */
   SWARM_KILLS: 22,
+  /** Stock cap grows one per SWARM_MAX_LEVELS levels up to SWARM_MAX_CAP (2, then 3 at level 11, 4 at 21, 5 at 31). */
   SWARM_MAX: 2,
+  SWARM_MAX_LEVELS: 10,
+  SWARM_MAX_CAP: 5,
   SWARM_COUNT_MIN: 5,
   SWARM_COUNT_MAX: 8,
   SWARM_FAN: 2.0,
@@ -223,10 +255,10 @@ export const MG = {
   SWARM_LIFE: 10,
   SWARM_R_MIN: 1.35,
   /** Growth with level: a release at level L adds floor(SWARM_GROWTH_PER_LEVEL * (L - 1)) drones to both ends
-   *  of the count range, capped at SWARM_COUNT_CAP (level 1: 5-8, level 9: 9-12, level 17+: 16 flat); the
-   *  burn-out life grows SWARM_LIFE_PER_LEVEL seconds per level up to SWARM_LIFE_MAX. */
+   *  of the count range, capped at SWARM_COUNT_CAP (level 1: 5-8, level 9: 9-12, level 17: 13-16, level 30: 19-22,
+   *  level 49+: 32 flat); the burn-out life grows SWARM_LIFE_PER_LEVEL seconds per level up to SWARM_LIFE_MAX. */
   SWARM_GROWTH_PER_LEVEL: 0.5,
-  SWARM_COUNT_CAP: 16,
+  SWARM_COUNT_CAP: 32,
   SWARM_LIFE_PER_LEVEL: 0.25,
   SWARM_LIFE_MAX: 14,
   /** The moon's no-fly zone: MOON_R + margin. Drones are steered away from it and never cross it (one that

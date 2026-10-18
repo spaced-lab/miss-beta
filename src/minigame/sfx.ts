@@ -85,6 +85,11 @@ export class SfxPlayer {
           this.synth.sweep({ wave: 'triangle', freq: 640, freqEnd: 110, cutoff: 1800, cutoffEnd: 220, q: 3, dur: 0.16, gain: 0.13 });
           this.synth.bass(55, 0.08, 0.12);
           break;
+        case 'mesh':
+          // MESH pull: one zap for the whole fan (the beams land in the same step) over a fuller sub.
+          this.synth.sweep({ wave: 'triangle', freq: 720, freqEnd: 100, cutoff: 2000, cutoffEnd: 200, q: 3, dur: 0.18, gain: 0.15 });
+          this.synth.bass(50, 0.1, 0.16, 0.9, 2);
+          break;
         case 'hit':
           // Bullet-on-rock hit: a slighter cousin of the hull thud: a 70 Hz sine with a quick pitch drop (50 ms)
           // over a tiny low crunch, rate limited so a volley does not stack into mud; a whisper of dust on top.
