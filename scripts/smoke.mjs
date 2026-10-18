@@ -34,7 +34,7 @@ try {
   if (!/Content-Security-Policy/.test(html)) fail('no CSP meta tag');
   const m = /src="([^"]+\.js)"/.exec(html);
   if (!m) fail('no module script');
-  const js = await (await fetch(`${base}${m[1]}`)).text();
+  const js = await (await fetch(new URL(m[1], `${base}/`))).text();
   if (js.length < 50000) fail(`bundle too small (${js.length})`);
   if (/\beval\(|new Function\(/.test(js)) fail('eval in bundle');
   const idx = await fetch(`${base}/lore/index.json`);
