@@ -186,6 +186,19 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Resume here (for a fresh session after a context clear)
 
+0. FIRST on resume (owner 2026-10-18): read the owner's enhancements document at `docs/ENHANCEMENTS.md` (if it is
+   not there, look in `temp/`, which is private and never committed), turn each item into an IDEAS.md entry
+   with a size, and put it at the top of the backlog. Then ASK the owner these before building:
+   a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE). Clear enough? A speech-recognition check got 17 of 24
+      lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).
+   b. SOUND STYLE: ARCADE (PERIMETER's lo-fi sounds) is the new default. Keep it? The owner's saved SOUND is OFF.
+   c. SUPER-DUPER-DEMO runs about 10 minutes before the finale (DEMO_SPEED_START 2, GROWTH 1.15, 100 games in
+      `src/config/knobs.ts`). Shorter? Fewer games?
+   d. AUTOPLAY pane pacing (4-14 s by word count, bottom left): readable, too slow, too fast?
+   e. NEON colours: cyan text, pink titles, purple levels. Right shades? Apply to more screens (HUD, debrief)?
+   f. Next pick: autoplay buying tech and programs, attachable kits, L4/L5 picket line, planner/program-row
+      click-to-learn (item 5's queue), or the enhancements document first.
+
 1. Read `CLAUDE.md`, then this file, then GAME_PLAN Section 30 (2026-10-18: unproven tech, deadpan fiction,
    "Earth must be protected by all means") and IDEAS.md. M0-M13 are done; work since then is owner-directed.
 2. Play URL for the user is http://localhost:4173 (`npx vite build` after a commit). The dev server on 5173 is
