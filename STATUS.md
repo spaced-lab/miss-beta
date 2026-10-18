@@ -284,6 +284,9 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
    Done: interstellar dial + sky coverage (3-D lite sky.ts, INTERSTELLAR RATE, SKY view K, F12, LAB_INTERSTELLAR);
    full 3-D orbits remain milestone M14.
    Queue added 2026-10-18 (owner "enhancement" notes go here and are built in turn, no asking):
+   - IN PROGRESS (owner go 2026-10-18, unattended): on branch `fix/post-ship-and-review`, local commits only, NO
+     PUSH until the owner reviews. Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
+     then all 31 findings in `ideas/CODE_REVIEW_2026-10-18.md`, verify then fix, one commit each (both gitignored).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
