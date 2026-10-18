@@ -29,9 +29,9 @@ new dated section per assessment; never delete an old one.
 | Licence and attribution | tests/help.test.ts | AGPL-3.0-or-later LICENSE, NOTICE, "Created by SPACED" on the credits page |
 | Photosensitivity | first-boot notice; montage capped at 3 cuts/s (WCAG 2.3.1) | in place; luminance-area flash test not yet done (claim G8-1) |
 
-Findings to look at during the assessment (not yet fixed, each a judgement call):
+Findings from the assessment, each closed (fixed, decided by the owner, or checked):
 
-1. `frame-ancestors 'none'` is ignored in a `<meta>` CSP; GitHub Pages cannot send headers, so the game can be
+1. DECIDED 2026-10-18 (owner: framing accepted for now, IDEAS 29): `frame-ancestors 'none'` is ignored in a `<meta>` CSP; GitHub Pages cannot send headers, so the game can be
    framed by other sites (low risk: no actions that spend money or send data). WARNINGS 9.
 2. FIXED 2026-10-18: `style-src 'unsafe-inline'` dropped. The page's only inline `<style>` moved to
    `src/style.css` (a linked stylesheet); no CSP violations in the production build (title, run, planner worker,
@@ -40,7 +40,7 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 4. DECIDED 2026-10-18: one origin per GitHub account means other project pages on `<user>.github.io` share
    localStorage (the owner's account already serves two Pages sites). The game is published from its own
    organization, `spaced-lab`, so its origin `spaced-lab.github.io` holds MISS beta only. WARNINGS 9.
-5. Source maps ship with the build (a teaching repo; DECISIONS D2, WARNINGS 10). Confirm that is still wanted.
+5. DECIDED 2026-10-18 (owner: source maps ship): a teaching repo; DECISIONS D2, WARNINGS 10.
 6. CHECKED 2026-10-18: the dev server's screenshot sink and the dev hooks are absent from the production build
    (`grep -rl "__dev\|__miss\|localhost" dist` finds nothing; the voice generator is a script, never shipped).
 7. FIXED 2026-10-18 (security review, whole tree): CI granted `pages: write` and `id-token: write` to the whole
@@ -77,7 +77,7 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
       (2026-10-18: failed first, finding 8, fixed; then shown on a fresh boot and on `#minigame`, tutorial after the
       keypress. REDUCE MOTION: cinematics still (runtime), hit flash, glitch, peel, CRT flicker off and montage 1 cut/s
       (code: draw.ts:221, system.ts:1231/1242, main.ts:166, demo.ts:71), PERIMETER shake 0 (unit test))
-- [ ] Review findings 1-10 above and record the decision for each
+- [x] Review findings 1-10 above (2026-10-18: all closed; 1 and 5 by the owner's recorded answers) and record the decision for each
 - [x] Review docs/WARNINGS.md end to end (owner, 2026-10-18)
 - [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain (owner 2026-10-18: GitHub's certificate on
       spaced-lab.github.io accepted as normal. Owner 2026-10-18: no personal signing key; instead release.yml
