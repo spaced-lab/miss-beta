@@ -33,7 +33,7 @@ import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertai
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
 import { ProgramsOverlay } from './programs';
@@ -101,6 +101,8 @@ export class SystemScreen implements Screen {
   rulesPreset = 'DEFAULT';
   private scrub = 0;
   private panelHidden = false;
+  /** Top of the last centred panel (debrief / RUN OVER), for layout. */
+  private panelTop = Infinity;
   private readonly console: ConsoleOverlay;
   /** A run prepared on the title with codes, used by the next NEW RUN. */
   pendingRun: RunState | null = null;
@@ -259,16 +261,22 @@ export class SystemScreen implements Screen {
     const w = Math.min(700, s.width - 32);
     const x = s.width - w - 16;
     const y = 96;
-    const h = 58 + step.lines.length * 15;
+    const inner = w - 24;
+    // Re-wrap the step text to the panel's width at draw time (TEXT SIZE and window width both change it).
+    const body = wrapText(step.lines.join(' '), inner, 9);
+    const lineH = 15 * getTextScale();
+    const h = 58 + body.length * lineH;
+    // At the debrief or RUN OVER the centred panel comes first: the tutorial box only draws if it fits above it.
+    if (this.phase !== 'planning' && !this.panelHidden && y + h > this.panelTop - 8) return;
     const alpha = Math.min(1, t.shownFor * 2);
     s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: p.hot, glow: 0.8, alpha });
-    drawText(s, `TUTORIAL ${t.step + 1} / ${TUTORIAL_STEPS.length}   ${step.title}`, x + 12, y + 10, 12, { color: p.hot, glow: 1, alpha });
+    drawTextFit(s, `TUTORIAL ${t.step + 1} / ${TUTORIAL_STEPS.length}   ${step.title}`, x + 12, y + 10, 12, inner, { color: p.hot, glow: 1, alpha });
     let ly = y + 32;
-    for (const line of step.lines) {
+    for (const line of body) {
       drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
-      ly += 15;
+      ly += lineH;
     }
-    drawText(s, `<?> LORE ${step.lore.join(' ')}   <L> LEARNING CENTER   <TAB> SKIP TUTORIAL   <F1> MANUAL`, x + 12, y + h - 16, 9, { color: p.dim, glow: 0, alpha });
+    drawTextFit(s, `<?> LORE ${step.lore.join(' ')}   <L> LEARNING CENTER   <TAB> SKIP TUTORIAL   <F1> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.dim, glow: 0, alpha });
   }
 
   /** The next NEW RUN is a sandbox (set by the title before routing here). */
@@ -741,7 +749,7 @@ export class SystemScreen implements Screen {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
     } else if (this.phase !== 'planning') {
-      drawText(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, { align: 'center', color: this.s.palette.hot, glow: 1 });
+      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
@@ -1085,6 +1093,10 @@ export class SystemScreen implements Screen {
     if (!th || !res) return;
 
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
+    // The clock / warp / budget column on the left; the centred readouts use the space to its right.
+    const leftW = 2 * m + Math.max(measureText(`WARP ${warpLabel(w)}`, 14), measureText(`BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, 12)) * getTextScale();
+    const rx = (leftW + s.width - m) / 2;
+    const rw = s.width - m - leftW;
     drawText(s, `WARP ${warpLabel(w)}`, m, m + 24, 14, { color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     drawText(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, m, m + 48, 12);
     drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX (NOT RECORDED)' : ''}${this.run.tutorial ? '   TUTORIAL (NOT RECORDED)' : ''}`, m, m + 68, 12, { color: this.run.sandbox ? p.hot : p.dim, glow: 0 });
@@ -1094,7 +1106,7 @@ export class SystemScreen implements Screen {
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
-    drawText(s, `THREAT BRIEF  ${th.name}  ${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, s.width / 2, m, 12, { align: 'center' });
+    drawTextFit(s, `THREAT BRIEF  ${th.name}  ${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, rx, m, 12, rw, { align: 'center' });
     const margin = res.ca.marginRadii;
     const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
     // Tracking uncertainty (6.14): a Gaussian over the impact parameter with sigma_b = 3 sigma_v T_rem.
@@ -1104,7 +1116,7 @@ export class SystemScreen implements Screen {
     const pTrack = impactProbability(res.ca.dMin, res.ca.bCrit, sigmaB(sv, Math.max(0, th.tImpact - w.t)));
     const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : pTrack.toFixed(2);
     const frag = res.producedFragments ? `   BODIES ${res.outcomes.length}` : '';
-    drawText(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${pImpact}${this.mc ? ` (MC N ${this.mc.n})` : ''}   TRACKING T${tier} SIGMA-V ${(sv * 1000).toFixed(1)} MM/S  P ${pTrack.toFixed(2)}${frag}`, s.width / 2, m + 18, 12, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
+    drawTextFit(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${pImpact}${this.mc ? ` (MC N ${this.mc.n})` : ''}   TRACKING T${tier} SIGMA-V ${(sv * 1000).toFixed(1)} MM/S  P ${pTrack.toFixed(2)}${frag}`, rx, m + 18, 12, rw, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
 
     // Play-by-play: the last six events whose time has passed.
     const passed = res.events.filter((e) => e.t <= w.t).slice(-6);
@@ -1114,13 +1126,14 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   I TILT   Z RESET   X EXPORT   ? LORE   L LEARN   F1 MANUAL   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   I TILT   Z RESET   X EXPORT   ? LORE   L LEARN   F1 MANUAL   ESC TITLE', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
     const s = this.s;
     const x = (s.width - w) / 2;
     const y = (s.height - h) / 2;
+    this.panelTop = y;
     s.ctx.fillStyle = withAlpha(s.palette.bg, 0.8);
     s.ctx.fillRect(0, 0, s.width, s.height);
     this.mat.frame(s, x, y, w, h, 1.2, this.settings.reduceMotion);
@@ -1135,23 +1148,25 @@ export class SystemScreen implements Screen {
     const sc = this.score;
     if (!th || !res || !sc) return;
     const events = res.events.slice(-8);
-    const { x, y } = this.panel(Math.min(900, s.width - 32), 150 + events.length * 15 + 100);
+    const pw = Math.min(900, s.width - 32);
+    const { x, y } = this.panel(pw, 150 + events.length * 15 + 100);
+    const fitW = pw - 32;
     const cx = s.width / 2;
-    drawText(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, { align: 'center', color: p.hot, glow: 2 });
-    drawText(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, { align: 'center' });
+    drawTextFit(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, fitW, { align: 'center', color: p.hot, glow: 2 });
+    drawTextFit(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, fitW, { align: 'center' });
     let ly = y + 92;
     const firstIdx = res.events.length - events.length;
     events.forEach((e, i) => {
       const idx = firstIdx + i;
       const cur = idx === this.scrub;
-      drawText(s, (cur ? '> ' : '  ') + formatEvent(e, th.tImpact), x + 10, ly, 10, { color: cur ? p.hot : p.dim, glow: cur ? 0.8 : 0 });
+      drawTextFit(s, (cur ? '> ' : '  ') + formatEvent(e, th.tImpact), x + 10, ly, 10, pw - 20, { color: cur ? p.hot : p.dim, glow: cur ? 0.8 : 0 });
       ly += 15;
     });
     ly += 8;
     drawText(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, { align: 'center' });
-    drawText(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, { align: 'center', color: p.hot, glow: 1 });
-    drawText(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, { align: 'center', color: p.hot, glow: 1.5 });
+    drawTextFit(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, fitW, { align: 'center', color: p.hot, glow: 1 });
+    drawTextFit(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, fitW, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 
   private drawOver(): void {
@@ -1160,13 +1175,15 @@ export class SystemScreen implements Screen {
     const th = this.world.threat;
     const res = this.result;
     if (!th || !res) return;
-    const { y } = this.panel(Math.min(700, s.width - 32), 260);
+    const pw = Math.min(900, s.width - 32);
+    const { y } = this.panel(pw, 260);
+    const fitW = pw - 32;
     const cx = s.width / 2;
-    drawText(s, 'IMPACT', cx, y + 26, 34, { align: 'center', color: p.hot, glow: 2 });
-    drawText(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M`, cx, y + 80, 14, { align: 'center' });
-    drawText(s, `${res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0)} MT   ${res.category}   V-IMPACT ${(res.ca.vImpact / 1000).toFixed(1)} KM/S`, cx, y + 106, 14, { align: 'center' });
-    drawText(s, `CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM   MARGIN ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 132, 12, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 170, 12, { align: 'center' });
-    drawText(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 214, 13, { align: 'center', color: p.hot, glow: 1.5 });
+    drawTextFit(s, 'IMPACT', cx, y + 26, 34, fitW, { align: 'center', color: p.hot, glow: 2 });
+    drawTextFit(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M`, cx, y + 80, 14, fitW, { align: 'center' });
+    drawTextFit(s, `${res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0)} MT   ${res.category}   V-IMPACT ${(res.ca.vImpact / 1000).toFixed(1)} KM/S`, cx, y + 106, 14, fitW, { align: 'center' });
+    drawTextFit(s, `CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM   MARGIN ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 132, 12, fitW, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 170, 12, fitW, { align: 'center' });
+    drawTextFit(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 214, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 }

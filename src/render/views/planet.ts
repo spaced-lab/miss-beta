@@ -16,7 +16,7 @@ import { planetById, type World } from '../../sim/world';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
 import { wireSphere } from '../wire';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 export class PlanetOverlay {
   private continents: Continent[] = [];
@@ -97,6 +97,6 @@ export class PlanetOverlay {
       if (mc) drawText(s, `MONTE CARLO  P(MISS) ${(mc.pMiss * 100).toFixed(0)}%  N ${mc.n}`, m, m + 40, 12, { color: p.dim, glow: 0 });
     }
     drawText(s, 'DOTS: BODIES AT CLOSEST APPROACH.  BRIGHT = HITS.  DIM = HARMLESS (AIRBURST).  DASHED RING = GRAVITATIONAL FOCUSING.', s.width / 2, s.height - m - 30, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, '<V> BACK TO SYSTEM VIEW', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, '<V> BACK TO SYSTEM VIEW', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

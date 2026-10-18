@@ -27,7 +27,7 @@ import { formatCountdown } from '../../ui/hud';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 export interface PlannerSession {
   world: World;
@@ -436,7 +436,7 @@ export class PlannerOverlay {
       }
       ly += 6;
     });
-    drawText(s, 'UP / DOWN SELECT     <ENTER> COMMIT     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN SELECT     <ENTER> COMMIT     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
     void this.mcTimer;
   }
 }

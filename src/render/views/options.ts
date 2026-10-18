@@ -8,7 +8,7 @@ import type { Router, Screen } from '../../game/screen';
 import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, spectrumUnlocked, TEXT_SIZES, UNITS, type Settings } from '../../game/settings';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 interface Row {
   label: string;
@@ -79,6 +79,6 @@ export class OptionsScreen implements Screen {
     });
     const row = this.rows[this.sel];
     if (row) drawText(s, row.note, s.width / 2, y + 20, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, 'UP / DOWN SELECT    LEFT / RIGHT CHANGE    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT CHANGE    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

@@ -11,7 +11,7 @@ import { NETWORKS } from '../../sim/detection';
 import { PROGRAMS } from '../../sim/programs';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 import { LorePanel } from './lorePanel';
 
 interface Method {
@@ -124,7 +124,7 @@ export class CodexScreen implements Screen {
       drawText(s, `EQUATION  ${r.equation}`, m, by + 20, 11);
       drawText(s, r.extra.toUpperCase().slice(0, 160), m, by + 38, 10, { color: p.dim, glow: 0 });
     }
-    drawText(s, 'LEFT / RIGHT TAB    UP / DOWN SELECT    <?> LORE    <L> LEARNING CENTER    <ESC> TITLE', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT TAB    UP / DOWN SELECT    <?> LORE    <L> LEARNING CENTER    <ESC> TITLE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
     this.lore.render();
   }
 }

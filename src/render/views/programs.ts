@@ -12,7 +12,7 @@ import { programBurn, programById } from '../../sim/programs';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 export class ProgramsOverlay {
   private open = false;
@@ -86,6 +86,6 @@ export class ProgramsOverlay {
       if (ny > s.height - 50) break;
     }
     void t;
-    drawText(s, 'UP / DOWN SELECT    LEFT / RIGHT FUNDING    <ENTER> FULL / NONE    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT FUNDING    <ENTER> FULL / NONE    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

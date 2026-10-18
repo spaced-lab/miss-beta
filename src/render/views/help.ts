@@ -7,7 +7,7 @@
 import type { Router, Screen, ScreenId } from '../../game/screen';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 export interface HelpPage {
   section: 'BASIC' | 'STRATEGY' | 'ADVANCED';
@@ -205,6 +205,6 @@ export class HelpScreen implements Screen {
       drawText(s, line, m, y, size, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
       y += lineH;
     }
-    drawText(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

@@ -7,7 +7,7 @@ import type { Router, Screen } from '../../game/screen';
 import { loadBoard, type Mode } from '../../game/leaderboard';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 const MODES: readonly Mode[] = ['REALISTIC', 'SCIFI', 'FICTION'];
 
@@ -43,6 +43,6 @@ export class LeaderboardScreen implements Screen {
       drawText(s, line, x, y, 11, { color: i === 0 ? p.hot : p.ink, glow: i === 0 ? 1 : 0.4 });
       y += 18;
     });
-    drawText(s, 'LEFT / RIGHT MODE    <ESC> TITLE', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT MODE    <ESC> TITLE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

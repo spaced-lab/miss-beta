@@ -11,7 +11,7 @@
 
 import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
-import { drawText, measureText } from '../render/vectorFont';
+import { drawText, drawTextFit, measureText } from '../render/vectorFont';
 import { MG } from './config';
 import { arrayOn, displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
 
@@ -416,7 +416,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     s.dot(lx + j * 12, bottom + fs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
   }
   drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
-  if (st.status === 'playing') drawText(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, { align: 'right', color: p.dim, glow: 0 });
+  if (st.status === 'playing') drawTextFit(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, W * 0.45, { align: 'right', color: p.dim, glow: 0 });
   drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
   if (st.cheats.assisted) drawText(s, 'ASSISTED', m, m + fs * 5.1, 11, { color: p.dim, glow: 0 });
 

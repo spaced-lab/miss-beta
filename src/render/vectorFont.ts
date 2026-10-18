@@ -211,3 +211,30 @@ export function drawLines(s: Surface, lines: readonly string[], x: number, y: nu
     yy += size * 1.6;
   }
 }
+
+/**
+ * drawText, shrunk if needed so the drawn width never exceeds `maxW` px (the box it belongs to).
+ * Text that already fits is drawn at `size` unchanged. Example: a 13 px key row in a 600 px panel.
+ */
+export function drawTextFit(s: Surface, text: string, x: number, y: number, size: number, maxW: number, style: TextStyle = {}): number {
+  const w = measureText(text, size) * textScale;
+  const f = w > maxW && w > 0 ? maxW / w : 1;
+  return drawText(s, text, x, y, size * f, style);
+}
+
+/** Word-wrap `text` into lines that fit `widthPx` at cap height `size` (TEXT SIZE included). */
+export function wrapText(text: string, widthPx: number, size: number): string[] {
+  const cols = charsPerLine(widthPx, size);
+  const out: string[] = [];
+  let cur = '';
+  for (const word of text.split(/\s+/).filter((w) => w.length > 0)) {
+    if (cur.length === 0) cur = word;
+    else if (cur.length + 1 + word.length <= cols) cur += ' ' + word;
+    else {
+      out.push(cur);
+      cur = word;
+    }
+  }
+  if (cur.length > 0) out.push(cur);
+  return out;
+}

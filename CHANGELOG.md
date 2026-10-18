@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Text fits its boxes (2026-10-18, owner screenshots): `drawTextFit` shrinks a line to its box and `wrapText`
+  wraps prose to a panel's width at draw time. Applied to the tutorial box, the debrief and RUN OVER panels, every
+  bottom key row, the two top HUD readouts (now right of the clock column) and the PERIMETER key row; the
+  tutorial box steps aside when the end-of-round panel needs the space.
+
 - PERIMETER v3.4 (2026-10-18, owner follow-up): swarms cheaper to earn past level 20; drones in tiers (faster,
   harder-hitting, lime / cyan / magenta / white, two per swarm) and more of them; sentry lasers from level 14 in
   the sentry's tier colour, stronger with tier; the BEAM ARRAY from level 25 (three sentries coordinate and

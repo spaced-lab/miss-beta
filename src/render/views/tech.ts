@@ -10,7 +10,7 @@ import { canUnlock, TECH, TRACKS, unlock, type TechNode } from '../../game/tech'
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit } from '../vectorFont';
 
 export class TechOverlay {
   private open = false;
@@ -99,6 +99,6 @@ export class TechOverlay {
     const sel = this.nodesOf(TRACKS[this.track] as string)[this.row];
     if (sel) drawText(s, `${sel.name}${sel.note ? ': ' + sel.note.toUpperCase() : ''}`, m, s.height - m - 48, 11, { color: p.ink, glow: 0.3 });
     if (this.note) drawText(s, this.note, m, s.height - m - 30, 11, { color: p.hot, glow: 0.8 });
-    drawText(s, 'LEFT / RIGHT TRACK    UP / DOWN NODE    <ENTER> UNLOCK    <T> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT TRACK    UP / DOWN NODE    <ENTER> UNLOCK    <T> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }
