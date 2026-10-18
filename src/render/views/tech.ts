@@ -97,6 +97,7 @@ export class TechOverlay {
     this.mat.tick(1 / 60);
     this.mat.frame(s, 3, 3, s.width - 6, s.height - 6, 0.8, this.still());
     drawText(s, `TECH TREE   RESEARCH ${run.research}`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+    drawText(s, 'RESEARCH POINTS COME WITH EVERY ROUND YOU SURVIVE (SEE THE DEBRIEF). SOLID: BUY NOW. DASHED: NEXT, OR LOCKED.', s.width - m, m + 3, 9, { align: 'right', color: uiColors(p, s.spectrum).sub, glow: 0.2 });
     // Twelve tracks need ~170 px each to read; narrower windows get two rows of six.
     const perRow = (s.width - 2 * m) / TRACKS.length < 170 ? Math.ceil(TRACKS.length / 2) : TRACKS.length;
     const colW = (s.width - 2 * m) / perRow;
@@ -114,7 +115,10 @@ export class TechOverlay {
         const owned = run.tech.includes(n.id);
         const verdict = canUnlock(run, n.id);
         const selected = selectedTrack && ri === this.row;
-        const col = owned ? p.hot : verdict === 'OK' ? p.ink : p.dim;
+        // Four readable states: owned (hot), buyable now (ink), next in line but short of research (the NEON
+        // text colour, dashed), locked behind another node or mode (dim, dashed).
+        const ui = uiColors(p, s.spectrum);
+        const col = owned ? p.hot : verdict === 'OK' ? p.ink : verdict === 'RESEARCH' ? ui.text : p.dim;
         const w = colW - 12;
         this.boxes.push({ x, y, w, h: 46, track: ti, row: ri });
         s.stroke([x, y, x + w, y, x + w, y + 46, x, y + 46], { closed: true, color: col, glow: selected ? 1.5 : owned ? 0.8 : 0, width: selected ? 1.5 : 1, ...(owned || verdict === 'OK' ? {} : { dash: [3, 4] }) });
@@ -123,7 +127,7 @@ export class TechOverlay {
         const maxChars = Math.max(8, Math.floor((colW - 18) / (8 * 5.5 / 6)));
         const name = n.name.length > maxChars ? n.name.slice(0, maxChars - 1) + '.' : n.name;
         drawText(s, name, x + 6, y + 20, 8, { color: col, glow: 0 });
-        if (!owned && verdict !== 'OK') drawText(s, verdict === 'REQUIRES' ? `NEEDS ${n.requires.join(',')}` : verdict === 'MODE' ? 'SCI-FI' : 'RESEARCH', x + 6, y + 33, 8, { color: p.dim, glow: 0 });
+        if (!owned && verdict !== 'OK') drawText(s, verdict === 'REQUIRES' ? `NEEDS ${n.requires.join(',')}` : verdict === 'MODE' ? 'SCI-FI' : `NEXT: ${n.cost - run.research} MORE RP`, x + 6, y + 33, 8, { color: verdict === 'RESEARCH' ? ui.sub : p.dim, glow: 0 });
       });
     });
     const sel = this.nodesOf(TRACKS[this.track] as string)[this.row];

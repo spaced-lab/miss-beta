@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Usability: TECH shows four node states (owned, buy now, next with how many more research points, locked) and
+  says where research comes from; CODEX methods read IN GAME or CONSOLE COMMAND instead of stale PLANNED (M6/M7).
+
 - Licence: GNU AGPL-3.0-or-later (LICENSE, NOTICE with the "Created by SPACED" attribution term, CONTRIBUTING).
   CREATED BY SPACED on the title screen; the credits page names Ridley DiSiena aka SPACED and the Patreon
   (patreon.com/cw/spacedlab): support is voluntary and helps keep the content free and open source.
