@@ -20,6 +20,9 @@ interface Row {
 
 export class OptionsScreen implements Screen {
   private sel = 0;
+  /** Mouse targets from the last frame: each row's y and where the values start. */
+  private rowYs: number[] = [];
+  private valueX = 0;
   /** Set by main: open the Learning Center on a topic (Esc there returns here). */
   openCenter: ((id: string) => void) | null = null;
   private readonly rows: Row[];
@@ -58,6 +61,18 @@ export class OptionsScreen implements Screen {
     const row = this.rows[this.sel];
     if (!row) return;
     let changed = false;
+    const click = k.takeClick();
+    if (click) {
+      const i = this.rowYs.findIndex((y) => click.y >= y - 6 && click.y < y + 24);
+      const r = i >= 0 ? this.rows[i] : undefined;
+      if (r) {
+        this.sel = i;
+        if (click.x >= this.valueX - 10) {
+          r.change(click.x < this.valueX + 60 ? -1 : 1);
+          changed = true;
+        }
+      }
+    }
     if (k.pressed('ArrowLeft')) {
       row.change(-1);
       changed = true;
@@ -79,7 +94,10 @@ export class OptionsScreen implements Screen {
     drawText(s, 'OPTIONS', s.width / 2, m + 6, 20, { align: 'center', color: p.hot, glow: 1.5 });
     let y = m + 60;
     const x = Math.max(m, s.width / 2 - 320);
+    this.rowYs = [];
+    this.valueX = x + 300;
     this.rows.forEach((r, i) => {
+      this.rowYs.push(y);
       const sel = i === this.sel;
       if (sel) drawText(s, '>', x - 24, y, 14, { color: p.hot, glow: 1.5 });
       drawText(s, r.label, x, y, 14, { color: sel ? p.hot : p.ink, glow: sel ? 1.2 : 0.8 });
@@ -88,6 +106,6 @@ export class OptionsScreen implements Screen {
     });
     const row = this.rows[this.sel];
     if (row) drawText(s, row.note, s.width / 2, y + 20, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT CHANGE    <L> LEARN ABOUT THIS    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT OR CLICK CHANGE    <L> LEARN ABOUT THIS    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

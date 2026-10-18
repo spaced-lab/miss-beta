@@ -53,6 +53,9 @@ export interface PlannerSession {
 }
 
 export class PlannerOverlay {
+  /** Mouse targets from the last frame: each plan's vertical extent and the list's left edge. */
+  private planYs: { y0: number; y1?: number; idx: number }[] = [];
+  private planX = 0;
   private open = false;
   private session: PlannerSession | null = null;
   private grid: PorkchopGrid | null = null;
@@ -296,6 +299,15 @@ export class PlannerOverlay {
       this.requestGrid();
     }
     const n = Math.max(1, this.cands.length);
+    const click = k.takeClick();
+    let clickCommit = false;
+    if (click) {
+      const hit = this.planYs.find((r) => click.y >= r.y0 && click.y < (r.y1 ?? r.y0 + 90) && click.x > this.planX);
+      if (hit) {
+        if (hit.idx === this.sel) clickCommit = true;
+        else this.sel = hit.idx;
+      }
+    }
     if (k.pressed('ArrowUp')) {
       this.sel = (this.sel + n - 1) % n;
       this.scheduleMc();
@@ -304,7 +316,7 @@ export class PlannerOverlay {
       this.sel = (this.sel + 1) % n;
       this.scheduleMc();
     }
-    if (k.pressed('Enter')) {
+    if (k.pressed('Enter') || clickCommit) {
       const c = this.cands[this.sel];
       const session = this.session;
       if (c && session) {
@@ -404,11 +416,14 @@ export class PlannerOverlay {
     }
 
     const lx = leftW + m;
+    this.planX = lx - 12;
     let ly = top;
     const range = KNOBS.BETA_RANGE[th.type.id] ?? ([2, 4] as const);
     if (this.cands.length === 0 && g) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
+    this.planYs = [];
     this.cands.forEach((c, idx) => {
       const selected = idx === this.sel;
+      this.planYs.push({ y0: ly - 4, idx });
       const col = selected ? p.hot : p.ink;
       const first = c.missions[0];
       if (!first) return;
@@ -437,8 +452,10 @@ export class PlannerOverlay {
         ly += 13;
       }
       ly += 6;
+      const last = this.planYs[this.planYs.length - 1];
+      if (last) last.y1 = ly;
     });
-    drawTextFit(s, 'UP / DOWN SELECT     <ENTER> COMMIT     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN OR CLICK SELECT     <ENTER> OR CLICK AGAIN COMMIT     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
     void this.mcTimer;
   }
 }
