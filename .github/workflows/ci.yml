@@ -34,8 +34,10 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+  # NOTE: skipped while the repository is private (the review stage before the first public publish): a free
+  # organization cannot serve Pages from a private repository, so the job would only fail and turn main red.
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: check
     runs-on: ubuntu-latest
     environment:

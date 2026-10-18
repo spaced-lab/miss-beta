@@ -6,6 +6,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 Versions are YY.Q.N (docs/RELEASING.md).
 
+- CI: the Pages deploy job skips itself while the repository is private, so the pre-publish review can run CI
+  on a private spaced-lab/miss-beta without a red main.
+
 - Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
   ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the
   routed threat; a dropped SAVE.md goes through the screen router; the lore index retries after a failed fetch
