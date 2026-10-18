@@ -173,15 +173,23 @@ typed on the title apply to the next NEW RUN.
 - Cheats: `REVEAL` (betas shown at once), `FASTBUILD`, `GODTRACK`, `LEADTIME n`, `SPAWN <scenario>` with
   CHELYABINSK, TUNGUSKA, YR4, APOPHIS, BENNU, DIDYMOS or CHICXULUB, `DART`, `KARDASHEV1` (every REALISTIC tech,
   budget x3), `KARDASHEV2` (SCI-FI with everything).
-- Modes nest: REALISTIC > `SCIFI` > `SIMULATION` > `MULTIVERSE n`. SCI-FI multiplies the budget by ten, adds the
-  SPECULATIVE methods and programs (CNT net capture, the DE-STAR orbital laser that fires at anything inside
-  0.3 AU, fusion tugs, the disassembler swarm) and new round types: interstellar objects on hyperbolic orbits at
-  50 to 90 km/s, long-period comets with a year of warning, 5 km bodies. SIMULATION turns on the glitch render
-  and the FICTION commands (`TELEPORT`, `OBSERVE`, `REWIND`, `EDIT G x`, `DELETE`, `NOCLIP`, `TRACTORBEAM`,
-  `SINGULARITY`, `PLANETTHRUSTERS dv`, `SHIELD`, `SHRINK`, `SUMMONDEVS` then `KNOB name value`); each one prints
-  the physical quantity that forbids it before doing it anyway. MULTIVERSE forks the round into n tiles on a
-  shared clock: digits select a branch, `P` plans in the selected branch, `C` collapses it into the main
-  timeline, `WORMHOLE` drops the selected branch's threat on its neighbour.
+- Modes nest: REALISTIC > `SCIFI` > `SIMULATION` > `MULTIVERSE n`. Building every REALISTIC program opens SCI-FI
+  without a code, and every SPECULATIVE program opens SIMULATION (civilization levels 1 and 2).
+- SCI-FI multiplies the budget by ten and adds the SPECULATIVE tier, "unproven, might work someday": CNT net
+  capture, the DE-STAR orbital laser (fires at anything inside 0.3 AU), fusion tugs, the disassembler swarm, parked
+  sail impactors, and programs that act on every threat without a flight: NANOFORGE SEEDS (the rock becomes its
+  own mass-driver rocket), a SELF-ASSEMBLING THRUSTER SWARM, the SHEPHERD NETWORK of parked impactor rocks, and a
+  SELF-REPLICATING SEED FLEET that doubles every 18 months and throws its rocks each time. New round types too:
+  interstellar objects on hyperbolic orbits at 50 to 90 km/s, long-period comets with a year of warning, 5 km bodies.
+- SIMULATION turns on the glitch render, the peeling corners, the operators' bulletins and the FICTION commands.
+  They are played straight, as ordinary procedure; type `REALITY ON` to have each one state the physics that
+  forbids it first (the CODEX lists those lines too). The commands: `TELEPORT`, `OBSERVE`, `REWIND n`, `EDIT G x`,
+  `DELETE`, `NOCLIP`, `TRACTORBEAM`, `SINGULARITY`, `PLANETTHRUSTERS dv`, `SHIELD`, `SHRINK`, `MICROHOLE [b]`
+  (a primordial black hole fly-by), `TIMEFOLD n`, `DETOUR`, `LUNA`, `HOLLOW`, `TICKET`, `NIBIRU`, `MANDELA`, `PEEL`
+  (see the raw state under the render), `BOOTSTRAP`, `RETROCAUSAL`, `SUMMONDEVS` then `KNOB name value`.
+- MULTIVERSE forks the round into n tiles on a shared clock: digits select a branch, `P` plans in the selected
+  branch, `C` collapses it into the main timeline, `WORMHOLE` drops the selected branch's threat on its neighbour,
+  `BORROW n` copies branch n's plan into the selected one.
 
 ## PERIMETER (arcade minigame)
 

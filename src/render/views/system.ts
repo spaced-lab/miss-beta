@@ -68,6 +68,7 @@ import { exportSave, saveRun } from '../../game/savegame';
 import { Teletype } from './teletype';
 import { Cinematics } from '../cinematics/index';
 import type { CineContext } from '../cinematics/scene';
+import { operatorNote } from '../../game/fiction';
 import { cloudNarrative, debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
 import { craftRemaining, WarpDown } from '../../game/warpDown';
 import { pickTip, TIP_SECONDS } from '../../game/tips';
@@ -137,6 +138,8 @@ export class SystemScreen implements Screen {
   private peelUntil = 0;
   /** BOOTSTRAP: the next commit is free. */
   private freeNext = false;
+  /** Last operator bulletin slot shown (SIMULATION ambience). */
+  private opSlot = -1;
   private approachSounded = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
@@ -708,6 +711,14 @@ export class SystemScreen implements Screen {
     if (k.pressed('KeyR') && this.result) {
       this.finishRound();
       return;
+    }
+    // SIMULATION ambience: every 120 s of play the operators post a bulletin (in character, GAME_PLAN 30).
+    if ((this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE') && !this.tele.isOpen) {
+      const slot = Math.floor(performance.now() / 120000);
+      if (slot !== this.opSlot && performance.now() > 30000) {
+        this.opSlot = slot;
+        this.tele.push({ header: { text: 'BULLETIN FROM THE OPERATORS', role: 'program' }, lines: [{ text: operatorNote(this.run.seed, slot), role: 'text' }] });
+      }
     }
     const before = w.t;
     advance(w, Math.min(dtMs, 100) / 1000);
