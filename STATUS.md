@@ -290,6 +290,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    bit (tests/planarReplay.test.ts). OWNER DECISION PENDING: moving ordinary NEAs to 3-D changes every seed's
    rounds (the planar replay fixture would be retired on purpose); flyby/sail plans against 3-D targets, 3-D
    fragment cones and retrograde long-period comets follow that choice.
+   - QUEUED (owner 2026-10-18, IDEAS 27): new defensive methods against out-of-plane visitors (3-D flyby and sail
+     plans, plane-change kick stages, out-of-plane standby interceptors, NEP interceptors, earlier warning, lasers
+     on 3-D bodies, terminal defense) plus a planner explanation when no plan reaches a 3-D visitor.
    Older questions (kept for the record):
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24
       lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).

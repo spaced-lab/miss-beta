@@ -137,3 +137,24 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     second target with its own small b-crit and damage scale), then Mars cities (a second planet: the threat may be
     aimed at either; interceptors launch from Earth or later from Mars), then outposts on Jupiter or Saturn moons.
     Needs per-target close approach, targets in the round generator, and debrief and score per body. Status: queued.
+
+27. **Fighting back against out-of-plane visitors (L).** Owner 2026-10-18. Since M14 phase 2, visitors from other
+    stars arrive from any direction and most are out of reach of a launch from HOME (4 of 30 sampled SCI-FI
+    visitors have any feasible launch, against 9 when flat; flyby and sail plans are not offered against 3-D
+    targets). This is a real problem to solve with new defensive methods, not by making visitors easier. Candidates,
+    each to go through docs/RESEARCH.md before it gets numbers:
+    - 3-D flyby and sail planning (engineering, REAL physics): a GIANT or INNER gravity assist and a sail's
+      out-of-plane force are the classic ways to change plane cheaply; restore both plan families in 3-D.
+    - Plane-change kick stages (PROPOSED): a tech line raising the deep-space dv budget for out-of-plane intercepts.
+    - Interceptors parked out of the plane (PROPOSED/SPECULATIVE): standby craft at high-inclination halo or
+      distant retrograde orbits, or at L4/L5 and Sun-Earth L1/L2, so one of them is always closer to the arrival
+      direction; extends INTERCEPTOR_ON_STANDBY and the L4/L5 picket.
+    - Nuclear-electric fast interceptors (PROPOSED): high-dv, long-burn craft that can reach steep arrivals given
+      months of warning, paired with earlier detection.
+    - Earlier warning (PROPOSED): HIVE_2/HIVE_3 nodes above and below the plane already in the studies; tie their
+      success to the interstellar needle and to more lead time for visitors.
+    - Directed energy that ignores the plane (SPECULATIVE, SCI-FI): the orbital laser array and ground laser act by
+      range, not plane; check they apply to 3-D bodies and say so in the planner.
+    - Terminal defense for the last weeks (PROPOSED): PI penetrator arrays and civil defense tuned for visitors.
+    Also: show in the planner WHY no plan exists for a 3-D visitor (plane too steep, dv shown), so the player learns
+    what would help. Status: queued (owner: put in backlog; build in turn).
