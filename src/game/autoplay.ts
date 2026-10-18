@@ -64,10 +64,6 @@ export function demoSpeed(elapsed: number, length: number): number {
   return Math.min(KNOBS.DEMO_SPEED_MAX, KNOBS.DEMO_SPEED_START * Math.pow(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START, f));
 }
 
-/** Programs AUTOPLAY funds, in teaching order: coordination first, then finding rocks, then reacting [knob]. */
-export const AUTO_PROGRAMS: readonly string[] = ['INTL_COORDINATION', 'GROUND_SURVEY_EXPANSION', 'SPACE_IR_SURVEYOR', 'SUNWARD_SENTINEL', 'PRECURSOR_FLEET', 'INTERCEPTOR_STOCKPILE', 'CIVIL_DEFENSE_READY', 'RADAR_NET'];
-/** Fund a program only while the budget stays above this and all funded programs cost under half the income [knob]. */
-export const AUTO_PROGRAM_RESERVE = 6;
 
 /**
  * The cheapest tech node AUTOPLAY can unlock now, launch and impactor tracks first (they decide most rounds).
@@ -80,40 +76,24 @@ export function chooseTech(nodes: readonly { id: string; name: string; track: st
 }
 
 /**
- * The next program AUTOPLAY funds: the first in AUTO_PROGRAMS not yet funded or done, if nothing else is running
+ * The next program AUTOPLAY funds: the first in KNOBS.AUTO_PROGRAMS not yet funded or done, if nothing else is running
  * and the money allows (budget above the reserve, its cost under half the yearly income).
  */
 export function chooseProgram(rows: readonly { id: string; name: string; costPerYear: number; funded: boolean; done: boolean }[], budget: number, perYear: number): { id: string; name: string; costPerYear: number } | null {
   if (rows.some((r) => r.funded && !r.done)) return null;
-  if (budget < AUTO_PROGRAM_RESERVE) return null;
-  for (const id of AUTO_PROGRAMS) {
+  if (budget < KNOBS.AUTO_PROGRAM_RESERVE) return null;
+  for (const id of KNOBS.AUTO_PROGRAMS) {
     const r = rows.find((x) => x.id === id);
     if (r && !r.funded && !r.done && r.costPerYear <= perYear * 0.5) return { id: r.id, name: r.name, costPerYear: r.costPerYear };
   }
   return null;
 }
 
-/** Reading time for a pane [knob]: 2.5 s plus 0.32 s a word, between 4 and 14 s (slow readers get the long end). */
-export const AUTO_READ = { base: 2.5, perWord: 0.32, min: 4, max: 14 } as const;
-/** Seconds between injected selection steps and warp steps, so the viewer sees each move [knob]. */
-export const AUTO_STEP_S = 0.45;
-/** Warp index the autopilot flies at once plans are in (1 MONTH/S) [knob]. */
-export const AUTO_CRUISE_WARP = 3;
-/** Warp index once every craft has arrived and the rock will miss (1 YEAR/S): nothing left to watch [knob]. */
-export const AUTO_COAST_WARP = 4;
-/** Re-plans allowed per round after the craft have arrived and the rock still hits [knob]. */
-export const AUTO_REPLANS = 2;
-/** Partial plans stacked per planning pass when no single plan makes the rock miss [knob]. */
-export const AUTO_STACK = 4;
-/** With no useful plan: wait this long for the budget to grow before planning again [knob, s]. */
-export const AUTO_RETRY_S = 31557600;
-/** Order the evacuation once the impact is this close and the rock still hits [knob, s]. */
-export const AUTO_EVAC_LEAD_S = 120 * 86400;
 
 /** Seconds a pane of `text` stays up. Example: 20 words -> 2.5 + 6.4 = 8.9 s. */
 export function readSeconds(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(AUTO_READ.min, Math.min(AUTO_READ.max, AUTO_READ.base + AUTO_READ.perWord * words));
+  return Math.max(KNOBS.AUTO_READ.min, Math.min(KNOBS.AUTO_READ.max, KNOBS.AUTO_READ.base + KNOBS.AUTO_READ.perWord * words));
 }
 
 function pane(title: string, body: string): Pane {
@@ -247,7 +227,7 @@ export class Autopilot {
         out.keys.push('KeyP');
         this.state = 'waitGrid';
         this.gridWait = 0;
-        this.wait = AUTO_STEP_S;
+        this.wait = KNOBS.AUTO_STEP_S;
         return out;
       case 'waitGrid':
         // NOTE: real seconds, not demo seconds: the porkchop worker does not get faster with the demo.
@@ -259,7 +239,7 @@ export class Autopilot {
         if (!v.planner.ready && this.gridWait < 30) return out;
         this.target = choosePlan(v.planner.cands);
         this.stacking = false;
-        if (this.target < 0 && this.stacked < AUTO_STACK) {
+        if (this.target < 0 && this.stacked < KNOBS.AUTO_STACK) {
           this.target = stackPlan(v.planner.cands, v.margin);
           this.stacking = this.target >= 0;
         }
@@ -267,8 +247,8 @@ export class Autopilot {
           this.stacked = 0;
           this.state = 'closePlanner';
           const lead = v.threat?.leadS ?? 0;
-          if (lead > AUTO_RETRY_S * 1.5) {
-            this.retryLead = lead - AUTO_RETRY_S;
+          if (lead > KNOBS.AUTO_RETRY_S * 1.5) {
+            this.retryLead = lead - KNOBS.AUTO_RETRY_S;
             return show(pane('NOT YET', 'No plan we can afford changes the outcome. The budget grows every year and new tech arrives, so we let a year pass and plan again. Waiting costs push, though: early is cheap.'));
           }
           this.evacPending = true;
@@ -289,7 +269,7 @@ export class Autopilot {
         if (v.planner.sel !== this.target) {
           const down = (this.target - v.planner.sel + n) % n;
           out.keys.push(down <= n / 2 ? 'ArrowDown' : 'ArrowUp');
-          this.wait = AUTO_STEP_S;
+          this.wait = KNOBS.AUTO_STEP_S;
           return out;
         }
         const c = v.planner.cands[this.target];
@@ -303,19 +283,19 @@ export class Autopilot {
         this.committedFrom = v.missions;
         out.keys.push('Enter');
         this.state = 'closePlanner';
-        this.wait = AUTO_STEP_S * 2;
+        this.wait = KNOBS.AUTO_STEP_S * 2;
         return out;
       case 'closePlanner':
         if (v.planner.open) {
           out.keys.push('Escape');
-          this.wait = AUTO_STEP_S;
+          this.wait = KNOBS.AUTO_STEP_S;
           return out;
         }
         if (this.stacking && v.missions > this.committedFrom) {
           this.stacked++;
           this.stacking = false;
           this.state = 'openPlanner';
-          this.wait = AUTO_STEP_S * 2;
+          this.wait = KNOBS.AUTO_STEP_S * 2;
           return out;
         }
         this.stacked = 0;
@@ -325,10 +305,10 @@ export class Autopilot {
       case 'fly':
         if (v.overlayOpen) {
           out.keys.push('Escape');
-          this.wait = AUTO_STEP_S;
+          this.wait = KNOBS.AUTO_STEP_S;
           return out;
         }
-        if (this.evacPending && v.canEvacuate && (v.threat?.leadS ?? 0) < AUTO_EVAC_LEAD_S && v.predicted === 'HIT') {
+        if (this.evacPending && v.canEvacuate && (v.threat?.leadS ?? 0) < KNOBS.AUTO_EVAC_LEAD_S && v.predicted === 'HIT') {
           this.evacPending = false;
           out.keys.push('KeyE');
           return show(pane('EVACUATION ORDERED', 'Four months out we move people away from the predicted impact zone. The rock still lands, but the debrief counts the lives saved.'));
@@ -343,12 +323,12 @@ export class Autopilot {
           this.coastSaid = true;
           return show(pane('IT WILL MISS', 'Every craft has arrived and the new orbit is measured: the rock now passes Earth. Nothing is left to steer, so we skip ahead a year a second to the close approach.'));
         }
-        if (v.warp < (coast ? AUTO_COAST_WARP : AUTO_CRUISE_WARP)) {
+        if (v.warp < (coast ? KNOBS.AUTO_COAST_WARP : KNOBS.AUTO_CRUISE_WARP)) {
           out.keys.push(v.warp === 0 ? 'Space' : 'BracketRight');
-          this.wait = AUTO_STEP_S;
+          this.wait = KNOBS.AUTO_STEP_S;
           return out;
         }
-        if (!v.craftInFlight && v.missions > 0 && v.predicted && v.predicted !== 'MISS' && this.replans < AUTO_REPLANS && (v.threat?.leadS ?? 0) > 120 * 86400) {
+        if (!v.craftInFlight && v.missions > 0 && v.predicted && v.predicted !== 'MISS' && this.replans < KNOBS.AUTO_REPLANS && (v.threat?.leadS ?? 0) > 120 * 86400) {
           this.replans++;
           this.state = 'openPlanner';
           return show(pane('NOT ENOUGH YET', `With every craft arrived the rock is still predicted to ${v.predicted === 'HIT' ? 'hit' : 'scrape past'}. The push was smaller than hoped (the beta factor varies). We plan again from here.`));
@@ -357,7 +337,7 @@ export class Autopilot {
       case 'debrief': {
         if (v.overlayOpen) {
           out.keys.push('Escape');
-          this.wait = AUTO_STEP_S;
+          this.wait = KNOBS.AUTO_STEP_S;
           return out;
         }
         const d = v.debrief;
@@ -383,7 +363,7 @@ export class Autopilot {
           return show(pane(`PROGRAM: ${pr.name}`, `Programs pay off over many rounds. This one costs ${pr.costPerYear} a year while it builds. Most of them buy warning time, the strongest lever in the game.`));
         }
         out.keys.push('Space');
-        this.wait = AUTO_STEP_S * 2;
+        this.wait = KNOBS.AUTO_STEP_S * 2;
         return out;
       }
       case 'over':
@@ -393,7 +373,7 @@ export class Autopilot {
           return show(pane('EARTH WAS HIT', 'This run is over. The lesson is in the debrief: what we found too late, or pushed too little. A fresh run starts now.'));
         }
         out.keys.push('Space');
-        this.wait = AUTO_STEP_S * 2;
+        this.wait = KNOBS.AUTO_STEP_S * 2;
         return out;
     }
     return out;

@@ -222,6 +222,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   raan and w by large amounts while the orbit barely moves, so anything that compares or animates elements
   (debrief scrubber, autoplay heuristics, the brief's orbit card) must compare states, not angles;
   (c) porkchop cost if Lambert gains a plane search; (e) Python mirrors of fragment and flyby must grow in step.
+- Code review 2026-10-18: the AUTOPLAY, attract, tip and demo-montage tunables moved into `src/config/knobs.ts`
+  (values unchanged) so every [knob] lives in one file and KNOB can set the numeric ones live. A second WORMHOLE
+  from one branch, or into a branch already carrying a routed threat, is refused rather than overwriting it.
 
 ## Unverified
 

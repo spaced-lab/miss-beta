@@ -3,7 +3,7 @@
 // WHY:  The title should show the game being played; it doubles as a smoke test of the planner on boot.
 // HOW:  createWorld + generateThreat (plain draw) + porkchop + rankCandidates with the tier-1 launcher;
 //       the best candidate's missions are committed and the round is resolved once. The clock then runs at
-//       `ATTRACT_RATE` years per real second; when the close approach passes a new seed is drawn.
+//       `KNOBS.ATTRACT_RATE` years per real second; when the close approach passes a new seed is drawn.
 // LORE: G1 (how to play), O10 (A to B)
 
 import { KNOBS } from '../config/knobs';
@@ -26,8 +26,6 @@ export interface AttractRound {
   seed: string;
 }
 
-/** Years of round time per real second on the title. [knob] */
-export const ATTRACT_RATE = 1.2;
 
 /** The daily seed: everyone gets the same rounds on the same calendar day (UTC). */
 export function dailySeed(date = new Date()): string {
@@ -75,6 +73,6 @@ export function buildAttract(seed: string): AttractRound {
 
 /** Advance the attract clock; returns true when the round is over and a new one should be built. */
 export function tickAttract(a: AttractRound, dtSeconds: number): boolean {
-  a.world.t += dtSeconds * ATTRACT_RATE * YEAR;
+  a.world.t += dtSeconds * KNOBS.ATTRACT_RATE * YEAR;
   return a.world.t >= a.result.ca.tCa + 0.15 * YEAR;
 }

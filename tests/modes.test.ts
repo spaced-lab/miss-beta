@@ -147,6 +147,13 @@ describe('MULTIVERSE', () => {
     expect(branchSurvives(mv.branches[0]!)).toBe(true); // its own threat was deleted
     expect(mv.branches[1]!.extraResult?.outcome).toBe('HIT');
     expect(survivalFraction(mv)).toBe(0.25);
+    // A second WORMHOLE from the same branch would send the stand-in and erase the real routed threat.
+    expect(wormhole(mv)).toBe('NOTHING TO ROUTE.');
+    expect(mv.branches[1]!.extraResult?.outcome).toBe('HIT');
+    expect(survivalFraction(mv)).toBe(0.25);
+    // Nor may a branch already carrying a routed threat take a second one (branch 1 routes into 2, already taken).
+    mv.branches[0]!.routedAway = false;
+    expect(wormhole(mv)).toBe('BRANCH 2 ALREADY CARRIES A ROUTED THREAT.');
     resolveBranch(mv.branches[2]!);
     expect(mv.branches[2]!.result.outcome).toBe('HIT');
   });

@@ -5,7 +5,7 @@
 // LORE: C1
 
 import { loadJson, saveJson } from '../game/persistence';
-import { isProgress, LoreStore, markRead, type Level } from './index';
+import { isProgress, LEVELS, LoreStore, markRead, type Level } from './index';
 
 export const lore = new LoreStore();
 
@@ -30,6 +30,10 @@ export function toggleBookmark(id: string): boolean {
 /** Merge progress from a SAVE.md (never lowers a level). */
 export function mergeProgress(from: Record<string, string>): void {
   let changed = false;
-  for (const [id, lv] of Object.entries(from)) if (markRead(progress, id, lv as Level)) changed = true;
+  // NOTE: SAVE.md is hand-editable; a level name that is not valid is skipped, or isProgress would reject the
+  // whole record on the next boot and every topic's progress would be lost.
+  for (const [id, lv] of Object.entries(from)) {
+    if ((LEVELS as readonly string[]).includes(lv) && markRead(progress, id, lv as Level)) changed = true;
+  }
   if (changed) saveJson(PROGRESS_KEY, progress);
 }

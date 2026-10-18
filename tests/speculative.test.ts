@@ -99,6 +99,16 @@ describe('civilization level (IDEAS 14)', () => {
     expect(run.mode).toBe('SIMULATION');
     expect(advanceCivilization(run)).toBeNull();
   });
+
+  it('opens SCI-FI even when a cheat already raised civLevel without changing the mode', async () => {
+    const { advanceCivilization } = await import('../src/game/civ');
+    const run = createRun('CIV2');
+    for (const p of run.programs) p.completedAt = 0;
+    run.civLevel = 1; // what KARDASHEV1 leaves behind
+    expect(advanceCivilization(run)).toContain('LEVEL 1');
+    expect(run.mode).toBe('SCIFI');
+    expect(advanceCivilization(run)).toBeNull();
+  });
 });
 
 describe('seed fleet', () => {

@@ -109,8 +109,9 @@ function boot(): void {
       }
       const sys = screens.get('system');
       if (sys instanceof SystemScreen) {
-        current?.exit();
-        current = sys;
+        // NOTE: through the router like CONTINUE on the title, so currentId follows and enter() clears any
+        // AUTOPLAY or tutorial state before the imported run takes over.
+        router.go('system');
         sys.resume(run);
       }
     });

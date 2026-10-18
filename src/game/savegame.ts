@@ -57,8 +57,10 @@ export function saveRun(run: RunState, world: World | null, _unused: null): bool
   return saveJson(KEY, renderSave(run, world));
 }
 
+/** True only for a save that parses, so the title never offers a run CONTINUE would refuse. */
 export function hasSavedRun(): boolean {
-  return loadSavedText() !== null;
+  const text = loadSavedText();
+  return text !== null && parseSave(text) !== null; // parse only: loadRun would also merge lore progress
 }
 
 function loadSavedText(): string | null {

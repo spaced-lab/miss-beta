@@ -51,6 +51,35 @@ describe('LORE loader', () => {
     await expect(bad2.chunk('T1', 'SIMPLE')).rejects.toThrow(/bad chunk/);
   });
 
+  it('retries the index after a failed fetch instead of remembering the failure', async () => {
+    let fail = true;
+    const log: string[] = [];
+    const ok = fakeFetch(log);
+    const store = new LoreStore('lore/', async (u) => { if (fail) throw new Error('offline'); return ok(u); });
+    await expect(store.loadIndex()).rejects.toThrow(/offline/);
+    fail = false;
+    await expect(store.loadIndex()).resolves.toBeTruthy();
+  });
+
+  it('overlapping requests for one chunk share a fetch and count its bytes once', async () => {
+    const log: string[] = [];
+    const store = new LoreStore('lore/', fakeFetch(log), 1e9);
+    await store.loadIndex();
+    const [a, b] = await Promise.all([store.chunk('T1', 'SIMPLE'), store.chunk('T1', 'SIMPLE')]);
+    expect(a).toBe(b);
+    expect(store.fetches).toBe(2); // index + one chunk
+    const one = await new LoreStore('lore/', fakeFetch([]), 1e9).chunk('T1', 'SIMPLE');
+    expect(store.cachedBytes).toBe(JSON.stringify(one).length);
+  });
+
+  it('mergeProgress skips level names that are not valid, so the saved record stays loadable', async () => {
+    const mod = await import('../src/lore/store');
+    mod.mergeProgress({ ZZ1: 'X', ZZ2: 'BEGINNER' });
+    expect(mod.progress['ZZ1']).toBeUndefined();
+    expect(mod.progress['ZZ2']).toBe('BEGINNER');
+    expect(isProgress(mod.progress)).toBe(true);
+  });
+
   it('the shared store at boot has made no fetch', async () => {
     const mod = await import('../src/lore/store');
     expect(mod.lore.fetches).toBe(0);

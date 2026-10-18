@@ -19,8 +19,11 @@ export function advanceCivilization(run: RunState): string | null {
   const [r, rt] = done('REALISTIC');
   const [f, ft] = done('SCIFI');
   const level = civilizationLevel(r, rt, f, ft);
-  if (level <= run.civLevel) return null;
-  run.civLevel = level;
+  // NOTE: the mode checks run on every call, not only when the level rises: a cheat can set civLevel ahead of
+  // the mode, and level 2 reached from REALISTIC needs one call to open SCI-FI and the next to open SIMULATION.
+  // enterMode never lowers a mode, so repeating them is safe.
+  const rose = level > run.civLevel;
+  if (rose) run.civLevel = level;
   if (level >= 1 && run.mode === 'REALISTIC' && enterMode(run, 'SCIFI') === 'OK') {
     syncPrograms(run.programs, 'SCIFI');
     return 'CIVILIZATION LEVEL 1: EVERY REAL PROGRAM IS BUILT. SCI-FI IS OPEN: SPECULATIVE PROGRAMS AND METHODS JOIN THE PANELS.';
@@ -28,5 +31,5 @@ export function advanceCivilization(run: RunState): string | null {
   if (level >= 2 && run.mode === 'SCIFI' && enterMode(run, 'SIMULATION') === 'OK') {
     return 'CIVILIZATION LEVEL 2: EVERY SPECULATIVE PROGRAM IS BUILT. SOMETHING IN THE CONSOLE HAS STARTED ANSWERING BACK.';
   }
-  return `CIVILIZATION LEVEL ${level}.`;
+  return rose ? `CIVILIZATION LEVEL ${level}.` : null;
 }

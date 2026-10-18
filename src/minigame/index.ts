@@ -119,6 +119,12 @@ export class MinigameScreen implements Screen {
     this.player = null;
   }
 
+  /** Leave a finished WATCH BEST replay for the ready panel, which still offers any saved game. */
+  private endReplay(): void {
+    this.player = null;
+    this.st = createState(this.newSeed(), this.st.collision, this.settings.difficulty);
+  }
+
   private startDemo(): void {
     this.demo = true;
     this.demoRestart = 0;
@@ -179,7 +185,7 @@ export class MinigameScreen implements Screen {
 
   exit(): void {
     // The surface and listeners are shared; only the game in progress needs keeping.
-    if (this.st.status === 'playing' && !this.demo) saveSessionJson(SAVE_KEY, toSaved(this.st));
+    if (this.st.status === 'playing' && !this.demo && !this.player) saveSessionJson(SAVE_KEY, toSaved(this.st));
   }
 
   update(dtMs: number): void {
@@ -242,7 +248,7 @@ export class MinigameScreen implements Screen {
         start(this.st);
         this.player = new Player(r.rle);
         this.rec = null;
-        this.saved = null;
+        // NOTE: the saved game stays offered; a replay never writes or clears the save (see autosave below).
         flash(this.st, `REPLAY OF THE BEST GAME: ${r.score}`, 3);
         return;
       }
@@ -259,6 +265,10 @@ export class MinigameScreen implements Screen {
     const touches = k.touchPoints ?? [];
     const touchStart = touches.length > 0 && !this.touchWas;
     this.touchWas = touches.length > 0;
+    if (this.player && st.status === 'over' && (touchStart || k.pressed('Space'))) {
+      this.endReplay();
+      return;
+    }
     if (touchStart && (st.status === 'ready' || st.status === 'over')) {
       if (st.status === 'ready' && !this.saved) this.begin(st.seed);
       else if (st.status === 'ready' && this.saved) { this.st = this.saved; this.saved = null; this.rec = null; }
@@ -332,7 +342,9 @@ export class MinigameScreen implements Screen {
     if (steps === MG.MAX_STEPS_PER_FRAME) this.acc = 0;
 
     // Autosave: on every level-up and every AUTOSAVE_SECONDS while playing; the save goes when the game ends.
-    if (st.status === 'playing') {
+    if (this.player) {
+      // A replay is not the player's game: it never autosaves over, or clears, the real save.
+    } else if (st.status === 'playing') {
       this.sinceSave += Math.min(dtMs, 250) / 1000;
       if (this.sinceSave >= AUTOSAVE_SECONDS || st.events.some((e) => e.type === 'levelup')) {
         saveSessionJson(SAVE_KEY, toSaved(st));
@@ -352,12 +364,12 @@ export class MinigameScreen implements Screen {
       if (!prev || st.score > prev.score) saveJson(REPLAY_KEY, { seed: st.seed, collision: st.collision, score: st.score, rle: this.rec.rle, difficulty: st.difficulty } satisfies SavedReplay);
       this.rec = null;
     }
-    if (st.status === 'over' && isRanked(st) && st.score > this.best) {
+    if (st.status === 'over' && !this.player && isRanked(st) && st.score > this.best) {
       this.best = st.score;
       saveJson(bestKey(st.difficulty), this.best);
     }
     // NOTE: the daily seed is the same for everyone, so only a NORMAL run from level 1 is a fair daily best.
-    if (this.daily && st.status === 'over' && isRanked(st) && st.difficulty === 'normal' && st.score > this.dailyBest) {
+    if (this.daily && st.status === 'over' && !this.player && isRanked(st) && st.difficulty === 'normal' && st.score > this.dailyBest) {
       this.dailyBest = st.score;
       saveJson(DAILY_KEY, { date: today(), best: st.score });
     }

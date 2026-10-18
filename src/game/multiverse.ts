@@ -22,6 +22,8 @@ export interface Branch {
   /** Second threat delivered by a wormhole, if any (resolved separately). */
   extraThreat: Threat | null;
   extraResult: RoundResult | null;
+  /** True once this branch's own threat has left through a wormhole (its threat is then a stand-in). */
+  routedAway?: boolean;
 }
 
 export interface Multiverse {
@@ -82,11 +84,14 @@ export function earliestEnd(mv: Multiverse): number {
 /** WORMHOLE: the selected branch's threat leaves for the next sibling; it is deleted here. */
 export function wormhole(mv: Multiverse, opts: ResolveOpts = {}): string {
   const from = mv.branches[mv.selected];
-  if (!from || mv.branches.length < 2 || !from.world.threat) return 'NOTHING TO ROUTE.';
+  if (!from || mv.branches.length < 2 || !from.world.threat || from.routedAway) return 'NOTHING TO ROUTE.';
   const to = mv.branches[(mv.selected + 1) % mv.branches.length] as Branch;
+  // NOTE: a branch carries at most one wormholed threat; a second would overwrite the first and erase it.
+  if (to.extraThreat) return `BRANCH ${to.index + 1} ALREADY CARRIES A ROUTED THREAT.`;
   const th = from.world.threat;
   to.extraThreat = { ...th, elements: { ...th.elements } };
   from.world.threat = { ...th, D: 0.5, mass: 1 };
+  from.routedAway = true;
   resolveBranch(from, opts);
   resolveBranch(to, opts);
   return `BRANCH ${from.index + 1}'S THREAT NOW FALLS ON BRANCH ${to.index + 1}.`;

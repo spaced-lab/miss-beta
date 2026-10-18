@@ -65,6 +65,7 @@ export class LoreStore {
   private index: LoreIndex | null = null;
   private indexPromise: Promise<LoreIndex> | null = null;
   private readonly cache = new Map<string, { chunk: Chunk; bytes: number }>();
+  private readonly inflight = new Map<string, Promise<Chunk>>();
   private bytes = 0;
   /** Fetches made (tests assert zero before the first panel opens). */
   fetches = 0;
@@ -83,6 +84,9 @@ export class LoreStore {
         if (!isIndex(v)) throw new Error('lore: bad index');
         this.index = v;
         return v;
+      }).catch((e: unknown) => {
+        this.indexPromise = null; // a failed fetch is retried by the next caller, not remembered
+        throw e;
       });
     }
     return this.indexPromise;
@@ -105,10 +109,25 @@ export class LoreStore {
       this.cache.set(key, hit);
       return hit.chunk;
     }
+    // NOTE: overlapping calls for one key share a fetch, so its size is counted once.
+    const pending = this.inflight.get(key);
+    if (pending) return pending;
+    const p = this.fetchChunk(key);
+    this.inflight.set(key, p);
+    try {
+      return await p;
+    } finally {
+      this.inflight.delete(key);
+    }
+  }
+
+  private async fetchChunk(key: string): Promise<Chunk> {
     this.fetches++;
-    const v = await this.fetchFn(`${this.base}${id}/${level}.json`);
+    const v = await this.fetchFn(`${this.base}${key}.json`);
     if (!isChunk(v)) throw new Error(`lore: bad chunk ${key}`);
     const size = JSON.stringify(v).length;
+    const old = this.cache.get(key);
+    if (old) this.bytes -= old.bytes;
     this.cache.set(key, { chunk: v, bytes: size });
     this.bytes += size;
     while (this.bytes > this.cap && this.cache.size > 1) {

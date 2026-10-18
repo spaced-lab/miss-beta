@@ -365,6 +365,34 @@ export const KNOBS = {
   DEMO_SPEED_END: 120,
   /** AUTOPLAY pace multipliers on panes, step waits and the sim clock (owner 2026-10-18: old pace = SLOW). */
   AUTO_SPEEDS: { SLOW: 1, NORMAL: 1.5, FAST: 2.25 },
+  // NOTE: moved here from autoplay.ts, attract.ts, tips.ts and demo.ts so every tunable is in one file and the
+  // KNOB console command can reach the numeric ones; callers read KNOBS.<name> at use, so live edits apply.
+  /** Programs AUTOPLAY funds, in teaching order: coordination first, then finding rocks, then reacting [knob]. */
+  AUTO_PROGRAMS: ['INTL_COORDINATION', 'GROUND_SURVEY_EXPANSION', 'SPACE_IR_SURVEYOR', 'SUNWARD_SENTINEL', 'PRECURSOR_FLEET', 'INTERCEPTOR_STOCKPILE', 'CIVIL_DEFENSE_READY', 'RADAR_NET'] as readonly string[],
+  /** Fund a program only while the budget stays above this and all funded programs cost under half the income [knob]. */
+  AUTO_PROGRAM_RESERVE: 6,
+  /** Reading time for a pane [knob]: 2.5 s plus 0.32 s a word, between 4 and 14 s (slow readers get the long end). */
+  AUTO_READ: { base: 2.5, perWord: 0.32, min: 4, max: 14 },
+  /** Seconds between injected selection steps and warp steps, so the viewer sees each move [knob]. */
+  AUTO_STEP_S: 0.45,
+  /** Warp index the autopilot flies at once plans are in (1 MONTH/S) [knob]. */
+  AUTO_CRUISE_WARP: 3,
+  /** Warp index once every craft has arrived and the rock will miss (1 YEAR/S): nothing left to watch [knob]. */
+  AUTO_COAST_WARP: 4,
+  /** Re-plans allowed per round after the craft have arrived and the rock still hits [knob]. */
+  AUTO_REPLANS: 2,
+  /** Partial plans stacked per planning pass when no single plan makes the rock miss [knob]. */
+  AUTO_STACK: 4,
+  /** With no useful plan: wait this long for the budget to grow before planning again [knob, s]. */
+  AUTO_RETRY_S: 31557600,
+  /** Order the evacuation once the impact is this close and the rock still hits [knob, s]. */
+  AUTO_EVAC_LEAD_S: 120 * 86400,
+  /** Years of round time per real second on the title. [knob] */
+  ATTRACT_RATE: 1.2,
+  /** Seconds a tip stays before the next one. [knob] */
+  TIP_SECONDS: 12,
+  /** Montage pacing [knob]: first scene length (s), shrink per pass, the blur floor, the pause, typing speed. */
+  DEMO_MONTAGE: { SCENE_S0: 3.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_PASSES: 2, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
   DEMO_SPEED_MAX: 400,
   /** Owner 2026-10-18: "finer pixels" in the LAUNCH cinematic. Cell size of the launch pixel art in px at scale 1
    *  (was 3 for the pad and 2.5 + 0.5 x tier for the rocket); the sprites are drawn at about twice the old

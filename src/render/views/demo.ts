@@ -7,6 +7,7 @@
 //       synth click per character. Esc or any key after the text ends returns to the title.
 // LORE: G1 (how to play)
 
+import { KNOBS } from '../../config/knobs';
 import type { UiSfx } from '../../audio/ui';
 import type { Router, Screen } from '../../game/screen';
 import { Rng } from '../../sim/rng';
@@ -17,8 +18,6 @@ import { uiColors, withAlpha } from '../palettes';
 import { drawText, wrapText } from '../vectorFont';
 import { wireSphere } from '../wire';
 
-/** Montage pacing [knob]: first scene length (s), shrink per pass, the blur floor, the pause, typing speed. */
-export const DEMO_MONTAGE = { SCENE_S0: 3.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_PASSES: 2, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 } as const;
 
 /** The closing line (owner's text, spelling checked). */
 export const FINALE_TEXT = 'STRANGE GAME. THE ONLY OPTION IS TO KEEP WORKING TO PROTECT YOUR PLANET. SHALL WE PLAY A GAME OF CHESS, OR WILL YOU HELP US SAVE THE WORLD?';
@@ -70,11 +69,11 @@ export class DemoScreen implements Screen {
    * cuts more than three times a second (SAFE_MIN_S), and once a second with REDUCE MOTION.
    */
   private sceneLen(): number {
-    const floor = Math.max(DEMO_MONTAGE.MIN_S, this.settings.reduceMotion ? DEMO_MONTAGE.CALM_MIN_S : DEMO_MONTAGE.SAFE_MIN_S);
-    return Math.max(floor, DEMO_MONTAGE.SCENE_S0 * Math.pow(DEMO_MONTAGE.SHRINK, this.pass));
+    const floor = Math.max(KNOBS.DEMO_MONTAGE.MIN_S, this.settings.reduceMotion ? KNOBS.DEMO_MONTAGE.CALM_MIN_S : KNOBS.DEMO_MONTAGE.SAFE_MIN_S);
+    return Math.max(floor, KNOBS.DEMO_MONTAGE.SCENE_S0 * Math.pow(KNOBS.DEMO_MONTAGE.SHRINK, this.pass));
   }
   private atFloor(): boolean {
-    return this.sceneLen() <= Math.max(DEMO_MONTAGE.MIN_S, this.settings.reduceMotion ? DEMO_MONTAGE.CALM_MIN_S : DEMO_MONTAGE.SAFE_MIN_S) + 1e-9;
+    return this.sceneLen() <= Math.max(KNOBS.DEMO_MONTAGE.MIN_S, this.settings.reduceMotion ? KNOBS.DEMO_MONTAGE.CALM_MIN_S : KNOBS.DEMO_MONTAGE.SAFE_MIN_S) + 1e-9;
   }
 
   update(dtMs: number): void {
@@ -96,26 +95,26 @@ export class DemoScreen implements Screen {
         if (this.sceneIdx >= this.scenes.length) {
           this.sceneIdx = 0;
           this.pass++;
-          if (this.atFloor() && ++this.blurPasses > DEMO_MONTAGE.BLUR_PASSES) {
+          if (this.atFloor() && ++this.blurPasses > KNOBS.DEMO_MONTAGE.BLUR_PASSES) {
             this.stage = 'pause';
             this.stageT = 0;
           }
         }
       }
     } else if (this.stage === 'pause') {
-      if (this.stageT >= DEMO_MONTAGE.PAUSE_S) {
+      if (this.stageT >= KNOBS.DEMO_MONTAGE.PAUSE_S) {
         this.stage = 'finale';
         this.stageT = 0;
         this.sfx?.voice.say('FINALE', true);
       }
     } else {
-      const want = Math.min(FINALE_TEXT.length, Math.floor(this.stageT * DEMO_MONTAGE.TYPE_CPS));
+      const want = Math.min(FINALE_TEXT.length, Math.floor(this.stageT * KNOBS.DEMO_MONTAGE.TYPE_CPS));
       while (this.typed < want) {
         const ch = FINALE_TEXT[this.typed] ?? ' ';
         this.typed++;
         if (ch !== ' ') this.sfx?.synth.tick({ freq: 1400 + (this.typed % 5) * 90, dur: 0.012, wave: 'square', gain: 0.025 });
       }
-      if (this.typed >= FINALE_TEXT.length && this.stageT > FINALE_TEXT.length / DEMO_MONTAGE.TYPE_CPS + 1.5 && k.anyKeyPressed()) this.router.go('title');
+      if (this.typed >= FINALE_TEXT.length && this.stageT > FINALE_TEXT.length / KNOBS.DEMO_MONTAGE.TYPE_CPS + 1.5 && k.anyKeyPressed()) this.router.go('title');
     }
   }
 
@@ -131,7 +130,7 @@ export class DemoScreen implements Screen {
         drawText(s, cap[0], s.width / 2, 28, Math.min(22, s.width / 40), { align: 'center', color: ui.title, glow: 1.6 });
         drawText(s, cap[1], s.width / 2, s.height - 48, 11, { align: 'center', color: ui.text, glow: 0.6 });
       }
-      drawText(s, `PASS ${this.pass + 1}   X${(1 / Math.pow(DEMO_MONTAGE.SHRINK, this.pass)).toFixed(1)}`, s.width - 16, 10, 9, { align: 'right', color: ui.dim, glow: 0 });
+      drawText(s, `PASS ${this.pass + 1}   X${(1 / Math.pow(KNOBS.DEMO_MONTAGE.SHRINK, this.pass)).toFixed(1)}`, s.width - 16, 10, 9, { align: 'right', color: ui.dim, glow: 0 });
       return;
     }
     // The finale window: big green terminal text, whatever the colour mode.
@@ -160,7 +159,7 @@ export class DemoScreen implements Screen {
       if (left < 0) break;
       ly += size * 1.7;
     }
-    if (this.typed >= FINALE_TEXT.length && this.stageT > FINALE_TEXT.length / DEMO_MONTAGE.TYPE_CPS + 1.5) drawText(s, 'PRESS ANY KEY', s.width / 2, y + h + 20, 11, { align: 'center', color: green, glow: 0.6, alpha: 0.6 + 0.4 * Math.sin(this.t * 4) });
+    if (this.typed >= FINALE_TEXT.length && this.stageT > FINALE_TEXT.length / KNOBS.DEMO_MONTAGE.TYPE_CPS + 1.5) drawText(s, 'PRESS ANY KEY', s.width / 2, y + h + 20, 11, { align: 'center', color: green, glow: 0.6, alpha: 0.6 + 0.4 * Math.sin(this.t * 4) });
   }
 }
 

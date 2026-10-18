@@ -6,6 +6,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 Versions are YY.Q.N (docs/RELEASING.md).
 
+- Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
+  ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the
+  routed threat; a dropped SAVE.md goes through the screen router; the lore index retries after a failed fetch
+  and overlapping chunk loads share one fetch; SAVED RUN FOUND only shows for a save that parses; SCI-FI and
+  SIMULATION open even after KARDASHEV1; the AUTOPLAY, attract, tip and montage tunables are knobs.
+
 - OPTIONS > SCI-FI VISITORS: RARE (3 %, default) or COMMON (30 %). The credits page and title explain that MISS beta
   is self-funded and runs on coffee; C or a click on the credits support line opens the coffee fund in a new tab.
   Version 26.4.0 on the title (YY.Q.N calendar versions).

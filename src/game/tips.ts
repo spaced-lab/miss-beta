@@ -2,9 +2,10 @@
 // WHY:  Owner, 2026-10-18: in-game tips. A tip that matches what the player is doing teaches more than a
 //       random one; rotating keeps it from becoming wallpaper.
 // HOW:  `tipFacts` summarises the round into flags; `pickTip(facts, slot)` returns the tip for a rotation slot
-//       (the HUD advances the slot every TIP_SECONDS). Matching tips come first, ANY tips fill in. Pure.
+//       (the HUD advances the slot every KNOBS.TIP_SECONDS). Matching tips come first, ANY tips fill in. Pure.
 // LORE: G1 (how to play)
 
+import { KNOBS } from '../config/knobs';
 import tipsJson from '../config/tips.json';
 
 export type TipWhen = 'NO_MISSIONS' | 'IN_FLIGHT' | 'RICH' | 'SHORT' | 'PREDICTED_MISS' | 'ANY';
@@ -13,8 +14,6 @@ export interface Tip {
   text: string;
 }
 export const TIPS: readonly Tip[] = (tipsJson as { tips: Tip[] }).tips;
-/** Seconds a tip stays before the next one. [knob] */
-export const TIP_SECONDS = 12;
 
 export interface TipFacts {
   missions: number;
