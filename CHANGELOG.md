@@ -8,6 +8,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   size and tier, crunch lowpassed to 480/900 Hz), hits are bass pops with almost no grain, shots have a softer
   attack and a lower blip, the ambient static gains an 80-120 Hz activity voice above chaos 0.5, a laser MESH
   pull is a cluster of layered zaps, and the level-up is two gentle 55 Hz sine pulses (no square tone).
+- PERIMETER hull hit is a deep rumble again (`synth.rumble`: 40 Hz sub sliding to 28 Hz over 0.7 s over a 120 Hz
+  lowpassed noise bed, the loudest voice, no mid or high content).
 
 - PERIMETER v3.2 weapons that scale: seeker stock cap, volley (1 -> 4 by level 30, `SEEKER_VOLLEY_LEVELS`) and
   charge easing (`seekerHitsNeeded`), swarm stock cap and drone cap 16 -> 32, sentry cap 3 -> 6 with easing hits

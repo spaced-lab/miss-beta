@@ -8,7 +8,8 @@
 //       (threshold -16 dB, ratio 6, fast attack): forty bullets landing in one frame get squashed rather
 //       than clipped, so the kit can lean bassy without a hard ceiling. `bass()` carries a second, lower
 //       sub layer (30 to 45 Hz, longer tail) under the main pop; that is where "bassier" comes from. `thud()`
-//       is the hull-impact voice and, with a lower crunch cutoff and a longer tail, the rock-breakup voice;
+//       is the rock-breakup voice (a low thud with a tail); `rumble()` is the hull impact: a 35-45 Hz sub with a
+//       slow pitch drop over a 120 Hz lowpassed noise bed, the loudest voice in the kit;
 //       `tick` takes a soft attack and `sweep` a start delay so clusters (the laser mesh) schedule in one call.
 //       Everything is guarded so the module is inert in node (tests) and when audio is unavailable.
 // LORE: G8 (the look, and the sound)
@@ -319,6 +320,47 @@ export class Synth {
     osc.connect(g).connect(master);
     osc.start(t);
     osc.stop(t + attack + dur + 0.02);
+  }
+
+  /**
+   * Deep rumble: the hull-impact voice (owner, 2026-10-17: "go back to the low-frequency rumble when the planet
+   * is hit"). A sub sine at `freq` (35-45 Hz) sliding slowly to 0.7 x freq over `dur`, with a 15 ms attack so it
+   * swells rather than clicks, plus a noise bed through a lowpass at `noiseCutoff` (120 Hz: no mid or high
+   * content) on the same tail, and the usual sub layer under both. Louder than any other voice; the master
+   * compressor takes the peak.
+   */
+  rumble(freq = 40, dur = 0.65, gain = 0.55, noiseCutoff = 120): void {
+    const io = this.out();
+    if (!io) return;
+    const { ctx, master } = io;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.7, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g).connect(master);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(ctx, 3000, 3, 0.5);
+    src.playbackRate.value = 0.6;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 1.5;
+    f.frequency.setValueAtTime(noiseCutoff, t);
+    f.frequency.exponentialRampToValueAtTime(Math.max(40, noiseCutoff * 0.5), t + dur);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.linearRampToValueAtTime(gain * 0.9, t + 0.02);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.9);
+    src.connect(f).connect(ng).connect(master);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+    this.bass(Math.max(30, freq * 0.8), dur * 0.5, gain * 0.6, 0.9, 1.8);
   }
 
   /** Bass static: a discrete low rumble pop, noise through a very low lowpass plus a sub sine. */

@@ -5,8 +5,9 @@
 //       rate-limited so eight launchers at full fire stay delicate. Everything is lo-fi and short:
 //       ticks 10 to 25 ms, crunches under 250 ms, the laser and the pulse are 303-style sweeps, level-ups
 //       and turrets are SH-101-style sample-and-hold tones. The mix leans bassy on purpose (owner's notes,
-//       2026-10-17, twice): hits are bass pops with almost no grain, breakups are a bigger, lower version of the
-//       hull-impact thud (45-60 Hz sine with a pitch drop, tail and weight scaling with rock size and tier,
+//       2026-10-17, three times): the hull hit is a deep rumble (synth.rumble: 40 Hz sub with a slow pitch drop
+//       over a 120 Hz lowpassed noise bed, the loudest voice), hits are bass pops with almost no grain, breakups
+//       are a big low thud with a tail (synth.thud at 45-60 Hz, tail and weight scaling with rock size and tier,
 //       under a crunch lowpassed low), shots are a soft-attack low blip over a sub pop, and the ambient
 //       bass static gains a second 80-120 Hz voice above chaos 0.5 so the field sounds busier as levels climb.
 //       A laser MESH pull is a short cluster of layered zaps; a level-up is two gentle sub pulses. The master compressor in synth.ts keeps forty
@@ -126,7 +127,8 @@ export class SfxPlayer {
           this.hitCount++;
           break;
         case 'break': {
-          // Breakup: a bigger version of the hull-impact thud. Sine 60 Hz dropping 3 Hz per tier (45 Hz floor),
+          // Breakup: a big low thud with a tail (the hull hit itself is the deeper rumble above). Sine 60 Hz
+          // dropping 3 Hz per tier (45 Hz floor),
           // tail 0.26 s + 0.5 s per radius + 0.03 s per tier (0.33 s for the smallest tier-0 shard, 0.62 s for the
           // largest tier-5 rock), weight 0.26 + 0.35 per radius + 0.03 per tier; its own crunch sits at 480 Hz
           // (hull: 700 Hz) and lasts 0.1 s + 0.25 s per radius. Under it the kit crunch, lowpassed lower than
@@ -142,9 +144,10 @@ export class SfxPlayer {
           this.synth.bass(46, 0.07, 0.14, 0.8, 1.8);
           break;
         case 'impact':
-          // Deeper and longer than before: a sub thud with a tail.
-          this.synth.thud(52, 0.45, 0.42);
-          this.synth.bass(36, 0.25, 0.3);
+          // Hull hit: the deep rumble (owner: "the low-frequency rumble when the planet is hit"). 40 Hz sub sine
+          // sliding to 28 Hz over 0.7 s, noise bed lowpassed at 120 Hz on the same tail, gain 0.55: the loudest
+          // voice here (breakups peak near 0.45, shots 0.13). No mid or high content at all.
+          this.synth.rumble(40, 0.7, 0.55, 120);
           break;
         case 'moonhit':
           this.synth.crunch({ rate: 3000, bits: 3, dur: 0.12, cutoff: 700, gain: 0.14 });
