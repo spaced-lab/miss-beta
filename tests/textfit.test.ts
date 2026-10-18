@@ -57,3 +57,15 @@ describe('lore links and tips', () => {
     expect(r?.when).toBe('RICH');
   });
 });
+
+describe('gamepad mapping (IDEAS 7)', () => {
+  it('buttons and the left stick map to key codes', async () => {
+    const { padCodes } = await import('../src/ui/gamepad');
+    const btn = (on: number[]) => Array.from({ length: 16 }, (_, i) => ({ pressed: on.includes(i) }));
+    expect([...padCodes(btn([0]), [0, 0])]).toEqual(['Space', 'Enter']);
+    expect(padCodes(btn([5]), [0, 0]).has('BracketRight')).toBe(true);
+    expect(padCodes(btn([]), [-0.9, 0.8]).has('ArrowLeft')).toBe(true);
+    expect(padCodes(btn([]), [-0.9, 0.8]).has('ArrowDown')).toBe(true);
+    expect(padCodes(btn([]), [0.2, -0.2]).size).toBe(0);
+  });
+});

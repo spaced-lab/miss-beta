@@ -164,6 +164,12 @@ tutorial is never recorded or saved. DAILY RUN uses the seed of today's UTC date
 rounds. OPTIONS: color mode (seven palettes), CRT effects, glow style, sound, units, reduce motion, text size
 and the learning level for the Learning Center. Touch: one finger pans, two fingers pinch to zoom.
 
+## Gamepad
+
+Any standard-mapping controller works everywhere: A fires, pauses and commits; B goes back; X opens the planner;
+Y the lore panel; LB and RB step the warp (seeker and swarm in PERIMETER); LT pulses; RT the planet view; VIEW is
+Tab; MENU opens the Learning Center; the d-pad and left stick are the arrows.
+
 ## Console, cheat codes and modes
 
 Press backquote (`` ` ``) on the title or in a run to open the console. `HELP` lists the commands. Cheat codes

@@ -5,6 +5,8 @@
 //       `endFrame()` clears the edge set. Typed characters are also exposed for cheat-code entry.
 // LORE: G2 (screens and HUD)
 
+import { padCodes } from './gamepad';
+
 export class Input {
   private readonly down = new Set<string>();
   private readonly edge = new Set<string>();
@@ -160,6 +162,21 @@ export class Input {
     const v = this.keyEvents;
     this.keyEvents = [];
     return v;
+  }
+
+  private padHeld = new Set<string>();
+  /** Poll connected gamepads (call once per frame before screens update): pad buttons act as their key codes. */
+  pollGamepads(): void {
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    const pads = nav && typeof nav.getGamepads === 'function' ? nav.getGamepads() : [];
+    const now = new Set<string>();
+    for (const pad of pads) if (pad) for (const c of padCodes(pad.buttons, pad.axes)) now.add(c);
+    for (const c of now) if (!this.padHeld.has(c)) {
+      if (!this.down.has(c)) this.edge.add(c);
+      this.down.add(c);
+    }
+    for (const c of this.padHeld) if (!now.has(c)) this.down.delete(c);
+    this.padHeld = now;
   }
 
   /** Call once per frame after screens have read the edges. */

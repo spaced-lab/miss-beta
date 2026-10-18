@@ -29,6 +29,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
    key codes (left stick = arrows, A = Space, B = Esc, bumpers = warp), so no screen changes. Touch pan and
    pinch landed in M8; this is the remaining half of GAME_PLAN 13's "controller/touch".
    Recommendation: LATER, with 2.
+   Status 2026-10-18: DONE (src/ui/gamepad.ts; standard mapping: A fire/pause/commit, B back, X planner, Y lore,
+   LB/RB warp or seeker/swarm, LT pulse, RT planet view, VIEW tab, MENU Learning Center, d-pad and left stick arrows).
 8. **Click-to-open lore on entities and HUD numbers (M).** Today `?` picks a context topic from the round's
    state. The plan wants a click on any body, readout, planner line, program or network to open its topic:
    needs hit regions registered by each draw call (a small `hitmap` in the Surface) and a pointer-up handler.

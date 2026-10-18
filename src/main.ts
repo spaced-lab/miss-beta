@@ -125,6 +125,7 @@ function boot(): void {
     const t0 = performance.now();
     sfx.enabled = settings.sound;
     if (!settings.reduceMotion) surface.holoDrift = (surface.holoDrift + dt * 0.01) % 360;
+    keys.pollGamepads();
     if (keys.anyKeyPressed()) sfx.unlock();
     current?.update(dt);
     keys.endFrame();
