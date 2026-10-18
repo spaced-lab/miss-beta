@@ -256,6 +256,20 @@
       "note": "V_lim 25, no weather"
     },
     {
+      "id": "INTERCEPTOR_ON_STANDBY",
+      "name": "INTERCEPTOR ON STANDBY (COMET INTERCEPTOR CLASS)",
+      "tag": "PROPOSED",
+      "years": 4,
+      "costPerYear": 3,
+      "mode": "REALISTIC",
+      "effects": [
+        {
+          "kind": "STANDBY_INTERCEPTOR"
+        }
+      ],
+      "note": "a craft parked at L1 waiting for a target: no build time against a visitor from another star"
+    },
+    {
       "id": "SAIL_SWARM_DEPOT",
       "name": "SAIL SWARM DEPOT",
       "tag": "SPECULATIVE",

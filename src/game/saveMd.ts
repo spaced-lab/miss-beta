@@ -46,6 +46,8 @@ export interface SaveFile {
   programs: SaveProgram[];
   /** Feasibility studies that were ever started (optional: older saves have none). */
   studies?: SaveStudy[];
+  /** Run stamped EXAGGERATED (interstellar rate above REAL); optional for older saves. */
+  exaggerated?: boolean;
   networks_active: string[];
   run_score: number;
   rounds_survived: number;
@@ -92,6 +94,7 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
     ['tech', s.tech],
     ['programs', s.programs.map((p) => ({ id: p.id, progress: Math.round(p.progress * 1000) / 1000, funding: p.funding }))],
     ...((s.studies?.length ?? 0) > 0 ? ([['studies', (s.studies ?? []).map((x) => ({ id: x.id, attempt: x.attempt, progress: Math.round(x.progress * 1000) / 1000, funding: x.funding, status: x.status }))]] as [string, Value][]) : []),
+    ...(s.exaggerated ? ([['exaggerated', true]] as [string, Value][]) : []),
     ['networks_active', s.networks_active],
     ['run_score', s.run_score],
     ['rounds_survived', s.rounds_survived],
@@ -258,6 +261,7 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
     tech: r['tech'],
     programs: ps,
     ...(ss.length > 0 ? { studies: ss } : {}),
+    ...(r['exaggerated'] === true ? { exaggerated: true } : {}),
     networks_active: r['networks_active'],
     run_score: r['run_score'],
     rounds_survived: r['rounds_survived'],

@@ -29,6 +29,9 @@ import { periapsis, propagate, type Elements } from '../physics/kepler';
 import { absoluteMagnitude } from '../physics/photometry';
 import { NETWORKS, nearFullMoon, observerPosition, type Network } from './detection';
 import { hashSeed, Rng } from './rng';
+import { coverage, eclipticLatitude, tiltAboutNode, trailingLoss, viewGeometry3 } from './sky';
+
+export { tiltAboutNode, trailingLoss, viewGeometry3, type Vec3 } from './sky';
 import { createWorld, planetById, planetState, type World } from './world';
 
 export type NeedleId = 'DEFLECT' | 'EVACUATE' | 'AFTERMATH' | 'SUNWARD' | 'INTERSTELLAR';
@@ -117,59 +120,6 @@ export function referenceStats(): { total: number; sunward: number; hyperbolic: 
   return { total: im.length, sunward: im.filter((x) => x.sunward && !x.hyperbolic).length, hyperbolic: im.filter((x) => x.hyperbolic).length };
 }
 
-export interface Vec3 {
-  x: number;
-  y: number;
-  z: number;
-}
-
-/**
- * Tilt an in-plane vector by `incl` about the unit node line `n` (in the plane): the part along n stays, the part
- * across it rotates out of the plane. Example: n = x, incl 90 deg: (0, 1) -> (0, 0, 1). Length is kept.
- */
-export function tiltAboutNode(v: { x: number; y: number }, n: { x: number; y: number }, incl: number): Vec3 {
-  const a = v.x * n.x + v.y * n.y;
-  const b = -v.x * n.y + v.y * n.x;
-  const bc = b * Math.cos(incl);
-  return { x: a * n.x - bc * n.y, y: a * n.y + bc * n.x, z: b * Math.sin(incl) };
-}
-
-/**
- * View geometry in 3-D (observer in the plane) plus the sky rate of the target, rad/s:
- * omega = |v_rel x l| / delta with l the unit line of sight. Example: 8 km/s across the line of sight at
- * 0.05 AU -> 1.07e-6 rad/s (0.22 arcsec/s, about 13 deg a day).
- */
-export function viewGeometry3(rT: Vec3, vT: Vec3, rO: { x: number; y: number }, vO: { x: number; y: number }): { rAu: number; deltaAu: number; alphaDeg: number; epsDeg: number; rate: number } {
-  const dx = rT.x - rO.x;
-  const dy = rT.y - rO.y;
-  const dz = rT.z;
-  const r = Math.hypot(rT.x, rT.y, rT.z);
-  const delta = Math.hypot(dx, dy, dz) || 1;
-  const ro = Math.hypot(rO.x, rO.y) || 1;
-  const clamp = (v: number): number => Math.max(-1, Math.min(1, v));
-  const cosAlpha = (rT.x * dx + rT.y * dy + rT.z * dz) / (r * delta || 1);
-  const cosEps = (-rO.x * dx - rO.y * dy) / (ro * delta);
-  const ux = vT.x - vO.x;
-  const uy = vT.y - vO.y;
-  const uz = vT.z;
-  const lx = dx / delta;
-  const ly = dy / delta;
-  const lz = dz / delta;
-  const cx = uy * lz - uz * ly;
-  const cy = uz * lx - ux * lz;
-  const cz = ux * ly - uy * lx;
-  return { rAu: r / AU, deltaAu: delta / AU, alphaDeg: (Math.acos(clamp(cosAlpha)) * 180) / Math.PI, epsDeg: (Math.acos(clamp(cosEps)) * 180) / Math.PI, rate: Math.hypot(cx, cy, cz) / delta };
-}
-
-/**
- * Trailing loss of a ground survey, mag: a fast mover smears its light over a trail of length omega x t_exp,
- * so the peak drops by about 2.5 log10(1 + trail / seeing). Example: 0.22 arcsec/s, 30 s, 1.5 arcsec -> 1.8 mag.
- */
-export function trailingLoss(rate: number): number {
-  const trailArcsec = rate * (180 / Math.PI) * 3600 * KNOBS.GAUGE_EXPOSURE_S;
-  return 2.5 * Math.log10(1 + trailArcsec / KNOBS.GAUGE_SEEING_ARCSEC);
-}
-
 /** Faintest absolute magnitude network `n` sees on one night, given geometry; -Infinity if it sees nothing. */
 export function nightCeiling(n: Network, g: { rAu: number; deltaAu: number; alphaDeg: number; epsDeg: number; rate?: number }, moon: boolean, covered: boolean, albedo: number): number {
   if (n.kind === 'GROUND_OPTICAL') {
@@ -210,9 +160,12 @@ function streakCeilings(idx: number, n: Network): Float32Array {
     const st = propagate(im.el, world.star.mu, t);
     const hs = planetState(world, home, t);
     const obs = observerPosition(n, hs.r, n.observer === 'INNER' ? planetState(world, inner, t).r : { x: 1, y: 0 });
-    const covered = n.kind === 'GROUND_OPTICAL' ? rng.chance(n.pCover ?? 0.5) : true;
     // NOTE: the observer's own velocity is taken as HOME's for every site (L4/L5 and INNER move at similar speeds).
-    const g = viewGeometry3(tiltAboutNode(st.r, im.node, im.incl), tiltAboutNode(st.v, im.node, im.incl), obs, hs.v);
+    const r3 = tiltAboutNode(st.r, im.node, im.incl);
+    const g = viewGeometry3(r3, tiltAboutNode(st.v, im.node, im.incl), obs, hs.v);
+    // One coverage draw per night; high ecliptic latitudes are revisited less (sim/sky.ts coverage).
+    const u = rng.next();
+    const covered = n.kind === 'GROUND_OPTICAL' ? u < coverage(n, g.epsDeg, eclipticLatitude(r3, obs)) : true;
     const h = nightCeiling(n, g, nearFullMoon(t), covered, im.albedo);
     // DISCOVERY_NIGHTS consecutive nights: the body must be under the ceiling on each of them.
     out[k] = nightsNeeded >= 3 ? Math.min(h, last[0] as number, last[1] as number) : nightsNeeded === 2 ? Math.min(h, last[1] as number) : h;

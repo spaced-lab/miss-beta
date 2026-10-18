@@ -39,7 +39,7 @@ export class LeaderboardScreen implements Screen {
     y += 20;
     if (board.length === 0) drawText(s, this.tab === 0 ? 'NO RUNS YET. SURVIVE A ROUND, THEN LOSE ONE.' : 'THIS MODE ARRIVES IN M7.', x, y, 12);
     board.forEach((e, i) => {
-      const line = `${String(i + 1).padStart(2, ' ')}    ${e.handle.padEnd(8).slice(0, 8)}  ${String(e.rounds).padStart(5, ' ')}   ${String(e.score).padStart(7, ' ')}   ${e.seed.padEnd(12).slice(0, 12)}  ${e.date}  ${e.tech}${e.assisted ? '  ASSISTED' : ''}`;
+      const line = `${String(i + 1).padStart(2, ' ')}    ${e.handle.padEnd(8).slice(0, 8)}  ${String(e.rounds).padStart(5, ' ')}   ${String(e.score).padStart(7, ' ')}   ${e.seed.padEnd(12).slice(0, 12)}  ${e.date}  ${e.tech}${e.assisted ? '  ASSISTED' : ''}${e.exaggerated ? '  EXAGGERATED' : ''}`;
       drawText(s, line, x, y, 11, { color: i === 0 ? p.hot : p.ink, glow: i === 0 ? 1 : 0.4 });
       y += 18;
     });

@@ -35,6 +35,7 @@ export function toSaveFile(run: RunState, world: World | null): SaveFile {
     research: run.research,
     tech: [...run.tech],
     programs: run.programs.map((p) => ({ id: p.id, progress: p.progress, funding: p.funding })),
+    ...(run.exaggerated ? { exaggerated: true } : {}),
     studies: run.studies.filter((x) => x.attempt > 0).map((x) => ({ id: x.id, attempt: x.attempt, progress: x.progress, funding: x.funding, status: x.status })),
     networks_active: [...run.networks.active],
     run_score: run.score,
@@ -76,6 +77,7 @@ export function runFromSave(sf: SaveFile): RunState {
   run.cheatsUsed = [...sf.cheats_used];
   run.assisted = sf.cheats_used.length > 0;
   run.sandbox = sf.cheats_used.includes('SANDBOX');
+  run.exaggerated = sf.exaggerated === true;
   run.tutorial = false;
   run.mode = sf.mode;
   run.highestMode = sf.highest_mode;

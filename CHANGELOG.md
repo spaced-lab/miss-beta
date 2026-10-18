@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- VISITORS FROM OTHER STARS in REALISTIC runs: OPTIONS > INTERSTELLAR RATE (REAL, ELEVATED 2 %, FREQUENT 10 %,
+  STORM 30 %; above REAL stamps the run EXAGGERATED on the debrief, the save and the leaderboard). A visitor is
+  fast, dark and tilted out of the plane (3-D lite: tilt the camera with I to see its track rise), found only by
+  the real discovery search: days to weeks of warning, or none. New program INTERCEPTOR_ON_STANDBY (no build
+  time against a visitor).
+
 - FEASIBILITY STUDIES (PROGRAMS > Tab): twelve research cards (hive survey tiers, fission power, droplet
   radiator, compute mothership, five EXPERIMENTAL fusion lines) with readiness levels, human and game years,
   cost, odds and milestones; a doomed attempt fails partway; parallel lines show the chance one works. Success

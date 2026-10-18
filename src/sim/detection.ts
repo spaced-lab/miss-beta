@@ -15,6 +15,7 @@ import { propagate, type Elements } from '../physics/kepler';
 import { absoluteMagnitude, apparentMagnitude, viewGeometry } from '../physics/photometry';
 import type { Vec2 } from '../util/vec';
 import type { Rng } from './rng';
+import { coverage, eclipticLatitude, nodeLine, tiltAboutNode, trailingLoss, viewGeometry3 } from './sky';
 
 export type NetworkKind = 'GROUND_OPTICAL' | 'SPACE_IR' | 'RADAR' | 'COORDINATION' | 'AIRBURST';
 export type Tag = 'REAL' | 'PROPOSED' | 'SPECULATIVE' | 'FICTION';
@@ -130,6 +131,37 @@ export interface DiscoveryInput {
   sinceOverride?: Readonly<Record<string, number>>;
   /** Search this many years before impact (default DISCOVERY_YEARS). */
   windowYears?: number;
+  /**
+   * 3-D lite (sim/sky.ts): the orbit tilted by `incl` about the node line at angle `node`. With it, detection uses
+   * the 3-D view geometry, ground trailing loss and latitude-dependent coverage; without it, the flat model.
+   */
+  tilt?: { incl: number; node: number };
+}
+
+/** A night's detection test for a tilted (3-D lite) target: same rules as `detects`, in 3-D, with trailing loss. */
+function tiltedSeen(inp: DiscoveryInput, t: number, home: Vec2, inner: Vec2): (n: Network, rng: Rng) => boolean {
+  const tl = inp.tilt as { incl: number; node: number };
+  const st = propagate(inp.threat, inp.muSun, t);
+  const vHome = propagate(inp.home, inp.muSun, t).v;
+  const nl = nodeLine(tl.node);
+  const r3 = tiltAboutNode(st.r, nl, tl.incl);
+  const v3 = tiltAboutNode(st.v, nl, tl.incl);
+  const H = absoluteMagnitude(inp.D, inp.albedo);
+  return (n, rng) => {
+    const obs = observerPosition(n, home, inner);
+    const g = viewGeometry3(r3, v3, obs, vHome);
+    if (n.kind === 'GROUND_OPTICAL') {
+      if (g.epsDeg < (n.epsMin ?? 60)) return false;
+      const vLim = (n.vLim ?? 20) - (nearFullMoon(t) ? KNOBS.MOON_PENALTY_MAG : 0) - trailingLoss(g.rate);
+      if (apparentMagnitude(H, g.rAu, g.deltaAu, g.alphaDeg) > vLim) return false;
+      return rng.next() < coverage(n, g.epsDeg, eclipticLatitude(r3, obs));
+    }
+    if (n.kind === 'SPACE_IR') {
+      if (g.epsDeg < (n.epsMin ?? 45) || g.epsDeg > (n.epsMax ?? 120)) return false;
+      return inp.D >= (n.dRef ?? 140) * ((g.rAu * g.deltaAu) / (n.rDeltaRef ?? 0.5));
+    }
+    return false;
+  };
 }
 
 /** Calendar year of round time t (t = 0 is EPOCH_YEAR). */
@@ -150,9 +182,10 @@ export function discover(inp: DiscoveryInput, rng: Rng): DiscoveryResult {
     const home = propagate(inp.home, inp.muSun, t).r;
     const inner = propagate(inp.inner, inp.muSun, t).r;
     const d: DetectInput = { t, rT, home, inner, D: inp.D, albedo: inp.albedo };
+    const tiltSeen = inp.tilt ? tiltedSeen(inp, t, home, inner) : null;
     for (const n of nets) {
       if (year < sinceOf(n)) continue;
-      if (detects(n, d, rng)) {
+      if (tiltSeen ? tiltSeen(n, rng) : detects(n, d, rng)) {
         const k = (streak.get(n.id) ?? 0) + 1;
         if (k >= KNOBS.DISCOVERY_NIGHTS) return { tDisc: t, lead: inp.tImpact - t, networkId: n.id };
         streak.set(n.id, k);

@@ -16,6 +16,8 @@ export interface LeaderboardEntry {
   date: string;
   tech: string;
   assisted: boolean;
+  /** Played with OPTIONS INTERSTELLAR RATE above REAL (optional: older entries have none). */
+  exaggerated?: boolean;
 }
 
 const MAX = 20;
@@ -24,7 +26,7 @@ function isEntry(v: unknown): v is LeaderboardEntry {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
   return typeof o['handle'] === 'string' && o['handle'].length <= 24 && Number.isInteger(o['rounds']) && Number.isFinite(o['score']) &&
-    typeof o['seed'] === 'string' && o['seed'].length <= 32 && typeof o['date'] === 'string' && typeof o['tech'] === 'string' && typeof o['assisted'] === 'boolean';
+    typeof o['seed'] === 'string' && o['seed'].length <= 32 && typeof o['date'] === 'string' && typeof o['tech'] === 'string' && typeof o['assisted'] === 'boolean' && (o['exaggerated'] === undefined || typeof o['exaggerated'] === 'boolean');
 }
 
 function isBoard(v: unknown): v is LeaderboardEntry[] {

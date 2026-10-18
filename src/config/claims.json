@@ -190,6 +190,31 @@
         "src/config/studies.json FUSION_LATTICE",
         "EDUCATION.md D14"
       ]
+    },
+    {
+      "id": "F12-1",
+      "topic": "F12",
+      "claim": "Interstellar objects seen passing through the solar system",
+      "value": "three: 1I/'Oumuamua (2017), 2I/Borisov (2019), 3I/ATLAS (2025)",
+      "status": "SOURCED",
+      "source": "Meech et al. 2017, Nature 552, 378 (1I); Guzik et al. 2020, Nature Astronomy 4, 53 (2I); Minor Planet Center MPEC 2025-N12 (3I/ATLAS, July 2025)",
+      "check": "Read the discovery papers and the MPC circular; dates and designations.",
+      "usedIn": [
+        "src/config/knobs.ts INTERSTELLAR_RATES",
+        "EDUCATION.md T6"
+      ]
+    },
+    {
+      "id": "F12-2",
+      "topic": "F12",
+      "claim": "Impact rate of interstellar objects of 100 m and larger on the Earth",
+      "value": "effectively never in a human lifetime (no published anchor found yet)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "Find a published number density of interstellar objects by size (e.g. from 1I's detection rate) and multiply by the Earth's gravitationally focused cross-section and typical speed.",
+      "usedIn": [
+        "src/config/knobs.ts INTERSTELLAR_RATES REAL"
+      ]
     }
   ]
 }

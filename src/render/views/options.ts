@@ -6,7 +6,7 @@
 
 import type { Router, Screen } from '../../game/screen';
 import { topicForOption } from '../../game/loreLinks';
-import { applySettings, AUTO_SPEED_LEVELS, COLOR_MODES, DEMO_LENGTH_LEVELS, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, SOUND_STYLES, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
+import { applySettings, AUTO_SPEED_LEVELS, INTERSTELLAR_RATES, COLOR_MODES, DEMO_LENGTH_LEVELS, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, SOUND_STYLES, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
 import { voiceText, type VoiceId } from '../../audio/voice';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
@@ -45,6 +45,7 @@ export class OptionsScreen implements Screen {
       { label: 'CRT EFFECTS', value: () => (st.crt ? 'ON' : 'OFF'), change: () => (st.crt = !st.crt), note: 'SCANLINES, VIGNETTE AND A FAINT FLICKER OVER THE WHOLE FRAME.' },
       { label: 'GLOW', value: () => st.glow.toUpperCase(), change: (d) => (st.glow = cycle(GLOW_MODES, st.glow, d)), note: 'UNDERSTROKE IS A WIDE FAINT LINE UNDER EVERY STROKE (CHEAP). SHADOW USES CANVAS BLUR (SOFTER, SLOWER).' },
       { label: 'SOUND', value: () => (st.sound ? 'ON' : 'OFF'), change: () => (st.sound = !st.sound), note: 'INTERFACE BLEEPS AND EVENT SOUNDS IN THE MAIN GAME. THE ARCADE MODE HAS ITS OWN SWITCH (KEY 4).' },
+      { label: 'INTERSTELLAR RATE', value: () => st.interstellarRate ?? 'REAL', change: (d) => (st.interstellarRate = cycle(INTERSTELLAR_RATES, st.interstellarRate ?? 'REAL', d)), note: 'VISITORS FROM OTHER STARS IN REALISTIC RUNS. REAL: THE TRUE RATE, EFFECTIVELY NEVER. ELEVATED 2 %, FREQUENT 10 %, STORM 30 % OF ROUNDS: THE GAME EXAGGERATES ON PURPOSE AND STAMPS THE RUN EXAGGERATED.' },
       { label: 'EXPERIMENTAL TECH', value: () => (st.experimental ? 'ON' : 'OFF'), change: () => (st.experimental = !st.experimental), note: 'OFFERS THE EXPERIMENTAL FEASIBILITY STUDIES (FUSION LINES) IN REALISTIC RUNS: PHYSICS SEEN IN A LAB, NO PATH TO A FLIGHT UNIT YET. LONG, COSTLY, LIKELY TO FAIL. ALWAYS ON IN SCI-FI.' },
       { label: 'AUTOPLAY SPEED', value: () => st.autoSpeed ?? 'NORMAL', change: (d) => (st.autoSpeed = cycle(AUTO_SPEED_LEVELS, st.autoSpeed ?? 'NORMAL', d)), note: 'HOW FAST AUTOPLAY READS ITS PANES AND RUNS THE CLOCK. SLOW IS THE FIRST PACE, NORMAL 1.5X, FAST 2.25X. - AND = CHANGE IT WHILE IT PLAYS.' },
       { label: 'DEMO LENGTH', value: () => ({ SHORT: 'SHORT (2-3 MIN)', MEDIUM: 'MEDIUM (5 MIN)', LONG: 'LONG (10 MIN)' })[st.demoLength ?? 'MEDIUM'], change: (d) => (st.demoLength = cycle(DEMO_LENGTH_LEVELS, st.demoLength ?? 'MEDIUM', d)), note: 'SUPER-DUPER-DEMO: ROUGHLY HOW LONG THE FASTER-AND-FASTER GAMES RUN BEFORE THE FINALE.' },

@@ -11,6 +11,7 @@
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
+import { nodeLine, tiltAboutNode } from '../../sim/sky';
 import { advanceStudies, studyById } from '../../sim/studies';
 import { yearOf } from '../../sim/detection';
 import { drawGauge, gaugeHeight } from '../gaugeView';
@@ -409,7 +410,10 @@ export class SystemScreen implements Screen {
       this.world.threat = { ...th, elements: shiftEpoch(th.elements, shift), tImpact: th.tImpact - shift };
       this.run.leadTimeNext = null;
     } else {
-      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC' });
+      // OPTIONS INTERSTELLAR RATE: REALISTIC rounds may bring a visitor from another star (its own seeded stream).
+      const rate = KNOBS.INTERSTELLAR_RATES[this.settings.interstellarRate ?? 'REAL'];
+      if (this.run.mode === 'REALISTIC' && (this.settings.interstellarRate ?? 'REAL') !== 'REAL' && !this.run.tutorial) this.run.exaggerated = true;
+      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC', interstellarRate: this.run.tutorial ? 0 : rate, runSeed: this.run.seed });
     }
     if (this.run.mode !== 'REALISTIC' && this.run.economy.perYear < KNOBS.BUDGET_PER_YEAR * budgetScale(this.run.mode)) {
       // SCI-FI and beyond: budget scale x10 (21.2), applied once.
@@ -523,7 +527,8 @@ export class SystemScreen implements Screen {
       rulesPreset: this.rulesPreset,
       pi: this.run.pi,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
-      buildTime: this.run.effects.buildTimeYears * YEAR,
+      // A craft on standby needs no build time against a visitor from another star (INTERCEPTOR_ON_STANDBY).
+      buildTime: this.run.effects.standbyInterceptor && this.world.threat?.flavor === 'INTERSTELLAR' ? 0 : this.run.effects.buildTimeYears * YEAR,
       c3Bonus: this.run.effects.c3Bonus + this.run.effects.lunarDriverC3,
       launchCap: this.run.effects.launchCap,
       budget: budgetAt(this.run.economy, this.world.t),
@@ -641,7 +646,7 @@ export class SystemScreen implements Screen {
       if (!this.run.tutorial && !this.autoFresh) saveRun(this.run, this.world, null);
     } else {
       this.phase = 'over';
-      this.rank = this.run.sandbox || this.run.tutorial || this.autoFresh ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted }, boardFor(this.run.mode));
+      this.rank = this.run.sandbox || this.run.tutorial || this.autoFresh ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted, ...(this.run.exaggerated ? { exaggerated: true } : {}) }, boardFor(this.run.mode));
     }
   }
 
@@ -998,15 +1003,23 @@ export class SystemScreen implements Screen {
     s.stroke([x + 14, y + h - 6, x + 14 + (w - 28) * frac, y + h - 6], { color: ui.sub, glow: 0.5, alpha: fade });
   }
 
-  private project(x: number, y: number): [number, number] {
+  private project(x: number, y: number, z = 0): [number, number] {
     const s = this.s;
     const base = (Math.min(s.width, s.height) / 2) * 0.9 * this.zoom;
-    const r = Math.hypot(x, y);
+    const r = Math.hypot(x, y, z);
     const rs = this.scale === 'COMPRESSED' ? (Math.sqrt(r / AU) / 2.5) * base : (r / AU / 5.6) * base;
     const f = r > 0 ? rs / r : 0;
     // Wireframe-3-D camera (24.3): the tilt is applied to screen offsets, so the physics never sees it.
-    const [dx, dy] = tilt(this.cam, x * f, -y * f);
+    const [dx, dy] = tilt(this.cam, x * f, -y * f, z * f);
     return [s.width / 2 + this.panX + dx, s.height / 2 + this.panY + dy];
+  }
+
+  /** A threat position in 3-D lite: tilted about its impact node when the threat has an inclination (sim/sky.ts). */
+  private threat3(x: number, y: number): [number, number] {
+    const th = this.world.threat;
+    if (!th?.incl || th.node === undefined) return this.project(x, y);
+    const v = tiltAboutNode({ x, y }, nodeLine(th.node), th.incl);
+    return this.project(v.x, v.y, v.z);
   }
 
   private polyline(pts: Float64Array, style: Parameters<Surface['stroke']>[1]): void {
@@ -1514,7 +1527,14 @@ export class SystemScreen implements Screen {
     if (!th) return;
     const el = this.result ? elementsAt(this.result.segments, w.t) : th.elements;
     if (!this.threatOrbitCache || this.threatOrbitCache.el !== el) this.threatOrbitCache = { el, pts: orbitPoints(el, 360) };
-    this.polyline(this.threatOrbitCache.pts, { closed: el.e < 1, color: s.spectrum ? s.role('threat') : p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] });
+    const orbitStyle = { closed: el.e < 1, color: s.spectrum ? s.role('threat') : p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] };
+    if (th.incl) {
+      // Off the plane (3-D lite): the track is tilted about the impact node; tilt the camera (I) to see it rise.
+      const pts = this.threatOrbitCache.pts;
+      const buf3: number[] = [];
+      for (let i = 0; i < pts.length; i += 2) buf3.push(...this.threat3(pts[i] as number, pts[i + 1] as number));
+      s.stroke(buf3, orbitStyle);
+    } else this.polyline(this.threatOrbitCache.pts, orbitStyle);
 
     if (this.ghost) {
       const [gx, gy] = this.project(this.ghost.x, this.ghost.y);
@@ -1543,7 +1563,7 @@ export class SystemScreen implements Screen {
         const k2 = f * f;
         st = { ...st, r: { x: st.r.x + (post.r.x - st.r.x) * k2, y: st.r.y + (post.r.y - st.r.y) * k2 } };
       }
-      const [tx, ty] = this.project(st.r.x, st.r.y);
+      const [tx, ty] = this.threat3(st.r.x, st.r.y);
       this.hit(tx - 12, ty - 12, 24, 24, b.role === 'FRAGMENT' ? 'D4' : 'T5', b.role === 'FRAGMENT' ? `${b.id}: FRAGMENTS` : `${th.name}: WHAT IT IS MADE OF`);
       const n = th.shape.length;
       const size = b.role === 'THREAT' ? 6 : b.role === 'REMNANT' ? 4.5 : Math.max(1.5, Math.min(3.5, b.D / 30));
@@ -1565,7 +1585,7 @@ export class SystemScreen implements Screen {
     }
     if (bodies.length === 0) {
       const st = propagate(el, w.star.mu, w.t);
-      const [tx, ty] = this.project(st.r.x, st.r.y);
+      const [tx, ty] = this.threat3(st.r.x, st.r.y);
       drawText(s, th.name, tx + 10, ty - 14, 10, { color: p.dim, glow: 0 });
     }
   }
@@ -1674,7 +1694,7 @@ export class SystemScreen implements Screen {
       drawTextFit(s, `WITHOUT YOUR MISSIONS: ${cf.outcome === 'HIT' ? 'IMPACT' : cf.outcome}, MARGIN ${cf.margin >= 0 ? '+' : ''}${cf.margin.toFixed(2)} R.   YOU MOVED IT ${moved >= 0 ? '+' : ''}${moved.toFixed(2)} R.`, cx, ly + 20, 11, fitW, { align: 'center', color: s.spectrum ? s.role('craft') : p.ink, glow: 0.6 });
       ly += 16;
     }
-    drawTextFit(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, fitW, { align: 'center', color: p.hot, glow: 1 });
+    drawTextFit(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}${this.run.exaggerated ? '   EXAGGERATED: INTERSTELLAR RATE ABOVE REAL' : ''}`, cx, ly + 20, 12, fitW, { align: 'center', color: p.hot, glow: 1 });
     drawTextFit(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, fitW, { align: 'center', color: p.dim, glow: 0 });
     // Where this rock sat on the detection gauge: seen by design, or by luck.
     drawTextFit(s, gaugeVerdict(th.D, th.tImpact, th.noWarning, this.gauge?.needles.DEFLECT ?? null), cx, ly + 54, 10, fitW, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0.5 });

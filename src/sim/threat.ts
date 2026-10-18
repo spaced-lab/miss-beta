@@ -43,6 +43,12 @@ export interface Threat {
   readonly noWarning: boolean;
   /** SCI-FI round types (GAME_PLAN 21.2); absent for the ordinary draw. */
   readonly flavor?: ThreatFlavor;
+  /**
+   * 3-D lite (sim/sky.ts): the orbit's tilt about the node line through the impact point, rad, and that line's
+   * angle in the plane, rad. Absent (flat) for ordinary rounds; detection and drawing use it, dynamics do not.
+   */
+  readonly incl?: number;
+  readonly node?: number;
 }
 
 /** INTERSTELLAR: hyperbolic, 50 to 90 km/s. LONG_PERIOD: a comet with one year of warning. GIANT: a 5 km body. */

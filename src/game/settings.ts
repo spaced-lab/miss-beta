@@ -20,6 +20,8 @@ export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE' | 'TERMINAL' | 'COMPUTER' |
 export type AutoSpeed = 'SLOW' | 'NORMAL' | 'FAST';
 /** SUPER-DUPER-DEMO length before the finale: about 2-3, 5 or 10 minutes (knobs DEMO_LENGTHS). */
 export type DemoLength = 'SHORT' | 'MEDIUM' | 'LONG';
+/** Visitors from other stars per REALISTIC round (KNOBS.INTERSTELLAR_RATES); above REAL marks the run EXAGGERATED. */
+export type InterstellarRate = 'REAL' | 'ELEVATED' | 'FREQUENT' | 'STORM';
 export type LearningLevel = 'SIMPLE' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
 
 export interface Settings {
@@ -49,10 +51,13 @@ export interface Settings {
   photoAck?: boolean;
   /** EXPERIMENTAL feasibility studies (fusion lines) offered in REALISTIC runs; off by default. */
   experimental?: boolean;
+  /** OPTIONS INTERSTELLAR RATE; missing means REAL. */
+  interstellarRate?: InterstellarRate;
 }
 
 export const AUTO_SPEED_LEVELS: readonly AutoSpeed[] = ['SLOW', 'NORMAL', 'FAST'];
 export const DEMO_LENGTH_LEVELS: readonly DemoLength[] = ['SHORT', 'MEDIUM', 'LONG'];
+export const INTERSTELLAR_RATES: readonly InterstellarRate[] = ['REAL', 'ELEVATED', 'FREQUENT', 'STORM'];
 export const SOUND_STYLES: readonly SoundStyle[] = ['ARCADE', 'CLASSIC'];
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
 export const GLOW_MODES: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
@@ -86,7 +91,8 @@ export function isSettings(v: unknown): v is Settings {
     (o.autoSpeed === undefined || AUTO_SPEED_LEVELS.includes(o.autoSpeed as AutoSpeed)) &&
     (o.demoLength === undefined || DEMO_LENGTH_LEVELS.includes(o.demoLength as DemoLength)) &&
     (o.photoAck === undefined || typeof o.photoAck === 'boolean') &&
-    (o.experimental === undefined || typeof o.experimental === 'boolean')
+    (o.experimental === undefined || typeof o.experimental === 'boolean') &&
+    (o.interstellarRate === undefined || INTERSTELLAR_RATES.includes(o.interstellarRate as InterstellarRate))
   );
 }
 

@@ -180,6 +180,16 @@ export const KNOBS = {
   SCIFI_SHARE_LONG_PERIOD: 0.25,
   SCIFI_SHARE_GIANT: 0.2,
   INTERSTELLAR_VINF_KMS: [50, 90] as readonly [number, number],
+  /** OPTIONS INTERSTELLAR RATE (owner backlog 12): chance per REALISTIC round of a visitor from another star.
+   *  REAL is the true rate (a dangerous one is effectively never seen in a human lifetime; UNVERIFIED, claim
+   *  F12-2); anything above stamps the run EXAGGERATED. Drawn from its own seeded stream, so seeds keep their rounds. */
+  INTERSTELLAR_RATES: { REAL: 1e-6, ELEVATED: 0.02, FREQUENT: 0.1, STORM: 0.3 },
+  /** A REALISTIC visitor: excess speed range km/s (the known three came in at about 26 to 58), size range m,
+   *  albedo (dark nucleus), and the years searched before impact. */
+  REAL_INTERSTELLAR_VINF_KMS: [25, 60] as readonly [number, number],
+  REAL_INTERSTELLAR_D_M: [80, 1000] as readonly [number, number],
+  REAL_INTERSTELLAR_ALBEDO: 0.04,
+  REAL_INTERSTELLAR_WINDOW_YEARS: 3,
   LONG_PERIOD_MAX_APO_AU: 500,
   GIANT_D_M: 5000,
   /** Cost of a slow-push package by tier. */
@@ -312,6 +322,9 @@ export const KNOBS = {
   /** Trailing loss for ground surveys: exposure, s, and seeing, arcsec (Rubin 30 s, about 1 arcsec; others worse). */
   GAUGE_EXPOSURE_S: 30,
   GAUGE_SEEING_ARCSEC: 1.5,
+  /** Ground surveys revisit high ecliptic latitudes less: nightly coverage x (1 - this x |sin(latitude)|). Only
+   *  tilted (3-D lite) targets have a latitude; flat rounds are unchanged. */
+  SKY_LAT_PENALTY: 0.4,
   /** Fireball sensors (the AIRBURST network) see metre-class rocks, but only as they hit, m. */
   GAUGE_AFTERMATH_M: 1,
   /** The danger band drawn red on the gauge: damage begins near 20 m, the catalog is fairly complete from 140 m. */

@@ -64,6 +64,11 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Decisions
 
+- 3-D lite (2026-10-18): visitors from other stars carry an inclination about their impact node; only detection
+  (3-D view geometry, trailing loss, latitude-dependent coverage) and drawing use it; the resolver stays flat,
+  which is exact at the node where the encounter happens. The visitor draw uses its own seeded stream, so every
+  seed keeps its ordinary rounds at any rate. The gauge now uses the same latitude-dependent coverage.
+
 - Studies (2026-10-18): EXPERIMENTAL is a tag on feasibility-study cards only (owner backlog 6 asked for it); no
   existing method entry gained, lost or moved a tag. A study's fate (duration, success, failing milestone) is
   drawn from the run seed, card id and attempt number, so saves store only attempt, progress, funding, status.

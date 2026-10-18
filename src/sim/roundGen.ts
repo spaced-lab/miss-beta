@@ -18,7 +18,7 @@ import { OrbitError, stateToElements } from '../physics/elements';
 import { apoapsis, periapsis, type Elements } from '../physics/kepler';
 import { KNOBS } from '../config/knobs';
 import { discover } from './detection';
-import type { Rng } from './rng';
+import { hashSeed, Rng } from './rng';
 import { generateAsteroidShape } from './shapes';
 import type { Threat, ThreatFlavor, ThreatType } from './threat';
 import { planetById, planetState, type World } from './world';
@@ -68,6 +68,10 @@ export interface GenerateOpts {
   scifi?: boolean;
   /** Force a SCI-FI flavor (tests, SPAWN). */
   flavor?: ThreatFlavor;
+  /** REALISTIC: chance this round is a visitor from another star (OPTIONS INTERSTELLAR RATE), 0 for none. */
+  interstellarRate?: number;
+  /** Run seed, for the visitor draw's own stream (keeps every other draw of the round unchanged). */
+  runSeed?: string;
 }
 
 /** Orbit-draw limits for one flavor. */
@@ -136,6 +140,11 @@ function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: n
 export function generateThreat(rng: Rng, world: World, k: number, now = world.t, opts: GenerateOpts = {}): Threat {
   const flavor = opts.flavor ?? (opts.scifi ? drawFlavor(rng) : null);
   if (flavor) return generateFlavored(rng, world, k, now, flavor);
+  // NOTE: the visitor chance draws from its own stream, so a seed's ordinary rounds are the same at any rate.
+  if (!opts.scifi && !opts.skipDiscovery && (opts.interstellarRate ?? 0) > 0) {
+    const side = new Rng(hashSeed(`${opts.runSeed ?? world.runSeed}:${k}:INTERSTELLAR`));
+    if (side.chance(opts.interstellarRate ?? 0)) return generateRealVisitor(side, world, k, now);
+  }
   const lead = drawLeadTime(rng, k);
   const D = drawDiameter(rng, k);
   const type = drawType(rng, k);
@@ -173,6 +182,34 @@ export function generateThreat(rng: Rng, world: World, k: number, now = world.t,
   const orbit = drawCollidingOrbit(rng, world, type, tImpact);
   if (!orbit) throw new Error('generateThreat: no acceptable orbit in 200 attempts');
   return finish(world, rng, { name, type, D, shape, elements: orbit.elements, tImpact, uInf: orbit.uInf, discoveredBy: 'ASSUMED', noWarning: false }, 0);
+}
+
+/**
+ * A REALISTIC visitor from another star: a hyperbolic orbit from a random direction, tilted out of the plane by
+ * an isotropic inclination about its impact node (3-D lite), dark, and found only by the real discovery search
+ * over the last few years. Weeks of warning, or none. Draws from `rng` (the visitor stream) in a fixed order:
+ * D, type, name, shape, impact delay, orbit, cos(i), then the discovery's own coverage draws.
+ */
+function generateRealVisitor(rng: Rng, world: World, k: number, now: number): Threat {
+  const D = rng.logUniform(KNOBS.REAL_INTERSTELLAR_D_M[0], KNOBS.REAL_INTERSTELLAR_D_M[1]);
+  const type = (rng.chance(0.5) ? THREAT_TYPES.find((t) => t.id === 'ICY') : THREAT_TYPES.find((t) => t.id === 'STONY')) as ThreatType;
+  const name = drawName(rng);
+  const shape = generateAsteroidShape(rng);
+  const tCand = now + rng.float(1.2, 2) * YEAR;
+  const o: OrbitDrawOpts = { uInfMin: KNOBS.REAL_INTERSTELLAR_VINF_KMS[0] * 1000, uInfMax: KNOBS.REAL_INTERSTELLAR_VINF_KMS[1] * 1000, maxApo: Infinity, maxE: Infinity, allowUnbound: true };
+  const orbit = drawCollidingOrbit(rng, world, type, tCand, o, 2000);
+  if (!orbit) throw new Error('generateThreat: no acceptable interstellar orbit in 2000 attempts');
+  const incl = Math.acos(1 - 2 * rng.next());
+  const hs = planetState(world, planetById(world, 'HOME'), tCand);
+  const node = Math.atan2(hs.r.y, hs.r.x);
+  const home = planetById(world, 'HOME');
+  const inner = planetById(world, 'INNER');
+  const disc = discover({ threat: orbit.elements, home: home.elements, inner: inner.elements, muSun: world.star.mu, tImpact: tCand, D, albedo: KNOBS.REAL_INTERSTELLAR_ALBEDO, activeIds: world.networks.active, sinceOverride: world.networks.since, windowYears: KNOBS.REAL_INTERSTELLAR_WINDOW_YEARS, tilt: { incl, node } }, rng);
+  // Found: the round starts at the discovery. Never found: NO WARNING, sensed in the last days.
+  const tDisc = disc.tDisc ?? tCand - KNOBS.NO_WARNING_LEAD;
+  const th = finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: disc.tDisc === null ? null : disc.networkId, noWarning: disc.tDisc === null }, tDisc);
+  void k;
+  return { ...th, flavor: 'INTERSTELLAR', incl, node };
 }
 
 /**

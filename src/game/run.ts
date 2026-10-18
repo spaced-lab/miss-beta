@@ -38,6 +38,8 @@ export interface RunState {
   pi: boolean;
   netTier: number;
   assisted: boolean;
+  /** A round was played with OPTIONS INTERSTELLAR RATE above REAL: the run is stamped EXAGGERATED. */
+  exaggerated: boolean;
   startedAt: string;
   programs: ProgramState[];
   /** Feasibility studies (sim/studies.ts). */
@@ -95,6 +97,7 @@ export function createRun(seed: string, opts: { sandbox?: boolean; tutorial?: bo
     pi: false,
     netTier: 0,
     assisted: false,
+    exaggerated: false,
     startedAt: new Date().toISOString().slice(0, 10),
     programs: createPrograms(),
     studies: createStudies(),
