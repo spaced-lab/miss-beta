@@ -14,6 +14,13 @@ const LOADERS: Readonly<Record<string, () => Promise<{ lab: Lab }>>> = {
   LAB_FOCUSING: () => import('./focusing'),
   LAB_3DVT: () => import('./threeDvT'),
   LAB_MAGNITUDE: () => import('./magnitude'),
+  LAB_IMPACT_ENERGY: () => import('./impactEnergy'),
+  LAB_QSTAR: () => import('./qstar'),
+  LAB_FRAGMENT_CLOUD: () => import('./fragmentCloud'),
+  LAB_NUKE_STANDOFF: () => import('./nukeStandoff'),
+  LAB_TRACTOR: () => import('./tractor'),
+  LAB_ROCKET_EQ: () => import('./rocketEq'),
+  LAB_TORINO: () => import('./torino'),
 };
 
 export const BUILT_LABS: readonly string[] = Object.keys(LOADERS);

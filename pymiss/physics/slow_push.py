@@ -13,8 +13,9 @@ LASER_CM = 3e-5
 PUSH_DT = 6 * 3600
 
 
-def gravity_tractor_force(m_sc: float, M: float, R: float) -> float:
-    d = TRACTOR_HOVER_FACTOR * R
+def gravity_tractor_force(m_sc: float, M: float, R: float, hover: float = TRACTOR_HOVER_FACTOR) -> float:
+    """F = G m_sc M / d^2, d = hover R. Example: 1000 kg, 1.41e9 kg, R 50 m -> 0.0167 N."""
+    d = hover * R
     return G * m_sc * M / (d * d)
 
 

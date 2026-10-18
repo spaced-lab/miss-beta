@@ -92,8 +92,8 @@ describe('markdown to lines', () => {
 });
 
 describe('LABS', () => {
-  it('seven labs are built, load lazily with fresh sliders, and their lines and nudges behave', async () => {
-    expect(BUILT_LABS.length).toBe(7);
+  it('the built labs load lazily with fresh sliders, and their lines and nudges behave', async () => {
+    expect(BUILT_LABS.length).toBeGreaterThanOrEqual(14);
     expect(labStatus('LAB_ELLIPSE')).toBe('BUILT');
     expect(labStatus('LAB_RK4')).toBe('BACKLOG');
     expect(labStatus(null)).toBe('NONE');

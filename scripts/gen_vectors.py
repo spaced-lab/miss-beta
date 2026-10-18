@@ -34,6 +34,8 @@ from pymiss.physics.lambert import lambert  # noqa: E402
 from pymiss.physics.stumpff import stumpff_c, stumpff_s  # noqa: E402
 from pymiss.physics.elements import OrbitError, state_to_elements  # noqa: E402
 from pymiss.physics.kepler import Elements, propagate, solve_kepler, solve_kepler_hyperbolic  # noqa: E402
+from pymiss.physics.risk import palermo, torino  # noqa: E402
+from pymiss.physics.rocket import mass_ratio_for, rocket_dv, staged_dv  # noqa: E402
 from pymiss.sim.rng import Rng, hash_seed  # noqa: E402
 
 OUT = os.path.join(ROOT, "tests", "vectors")
@@ -196,6 +198,25 @@ def uncertainty_vectors() -> dict:
             "arc": [{"tier": t, "days": d, "s": sigma_v_with_arc(t, d)} for t, d in ((0, 0), (0, 30), (0, 300), (1, 3000), (2, 3))]}
 
 
+def risk_vectors() -> dict:
+    """Torino / Palermo over a log grid of (P, E, T), and rocket-equation samples (LAB_TORINO, LAB_ROCKET_EQ)."""
+    rng = Rng(hash_seed("vectors:risk"))
+    risk = []
+    for _ in range(60):
+        P = 10 ** rng.float(-8, 0)
+        E = 10 ** rng.float(-1, 8)
+        T = rng.float(1, 100)
+        risk.append({"P": P, "E": E, "T": T, "torino": torino(P, E), "palermo": palermo(P, E, T)})
+    rocket = []
+    for _ in range(20):
+        isp = rng.float(200, 4000)
+        f = rng.float(0.5, 0.95)
+        n = rng.int(1, 4)
+        dv = staged_dv(isp, f, n)
+        rocket.append({"isp": isp, "f": f, "n": n, "dv": dv, "dv1": rocket_dv(isp, 1 / (1 - f)), "ratio": mass_ratio_for(dv, isp)})
+    return {"risk": risk, "rocket": rocket}
+
+
 def m4_vectors() -> dict:
     # RK4 two-body: one quarter orbit at 1 AU with 6 h steps, compare against Kepler in the TS test.
     from pymiss.physics.kepler import vis_viva
@@ -228,3 +249,4 @@ if __name__ == "__main__":
     write("slowPush.json", slow_push_vectors())
     write("uncertainty.json", uncertainty_vectors())
     write("rng.json", rng_vectors())
+    write("risk.json", risk_vectors())

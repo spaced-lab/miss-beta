@@ -63,6 +63,12 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Decisions where the plan was silent
 
+- Labs batch A (2026-10-18): LAB_QSTAR adds impactor m and U sliders (the registry's "Q from an impactor
+  overlay" needs them) and LAB_TRACTOR adds body D and a tier slider for the beam / laser / driver (the
+  tractor's m_sc and d/R go through the new `gravityTractorForce`); EDUCATION.md Section 7 updated. The nuclear
+  lab's C_m slider rescales `nuclearBurst`'s dv linearly from KNOBS.NUKE_CM; the fragment-cloud lab derives
+  the body radius from its v_esc slider at stony density and leaves the impactor momentum out (m = 0).
+
 - Tech costs in research [knob]: N1 / SL1 / P1 cost 2 so a first-round win (about 6 research) buys the first
   flyby, sail or kick stage; the chains climb to 10-15. Runs start at the plan's basics.
 - Autonomy: retargets keep the arrival time (a Lambert re-solve from the craft's state at the event), need at
@@ -136,6 +142,10 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   right pane for the lab (max 460 px) or blank, which SIMPLE pictures and wide code may use.
 
 ## Unverified
+
+- `[unverified]` Torino scale (`src/physics/risk.ts torino`): the published (E, P) chart is read as straight lines
+  in log space (E bands 1 / 1e2 / 1e5 Mt, P rows 0.01 / 0.1 / 0.99, the 0/1 and 1/2 boundaries P = 1e-2/E and
+  1e-2/sqrt(E)). It reproduces 2024 YR4 (3), Apophis 2004 (4) and 2023 DW (1) but is not the exact IAU curve.
 
 - `[verify]` Detection network parameters (V_lim, p_cover, D_ref, since years) are the plan's approximations.
 - NEOMIR (SUNWARD_SENTINEL) ring eps 10..45 deg `[knob]`: an approach inside the 10 deg blind cone is not seen by it;

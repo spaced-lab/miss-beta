@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Labs batch A (2026-10-18): LAB_IMPACT_ENERGY, LAB_QSTAR, LAB_FRAGMENT_CLOUD, LAB_NUKE_STANDOFF, LAB_TRACTOR,
+  LAB_ROCKET_EQ and LAB_TORINO, animated from the real physics; new `physics/risk.ts` (Torino, Palermo) and
+  `physics/rocket.ts` (Tsiolkovsky, staging) with Python twins, vectors and notebooks.
+
 - Readable columns (2026-10-18, owner screenshots): the Learning Center is three panes at every level with prose
   capped at 72 characters and re-wrapped whenever the pane changes (the lab arriving no longer leaves text running
   under it), titles cut on whole words, lab plots clipped to their frame, code and tables fitted; the PERIMETER

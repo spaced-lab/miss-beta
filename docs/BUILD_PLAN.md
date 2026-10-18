@@ -147,6 +147,7 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 - [x] `scripts/build_lore.py` with the validation list of EDUCATION.md 0.2 (gate runs `--check`); `src/lore/index.ts` loader + LRU (2 MB cap); `render/views/lorePanel.ts` (`?`), `render/views/center.ts` (L / LEARN); 55 SIMPLE pictures as SVG generators (`src/lore/pictures/*`); seven LABs (ELLIPSE, VISVIVA, KEPLER_SOLVER, BETA, FOCUSING, 3DVT, MAGNITUDE) code-split; `lore_read` in SAVE.md merged on load; codex `?` and `L`; lowercase stroke glyphs for prose (opt-in `lower`).
 - [x] Tests LORE (TS loader/markdown/labs/built index; Python parser and validation) and the runtime no-fetch-at-boot test.
 - [ ] Deferred: click-to-open on entities and HUD numbers (keyboard `?` with a context topic instead), the remaining 13 labs, RUN IN PYTHON (Pyodide), quizzes (BACKLOG in EDUCATION.md).
+  - 2026-10-18 labs batch A built: IMPACT_ENERGY, QSTAR, FRAGMENT_CLOUD, NUKE_STANDOFF, TRACTOR, ROCKET_EQ, TORINO (new `src/physics/risk.ts`, `rocket.ts`; notebooks for each).
 
 ## M10: Visual system
 
