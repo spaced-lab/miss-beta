@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M7: modes (REALISTIC > SCIFI > SIMULATION > MULTIVERSE) with their leaderboards, the console (`) with the
+  public cheat codes and SPAWN scenarios, the FICTION commands and their forbidding quantities, the knobs
+  editor, SCI-FI programs and standing capabilities (CNT net, DE-STAR in range, disassembler decay), the
+  hyperbolic Kepler branch in TypeScript and Python for interstellar rounds, long-period comets and 5 km
+  giants, MULTIVERSE tiles with COLLAPSE and WORMHOLE, the SIMULATION glitch pass, a manual page for all of it.
+
 - M6: tech tree (T), autonomy tiers with the rules DSL and presets, split impactor carriers, nuclear
   standoff / surface / subsurface / HAIV / pulse trains, the slow-push family with honest NOT VIABLE numbers,
   PI, tracking tiers with impact probability and the beta reveal delay, debrief timeline scrubber,

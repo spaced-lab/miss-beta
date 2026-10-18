@@ -33,7 +33,7 @@ from pymiss.physics.kinetic import kinetic_impact  # noqa: E402
 from pymiss.physics.lambert import lambert  # noqa: E402
 from pymiss.physics.stumpff import stumpff_c, stumpff_s  # noqa: E402
 from pymiss.physics.elements import OrbitError, state_to_elements  # noqa: E402
-from pymiss.physics.kepler import Elements, propagate, solve_kepler  # noqa: E402
+from pymiss.physics.kepler import Elements, propagate, solve_kepler, solve_kepler_hyperbolic  # noqa: E402
 from pymiss.sim.rng import Rng, hash_seed  # noqa: E402
 
 OUT = os.path.join(ROOT, "tests", "vectors")
@@ -64,7 +64,16 @@ def kepler_vectors() -> dict:
         prop.append({"a": el.a, "e": el.e, "w": el.w, "M0": el.M0, "t0": el.t0, "mu": MU_SUN, "t": t, "x": x, "y": y, "vx": vx, "vy": vy})
         back = state_to_elements(x, y, vx, vy, MU_SUN, t)
         s2e.append({"x": x, "y": y, "vx": vx, "vy": vy, "mu": MU_SUN, "t": t, "a": back.a, "e": back.e, "w": back.w, "M0": back.M0})
-    return {"solveKepler": solve, "propagate": prop, "stateToElements": s2e}
+    hyp = []
+    for _ in range(40):
+        # Interstellar-class hyperbolae: a in [-4, -0.2] AU, e in [1.05, 6]; M spans both branches.
+        el = Elements(a=-rng.float(0.2, 4) * AU, e=rng.float(1.05, 6), w=rng.float(0, 2 * math.pi), M0=rng.float(-3, 3), t0=rng.float(0, 1e9))
+        t = el.t0 + rng.float(-3e7, 3e7)
+        x, y, vx, vy = propagate(el, MU_SUN, t)
+        back = state_to_elements(x, y, vx, vy, MU_SUN, t, allow_unbound=True)
+        H = solve_kepler_hyperbolic(el.M0, el.e)
+        hyp.append({"a": el.a, "e": el.e, "w": el.w, "M0": el.M0, "t0": el.t0, "mu": MU_SUN, "t": t, "x": x, "y": y, "vx": vx, "vy": vy, "H0": H, "backA": back.a, "backE": back.e, "backW": back.w, "backM0": back.M0})
+    return {"solveKepler": solve, "propagate": prop, "stateToElements": s2e, "hyperbolic": hyp}
 
 
 def rng_vectors() -> dict:

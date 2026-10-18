@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 
-from .kepler import Elements, eccentric_from_true, wrap_angle
+from .kepler import Elements, eccentric_from_true, hyperbolic_from_true, wrap_angle
 
 E_CIRCULAR = 1e-9
 
@@ -14,15 +14,17 @@ class OrbitError(ValueError):
         self.kind = kind  # 'RETROGRADE' | 'UNBOUND'
 
 
-def state_to_elements(x: float, y: float, vx: float, vy: float, mu: float, t: float) -> Elements:
+def state_to_elements(x: float, y: float, vx: float, vy: float, mu: float, t: float, allow_unbound: bool = False) -> Elements:
     rm = math.hypot(x, y)
     vm = math.hypot(vx, vy)
     h = x * vy - y * vx
     if not h > 0:
         raise OrbitError(f"retrograde or radial orbit (h = {h})", "RETROGRADE")
     eps = vm * vm / 2 - mu / rm
-    if not eps < 0:
+    if not eps < 0 and not allow_unbound:
         raise OrbitError(f"unbound orbit (eps = {eps})", "UNBOUND")
+    if abs(eps) < 1e-9 * (mu / rm):
+        raise OrbitError("parabolic orbit is not representable", "UNBOUND")
     a = -mu / (2 * eps)
 
     rv = x * vx + y * vy
@@ -38,6 +40,9 @@ def state_to_elements(x: float, y: float, vx: float, vy: float, mu: float, t: fl
     else:
         w = wrap_angle(math.atan2(ey, ex))
         nu = L - w
+    if eps >= 0:
+        H = hyperbolic_from_true(nu, e)
+        return Elements(a, e, w, e * math.sinh(H) - H, t)
     E = eccentric_from_true(nu, e)
     M0 = wrap_angle(E - e * math.sin(E))
     return Elements(a=a, e=0.0 if e < E_CIRCULAR else e, w=w, M0=M0, t0=t)

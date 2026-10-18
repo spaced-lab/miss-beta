@@ -14,6 +14,7 @@
 // LORE: O12 (close approach), D3 (kinetic and beta), D4 (fragmentation), G7 (under the hood)
 
 import { KNOBS } from '../config/knobs';
+import { AU, DAY, YEAR } from '../physics/constants';
 import { bCrit as bCritOf, closeApproach, impactCategory, impactEnergy, sphereMass, type CloseApproach, type ImpactCategory, type ImpactEnergy } from '../physics/closeApproach';
 import { OrbitError, stateToElements } from '../physics/elements';
 import { disrupt, f3D, harmlessDiameter, qStar, specificEnergy } from '../physics/fragment';
@@ -80,6 +81,8 @@ export interface RoundResult {
   hitEnergyMt: number;
   /** Damage energy credited by PI shredding (airbursts), Mt; counts toward the PARTIAL rule. */
   piDamageMt: number;
+  /** Bodies bagged by the SCI-FI net (20.3). */
+  captured: number;
   /** Threat element segments (the primary body's). */
   segments: ElementSegment[];
   tLastAction: number;
@@ -95,6 +98,19 @@ export interface ResolveOpts {
   sampleSeed?: number;
   /** Tracking tier (6.14): sets how long after an impact its beta is revealed. */
   trackingTier?: number;
+  /** SCI-FI standing capabilities (20.3) that act without a flight. */
+  scifi?: SciFiOpts;
+}
+
+export interface SciFiOpts {
+  /** Orbital laser array power, W (0: none), and when it came online (round time). */
+  orbitalLaserW: number;
+  laserSince: number | null;
+  /** Disassembler swarm: M(t) = M0 exp(-(t - since) / tau) on the threat and its remnant. */
+  disassemblerTauYears: number;
+  disassemblerSince: number | null;
+  /** CNT net tier owned (tech NET1/NET2): bodies under NET_CAPTURE_D that would hit are captured instead. */
+  netTier: number;
 }
 
 function streamFor(world: World, tag: string, sample: number): Rng {
@@ -128,7 +144,8 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   const material = threat.type.kind === 'comet' ? 'ice' : 'basalt';
   const events: EventLog = [];
   const bodies: Body[] = [
-    { id: 'THREAT', role: 'THREAT', mass: threat.mass, D: threat.D, tBirth: -Infinity, tDeath: Infinity, segments: [{ tFrom: -Infinity, tTo: Infinity, elements: threat.elements }], harmless: false, escaped: false, vEj: 0 },
+    // NOTE: a sub-metre threat (the DELETE fiction command) is harmless.
+    { id: 'THREAT', role: 'THREAT', mass: threat.mass, D: threat.D, tBirth: -Infinity, tDeath: Infinity, segments: [{ tFrom: -Infinity, tTo: Infinity, elements: threat.elements }], harmless: threat.D < 1, escaped: false, vEj: 0 },
   ];
   let tLast = 0;
   let producedFragments = false;
@@ -155,7 +172,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       const id = f.largestRemnant ? `${target.id === 'THREAT' ? 'REMNANT' : target.id + 'R'}` : `F${++fragCounter}`;
       let el: Elements | null = null;
       try {
-        el = stateToElements(st.r, f.v, mu, t);
+        el = stateToElements(st.r, f.v, mu, t, current.e > 1);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
       }
@@ -502,7 +519,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       }
       let next: Elements;
       try {
-        next = stateToElements(st.r, v, mu, m.arrivalTime);
+        next = stateToElements(st.r, v, mu, m.arrivalTime, current.e > 1);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
         events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
@@ -524,7 +541,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       const v2 = { x: st.v.x + k.dv.x, y: st.v.y + k.dv.y };
       let next: Elements;
       try {
-        next = stateToElements(st.r, v2, mu, m.arrivalTime);
+        next = stateToElements(st.r, v2, mu, m.arrivalTime, current.e > 1);
       } catch (e) {
         if (!(e instanceof OrbitError)) throw e;
         events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
@@ -546,6 +563,65 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   }
   settleBefore(Infinity);
 
+  // SCI-FI standing capabilities (20.3): they act on whatever is left, without a flight.
+  const sf = opts.scifi;
+  let captured = 0;
+  if (sf && sf.disassemblerSince !== null && sf.disassemblerTauYears > 0) {
+    const tau = sf.disassemblerTauYears * YEAR;
+    for (const b of bodies) {
+      if (b.escaped || b.tDeath !== Infinity || b.harmless || b.role === 'FRAGMENT') continue;
+      const since = Math.max(sf.disassemblerSince, b.tBirth === -Infinity ? 0 : b.tBirth);
+      const dt = threat.tImpact - since;
+      if (dt <= 0) continue;
+      const f = Math.exp(-dt / tau);
+      const m0 = b.mass;
+      b.mass *= f;
+      b.D *= Math.cbrt(f);
+      b.harmless = b.D < harmlessDiameter(iron);
+      events.push({ t: since, kind: 'NOTE', text: `DISASSEMBLER SWARM ON ${b.id}: ${m0.toExponential(2)} KG -> ${b.mass.toExponential(2)} KG BY T-0 (TAU ${sf.disassemblerTauYears} YR)${b.harmless ? '; DUST' : ''}` });
+    }
+  }
+  if (sf && sf.orbitalLaserW > 0 && sf.laserSince !== null) {
+    // DE-STAR: ablation thrust C_m P on every damaging body while it is within DE_STAR_RANGE_AU of HOME.
+    const range = KNOBS.DE_STAR_RANGE_AU * AU;
+    // The array fires until the last day: at 20 km/s the body is only inside 0.3 AU for the final ~25 days.
+    const tEnd = threat.tImpact - KNOBS.DE_STAR_END_MARGIN;
+    for (const b of bodies) {
+      if (b.escaped || b.tDeath !== Infinity || b.harmless) continue;
+      let el = elementsAt(b.segments, Infinity);
+      let t = Math.max(sf.laserSince, b.tBirth === -Infinity ? sf.laserSince : b.tBirth, tLast);
+      const inRange = (tt: number): boolean => {
+        const a = propagate(el, mu, tt);
+        const h = propagate(home.elements, mu, tt);
+        return Math.hypot(a.r.x - h.r.x, a.r.y - h.r.y) < range;
+      };
+      // Each pass through the range is one firing window; the body coasts on the pushed orbit between them.
+      for (let windows = 0; windows < 8 && t < tEnd; ) {
+        while (t < tEnd && !inRange(t)) t += DAY;
+        if (t >= tEnd) break;
+        const tIn = t;
+        while (t < tEnd && inRange(t)) t += DAY;
+        const tOut = Math.min(t, tEnd);
+        if (tOut - tIn < DAY) continue;
+        const force = KNOBS.LASER_CM_N_PER_W * sf.orbitalLaserW;
+        try {
+          const arc = integratePush(el, mu, tIn, tOut, force / b.mass);
+          const lastSeg = b.segments[b.segments.length - 1];
+          if (lastSeg) lastSeg.tTo = tIn;
+          b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
+          b.segments.push({ tFrom: tOut, tTo: Infinity, elements: arc.elements });
+          el = arc.elements;
+          windows++;
+          events.push({ t: tIn, kind: 'PUSH', missionId: 'DE-STAR', targetId: b.id, method: 'DE_STAR', force, dv: arc.dv, duration: tOut - tIn, viable: true, note: `${(sf.orbitalLaserW / 1e9).toFixed(1)} GW ARRAY, IN RANGE (${KNOBS.DE_STAR_RANGE_AU} AU)` });
+        } catch (e) {
+          if (!(e instanceof OrbitError)) throw e;
+          events.push({ t: tIn, kind: 'NOTE', text: `DE-STAR PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+          break;
+        }
+      }
+    }
+  }
+
   // Close approach of every live body.
   const outcomes: BodyOutcome[] = [];
   const draw = streamFor(world, 'f3d', sample);
@@ -561,6 +637,12 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       const p = f3D(bCritOf(home.mu, home.radius, ca.vInf), b.vEj, Math.max(0, threat.tImpact - b.tBirth));
       hits = draw.chance(p);
     }
+    if (hits && sf && sf.netTier >= 1 && b.D < KNOBS.NET_CAPTURE_D) {
+      // CNT net capture (20.3): a small body on a hit course is bagged on the way in.
+      hits = false;
+      captured++;
+      events.push({ t: ca.tCa - DAY, kind: 'NOTE', text: `${b.id} (${b.D.toFixed(0)} M) CAPTURED BY THE CNT NET TUG; COUNTS AS RESOLVED` });
+    }
     const energyMt = hits ? impactEnergy(b.D, threat.type.density, ca.vImpact).energyMt : 0;
     hitEnergyMt += energyMt;
     const bo = { body: b, ca, hits, energyMt };
@@ -575,7 +657,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     const e0 = impactEnergy(threat.D, threat.type.density, ca0.vImpact);
     const total = hitEnergyMt + piDamageMt;
     const outcome0: Outcome = total <= 0 ? 'MISS' : total < KNOBS.PARTIAL_ENERGY_FRACTION * e0.energyMt ? 'PARTIAL' : 'HIT';
-    return { outcome: outcome0, ca: ca0, energy: e0, category: impactCategory(threat.D, iron), events, bodies, outcomes, hitEnergyMt: total, piDamageMt, segments: (bodies[0] as Body).segments, tLastAction: tLast, producedFragments, usedWarhead, missionsResolved: flown };
+    return { outcome: outcome0, ca: ca0, energy: e0, category: impactCategory(threat.D, iron), events, bodies, outcomes, hitEnergyMt: total, piDamageMt, captured, segments: (bodies[0] as Body).segments, tLastAction: tLast, producedFragments, usedWarhead, missionsResolved: flown };
   }
 
   const pca = primary.ca;
@@ -592,6 +674,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     outcomes,
     hitEnergyMt: totalThrough,
     piDamageMt,
+    captured,
     segments: (bodies[0] as Body).segments,
     tLastAction: tLast,
     producedFragments,

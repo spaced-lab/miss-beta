@@ -10,6 +10,10 @@ export class Input {
   private readonly edge = new Set<string>();
   private typedBuffer = '';
   private readonly listeners: Array<(ch: string) => void> = [];
+  /** Printable characters and control keys that went down this frame, in order (for text entry). */
+  private keyEvents: string[] = [];
+  /** When true, keydown events are not prevented for text keys (console typing); Space still is. */
+  textMode = false;
   private wheelAcc = 0;
   private dragAcc = { x: 0, y: 0 };
   private dragging = false;
@@ -21,6 +25,7 @@ export class Input {
       if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
       if (!this.down.has(e.code)) this.edge.add(e.code);
       this.down.add(e.code);
+      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') this.keyEvents.push(e.key);
       if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {
         this.typedBuffer = (this.typedBuffer + e.key.toUpperCase()).slice(-24);
         for (const l of this.listeners) l(e.key.toUpperCase());
@@ -101,8 +106,16 @@ export class Input {
     this.listeners.push(fn);
   }
 
+  /** Text entry: the keys pressed this frame (single characters, 'Backspace', 'Enter'). */
+  takeKeyEvents(): string[] {
+    const v = this.keyEvents;
+    this.keyEvents = [];
+    return v;
+  }
+
   /** Call once per frame after screens have read the edges. */
   endFrame(): void {
     this.edge.clear();
+    this.keyEvents.length = 0;
   }
 }

@@ -20,7 +20,7 @@ import { KNOBS } from '../config/knobs';
 import { discover } from './detection';
 import type { Rng } from './rng';
 import { generateAsteroidShape } from './shapes';
-import type { Threat, ThreatType } from './threat';
+import type { Threat, ThreatFlavor, ThreatType } from './threat';
 import { planetById, planetState, type World } from './world';
 
 export const THREAT_TYPES = (threatsJson as { types: ThreatType[] }).types;
@@ -64,6 +64,28 @@ export function shiftEpoch(el: Elements, dt: number): Elements {
 export interface GenerateOpts {
   /** Use the plain lead-time draw (M1 behaviour); tests and the title attract use it. */
   skipDiscovery?: boolean;
+  /** SCI-FI mode (21.2): a share of rounds are interstellar objects, long-period comets or 5 km bodies. */
+  scifi?: boolean;
+  /** Force a SCI-FI flavor (tests, SPAWN). */
+  flavor?: ThreatFlavor;
+}
+
+/** Orbit-draw limits for one flavor. */
+interface OrbitDrawOpts {
+  uInfMin: number;
+  uInfMax: number;
+  maxApo: number;
+  maxE: number;
+  allowUnbound: boolean;
+}
+
+/** [knob] SCI-FI flavor shares per round: interstellar 0.3, long-period 0.25, giant 0.2, else the ordinary draw. */
+export function drawFlavor(rng: Rng): ThreatFlavor | null {
+  const u = rng.next();
+  if (u < KNOBS.SCIFI_SHARE_INTERSTELLAR) return 'INTERSTELLAR';
+  if (u < KNOBS.SCIFI_SHARE_INTERSTELLAR + KNOBS.SCIFI_SHARE_LONG_PERIOD) return 'LONG_PERIOD';
+  if (u < KNOBS.SCIFI_SHARE_INTERSTELLAR + KNOBS.SCIFI_SHARE_LONG_PERIOD + KNOBS.SCIFI_SHARE_GIANT) return 'GIANT';
+  return null;
 }
 
 /** p_surprise(k): chance that a never-discovered candidate is kept as a NO WARNING round. */
@@ -71,25 +93,37 @@ export function surpriseProbability(k: number): number {
   return Math.min(KNOBS.SURPRISE_MAX, KNOBS.SURPRISE_BASE + KNOBS.SURPRISE_PER_ROUND * (k - 1));
 }
 
+function orbitOptsFor(type: ThreatType, flavor: ThreatFlavor | null): OrbitDrawOpts {
+  switch (flavor) {
+    case 'INTERSTELLAR':
+      return { uInfMin: KNOBS.INTERSTELLAR_VINF_KMS[0] * 1000, uInfMax: KNOBS.INTERSTELLAR_VINF_KMS[1] * 1000, maxApo: Infinity, maxE: Infinity, allowUnbound: true };
+    case 'LONG_PERIOD':
+      // NOTE: a 2-D prograde world has no retrograde comets, so the bound long-period set needs v_inf under ~45 km/s.
+      return { uInfMin: 25e3, uInfMax: 45e3, maxApo: KNOBS.LONG_PERIOD_MAX_APO_AU * AU, maxE: 0.9995, allowUnbound: false };
+    default:
+      return { uInfMin: type.vInfMin * 1000, uInfMax: type.vInfMax * 1000, maxApo: (type.kind === 'comet' ? 40 : 6) * AU, maxE: 0.98, allowUnbound: false };
+  }
+}
+
 /** One colliding orbit for the given size/type at impact epoch tImpact, or null if 200 draws fail. */
-function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: number): { elements: Elements; uInf: number } | null {
+function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: number, o: OrbitDrawOpts = orbitOptsFor(type, null), attempts = 200): { elements: Elements; uInf: number } | null {
   const home = planetById(world, 'HOME');
   const hs = planetState(world, home, tImpact);
-  const maxApo = (type.kind === 'comet' ? 40 : 6) * AU;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const uInf = rng.logUniform(type.vInfMin * 1000, type.vInfMax * 1000);
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const uInf = rng.logUniform(o.uInfMin, o.uInfMax);
     const phi = rng.float(0, Math.PI * 2);
     const v = { x: hs.v.x + uInf * Math.cos(phi), y: hs.v.y + uInf * Math.sin(phi) };
     let elements: Elements;
     try {
-      elements = stateToElements(hs.r, v, world.star.mu, tImpact);
+      elements = stateToElements(hs.r, v, world.star.mu, tImpact, o.allowUnbound);
     } catch (e) {
       if (e instanceof OrbitError) continue;
       throw e;
     }
+    if (o.allowUnbound && elements.e < 1) continue; // an interstellar object is unbound by definition
     if (periapsis(elements) <= 0.25 * AU) continue;
-    if (apoapsis(elements) >= maxApo) continue;
-    if (elements.e >= 0.98) continue;
+    if (elements.e < 1 && apoapsis(elements) >= o.maxApo) continue;
+    if (elements.e >= o.maxE) continue;
     return { elements, uInf };
   }
   return null;
@@ -100,6 +134,8 @@ function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: n
  * epochs are shifted so the round clock starts at the discovery. Throws only if every attempt fails.
  */
 export function generateThreat(rng: Rng, world: World, k: number, now = world.t, opts: GenerateOpts = {}): Threat {
+  const flavor = opts.flavor ?? (opts.scifi ? drawFlavor(rng) : null);
+  if (flavor) return generateFlavored(rng, world, k, now, flavor);
   const lead = drawLeadTime(rng, k);
   const D = drawDiameter(rng, k);
   const type = drawType(rng, k);
@@ -137,6 +173,40 @@ export function generateThreat(rng: Rng, world: World, k: number, now = world.t,
   const orbit = drawCollidingOrbit(rng, world, type, tImpact);
   if (!orbit) throw new Error('generateThreat: no acceptable orbit in 200 attempts');
   return finish(world, rng, { name, type, D, shape, elements: orbit.elements, tImpact, uInf: orbit.uInf, discoveredBy: 'ASSUMED', noWarning: false }, 0);
+}
+
+/**
+ * SCI-FI round types (21.2). The lead is fixed by the flavor (the civilization's networks are assumed to
+ * see everything; discovery is not simulated): INTERSTELLAR 0.6 to 1.5 yr on a hyperbola at 50 to 90 km/s;
+ * LONG_PERIOD a comet 0.5 to 3 km with one year of warning; GIANT a 5 km body with the ordinary lead x1.5.
+ */
+function generateFlavored(rng: Rng, world: World, k: number, now: number, flavor: ThreatFlavor): Threat {
+  const name = drawName(rng);
+  const shape = generateAsteroidShape(rng);
+  let type: ThreatType;
+  let D: number;
+  let lead: number;
+  switch (flavor) {
+    case 'INTERSTELLAR':
+      type = (rng.chance(0.5) ? THREAT_TYPES.find((t) => t.id === 'ICY') : THREAT_TYPES.find((t) => t.id === 'STONY')) as ThreatType;
+      D = rng.logUniform(100, 800);
+      lead = rng.float(0.6, 1.5) * YEAR;
+      break;
+    case 'LONG_PERIOD':
+      type = THREAT_TYPES.find((t) => t.id === 'ICY') as ThreatType;
+      D = rng.logUniform(500, 3000);
+      lead = rng.float(0.9, 1.1) * YEAR;
+      break;
+    case 'GIANT':
+      type = drawType(rng, k);
+      D = KNOBS.GIANT_D_M;
+      lead = drawLeadTime(rng, k) * 1.5;
+      break;
+  }
+  const tImpact = now + lead;
+  const orbit = drawCollidingOrbit(rng, world, type, tImpact, orbitOptsFor(type, flavor), 2000);
+  if (!orbit) throw new Error(`generateThreat: no acceptable ${flavor} orbit in 2000 attempts`);
+  return { ...finish(world, rng, { name, type, D, shape, elements: orbit.elements, tImpact, uInf: orbit.uInf, discoveredBy: 'ASSUMED', noWarning: false }, 0), flavor };
 }
 
 interface Draft {

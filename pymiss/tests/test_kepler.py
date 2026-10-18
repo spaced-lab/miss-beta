@@ -3,7 +3,7 @@ import unittest
 
 from pymiss.physics.constants import AU, DAY, MU_SUN
 from pymiss.physics.elements import OrbitError, state_to_elements
-from pymiss.physics.kepler import Elements, period, propagate, solve_kepler, specific_energy, vis_viva
+from pymiss.physics.kepler import Elements, period, propagate, solve_kepler, solve_kepler_hyperbolic, specific_energy, vis_viva
 from pymiss.sim.rng import Rng
 
 
@@ -47,6 +47,24 @@ class TestKepler(unittest.TestCase):
             self.assertLess(math.hypot(vx2 - vx, vy2 - vy), 1e-6)
             self.assertAlmostEqual(back.a / el.a, 1.0, places=9)
             self.assertAlmostEqual(back.e, el.e, places=9)
+
+    def test_hyperbolic_roundtrip_and_energy(self):
+        el = state_to_elements(AU, 0.0, -20e3, 60e3, MU_SUN, 0.0, allow_unbound=True)
+        self.assertGreater(el.e, 1)
+        self.assertLess(el.a, 0)
+        self.assertEqual(period(MU_SUN, el.a), math.inf)
+        eps0 = specific_energy(MU_SUN, AU, math.hypot(-20e3, 60e3))
+        for t in (-2e7, -1e6, 0.0, 1e6, 3e7):
+            x, y, vx, vy = propagate(el, MU_SUN, t)
+            eps = specific_energy(MU_SUN, math.hypot(x, y), math.hypot(vx, vy))
+            self.assertLess(abs((eps - eps0) / eps0), 1e-10)
+            back = state_to_elements(x, y, vx, vy, MU_SUN, t, allow_unbound=True)
+            self.assertAlmostEqual(back.a / el.a, 1.0, places=9)
+            self.assertAlmostEqual(back.e, el.e, places=9)
+        x, y, vx, vy = propagate(el, MU_SUN, 0.0)
+        self.assertAlmostEqual(x / AU, 1.0, places=9)
+        self.assertAlmostEqual(vy, 60e3, places=3)
+        self.assertAlmostEqual(solve_kepler_hyperbolic(1.0, 1.5), 1.16164, places=4)
 
     def test_rejects_bad_orbits(self):
         with self.assertRaises(OrbitError):

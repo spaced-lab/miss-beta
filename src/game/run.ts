@@ -5,6 +5,7 @@
 
 import { createPrograms, defaultEffects, type ProgramState, type RunEffects } from '../sim/programs';
 import { createEconomy, type Economy } from './economy';
+import type { Mode } from './modes';
 import { reapplyTech, TECH } from './tech';
 
 export interface RunState {
@@ -48,6 +49,20 @@ export interface RunState {
   cheatsUsed: string[];
   /** Learning mode: unlimited budget and research, every REALISTIC tech, full tracking; never recorded. */
   sandbox: boolean;
+  mode: Mode;
+  highestMode: Mode;
+  civLevel: number;
+  /** Cheat flags (22.2). */
+  reveal: boolean;
+  fastBuild: boolean;
+  godTrack: boolean;
+  /** Forced lead time for the next round, years, or null. */
+  leadTimeNext: number | null;
+  /** SPAWN scenario id for the next round, or null. */
+  spawnNext: string | null;
+  /** FICTION flags for the current round. */
+  noclip: boolean;
+  shield: boolean;
 }
 
 export function createRun(seed: string, opts: { sandbox?: boolean } = {}): RunState {
@@ -83,6 +98,16 @@ export function createRun(seed: string, opts: { sandbox?: boolean } = {}): RunSt
     history: [],
     cheatsUsed: [],
     sandbox: opts.sandbox ?? false,
+    mode: 'REALISTIC',
+    highestMode: 'REALISTIC',
+    civLevel: 0,
+    reveal: false,
+    fastBuild: false,
+    godTrack: false,
+    leadTimeNext: null,
+    spawnNext: null,
+    noclip: false,
+    shield: false,
   };
   if (run.sandbox) {
     // SANDBOX: a run to experiment in. Everything that money or research would buy is already bought.
@@ -102,4 +127,6 @@ export function nextRound(run: RunState, budgetNow: number): void {
   run.roundsSurvived += 1;
   run.economy = createEconomy(budgetNow, run.economy.perYear);
   run.evacuatedAt = null;
+  run.noclip = false;
+  run.shield = false;
 }

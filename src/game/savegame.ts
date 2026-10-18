@@ -23,9 +23,9 @@ export function toSaveFile(run: RunState, world: World | null): SaveFile {
     seed: run.seed,
     started: run.startedAt,
     round: run.round,
-    mode: 'REALISTIC',
-    highest_mode: 'REALISTIC',
-    civ_level: 0,
+    mode: run.mode,
+    highest_mode: run.highestMode,
+    civ_level: run.civLevel,
     cheats_used: [...run.cheatsUsed],
     budget: budgetAt(run.economy, t),
     budget_per_year: run.economy.perYear,
@@ -71,6 +71,9 @@ export function runFromSave(sf: SaveFile): RunState {
   run.cheatsUsed = [...sf.cheats_used];
   run.assisted = sf.cheats_used.length > 0;
   run.sandbox = sf.cheats_used.includes('SANDBOX');
+  run.mode = sf.mode;
+  run.highestMode = sf.highest_mode;
+  run.civLevel = sf.civ_level;
   run.tech = [...sf.tech];
   reapplyTech(run);
   run.programs = createPrograms();

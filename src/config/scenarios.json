@@ -1,0 +1,12 @@
+{
+  "_comment": "GAME_PLAN 22.2 SPAWN presets. D in m; lead in years (0 = NO WARNING, sunward); type is a threat type id; vInf km/s if fixed. Elements are built by the collision construction at round start, so every scenario hits if ignored.",
+  "scenarios": [
+    { "id": "CHELYABINSK", "name": "2013 CHELYABINSK", "D": 18,    "type": "STONY",  "leadYears": 0,     "vInfKms": 15, "sunward": true,  "note": "18 m, airburst over Russia; nobody saw it coming" },
+    { "id": "TUNGUSKA",    "name": "1908 TUNGUSKA",    "D": 55,    "type": "STONY",  "leadYears": 0.058, "vInfKms": 15, "sunward": false, "note": "about 55 m, flattened 2000 km2 of forest; three weeks of warning here" },
+    { "id": "YR4",         "name": "2024 YR4",         "D": 55,    "type": "RUBBLE", "leadYears": 7,     "vInfKms": 12, "sunward": false, "note": "the 2032 scare that peaked at 3%; a city-killer class rubble pile" },
+    { "id": "APOPHIS",     "name": "99942 APOPHIS",    "D": 340,   "type": "STONY",  "leadYears": 7,     "vInfKms": 7,  "sunward": false, "note": "340 m; the 2029 close pass is real, this impact is not" },
+    { "id": "BENNU",       "name": "101955 BENNU",     "D": 490,   "type": "RUBBLE", "leadYears": 15,    "vInfKms": 6,  "sunward": false, "note": "490 m rubble pile sampled by OSIRIS-REx; 1-in-2700 for 2182" },
+    { "id": "DIDYMOS",     "name": "DIMORPHOS (DART)", "D": 160,   "type": "RUBBLE", "leadYears": 10,    "vInfKms": 6,  "sunward": false, "note": "DART's target, 160 m; replay the real push: 580 kg at 6.1 km/s, beta 3.6" },
+    { "id": "CHICXULUB",   "name": "CHICXULUB",        "D": 10000, "type": "STONY",  "leadYears": 20,    "vInfKms": 20, "sunward": false, "note": "10 km; the one that ended the Cretaceous. Good luck." }
+  ]
+}

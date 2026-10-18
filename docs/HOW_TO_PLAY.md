@@ -117,6 +117,25 @@ style.
 The run saves at round boundaries. CONTINUE on the title resumes it. `X` downloads SAVE.md, a readable file
 whose front matter the game reads back; drop a SAVE.md onto the window to import it.
 
+## Console, cheat codes and modes
+
+Press backquote (`` ` ``) on the title or in a run to open the console. `HELP` lists the commands. Cheat codes
+are public (they are in `src/game/console.ts`) and flag the run ASSISTED, which has its own leaderboard. Codes
+typed on the title apply to the next NEW RUN.
+
+- Cheats: `REVEAL` (betas shown at once), `FASTBUILD`, `GODTRACK`, `LEADTIME n`, `SPAWN <scenario>` with
+  CHELYABINSK, TUNGUSKA, YR4, APOPHIS, BENNU, DIDYMOS or CHICXULUB, `DART`, `KARDASHEV1` (every REALISTIC tech,
+  budget x3), `KARDASHEV2` (SCI-FI with everything).
+- Modes nest: REALISTIC > `SCIFI` > `SIMULATION` > `MULTIVERSE n`. SCI-FI multiplies the budget by ten, adds the
+  SPECULATIVE methods and programs (CNT net capture, the DE-STAR orbital laser that fires at anything inside
+  0.3 AU, fusion tugs, the disassembler swarm) and new round types: interstellar objects on hyperbolic orbits at
+  50 to 90 km/s, long-period comets with a year of warning, 5 km bodies. SIMULATION turns on the glitch render
+  and the FICTION commands (`TELEPORT`, `OBSERVE`, `REWIND`, `EDIT G x`, `DELETE`, `NOCLIP`, `TRACTORBEAM`,
+  `SINGULARITY`, `PLANETTHRUSTERS dv`, `SHIELD`, `SHRINK`, `SUMMONDEVS` then `KNOB name value`); each one prints
+  the physical quantity that forbids it before doing it anyway. MULTIVERSE forks the round into n tiles on a
+  shared clock: digits select a branch, `P` plans in the selected branch, `C` collapses it into the main
+  timeline, `WORMHOLE` drops the selected branch's threat on its neighbour.
+
 ## PERIMETER (arcade minigame)
 
 Arrows move the launcher, Space fires (watch the heat), Shift fires a pulse, `<` a seeker missile, `>` a swarm

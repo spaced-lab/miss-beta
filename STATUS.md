@@ -16,7 +16,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M4 Going faster | done | integrate.ts (RK4 + Euler for the lab), sail.ts (force model, SPIRAL/COAST/TARGET_STEER, arcs), flyby.ts (patched conic), two-leg flyby search and sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with legs drawn, FLYBY WINDOWS; all mirrored in pymiss with vectors |
 | M5 Seeing it coming | done | photometry (+ mirror, vectors), detection model with today's and the proposed networks (activation years), discovery search, round generation on discovery-derived lead with NO WARNING rounds, civil defense (E), PROGRAMS panel (G) with effects on completion, SAVE.md writer/parser with CONTINUE, export (X) and drag-drop import, CODEX from config |
 | M6 The full tree | done | tech tree (T), autonomy tiers 1..3 with the rules DSL and presets, split carriers, nuclear (standoff/surface/subsurface/HAIV/pulse train), the slow-push family with NOT VIABLE numbers, PI, tracking tiers with uncertainty and the beta reveal delay, debrief scrubber, leaderboard tabs; fuzz test over every plan family; Section 17 balance checks. Capture bag deferred to M7 with the net (NET1 is SCI-FI) |
-| M7 Modes, cheats, fiction | todo | next: modes.ts nesting, SCI-FI methods and programs, civilization levels, console with cheat codes and SPAWN scenarios, FICTION commands, knobs editor, MULTIVERSE, glitch renderer |
+| M7 Modes, cheats, fiction | done | modes nesting (REALISTIC > SCIFI > SIMULATION > MULTIVERSE) with per-mode leaderboards, console (`) on the title and in a run with the public cheat-code table (REVEAL, FASTBUILD, GODTRACK, LEADTIME, SPAWN scenarios, DART, KARDASHEV1/2), FICTION commands with their forbidding quantities, SUMMONDEVS knobs editor, SCI-FI programs and methods (CNT net capture, DE-STAR in-range firing, fusion/Orion tugs, disassembler decay), hyperbolic Kepler branch (TS + Python, shared vectors) for INTERSTELLAR rounds plus LONG_PERIOD and GIANT flavors, MULTIVERSE tiles with COLLAPSE and WORMHOLE, glitch pass. Civilization-level auto-unlock of SCI-FI is computed (civilizationLevel) but only the codes move the mode so far |
 | M8 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
@@ -39,7 +39,9 @@ DAMAGE_MAX_BY_LEVEL [12, 16, 25].
   console (M7).
 - Slow push arcs: the body is drawn on its pre-push orbit during the arc and jumps to the pushed orbit at the
   arc's end (a sampled table for the arc is a polish item).
-- Ground laser (program effect) is modelled as a method force but not yet auto-applied within 0.05 AU (M7/M8).
+- Ground laser (program effect) is modelled as a method force but not yet auto-applied within 0.05 AU (M8); the SCI-FI DE-STAR array is auto-applied in range (resolver post-pass).
+- SCI-FI flavored rounds skip the discovery model (lead fixed by flavor, discoveredBy ASSUMED). Long-period comets are drawn at 25 to 45 km/s because a 2-D prograde world has no retrograde comets [documented simplification].
+- Multiverse branches share the run's economy; a commit in one branch spends the common budget (the plan's "commit different missions in different tiles" works, the money is one pool).
 - PI: the shredded body is removed and PI_DAMAGE_FRACTION (5%) of its energy is credited as damage, which
   resolves as PARTIAL under the 10% rule.
 

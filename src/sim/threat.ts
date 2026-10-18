@@ -41,4 +41,9 @@ export interface Threat {
   readonly discoveredBy: string | null;
   /** True when the round is a NO WARNING special: civil defense only. */
   readonly noWarning: boolean;
+  /** SCI-FI round types (GAME_PLAN 21.2); absent for the ordinary draw. */
+  readonly flavor?: ThreatFlavor;
 }
+
+/** INTERSTELLAR: hyperbolic, 50 to 90 km/s. LONG_PERIOD: a comet with one year of warning. GIANT: a 5 km body. */
+export type ThreatFlavor = 'INTERSTELLAR' | 'LONG_PERIOD' | 'GIANT';

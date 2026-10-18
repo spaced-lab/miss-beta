@@ -6,6 +6,8 @@
 // LORE: G2 (screens and HUD), G8 (the look)
 
 import { hasSavedRun, loadRun } from '../../game/savegame';
+import { createRun, type RunState } from '../../game/run';
+import { ConsoleOverlay } from './console';
 import type { Router, Screen } from '../../game/screen';
 import type { SystemScreen } from './system';
 import type { Input } from '../../ui/input';
@@ -24,10 +26,25 @@ export class TitleScreen implements Screen {
   private note = '';
   private noteT = 0;
   private readonly items: Item[];
+  private readonly console: ConsoleOverlay;
+  /** Codes typed on the title apply to the next NEW RUN (GAME_PLAN 22.2). */
+  pendingRun: RunState | null = null;
 
   constructor(private readonly s: Surface, private readonly keys: Input, router: Router, private readonly getSystem: () => SystemScreen | null = () => null) {
+    this.console = new ConsoleOverlay(s, keys);
     this.items = [
-      { label: 'NEW RUN', hotkey: 'KeyN', action: () => router.go('system') },
+      {
+        label: 'NEW RUN',
+        hotkey: 'KeyN',
+        action: () => {
+          const sys = this.getSystem();
+          if (sys && this.pendingRun) {
+            sys.pendingRun = this.pendingRun;
+            this.pendingRun = null;
+          }
+          router.go('system');
+        },
+      },
       {
         label: 'SANDBOX RUN  (LEARN: UNLIMITED BUDGET, ALL TECH)',
         hotkey: 'KeyS',
@@ -70,6 +87,16 @@ export class TitleScreen implements Screen {
     this.t += dtMs / 1000;
     this.noteT = Math.max(0, this.noteT - dtMs / 1000);
     const k = this.keys;
+    if (this.console.isOpen) {
+      if (!this.pendingRun) this.pendingRun = createRun(Date.now().toString(36).toUpperCase());
+      this.console.update({ run: this.pendingRun, round: null });
+      return;
+    }
+    if (k.pressed('Backquote')) {
+      if (!this.pendingRun) this.pendingRun = createRun(Date.now().toString(36).toUpperCase());
+      this.console.show();
+      return;
+    }
     if (k.pressed('ArrowUp') || k.pressed('KeyW')) this.sel = (this.sel + this.items.length - 1) % this.items.length;
     if (k.pressed('ArrowDown') || k.pressed('KeyS')) this.sel = (this.sel + 1) % this.items.length;
     for (let i = 0; i < this.items.length; i++) {
@@ -128,6 +155,8 @@ export class TitleScreen implements Screen {
     }
 
     if (this.noteT > 0) drawText(s, this.note, cx, s.height - 90, 12, { align: 'center', color: p.hot, alpha: Math.min(1, this.noteT) });
-    drawText(s, 'MISS β v0.1   ARROWS SELECT   ENTER START', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
+    if (this.pendingRun && this.pendingRun.cheatsUsed.length > 0) drawText(s, `CODES FOR THE NEXT RUN: ${this.pendingRun.cheatsUsed.join(' ')}   MODE ${this.pendingRun.mode}`, cx, s.height - 64, 11, { align: 'center', color: p.hot, glow: 0.8 });
+    drawText(s, 'MISS β v0.1   ARROWS SELECT   ENTER START   ` CONSOLE (CHEAT CODES)', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
+    this.console.render({ run: this.pendingRun ?? createRun('PENDING'), round: null });
   }
 }

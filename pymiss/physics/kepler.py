@@ -24,13 +24,35 @@ class Elements:
 
 
 def mean_motion(mu: float, a: float) -> float:
-    """n = sqrt(mu / a^3), rad/s."""
-    return math.sqrt(mu / (a * a * a))
+    """n = sqrt(mu / |a|^3), rad/s (|a| so the hyperbolic branch shares it)."""
+    aa = abs(a)
+    return math.sqrt(mu / (aa * aa * aa))
 
 
 def period(mu: float, a: float) -> float:
-    """T = 2 pi sqrt(a^3 / mu), s."""
-    return 2 * math.pi / mean_motion(mu, a)
+    """T = 2 pi sqrt(a^3 / mu), s; inf for a hyperbola."""
+    return 2 * math.pi / mean_motion(mu, a) if a > 0 else math.inf
+
+
+def solve_kepler_hyperbolic(M: float, e: float, tol: float = 1e-14, max_iter: int = 50) -> float:
+    """Newton's method on e sinh H - H = M, start H0 = asinh(M / e)."""
+    H = math.asinh(M / e)
+    for _ in range(max_iter):
+        f = e * math.sinh(H) - H - M
+        fp = e * math.cosh(H) - 1
+        dH = f / fp
+        H -= dH
+        if abs(dH) < tol * max(1.0, abs(H)):
+            break
+    return H
+
+
+def true_anomaly_from_h(H: float, e: float) -> float:
+    return 2 * math.atan(math.sqrt((e + 1) / (e - 1)) * math.tanh(H / 2))
+
+
+def hyperbolic_from_true(nu: float, e: float) -> float:
+    return 2 * math.atanh(math.sqrt((e - 1) / (e + 1)) * math.tan(nu / 2))
 
 
 def solve_kepler(M: float, e: float, tol: float = 1e-14, max_iter: int = 30) -> float:
@@ -58,6 +80,8 @@ def eccentric_from_true(nu: float, e: float) -> float:
 def propagate(el: Elements, mu: float, t: float) -> tuple[float, float, float, float]:
     """Return (x, y, vx, vy) at time t. Same steps as the TypeScript version."""
     n = mean_motion(mu, el.a)
+    if el.e > 1:
+        return _propagate_hyperbolic(el, mu, t, n)
     M = wrap_angle(el.M0 + n * (t - el.t0))
     E = solve_kepler(M, el.e)
     nu = true_anomaly_from_e(E, el.e)
@@ -67,6 +91,21 @@ def propagate(el: Elements, mu: float, t: float) -> tuple[float, float, float, f
     k = math.sqrt(mu * el.a) / r
     vxp = -k * math.sin(E)
     vyp = k * math.sqrt(1 - el.e * el.e) * math.cos(E)
+    cw = math.cos(el.w)
+    sw = math.sin(el.w)
+    return (xp * cw - yp * sw, xp * sw + yp * cw, vxp * cw - vyp * sw, vxp * sw + vyp * cw)
+
+
+def _propagate_hyperbolic(el: Elements, mu: float, t: float, n: float) -> tuple[float, float, float, float]:
+    M = el.M0 + n * (t - el.t0)
+    H = solve_kepler_hyperbolic(M, el.e)
+    nu = true_anomaly_from_h(H, el.e)
+    r = el.a * (1 - el.e * math.cosh(H))
+    xp = r * math.cos(nu)
+    yp = r * math.sin(nu)
+    k = math.sqrt(-mu * el.a) / r
+    vxp = -k * math.sinh(H)
+    vyp = k * math.sqrt(el.e * el.e - 1) * math.cosh(H)
     cw = math.cos(el.w)
     sw = math.sin(el.w)
     return (xp * cw - yp * sw, xp * sw + yp * cw, vxp * cw - vyp * sw, vxp * sw + vyp * cw)
@@ -87,4 +126,4 @@ def periapsis(el: Elements) -> float:
 
 
 def apoapsis(el: Elements) -> float:
-    return el.a * (1 + el.e)
+    return el.a * (1 + el.e) if el.e < 1 else math.inf

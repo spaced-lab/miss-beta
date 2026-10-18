@@ -18,12 +18,11 @@ import type { Router, Screen } from '../../game/screen';
 import { AU, DAY, YEAR } from '../../physics/constants';
 import { stateToElements } from '../../physics/elements';
 import { orbitPoints, propagate, type Elements } from '../../physics/kepler';
-import { craftPosition } from '../../planner/legs';
 import type { MonteCarloResult } from '../../planner/monteCarlo';
 import { PlannerClient } from '../../planner/workerClient';
 import { formatEvent } from '../../sim/eventLog';
 import type { Mission } from '../../sim/mission';
-import { bodyAlive, elementsAt, resolveRound, type RoundResult } from '../../sim/resolver';
+import { bodyAlive, elementsAt, resolveRound, type ResolveOpts, type RoundResult } from '../../sim/resolver';
 import { roundRng } from '../../sim/rng';
 import { generateThreat } from '../../sim/roundGen';
 import { advance, createWorld, planetById, planetState, setWarp, warpLabel, type World } from '../../sim/world';
@@ -37,6 +36,19 @@ import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
 import { ProgramsOverlay } from './programs';
 import { TechOverlay } from './tech';
+import { ConsoleOverlay } from './console';
+import type { GameContext } from '../../game/console';
+import { budgetScale } from '../../game/modes';
+import { branchSurvives, earliestEnd, forkMultiverse, resolveBranch, survivalFraction, tickMultiverse, wormhole, type Branch, type Multiverse } from '../../game/multiverse';
+import { glitchPass } from '../glitch';
+import { scenarioById, spawnScenario } from '../../sim/scenarios';
+import { shiftEpoch } from '../../sim/roundGen';
+import { craftPosition } from '../../planner/legs';
+import { hashSeed, Rng } from '../../sim/rng';
+import { applyEffects, createPrograms, programById } from '../../sim/programs';
+import { stateToElements as toElements } from '../../physics/elements';
+import { sphereMass } from '../../physics/closeApproach';
+import { boardFor } from '../../game/modes';
 import { advancePrograms } from '../../sim/programs';
 import { exportSave, saveRun } from '../../game/savegame';
 
@@ -70,6 +82,11 @@ export class SystemScreen implements Screen {
   rulesPreset = 'DEFAULT';
   private scrub = 0;
   private panelHidden = false;
+  private readonly console: ConsoleOverlay;
+  /** A run prepared on the title with codes, used by the next NEW RUN. */
+  pendingRun: RunState | null = null;
+  private mv: Multiverse | null = null;
+  private glitch = false;
   private mc: MonteCarloResult | null = null;
   private mcToken = 0;
 
@@ -80,6 +97,7 @@ export class SystemScreen implements Screen {
     this.planet = new PlanetOverlay(s);
     this.programs = new ProgramsOverlay(s, keys);
     this.tech = new TechOverlay(s, keys);
+    this.console = new ConsoleOverlay(s, keys);
   }
 
   /** Begin a run from a loaded run state (CONTINUE). */
@@ -89,6 +107,23 @@ export class SystemScreen implements Screen {
   }
 
   /** Tracking tier: the best of researched tracking, radar programs, and a radar network within range (6.14). */
+  /** Resolver options for this run: tracking tier plus the SCI-FI standing capabilities (20.3). */
+  private resolveOpts(): ResolveOpts {
+    const tier = this.trackingTier();
+    if (this.run.mode === 'REALISTIC') return { trackingTier: tier };
+    const done = (id: string): number | null => this.run.programs.find((p) => p.id === id)?.completedAt ?? null;
+    return {
+      trackingTier: tier,
+      scifi: {
+        orbitalLaserW: this.run.effects.orbitalLaserW,
+        laserSince: done('ORBITAL_LASER_ARRAY'),
+        disassemblerTauYears: this.run.effects.disassemblerTauYears,
+        disassemblerSince: done('DISASSEMBLER_SWARM'),
+        netTier: this.run.netTier,
+      },
+    };
+  }
+
   private trackingTier(): number {
     return this.run.sandbox ? 2 : Math.max(this.run.trackingTier, this.run.effects.trackingTier);
   }
@@ -119,7 +154,8 @@ export class SystemScreen implements Screen {
   }
 
   private newRun(): void {
-    this.run = createRun(Date.now().toString(36).toUpperCase(), { sandbox: this.sandboxNext });
+    this.run = this.pendingRun ?? createRun(Date.now().toString(36).toUpperCase(), { sandbox: this.sandboxNext });
+    this.pendingRun = null;
     this.sandboxNext = false;
     this.startRound();
   }
@@ -133,11 +169,33 @@ export class SystemScreen implements Screen {
     // The run's networks (programs may have added some) drive discovery; the world keeps the live copy.
     if (this.run.networks.active.length === 0) this.run.networks = { active: [...this.world.networks.active], since: {} };
     this.world.networks = this.run.networks;
-    this.world.threat = generateThreat(roundRng(seed, round), this.world, round);
+    const rng = roundRng(seed, round);
+    if (this.run.spawnNext) {
+      const sc = scenarioById(this.run.spawnNext);
+      this.world.threat = sc ? spawnScenario(sc, this.world, rng) : generateThreat(rng, this.world, round);
+      this.run.spawnNext = null;
+    } else if (this.run.leadTimeNext !== null) {
+      // LEADTIME n: the plain draw with the lead forced (the clock starts now).
+      const th = generateThreat(rng, this.world, round, 0, { skipDiscovery: true, scifi: this.run.mode !== 'REALISTIC' });
+      // Re-time: keep the geometry, move the impact epoch by shifting the epoch of everything (world.t is 0 here).
+      const shift = th.tImpact - this.run.leadTimeNext * YEAR;
+      for (const p of this.world.planets) (p as { elements: typeof p.elements }).elements = shiftEpoch(p.elements, shift);
+      this.world.threat = { ...th, elements: shiftEpoch(th.elements, shift), tImpact: th.tImpact - shift };
+      this.run.leadTimeNext = null;
+    } else {
+      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC' });
+    }
+    if (this.run.mode !== 'REALISTIC' && this.run.economy.perYear < KNOBS.BUDGET_PER_YEAR * budgetScale(this.run.mode)) {
+      // SCI-FI and beyond: budget scale x10 (21.2), applied once.
+      this.run.economy.perYear *= budgetScale(this.run.mode);
+      this.run.economy.start *= budgetScale(this.run.mode);
+    }
+    this.mv = null;
+    this.glitch = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
     this.run.evacuatedAt = null;
     saveRun(this.run, this.world, null);
     this.missions = [];
-    this.result = resolveRound(this.world, this.missions, { trackingTier: this.trackingTier() });
+    this.result = resolveRound(this.world, this.missions, this.resolveOpts());
     this.requestMc();
     this.planetOpen = false;
     this.phase = 'planning';
@@ -155,11 +213,15 @@ export class SystemScreen implements Screen {
   }
 
   private plannerSession() {
-    if (!this.result) throw new Error('no result');
+    const branch = this.mv ? this.mv.branches[this.mv.selected] ?? null : null;
+    const world = branch ? branch.world : this.world;
+    const missions = branch ? branch.missions : this.missions;
+    const result = branch ? branch.result : this.result;
+    if (!result) throw new Error('no result');
     return {
-      world: this.world,
-      missions: this.missions,
-      result: this.result,
+      world,
+      missions,
+      result,
       launcherTier: this.run.launcherTier,
       impactorTier: this.run.impactorTier,
       navTier: this.run.navTier,
@@ -176,9 +238,14 @@ export class SystemScreen implements Screen {
       onCommit: (ms: Mission[]): boolean => {
         const cost = ms.reduce((a, m) => a + m.cost, 0);
         if (!spend(this.run.economy, this.world.t, cost)) return false;
-        this.missions.push(...ms);
-        this.result = resolveRound(this.world, this.missions, { trackingTier: this.trackingTier() });
-        this.requestMc();
+        if (branch) {
+          branch.missions.push(...ms);
+          resolveBranch(branch, this.resolveOpts());
+        } else {
+          this.missions.push(...ms);
+          this.result = resolveRound(this.world, this.missions, this.resolveOpts());
+          this.requestMc();
+        }
         this.planner.refresh(this.plannerSession());
         return true;
       },
@@ -186,15 +253,31 @@ export class SystemScreen implements Screen {
   }
 
   private finishRound(): void {
-    const res = this.result;
+    const res0 = this.result;
     const th = this.world.threat;
-    if (!res || !th) return;
+    if (!res0 || !th) return;
+    let res = res0;
+    if (this.mv) {
+      // MULTIVERSE: the round ends with the survival fraction; COLLAPSE (C) picked the main timeline already.
+      const sel = this.mv.branches[this.mv.selected];
+      if (sel) {
+        res = sel.result;
+        this.result = res;
+        this.missions = sel.missions;
+        this.note(`MULTIVERSE: ${(survivalFraction(this.mv) * 100).toFixed(0)}% OF BRANCHES SURVIVED. TIMELINE ${sel.index + 1} IS NOW THE MAIN ONE.`, 6);
+      }
+      this.mv = null;
+    }
     this.world.t = res.ca.tCa;
     setWarp(this.world, 0);
     const available = this.run.economy.start + (this.run.economy.perYear * this.world.t) / YEAR;
     // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
     const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
-    const survivable = res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY');
+    const survivable = (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield);
+    if (this.run.noclip && res.outcome === 'HIT') {
+      // NOCLIP: HOME is non-colliding this round; the resolver's numbers stand, the outcome is a miss.
+      this.result = { ...res, outcome: 'MISS' };
+    }
     this.score = scoreRound({
       round: this.run.round,
       energyMt: res.energy.energyMt,
@@ -221,7 +304,7 @@ export class SystemScreen implements Screen {
       saveRun(this.run, this.world, null);
     } else {
       this.phase = 'over';
-      this.rank = this.run.sandbox ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted });
+      this.rank = this.run.sandbox ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted }, boardFor(this.run.mode));
     }
   }
 
@@ -239,6 +322,28 @@ export class SystemScreen implements Screen {
     if (k.pressed('Slash')) {
       this.router.go('help');
       return;
+    }
+    if (this.console.isOpen) {
+      this.console.update(this.gameContext());
+      return;
+    }
+    if (k.pressed('Backquote')) {
+      setWarp(w, 0);
+      this.console.show();
+      return;
+    }
+    if (this.mv && this.phase === 'planning') {
+      for (let d = 1; d <= 9; d++) if (k.pressed(`Digit${d}`) && d <= this.mv.branches.length) this.mv.selected = d - 1;
+      if (k.pressed('KeyC')) {
+        const sel = this.mv.branches[this.mv.selected];
+        if (sel) {
+          this.world = sel.world;
+          this.missions = sel.missions;
+          this.result = sel.result;
+          this.note(`COLLAPSE: BRANCH ${sel.index + 1} IS THE MAIN TIMELINE.`, 4);
+          this.mv = null;
+        }
+      }
     }
     if (this.programs.isOpen) {
       this.programs.update(this.run);
@@ -327,6 +432,11 @@ export class SystemScreen implements Screen {
     // Programs run on the sim clock and drain the budget; completions change the networks for later rounds.
     const done = advancePrograms(this.run.programs, { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, w.t, w.t - before);
     for (const id of done) this.note(`PROGRAM COMPLETE: ${id}`, 4);
+    if (this.mv) {
+      tickMultiverse(this.mv, w.t - before);
+      if (w.t >= earliestEnd(this.mv)) this.finishRound();
+      return;
+    }
     if (this.result && w.t >= this.result.ca.tCa) this.finishRound();
   }
 
@@ -381,8 +491,11 @@ export class SystemScreen implements Screen {
       drawText(s, pl.name, px + pr + 5, py - 5, 10, { color: p.dim, glow: 0 });
     }
 
-    this.drawCraft();
-    this.drawThreat();
+    if (this.mv) this.drawMultiverse(this.mv);
+    else {
+      this.drawCraft();
+      this.drawThreat();
+    }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t);
@@ -394,6 +507,194 @@ export class SystemScreen implements Screen {
       drawText(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
+    this.console.render(this.gameContext());
+    if (this.glitch) glitchPass(s, w.t / 86400, this.run.mode === 'MULTIVERSE' ? 1.5 : 1, `SIM  FRAME ${(1000 / 60).toFixed(1)} MS  ENTITIES ${this.result ? this.result.bodies.length + this.missions.length : 0}  T ${w.t.toFixed(0)}`);
+  }
+
+  /** MULTIVERSE: tiles, one branch each, on the shared clock. */
+  private drawMultiverse(mv: Multiverse): void {
+    const s = this.s;
+    const p = s.palette;
+    const n = mv.branches.length;
+    const cols = Math.ceil(Math.sqrt(n));
+    const rows = Math.ceil(n / cols);
+    const m = 16;
+    const top = 70;
+    const tw = (s.width - 2 * m) / cols;
+    const th = (s.height - top - 60) / rows;
+    mv.branches.forEach((b, i) => {
+      const x0 = m + (i % cols) * tw;
+      const y0 = top + Math.floor(i / cols) * th;
+      const selected = i === mv.selected;
+      s.stroke([x0, y0, x0 + tw, y0, x0 + tw, y0 + th, x0, y0 + th], { closed: true, color: selected ? p.hot : p.dim, glow: selected ? 1 : 0 });
+      this.drawBranchTile(b, x0, y0, tw, th);
+      const alive = branchSurvives(b);
+      drawText(s, `${i + 1}  ${b.result.outcome}${b.extraResult ? ` + ${b.extraResult.outcome}` : ''}  ${alive ? 'SURVIVES' : 'LOST'}  MISSIONS ${b.missions.length}`, x0 + 6, y0 + 4, 9, { color: alive ? p.ink : p.hot, glow: 0.3 });
+    });
+    drawText(s, `MULTIVERSE X${n}   SURVIVAL ${(survivalFraction(mv) * 100).toFixed(0)}%   DIGITS SELECT   P PLANS THE SELECTED BRANCH   C COLLAPSE   WORMHOLE IN THE CONSOLE`, s.width / 2, s.height - 44, 11, { align: 'center', color: p.hot, glow: 0.8 });
+  }
+
+  private drawBranchTile(b: Branch, x0: number, y0: number, tw: number, th: number): void {
+    const s = this.s;
+    const p = s.palette;
+    const w = b.world;
+    const cx = x0 + tw / 2;
+    const cy = y0 + th / 2;
+    const base = (Math.min(tw, th) / 2) * 0.9;
+    const proj = (x: number, y: number): [number, number] => {
+      const r = Math.hypot(x, y);
+      const rs = (Math.sqrt(r / AU) / 2.5) * base;
+      const f = r > 0 ? rs / r : 0;
+      return [cx + x * f, cy - y * f];
+    };
+    s.circle(cx, cy, 2, { color: p.hot, glow: 0.8 });
+    for (const pl of w.planets) {
+      const pts = orbitPoints(pl.elements, 64);
+      const buf: number[] = [];
+      for (let i = 0; i < pts.length; i += 2) buf.push(...proj(pts[i] as number, pts[i + 1] as number));
+      s.stroke(buf, { closed: true, color: p.dim, glow: 0, width: 1, alpha: 0.6 });
+      const st = planetState(w, pl);
+      const [px, py] = proj(st.r.x, st.r.y);
+      s.circle(px, py, pl.id === 'HOME' ? 2.5 : 1.5, { color: pl.id === 'HOME' ? p.hot : p.ink, glow: 0.5 });
+    }
+    for (const body of b.result.bodies.filter((q) => bodyAlive(q, w.t))) {
+      const st = propagate(elementsAt(body.segments, w.t), w.star.mu, w.t);
+      const [tx, ty] = proj(st.r.x, st.r.y);
+      s.circle(tx, ty, body.role === 'FRAGMENT' ? 1 : 2.5, { color: body.harmless ? p.dim : p.hot, glow: 0.6 });
+    }
+    if (b.extraThreat && b.extraResult) {
+      const st = propagate(elementsAt(b.extraResult.segments, w.t), w.star.mu, w.t);
+      const [tx, ty] = proj(st.r.x, st.r.y);
+      s.circle(tx, ty, 2.5, { color: p.hot, glow: 1, dash: [2, 2] });
+    }
+    for (const mi of b.result.missionsResolved) {
+      if (w.t < mi.launchTime || w.t >= mi.arrivalTime) continue;
+      const pos = craftPosition(mi, w.star.mu, w.t);
+      if (pos) {
+        const [qx, qy] = proj(pos.x, pos.y);
+        s.dot(qx, qy, 2, p.ink);
+      }
+    }
+  }
+
+  /** The console's hooks into the round (game/console.ts GameContext). */
+  private gameContext(): GameContext {
+    const reresolve = (): void => {
+      if (!this.world.threat) return;
+      this.result = resolveRound(this.world, this.missions, this.resolveOpts());
+      this.requestMc();
+      this.threatOrbitCache = null;
+      this.orbitCache.clear();
+    };
+    return {
+      run: this.run,
+      round: {
+        hasThreat: !!this.world.threat,
+        teleport: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          // 1 AU along track: advance the mean anomaly by the time it takes to travel 1 AU.
+          const st = propagate(th.elements, this.world.star.mu, this.world.t);
+          const v = Math.hypot(st.v.x, st.v.y);
+          const n = Math.sqrt(this.world.star.mu / th.elements.a ** 3);
+          this.world.threat = { ...th, elements: { ...th.elements, M0: th.elements.M0 + n * (AU / v) } };
+          reresolve();
+          return `${th.name} MOVED 1 AU ALONG ITS TRACK. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        observe: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          const rng = new Rng(hashSeed(`${this.run.seed}#observe#${this.run.round}#${this.world.t}`));
+          const miss = rng.chance(1 / Math.E);
+          const n = Math.sqrt(this.world.star.mu / th.elements.a ** 3);
+          // A miss: nudge the phase by six hours of travel (well past b_crit); else re-roll the shape only.
+          this.world.threat = miss ? { ...th, elements: { ...th.elements, M0: th.elements.M0 + n * 6 * 3600 } } : { ...th, shape: th.shape.map((v) => v * rng.float(0.9, 1.1)) };
+          reresolve();
+          return miss ? 'THE WAVEFUNCTION COLLAPSED TO A MISS.' : 'THE WAVEFUNCTION COLLAPSED TO THE SAME ORBIT. (P = 1/E PER OBSERVATION.)';
+        },
+        rewind: (years) => {
+          this.world.t = Math.max(0, this.world.t - Math.max(0, years) * YEAR);
+          return `CLOCK REWOUND TO ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}. KNOWLEDGE KEPT.`;
+        },
+        editG: (f) => {
+          (this.world as { star: { mu: number } }).star = { ...this.world.star, mu: this.world.star.mu * f };
+          this.glitch = true;
+          reresolve();
+          return `STAR MASS X${f}. PLANETS DRIFT. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        deleteThreat: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          this.world.threat = { ...th, D: 0.5, mass: 1 };
+          reresolve();
+          return `${th.name} DELETED. ${(th.mass * 9e16).toExponential(1)} J UNACCOUNTED FOR.`;
+        },
+        tractorBeam: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          const st = propagate(th.elements, this.world.star.mu, this.world.t);
+          const m: Mission = { id: `BEAM-${this.missions.length + 1}`, archetype: 'SLOW_PUSH', launcherTier: 1, impactorTier: 1, launchTime: this.world.t, arrivalTime: this.world.t + 1, impactorKg: 0, c3: 0, departureV: { x: 0, y: 0 }, arrivalV: st.v, interceptR: st.r, U: 0, cost: 0, committedAt: this.world.t, targetId: 'THREAT', push: { method: 'TRACTORBEAM', tier: 0, sign: 1, tauMax: th.tImpact }, dsmUsed: 0 };
+          this.missions.push(m);
+          reresolve();
+          return `1E6 N ON ${th.name} FROM NOW UNTIL ${formatCountdown(KNOBS.PUSH_END_MARGIN)}. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        singularity: () => {
+          this.run.shield = false;
+          this.phase = 'over';
+          this.scrub = 0;
+          this.rank = -1;
+          setWarp(this.world, 0);
+          return 'THE PROBE AND THE NEIGHBOURHOOD ARE GONE. ROUND OVER.';
+        },
+        planetThrusters: (dv) => {
+          const home = planetById(this.world, 'HOME');
+          const st = planetState(this.world, home);
+          const vm = Math.hypot(st.v.x, st.v.y) || 1;
+          const v = { x: st.v.x + (dv * st.v.x) / vm, y: st.v.y + (dv * st.v.y) / vm };
+          try {
+            (home as { elements: typeof home.elements }).elements = toElements(st.r, v, this.world.star.mu, this.world.t);
+          } catch {
+            return 'HOME WOULD LEAVE THE SYSTEM. REFUSED.';
+          }
+          reresolve();
+          return `HOME MOVED BY ${dv} M/S. PREDICTED ${this.result?.outcome ?? '?'}.`;
+        },
+        shrink: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          this.world.threat = { ...th, D: th.D * 0.1, mass: sphereMass(th.D * 0.1, th.type.density) };
+          reresolve();
+          return `${th.name} IS NOW ${(th.D * 0.1).toFixed(0)} M.`;
+        },
+        multiverse: (n) => {
+          if (!this.world.threat || !this.result) return 'NO ROUND.';
+          this.mv = forkMultiverse(this.world, this.missions, n, this.resolveOpts());
+          this.glitch = true;
+          return `FORKED INTO ${n} BRANCHES. DIGITS SELECT, P PLANS THE SELECTED BRANCH, C COLLAPSES.`;
+        },
+        wormhole: () => (this.mv ? wormhole(this.mv, this.resolveOpts()) : 'NO BRANCHES: TYPE MULTIVERSE N FIRST.'),
+        revealNow: () => {
+          if (!this.result) return '';
+          const betas = this.result.events.filter((e) => e.kind === 'IMPACT').map((e) => (e.kind === 'IMPACT' ? `${e.missionId} BETA ${e.beta.toFixed(2)}` : ''));
+          return betas.length ? betas.join('   ') : 'NO IMPACTS PLANNED YET.';
+        },
+        completeAllPrograms: (scifi) => {
+          const states = createPrograms(scifi ? 'SCIFI' : 'REALISTIC');
+          for (const st of states) {
+            const existing = this.run.programs.find((p2) => p2.id === st.id);
+            const target = existing ?? st;
+            if (!existing) this.run.programs.push(st);
+            if (target.completedAt === null) {
+              target.progress = 1;
+              target.funding = 0;
+              target.completedAt = this.world.t;
+              applyEffects(programById(st.id), { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, this.world.t);
+            }
+          }
+          return `${states.length} PROGRAMS COMPLETE.`;
+        },
+      },
+    };
   }
 
   /** Spacecraft: a faint planned path (every leg), a triangle and a short trail while in flight. */
@@ -500,7 +801,7 @@ export class SystemScreen implements Screen {
     if (!th) return;
     const el = this.result ? elementsAt(this.result.segments, w.t) : th.elements;
     if (!this.threatOrbitCache || this.threatOrbitCache.el !== el) this.threatOrbitCache = { el, pts: orbitPoints(el, 360) };
-    this.polyline(this.threatOrbitCache.pts, { closed: true, color: p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] });
+    this.polyline(this.threatOrbitCache.pts, { closed: el.e < 1, color: p.ink, glow: 0, width: 1, alpha: 0.55, dash: [3, 6] });
 
     if (this.ghost) {
       const [gx, gy] = this.project(this.ghost.x, this.ghost.y);
@@ -554,7 +855,7 @@ export class SystemScreen implements Screen {
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
-    drawText(s, `THREAT BRIEF  ${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, s.width / 2, m, 12, { align: 'center' });
+    drawText(s, `THREAT BRIEF  ${th.name}  ${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, s.width / 2, m, 12, { align: 'center' });
     const margin = res.ca.marginRadii;
     const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
     // Tracking uncertainty (6.14): a Gaussian over the impact parameter with sigma_b = 3 sigma_v T_rem.
@@ -570,11 +871,11 @@ export class SystemScreen implements Screen {
     const passed = res.events.filter((e) => e.t <= w.t).slice(-6);
     let ly = s.height - m - 50 - passed.length * 15;
     for (const e of passed) {
-      drawText(s, formatEvent(e, th.tImpact, w.t), m, ly, 10, { color: p.dim, glow: 0 });
+      drawText(s, formatEvent(e, th.tImpact, this.run.reveal ? undefined : w.t), m, ly, 10, { color: p.dim, glow: 0 });
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   ` CONSOLE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {

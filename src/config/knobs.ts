@@ -162,6 +162,26 @@ export const KNOBS = {
   GROUND_LASER_ATM_EFF: 0.3,
   GROUND_LASER_RANGE_AU: 0.05,
   GROUND_LASER_POWER_W: 1e6,
+  /** 6.13 and 20.3 (SCI-FI): net tug thrust by net tier, Q* multiplier for a netted body, capture size; fusion tug;
+   *  Orion pulse unit and period; DE-STAR array power and range. */
+  NET_TUG_N: [10, 50, 200] as readonly number[],
+  NET_QSTAR_MULT: 3,
+  NET_CAPTURE_D: 60,
+  FUSION_TUG_N: 50000,
+  ORION_PULSE_NS: 1e7,
+  ORION_PULSE_PERIOD_S: 10,
+  DE_STAR_POWER_W: 1e9,
+  DE_STAR_RANGE_AU: 0.3,
+  /** DE-STAR fires until this long before impact, s (the push-mission margin is far too early for a 0.3 AU reach). */
+  DE_STAR_END_MARGIN: 1 * DAY,
+  /** 21.2 SCI-FI round types: flavor shares per round, interstellar v_inf range (km/s), long-period comet
+   *  apoapsis cap (AU), giant body diameter (m). */
+  SCIFI_SHARE_INTERSTELLAR: 0.3,
+  SCIFI_SHARE_LONG_PERIOD: 0.25,
+  SCIFI_SHARE_GIANT: 0.2,
+  INTERSTELLAR_VINF_KMS: [50, 90] as readonly [number, number],
+  LONG_PERIOD_MAX_APO_AU: 500,
+  GIANT_D_M: 5000,
   /** Cost of a slow-push package by tier. */
   COST_SLOW_PUSH: [4, 6, 12] as readonly number[],
   /** Push arcs end this long before impact so the debrief can see the result, s. */

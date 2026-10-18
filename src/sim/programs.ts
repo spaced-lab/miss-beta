@@ -13,7 +13,7 @@ import { YEAR } from '../physics/constants';
 import type { Economy } from '../game/economy';
 import { yearOf } from './detection';
 
-export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT';
+export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER';
 
 export interface Effect {
   kind: EffectKind;
@@ -67,6 +67,13 @@ export interface RunEffects {
   sigmaVMult: number;
   /** Network coverage overrides. */
   pCover: Record<string, number>;
+  /** SCI-FI (20.3): pre-accelerated sail impactors on hand; orbital laser power (W) or 0; lunar driver C3 (km^2/s^2) or 0;
+   *  fusion tug thrust (N) or 0; disassembler time constant (years) or 0. */
+  sailDepot: number;
+  orbitalLaserW: number;
+  lunarDriverC3: number;
+  fusionTugN: number;
+  disassemblerTauYears: number;
 }
 
 export function defaultEffects(): RunEffects {
@@ -86,6 +93,11 @@ export function defaultEffects(): RunEffects {
     groundLaser: false,
     sigmaVMult: 1,
     pCover: {},
+    sailDepot: 0,
+    orbitalLaserW: 0,
+    lunarDriverC3: 0,
+    fusionTugN: 0,
+    disassemblerTauYears: 0,
   };
 }
 
@@ -155,6 +167,21 @@ export function applyEffects(def: ProgramDef, ctx: ProgramsContext, t: number): 
         break;
       case 'SIGMA_V_MULT':
         ctx.effects.sigmaVMult *= v;
+        break;
+      case 'SAIL_DEPOT':
+        ctx.effects.sailDepot += v;
+        break;
+      case 'ORBITAL_LASER':
+        ctx.effects.orbitalLaserW = Math.max(ctx.effects.orbitalLaserW, v);
+        break;
+      case 'LUNAR_DRIVER':
+        ctx.effects.lunarDriverC3 = Math.max(ctx.effects.lunarDriverC3, v);
+        break;
+      case 'FUSION_TUGS':
+        ctx.effects.fusionTugN = Math.max(ctx.effects.fusionTugN, v);
+        break;
+      case 'DISASSEMBLER':
+        ctx.effects.disassemblerTauYears = v;
         break;
     }
   }

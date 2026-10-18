@@ -130,10 +130,11 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M7: Modes, cheats, fiction
 
-- [ ] `src/game/modes.ts` nesting (21), `cheats.ts` extended with the codes of 22.2 incl. SPAWN scenarios (`config/scenarios.json`) and DART; `civilization level`.
-- [ ] SCI-FI methods/programs (20.3, 19); `src/physics/net.ts`.
-- [ ] CONSOLE screen (`~`): command table, FICTION commands of 20.4 with their forbidding-quantity lines (`src/game/fiction.ts`), knobs editor; `multiverse.ts` with tiled render and COLLAPSE; `render/glitch.ts`.
-- [ ] Tests MODES, SINGULARITY numbers, MULTIVERSE x9 >= 30 fps timing test.
+- [x] `src/game/modes.ts` nesting (21), the codes of 22.2 in `src/game/console.ts` incl. SPAWN scenarios (`config/scenarios.json`, `sim/scenarios.ts`) and DART; `civilizationLevel`.
+- [x] SCI-FI methods/programs (20.3, 19): net capture, DE-STAR and disassembler as resolver standing capabilities (`ResolveOpts.scifi`); hyperbolic Kepler branch for INTERSTELLAR rounds (`roundGen` flavors). No separate `physics/net.ts`: the net is a push method plus the capture rule.
+- [x] CONSOLE overlay (`): command table with the FICTION commands and their forbidding lines (in `console.ts`, no separate fiction.ts), knobs editor; `multiverse.ts` with tiled render, COLLAPSE and WORMHOLE; `render/glitch.ts`.
+- [x] Tests MODES, SINGULARITY numbers, MULTIVERSE x9 timing, SCI-FI flavors and capabilities, hyperbolic vectors shared with Python.
+- [ ] Follow-ups: civilization level auto-entering SCI-FI (22.3) at the end of a run; DART tutorial code is a stub (prints the mission numbers); multiverse branch variants beyond beta/fragment draws (different threats) are only via WORMHOLE.
 
 ## M8: Polish
 

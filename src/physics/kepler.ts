@@ -6,15 +6,18 @@
 //       M0 (mean anomaly at epoch t0, rad), t0 (s). Newton's method on E - e sin E = M with the
 //       e < 0.8 / pi start of GAME_PLAN 6.2, tolerance 1e-14 (the plan says 1e-12; tighter costs one
 //       iteration and lets the energy test hold to 1e-12 relative). Python mirror: pymiss/physics/kepler.py.
+//       Hyperbolic branch (M7, SCI-FI interstellar rounds, GAME_PLAN 21.2): a < 0 and e > 1; the mean
+//       anomaly is unwrapped, M = e sinh H - H is solved for H by Newton, r = a (1 - e cosh H) (positive
+//       because a < 0), and the velocity uses k = sqrt(-mu a) / r. Parabolic (e = 1) is not representable.
 // LORE: O6 (Kepler), O7 (elements), O8 (vis-viva), O9 (anomalies)
 
 import type { Vec2 } from '../util/vec';
 import { wrapAngle } from '../util/vec';
 
 export interface Elements {
-  /** Semi-major axis, m. */
+  /** Semi-major axis, m; negative for a hyperbola. */
   readonly a: number;
-  /** Eccentricity, 0 <= e < 1 for v1. */
+  /** Eccentricity, 0 <= e < 1 bound, e > 1 hyperbolic (a < 0). */
   readonly e: number;
   /** Longitude of periapsis, rad, measured counter-clockwise from +x. */
   readonly w: number;
@@ -30,7 +33,7 @@ export interface State {
 }
 
 export interface PropagatedState extends State {
-  /** Eccentric anomaly, rad. */
+  /** Eccentric anomaly, rad (the hyperbolic anomaly H when e > 1). */
   readonly E: number;
   /** True anomaly, rad. */
   readonly nu: number;
@@ -43,12 +46,39 @@ export interface PropagatedState extends State {
  * Example: a = 1 AU, mu = MU_SUN -> 1.991e-7 rad/s (one turn in 365.25 d).
  */
 export function meanMotion(mu: number, a: number): number {
-  return Math.sqrt(mu / (a * a * a));
+  const aa = Math.abs(a);
+  return Math.sqrt(mu / (aa * aa * aa));
 }
 
-/** Orbital period T = 2 pi sqrt(a^3 / mu), s. Example: a = 1 AU -> 3.1558e7 s. */
+/** Orbital period T = 2 pi sqrt(a^3 / mu), s (Infinity for a hyperbola). Example: a = 1 AU -> 3.1558e7 s. */
 export function period(mu: number, a: number): number {
-  return (2 * Math.PI) / meanMotion(mu, a);
+  return a > 0 ? (2 * Math.PI) / meanMotion(mu, a) : Infinity;
+}
+
+/**
+ * Solve the hyperbolic Kepler equation e sinh H - H = M for H by Newton's method.
+ * Start: H0 = asinh(M / e) (exact for e sinh H >> H). Example: M = 1, e = 1.5 -> H = 1.16164 (check: 1.5 sinh H - H = 1).
+ */
+export function solveKeplerHyperbolic(M: number, e: number, tol = 1e-14, maxIter = 50): number {
+  let H = Math.asinh(M / e);
+  for (let i = 0; i < maxIter; i++) {
+    const f = e * Math.sinh(H) - H - M;
+    const fp = e * Math.cosh(H) - 1;
+    const dH = f / fp;
+    H -= dH;
+    if (Math.abs(dH) < tol * Math.max(1, Math.abs(H))) break;
+  }
+  return H;
+}
+
+/** True anomaly from hyperbolic anomaly: nu = 2 atan(sqrt((e+1)/(e-1)) tanh(H/2)). */
+export function trueAnomalyFromH(H: number, e: number): number {
+  return 2 * Math.atan(Math.sqrt((e + 1) / (e - 1)) * Math.tanh(H / 2));
+}
+
+/** Hyperbolic anomaly from true anomaly: H = 2 atanh(sqrt((e-1)/(e+1)) tan(nu/2)); |nu| must be below acos(-1/e). */
+export function hyperbolicFromTrue(nu: number, e: number): number {
+  return 2 * Math.atanh(Math.sqrt((e - 1) / (e + 1)) * Math.tan(nu / 2));
 }
 
 /**
@@ -88,6 +118,7 @@ export function eccentricFromTrue(nu: number, e: number): number {
  */
 export function propagate(el: Elements, mu: number, t: number): PropagatedState {
   const n = meanMotion(mu, el.a);
+  if (el.e > 1) return propagateHyperbolic(el, mu, t, n);
   const M = wrapAngle(el.M0 + n * (t - el.t0));
   const E = solveKepler(M, el.e);
   const nu = trueAnomalyFromE(E, el.e);
@@ -108,6 +139,28 @@ export function propagate(el: Elements, mu: number, t: number): PropagatedState 
   };
 }
 
+/** The e > 1 branch of propagate: M unwrapped, H from the hyperbolic Kepler equation, r = a (1 - e cosh H). */
+function propagateHyperbolic(el: Elements, mu: number, t: number, n: number): PropagatedState {
+  const M = el.M0 + n * (t - el.t0);
+  const H = solveKeplerHyperbolic(M, el.e);
+  const nu = trueAnomalyFromH(H, el.e);
+  const r = el.a * (1 - el.e * Math.cosh(H));
+  const xp = r * Math.cos(nu);
+  const yp = r * Math.sin(nu);
+  const k = Math.sqrt(-mu * el.a) / r;
+  const vxp = -k * Math.sinh(H);
+  const vyp = k * Math.sqrt(el.e * el.e - 1) * Math.cosh(H);
+  const cw = Math.cos(el.w);
+  const sw = Math.sin(el.w);
+  return {
+    r: { x: xp * cw - yp * sw, y: xp * sw + yp * cw },
+    v: { x: vxp * cw - vyp * sw, y: vxp * sw + vyp * cw },
+    E: H,
+    nu,
+    M,
+  };
+}
+
 /**
  * Vis-viva: v = sqrt(mu (2/r - 1/a)), m/s.
  * Example: circular at 1 AU -> 29.78 km/s.
@@ -121,21 +174,24 @@ export function specificEnergy(mu: number, r: number, v: number): number {
   return (v * v) / 2 - mu / r;
 }
 
-/** Periapsis and apoapsis distances, m. */
+/** Periapsis and apoapsis distances, m (apoapsis is Infinity for a hyperbola). */
 export const periapsis = (el: Elements): number => el.a * (1 - el.e);
-export const apoapsis = (el: Elements): number => el.a * (1 + el.e);
+export const apoapsis = (el: Elements): number => (el.e < 1 ? el.a * (1 + el.e) : Infinity);
 
 /**
  * Sampled orbit outline for drawing: n points in the system frame as a flat [x0,y0,...] array, evenly
- * spaced in true anomaly. Pure geometry: r(nu) = a (1 - e^2) / (1 + e cos nu).
+ * spaced in true anomaly. Pure geometry: r(nu) = a (1 - e^2) / (1 + e cos nu). A hyperbola is sampled
+ * as an open arc between the true anomalies where r = rMax (default 12 AU); the caller strokes it open.
  */
-export function orbitPoints(el: Elements, n = 128): Float64Array {
+export function orbitPoints(el: Elements, n = 128, rMax = 12 * 1.495978707e11): Float64Array {
   const out = new Float64Array(n * 2);
   const p = el.a * (1 - el.e * el.e);
   const cw = Math.cos(el.w);
   const sw = Math.sin(el.w);
+  // Open arc for a hyperbola: cos(nuLim) = (p / rMax - 1) / e.
+  const nuLim = el.e > 1 ? Math.acos(Math.max(-1, Math.min(1, (p / rMax - 1) / el.e))) : Math.PI;
   for (let i = 0; i < n; i++) {
-    const nu = (i / n) * 2 * Math.PI;
+    const nu = el.e > 1 ? -nuLim + (i / (n - 1)) * 2 * nuLim : (i / n) * 2 * Math.PI;
     const r = p / (1 + el.e * Math.cos(nu));
     const xp = r * Math.cos(nu);
     const yp = r * Math.sin(nu);
