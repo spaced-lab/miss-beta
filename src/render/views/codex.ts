@@ -81,10 +81,10 @@ export class CodexScreen implements Screen {
       drawText(s, t, x, m, 14, { color: i === this.tab ? p.hot : p.dim, glow: i === this.tab ? 1.5 : 0 });
       x += 140;
     });
-    drawText(s, 'CODEX   TAGS: REAL = flown or lab-verified   PROPOSED = published engineering   SPECULATIVE = physics ok, technology not   FICTION = breaks physics'.toUpperCase(), s.width - m, m, 10, { align: 'right', color: p.dim, glow: 0 });
+    drawText(s, 'TAGS: REAL = FLOWN OR LAB-VERIFIED   PROPOSED = PUBLISHED ENGINEERING   SPECULATIVE = PHYSICS OK, TECHNOLOGY NOT   FICTION = BREAKS PHYSICS', m, m + 18, 9, { color: p.dim, glow: 0 });
     const rows = this.rows();
     const lineH = 15;
-    const listTop = m + 30;
+    const listTop = m + 36;
     const visible = Math.floor((s.height - listTop - 120) / lineH);
     const start = Math.max(0, Math.min(this.sel - Math.floor(visible / 2), rows.length - visible));
     let y = listTop;
