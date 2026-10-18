@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M8: TUTORIAL round 0 (eight guided steps on a fixed 100 m rock, auto-opens on first launch, Tab skips,
+  Space at the debrief starts round 1 for real), OPTIONS screen (seven color modes, CRT, glow, sound, units,
+  reduce motion, text size, learning level, persisted), CRT pass, attract mode (a seeded round plans and
+  resolves itself behind the title menu), DAILY RUN, main-game sound cues (menu, commit, launch, impact,
+  breakup, approach), touch pan and pinch zoom, a frame-cost bench.
+
 - M7: modes (REALISTIC > SCIFI > SIMULATION > MULTIVERSE) with their leaderboards, the console (`) with the
   public cheat codes and SPAWN scenarios, the FICTION commands and their forbidding quantities, the knobs
   editor, SCI-FI programs and standing capabilities (CNT net, DE-STAR in range, disassembler decay), the

@@ -111,7 +111,7 @@ describe('MODES (GAME_PLAN 21)', () => {
 
 describe('SPAWN scenarios', () => {
   it('every scenario builds a threat that impacts when ignored; sunward ones are NO WARNING', () => {
-    expect(SCENARIOS.map((s) => s.id)).toEqual(['CHELYABINSK', 'TUNGUSKA', 'YR4', 'APOPHIS', 'BENNU', 'DIDYMOS', 'CHICXULUB']);
+    expect(SCENARIOS.map((s) => s.id)).toEqual(['TUTORIAL', 'CHELYABINSK', 'TUNGUSKA', 'YR4', 'APOPHIS', 'BENNU', 'DIDYMOS', 'CHICXULUB']);
     for (const sc of SCENARIOS) {
       const w = createWorld(`SC-${sc.id}`, 1);
       w.threat = spawnScenario(sc, w, roundRng(`SC-${sc.id}`, 1));

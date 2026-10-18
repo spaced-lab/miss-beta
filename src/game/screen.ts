@@ -11,7 +11,7 @@ export interface Screen {
   render(): void;
 }
 
-export type ScreenId = 'title' | 'minigame' | 'system' | 'leaderboard' | 'codex' | 'help';
+export type ScreenId = 'title' | 'minigame' | 'system' | 'leaderboard' | 'codex' | 'help' | 'options';
 
 export interface Router {
   go(id: ScreenId): void;

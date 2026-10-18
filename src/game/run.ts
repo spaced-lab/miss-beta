@@ -49,6 +49,8 @@ export interface RunState {
   cheatsUsed: string[];
   /** Learning mode: unlimited budget and research, every REALISTIC tech, full tracking; never recorded. */
   sandbox: boolean;
+  /** The guided first round (GAME_PLAN 25): fixed seed, never recorded or saved. */
+  tutorial: boolean;
   mode: Mode;
   highestMode: Mode;
   civLevel: number;
@@ -65,7 +67,7 @@ export interface RunState {
   shield: boolean;
 }
 
-export function createRun(seed: string, opts: { sandbox?: boolean } = {}): RunState {
+export function createRun(seed: string, opts: { sandbox?: boolean; tutorial?: boolean } = {}): RunState {
   const run: RunState = {
     seed,
     round: 1,
@@ -98,6 +100,7 @@ export function createRun(seed: string, opts: { sandbox?: boolean } = {}): RunSt
     history: [],
     cheatsUsed: [],
     sandbox: opts.sandbox ?? false,
+    tutorial: opts.tutorial ?? false,
     mode: 'REALISTIC',
     highestMode: 'REALISTIC',
     civLevel: 0,

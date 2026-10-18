@@ -138,7 +138,9 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M8: Polish
 
-- [ ] `render/crt.ts` (scanlines, barrel, flicker, all toggleable; reduce-motion), WebAudio bleeps, attract mode, daily seed, COMPRESSED scale, gamepad/touch, performance pass, DART tutorial round, Hershey font evaluation (option 7 above).
+- [x] `render/crt.ts` (scanlines, vignette instead of barrel, flicker; reduce-motion), `audio/ui.ts` bleeps, attract mode (`game/attract.ts` + `render/miniSystem.ts`), DAILY RUN seed, COMPRESSED scale (S, since M1), touch pan/pinch, `bench/frame.bench.ts` performance pass, TUTORIAL round 0 (`game/tutorial.ts`, GAME_PLAN 25), OPTIONS screen (`game/settings.ts`).
+- [x] Hershey font evaluation: not adopted. The hand-built stroke font is 1.9 KB of glyph data and already matches the look; Hershey Simplex would add about 30 KB and lower-case glyphs the UI does not use. Revisit if the Learning Center (M9) needs lower case for prose.
+- [ ] Deferred: gamepad (IDEAS.md), the DART code as a full second tutorial (today it prints the mission numbers), units IMPERIAL in readouts, a WebGL barrel pass (M10).
 
 ## M9: Learning Center and lore
 

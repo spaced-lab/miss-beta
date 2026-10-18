@@ -71,6 +71,7 @@ export function runFromSave(sf: SaveFile): RunState {
   run.cheatsUsed = [...sf.cheats_used];
   run.assisted = sf.cheats_used.length > 0;
   run.sandbox = sf.cheats_used.includes('SANDBOX');
+  run.tutorial = false;
   run.mode = sf.mode;
   run.highestMode = sf.highest_mode;
   run.civLevel = sf.civ_level;

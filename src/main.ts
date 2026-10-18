@@ -15,6 +15,10 @@ import { LeaderboardScreen } from './render/views/leaderboard';
 import { SystemScreen } from './render/views/system';
 import { TitleScreen } from './render/views/title';
 import { importRun } from './game/savegame';
+import { applySettings, loadSettings } from './game/settings';
+import { crtPass } from './render/crt';
+import { OptionsScreen } from './render/views/options';
+import { UiSfx } from './audio/ui';
 import { Input } from './ui/input';
 
 function boot(): void {
@@ -23,6 +27,9 @@ function boot(): void {
 
   const surface = createSurface(canvas, PALETTES.PHOSPHOR, 'understroke');
   const keys = new Input(window);
+  const settings = loadSettings();
+  applySettings(settings, surface);
+  const sfx = new UiSfx();
 
   let current: Screen | null = null;
   const screens = new Map<ScreenId, Screen>();
@@ -39,9 +46,10 @@ function boot(): void {
       current.enter();
     },
   };
-  screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null));
+  screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null, sfx));
   screens.set('minigame', new MinigameScreen(surface, keys, router));
-  screens.set('system', new SystemScreen(surface, keys, router));
+  screens.set('system', new SystemScreen(surface, keys, router, settings, sfx));
+  screens.set('options', new OptionsScreen(surface, keys, router, settings));
   screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
   screens.set('codex', new CodexScreen(surface, keys, router));
   const help = new HelpScreen(surface, keys, router);
@@ -74,7 +82,7 @@ function boot(): void {
 
   // Deep link for quick testing: index.html#minigame
   const hash = location.hash.slice(1);
-  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' || hash === 'help' ? hash : 'title');
+  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' || hash === 'help' || hash === 'options' ? hash : 'title');
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.
@@ -94,9 +102,12 @@ function boot(): void {
     const dt = now - last;
     last = now;
     const t0 = performance.now();
+    sfx.enabled = settings.sound;
+    if (keys.anyKeyPressed()) sfx.unlock();
     current?.update(dt);
     keys.endFrame();
     current?.render();
+    if (settings.crt) crtPass(surface, { scanlines: true, vignette: true, flicker: !settings.reduceMotion }, now / 1000);
     if (stats.stale) drawText(surface, 'NEW BUILD AVAILABLE: REFRESH TO LOAD IT', surface.width / 2, 4, 11, { align: 'center', color: surface.palette.hot, glow: 1 });
     const cpu = performance.now() - t0;
     stats.cpuMs = stats.cpuMs * 0.9 + cpu * 0.1;

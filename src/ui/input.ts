@@ -54,6 +54,38 @@ export class Input {
     target.addEventListener('mouseup', () => {
       this.dragging = false;
     });
+    // Touch (GAME_PLAN 13 mouse/touch): one finger pans, two fingers pinch-zoom (folded into the wheel
+    // accumulator so screens need no new code: zoom = exp(-wheel * 0.0015), so wheel = -ln(ratio) / 0.0015).
+    let pinch = 0;
+    const dist = (t: TouchList): number => (t.length < 2 ? 0 : Math.hypot((t[0] as Touch).clientX - (t[1] as Touch).clientX, (t[0] as Touch).clientY - (t[1] as Touch).clientY));
+    target.addEventListener('touchstart', (e) => {
+      const t = e.touches;
+      if (t.length === 1) {
+        this.dragging = true;
+        this.lastMouse = { x: (t[0] as Touch).clientX, y: (t[0] as Touch).clientY };
+      } else if (t.length === 2) {
+        this.dragging = false;
+        pinch = dist(t);
+      }
+    }, { passive: true });
+    target.addEventListener('touchmove', (e) => {
+      const t = e.touches;
+      if (t.length === 1 && this.dragging) {
+        const a = t[0] as Touch;
+        this.dragAcc.x += a.clientX - this.lastMouse.x;
+        this.dragAcc.y += a.clientY - this.lastMouse.y;
+        this.lastMouse = { x: a.clientX, y: a.clientY };
+      } else if (t.length === 2 && pinch > 0) {
+        const d = dist(t);
+        if (d > 0) this.wheelAcc += -Math.log(d / pinch) / 0.0015;
+        pinch = d;
+      }
+      e.preventDefault();
+    }, { passive: false });
+    target.addEventListener('touchend', (e) => {
+      if (e.touches.length === 0) this.dragging = false;
+      pinch = 0;
+    });
   }
 
   /** Accumulated wheel delta since the last call (positive = scroll down). Clears it. */

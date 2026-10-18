@@ -8,6 +8,11 @@
 import { hasSavedRun, loadRun } from '../../game/savegame';
 import { createRun, type RunState } from '../../game/run';
 import { ConsoleOverlay } from './console';
+import { loadJson } from '../../game/persistence';
+import { TUTORIAL_SEEN_KEY } from '../../game/tutorial';
+import { buildAttract, dailySeed, tickAttract, type AttractRound } from '../../game/attract';
+import { drawMiniSystem } from '../miniSystem';
+import type { UiSfx } from '../../audio/ui';
 import type { Router, Screen } from '../../game/screen';
 import type { SystemScreen } from './system';
 import type { Input } from '../../ui/input';
@@ -30,7 +35,10 @@ export class TitleScreen implements Screen {
   /** Codes typed on the title apply to the next NEW RUN (GAME_PLAN 22.2). */
   pendingRun: RunState | null = null;
 
-  constructor(private readonly s: Surface, private readonly keys: Input, router: Router, private readonly getSystem: () => SystemScreen | null = () => null) {
+  private attract: AttractRound | null = null;
+  private attractN = 0;
+
+  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly getSystem: () => SystemScreen | null = () => null, private readonly sfx: UiSfx | null = null) {
     this.console = new ConsoleOverlay(s, keys);
     this.items = [
       {
@@ -55,6 +63,21 @@ export class TitleScreen implements Screen {
         },
       },
       {
+        label: 'DAILY RUN  (TODAY\'S SEED, SAME FOR EVERYONE)',
+        hotkey: 'KeyD',
+        action: () => {
+          const sys = this.getSystem();
+          if (!sys) return;
+          sys.pendingRun = createRun(dailySeed());
+          router.go('system');
+        },
+      },
+      {
+        label: 'TUTORIAL  (GUIDED FIRST ROUND)',
+        hotkey: 'KeyT',
+        action: () => this.startTutorial(),
+      },
+      {
         label: 'CONTINUE',
         hotkey: 'KeyC',
         action: () => {
@@ -74,12 +97,31 @@ export class TitleScreen implements Screen {
       { label: 'LEADERBOARD', hotkey: 'KeyB', action: () => router.go('leaderboard') },
       { label: 'HOW TO PLAY', hotkey: 'KeyH', action: () => router.go('help') },
       { label: 'LEARN', hotkey: 'KeyL', action: null },
-      { label: 'OPTIONS', hotkey: 'KeyO', action: null },
+      { label: 'OPTIONS', hotkey: 'KeyO', action: () => router.go('options') },
     ];
   }
 
   enter(): void {
     this.sel = 0;
+    if (!this.attract) this.nextAttract();
+    // First launch opens the tutorial (GAME_PLAN 25); it can be skipped with Tab and replayed from the menu.
+    if (!loadJson(TUTORIAL_SEEN_KEY, (v): v is boolean => typeof v === 'boolean', false) && !hasSavedRun()) this.startTutorial();
+  }
+
+  /** A new self-playing round for the background; the seed walks so each visit differs. */
+  private nextAttract(): void {
+    try {
+      this.attract = buildAttract(`ATTRACT-${dailySeed()}-${this.attractN++}`);
+    } catch {
+      this.attract = null;
+    }
+  }
+
+  private startTutorial(): void {
+    const sys = this.getSystem();
+    if (!sys) return;
+    sys.tutorialNext = true;
+    this.router.go('system');
   }
   exit(): void {}
 
@@ -97,8 +139,15 @@ export class TitleScreen implements Screen {
       this.console.show();
       return;
     }
-    if (k.pressed('ArrowUp') || k.pressed('KeyW')) this.sel = (this.sel + this.items.length - 1) % this.items.length;
-    if (k.pressed('ArrowDown') || k.pressed('KeyS')) this.sel = (this.sel + 1) % this.items.length;
+    if (this.attract && tickAttract(this.attract, dtMs / 1000)) this.nextAttract();
+    if (k.pressed('ArrowUp') || k.pressed('KeyW')) {
+      this.sel = (this.sel + this.items.length - 1) % this.items.length;
+      this.sfx?.move();
+    }
+    if (k.pressed('ArrowDown') || k.pressed('KeyS')) {
+      this.sel = (this.sel + 1) % this.items.length;
+      this.sfx?.move();
+    }
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
       if (it && k.pressed(it.hotkey)) {
@@ -112,6 +161,7 @@ export class TitleScreen implements Screen {
   private activate(): void {
     const it = this.items[this.sel];
     if (!it) return;
+    this.sfx?.select();
     if (it.action) it.action();
     else {
       this.note = `${it.label} IS STILL BUILDING. SEE STATUS.MD`;
@@ -126,16 +176,19 @@ export class TitleScreen implements Screen {
     const cx = s.width / 2;
     const cy = s.height / 2;
 
-    // Attract sketch: four dim rings and moving dots with made-up periods (replaced in M0).
+    // Attract mode: a seeded round planning and resolving itself, dim, behind the menu.
     const R = Math.min(s.width, s.height) * 0.42;
-    const rings = [0.18, 0.26, 0.4, 0.95];
-    const periods = [0.62, 1, 1.88, 11.9];
-    s.circle(cx, cy, 6, { glow: 1.5, color: p.hot });
-    for (let i = 0; i < rings.length; i++) {
-      const r = (rings[i] as number) * R;
-      s.circle(cx, cy, r, { color: p.dim, glow: 0, width: 1 });
-      const a = (this.t / (periods[i] as number)) * 0.6 + i;
-      s.circle(cx + r * Math.cos(a), cy - r * Math.sin(a), i === 1 ? 4 : 3, { glow: 1 });
+    if (this.attract) {
+      drawMiniSystem(s, this.attract.world, this.attract.result, cx, cy, R, { alpha: 0.55, threatPath: true });
+      const a = this.attract;
+      const th = a.world.threat;
+      if (th) {
+        const left = th.tImpact - a.world.t;
+        const line = left > 0 ? `ATTRACT  ${th.name}  D ${th.D.toFixed(0)} M  T-${(left / 31557600).toFixed(1)} Y  ${a.missions.length} MISSION${a.missions.length === 1 ? '' : 'S'}  PREDICTED ${a.result.outcome}` : `ATTRACT  ${th.name}  ${a.result.outcome === 'MISS' ? `MISSED BY ${a.result.ca.marginRadii.toFixed(1)} R` : a.result.outcome}`;
+        drawText(s, line, cx, s.height - 112, 10, { align: 'center', color: p.dim, glow: 0 });
+      }
+    } else {
+      s.circle(cx, cy, 6, { glow: 1.5, color: p.hot });
     }
 
     const big = Math.min(72, s.width / 9);

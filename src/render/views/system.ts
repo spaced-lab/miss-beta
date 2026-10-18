@@ -41,6 +41,11 @@ import type { GameContext } from '../../game/console';
 import { budgetScale } from '../../game/modes';
 import { branchSurvives, earliestEnd, forkMultiverse, resolveBranch, survivalFraction, tickMultiverse, wormhole, type Branch, type Multiverse } from '../../game/multiverse';
 import { glitchPass } from '../glitch';
+import { drawMiniSystem } from '../miniSystem';
+import type { UiSfx } from '../../audio/ui';
+import { advanceTutorial, createTutorial, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, TUTORIAL_STEPS, type TutorialFacts, type TutorialState } from '../../game/tutorial';
+import { saveJson } from '../../game/persistence';
+import { DEFAULT_SETTINGS, type Settings } from '../../game/settings';
 import { scenarioById, spawnScenario } from '../../sim/scenarios';
 import { shiftEpoch } from '../../sim/roundGen';
 import { craftPosition } from '../../planner/legs';
@@ -87,10 +92,14 @@ export class SystemScreen implements Screen {
   pendingRun: RunState | null = null;
   private mv: Multiverse | null = null;
   private glitch = false;
+  /** TUTORIAL on the title: the next NEW RUN is the guided round (GAME_PLAN 25). */
+  tutorialNext = false;
+  private tut: TutorialState | null = null;
+  private tutSeen = { maxWarp: 0, plannerOpened: false, planetOpened: false, programsOpened: false };
   private mc: MonteCarloResult | null = null;
   private mcToken = 0;
 
-  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {
+  constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null) {
     this.world = createWorld('DEV', 1);
     this.run = createRun('DEV');
     this.planner = new PlannerOverlay(s, keys, this.client);
@@ -154,10 +163,71 @@ export class SystemScreen implements Screen {
   }
 
   private newRun(): void {
-    this.run = this.pendingRun ?? createRun(Date.now().toString(36).toUpperCase(), { sandbox: this.sandboxNext });
+    if (this.tutorialNext) {
+      this.run = createRun(TUTORIAL_SEED, { tutorial: true });
+      this.run.spawnNext = 'TUTORIAL';
+      this.tut = createTutorial();
+      saveJson(TUTORIAL_SEEN_KEY, true);
+    } else {
+      this.run = this.pendingRun ?? createRun(Date.now().toString(36).toUpperCase(), { sandbox: this.sandboxNext });
+      this.tut = null;
+    }
+    this.tutorialNext = false;
     this.pendingRun = null;
     this.sandboxNext = false;
     this.startRound();
+  }
+
+  /** Feed the tutorial script what the player has done; Tab skips it. */
+  private trackTutorial(dtMs: number): void {
+    const t = this.tut;
+    if (!t) return;
+    const w = this.world;
+    const seen = this.tutSeen;
+    seen.maxWarp = Math.max(seen.maxWarp, w.warp);
+    if (this.planner.isOpen) seen.plannerOpened = true;
+    if (this.planetOpen) seen.planetOpened = true;
+    if (this.programs.isOpen) seen.programsOpened = true;
+    if (this.keys.pressed('Tab') && !this.planner.isOpen) {
+      this.tut = null;
+      this.note('TUTORIAL SKIPPED. ? OPENS THE MANUAL ANY TIME.', 4);
+      return;
+    }
+    const facts: TutorialFacts = {
+      warp: w.warp,
+      maxWarp: seen.maxWarp,
+      plannerOpen: this.planner.isOpen,
+      plannerOpened: seen.plannerOpened,
+      missions: this.missions.length,
+      launched: this.missions.some((m) => m.launchTime <= w.t),
+      impacted: (this.result?.events ?? []).some((e) => (e.kind === 'IMPACT' || e.kind === 'FRAGMENTATION' || e.kind === 'IMPACT_MISS') && e.t <= w.t),
+      planetOpened: seen.planetOpened,
+      debrief: this.phase !== 'planning',
+      programsOpened: seen.programsOpened,
+    };
+    advanceTutorial(t, facts, dtMs / 1000);
+  }
+
+  private drawTutorial(): void {
+    const t = this.tut;
+    if (!t) return;
+    const step = TUTORIAL_STEPS[t.step];
+    if (!step) return;
+    const s = this.s;
+    const p = s.palette;
+    const w = Math.min(700, s.width - 32);
+    const x = s.width - w - 16;
+    const y = 96;
+    const h = 58 + step.lines.length * 15;
+    const alpha = Math.min(1, t.shownFor * 2);
+    s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: p.hot, glow: 0.8, alpha });
+    drawText(s, `TUTORIAL ${t.step + 1} / ${TUTORIAL_STEPS.length}   ${step.title}`, x + 12, y + 10, 12, { color: p.hot, glow: 1, alpha });
+    let ly = y + 32;
+    for (const line of step.lines) {
+      drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
+      ly += 15;
+    }
+    drawText(s, `LORE ${step.lore.join(' ')}   <TAB> SKIP TUTORIAL   <?> MANUAL`, x + 12, y + h - 16, 9, { color: p.dim, glow: 0, alpha });
   }
 
   /** The next NEW RUN is a sandbox (set by the title before routing here). */
@@ -193,7 +263,8 @@ export class SystemScreen implements Screen {
     this.mv = null;
     this.glitch = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
     this.run.evacuatedAt = null;
-    saveRun(this.run, this.world, null);
+    this.tutSeen = { maxWarp: 0, plannerOpened: false, planetOpened: false, programsOpened: false };
+    if (!this.run.tutorial) saveRun(this.run, this.world, null);
     this.missions = [];
     this.result = resolveRound(this.world, this.missions, this.resolveOpts());
     this.requestMc();
@@ -238,6 +309,7 @@ export class SystemScreen implements Screen {
       onCommit: (ms: Mission[]): boolean => {
         const cost = ms.reduce((a, m) => a + m.cost, 0);
         if (!spend(this.run.economy, this.world.t, cost)) return false;
+        this.sfx?.commit();
         if (branch) {
           branch.missions.push(...ms);
           resolveBranch(branch, this.resolveOpts());
@@ -295,22 +367,24 @@ export class SystemScreen implements Screen {
     this.panelHidden = false;
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
+    this.sfx?.approach(finalOutcome === 'HIT');
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
     this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
     if (finalOutcome !== 'HIT') {
       this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
       this.phase = 'debrief';
-      saveRun(this.run, this.world, null);
+      if (!this.run.tutorial) saveRun(this.run, this.world, null);
     } else {
       this.phase = 'over';
-      this.rank = this.run.sandbox ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted }, boardFor(this.run.mode));
+      this.rank = this.run.sandbox || this.run.tutorial ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted }, boardFor(this.run.mode));
     }
   }
 
   update(dtMs: number): void {
     const k = this.keys;
     const w = this.world;
+    this.trackTutorial(dtMs);
     if (this.planner.isOpen) {
       this.planner.update();
       return;
@@ -371,6 +445,13 @@ export class SystemScreen implements Screen {
       if (k.pressed('KeyG')) this.programs.show();
       if (k.pressed('KeyT')) this.tech.show();
       if (k.pressed('Space') || k.pressed('Enter')) {
+        if (this.run.tutorial) {
+          // The tutorial was round 0: ROUND 1 begins for real on a fresh seed (GAME_PLAN 25).
+          this.tut = null;
+          this.newRun();
+          this.note('ROUND 1. GOOD LUCK.', 4);
+          return;
+        }
         nextRound(this.run, budgetAt(this.run.economy, w.t));
         this.startRound();
       }
@@ -428,6 +509,14 @@ export class SystemScreen implements Screen {
     }
     const before = w.t;
     advance(w, Math.min(dtMs, 100) / 1000);
+    if (this.sfx && this.result && w.t > before) {
+      for (const e of this.result.events) {
+        if (e.t <= before || e.t > w.t) continue;
+        if (e.kind === 'LAUNCH') this.sfx.launch();
+        else if (e.kind === 'IMPACT') this.sfx.impact();
+        else if (e.kind === 'FRAGMENTATION' || e.kind === 'NUKE' || e.kind === 'PI') this.sfx.breakup();
+      }
+    }
     this.noteT = Math.max(0, this.noteT - dtMs / 1000);
     // Programs run on the sim clock and drain the budget; completions change the networks for later rounds.
     const done = advancePrograms(this.run.programs, { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, w.t, w.t - before);
@@ -507,8 +596,9 @@ export class SystemScreen implements Screen {
       drawText(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 28, 12, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
+    if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
     this.console.render(this.gameContext());
-    if (this.glitch) glitchPass(s, w.t / 86400, this.run.mode === 'MULTIVERSE' ? 1.5 : 1, `SIM  FRAME ${(1000 / 60).toFixed(1)} MS  ENTITIES ${this.result ? this.result.bodies.length + this.missions.length : 0}  T ${w.t.toFixed(0)}`);
+    if (this.glitch && !this.settings.reduceMotion) glitchPass(s, w.t / 86400, this.run.mode === 'MULTIVERSE' ? 1.5 : 1, `SIM  FRAME ${(1000 / 60).toFixed(1)} MS  ENTITIES ${this.result ? this.result.bodies.length + this.missions.length : 0}  T ${w.t.toFixed(0)}`);
   }
 
   /** MULTIVERSE: tiles, one branch each, on the shared clock. */
@@ -541,39 +631,12 @@ export class SystemScreen implements Screen {
     const cx = x0 + tw / 2;
     const cy = y0 + th / 2;
     const base = (Math.min(tw, th) / 2) * 0.9;
-    const proj = (x: number, y: number): [number, number] => {
-      const r = Math.hypot(x, y);
-      const rs = (Math.sqrt(r / AU) / 2.5) * base;
-      const f = r > 0 ? rs / r : 0;
-      return [cx + x * f, cy - y * f];
-    };
-    s.circle(cx, cy, 2, { color: p.hot, glow: 0.8 });
-    for (const pl of w.planets) {
-      const pts = orbitPoints(pl.elements, 64);
-      const buf: number[] = [];
-      for (let i = 0; i < pts.length; i += 2) buf.push(...proj(pts[i] as number, pts[i + 1] as number));
-      s.stroke(buf, { closed: true, color: p.dim, glow: 0, width: 1, alpha: 0.6 });
-      const st = planetState(w, pl);
-      const [px, py] = proj(st.r.x, st.r.y);
-      s.circle(px, py, pl.id === 'HOME' ? 2.5 : 1.5, { color: pl.id === 'HOME' ? p.hot : p.ink, glow: 0.5 });
-    }
-    for (const body of b.result.bodies.filter((q) => bodyAlive(q, w.t))) {
-      const st = propagate(elementsAt(body.segments, w.t), w.star.mu, w.t);
-      const [tx, ty] = proj(st.r.x, st.r.y);
-      s.circle(tx, ty, body.role === 'FRAGMENT' ? 1 : 2.5, { color: body.harmless ? p.dim : p.hot, glow: 0.6 });
-    }
+    drawMiniSystem(s, w, b.result, cx, cy, base);
     if (b.extraThreat && b.extraResult) {
       const st = propagate(elementsAt(b.extraResult.segments, w.t), w.star.mu, w.t);
-      const [tx, ty] = proj(st.r.x, st.r.y);
-      s.circle(tx, ty, 2.5, { color: p.hot, glow: 1, dash: [2, 2] });
-    }
-    for (const mi of b.result.missionsResolved) {
-      if (w.t < mi.launchTime || w.t >= mi.arrivalTime) continue;
-      const pos = craftPosition(mi, w.star.mu, w.t);
-      if (pos) {
-        const [qx, qy] = proj(pos.x, pos.y);
-        s.dot(qx, qy, 2, p.ink);
-      }
+      const r = Math.hypot(st.r.x, st.r.y);
+      const f = r > 0 ? ((Math.sqrt(r / AU) / 2.5) * base) / r : 0;
+      s.circle(cx + st.r.x * f, cy - st.r.y * f, 2.5, { color: p.hot, glow: 1, dash: [2, 2] });
     }
   }
 
@@ -849,7 +912,7 @@ export class SystemScreen implements Screen {
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
     drawText(s, `WARP ${warpLabel(w)}`, m, m + 24, 14, { color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     drawText(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, m, m + 48, 12);
-    drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX (NOT RECORDED)' : ''}`, m, m + 68, 12, { color: this.run.sandbox ? p.hot : p.dim, glow: 0 });
+    drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX (NOT RECORDED)' : ''}${this.run.tutorial ? '   TUTORIAL (NOT RECORDED)' : ''}`, m, m + 68, 12, { color: this.run.sandbox ? p.hot : p.dim, glow: 0 });
     if (this.noteT > 0) drawText(s, this.noteText, s.width / 2, m + 40, 12, { align: 'center', color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
     if (th.noWarning) drawText(s, 'NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY (<E> EVACUATE).', s.width / 2, m + 58, 12, { align: 'center', color: p.hot, glow: 1.2 });
 

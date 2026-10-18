@@ -117,7 +117,17 @@ export interface TextStyle extends StrokeStyle {
  * Draw `text` with its top-left at (x, y) (or centred / right-aligned on x). Returns the drawn width.
  * Example: drawText(s, 'SCORE 120', 16, 16, 14) draws 14 px high capitals.
  */
-export function drawText(s: Surface, text: string, x: number, y: number, size: number, style: TextStyle = {}): number {
+/** Global text scale from the options screen (TEXT SIZE); 1 is the designed size. */
+let textScale = 1;
+export function setTextScale(f: number): void {
+  textScale = Math.max(0.5, Math.min(2, f));
+}
+export function getTextScale(): number {
+  return textScale;
+}
+
+export function drawText(s: Surface, text: string, x: number, y: number, size0: number, style: TextStyle = {}): number {
+  const size = size0 * textScale;
   const u = size / GLYPH_H;
   const adv = (ADVANCE + (style.spacing ?? 0)) * u;
   const width = text.length * adv - (ADVANCE - GLYPH_W) * u;
