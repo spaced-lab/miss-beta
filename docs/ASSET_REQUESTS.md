@@ -33,7 +33,8 @@ Action items for the owner (or another assistant with web and image access).
 
 - [x] JPL close-approach data (cad.api), the Sentry risk table (sentry.api) and fireball data (fireball.api): baked by
   `scripts/fetch_realdata.py` into `src/config/realdata.json` (2026-10-18), drawn on topics T3, O12, F9.
-- [ ] A low-resolution public-domain coastline (Natural Earth 110 m, public domain) as a polyline set, for the fireball map.
+- [x] Natural Earth 1:110m coastline (public domain), thinned by `scripts/bake_coastline.py` into
+  `src/config/coastline.json` (2026-10-18), drawn on the fireball map.
 - [ ] NEO discovery statistics by survey and year (CNEOS discovery stats) for the F5 survey topic.
 
 ## BACKLOG: needs the owner (credit or licence questions)

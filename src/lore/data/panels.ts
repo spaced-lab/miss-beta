@@ -7,6 +7,7 @@
 // LORE: T3 (how often), O12 (close approach), F9 (Torino and Palermo)
 
 import realdata from '../../config/realdata.json';
+import coastline from '../../config/coastline.json';
 import type { Surface } from '../../render/canvas';
 import { drawText, drawTextFit, wrapText } from '../../render/vectorFont';
 import type { Box } from '../labs/lab';
@@ -45,6 +46,12 @@ const FIREBALLS: DataPanel = {
     frame(s, m);
     const X = (lon: number): number => m.x + ((lon + 180) / 360) * m.w;
     const Y = (lat: number): number => m.y + ((90 - lat) / 180) * m.h;
+    // Coastlines: Natural Earth 1:110m (public domain), thinned by scripts/bake_coastline.py.
+    for (const line of (coastline as { lines: number[][] }).lines) {
+      const buf: number[] = [];
+      for (let i = 0; i + 1 < line.length; i += 2) buf.push(X(line[i] ?? 0), Y(line[i + 1] ?? 0));
+      if (buf.length >= 4) s.stroke(buf, { color: s.role('planet'), glow: 0, alpha: 0.55, width: 1 });
+    }
     for (let lat = -60; lat <= 60; lat += 30) s.stroke([m.x, Y(lat), m.x + m.w, Y(lat)], { color: s.role('orbit'), alpha: lat === 0 ? 0.6 : 0.25, glow: 0, dash: lat === 0 ? [] : [2, 4] });
     for (let lon = -120; lon <= 120; lon += 60) s.stroke([X(lon), m.y, X(lon), m.y + m.h], { color: s.role('orbit'), alpha: 0.25, glow: 0, dash: [2, 4] });
     const byDate = [...D.fireballs].sort((a, c) => a.date.localeCompare(c.date));
@@ -141,5 +148,5 @@ export function drawPanel(s: Surface, pnl: DataPanel, box: Box, t: number): void
     drawText(s, l, box.x, y, 8, { color: p.ink, glow: 0.2, lower: true });
     y += 12;
   }
-  drawTextFit(s, `SOURCE: NASA/JPL SSD APIS (PUBLIC DOMAIN), SNAPSHOT ${D.fetched}`, box.x, y + 2, 7, box.w, { color: p.dim, glow: 0 });
+  drawTextFit(s, `SOURCE: NASA/JPL SSD APIS (PUBLIC DOMAIN), SNAPSHOT ${D.fetched}${pnl.id === 'FIREBALLS' ? '. MAP: MADE WITH NATURAL EARTH' : ''}`, box.x, y + 2, 7, box.w, { color: p.dim, glow: 0 });
 }

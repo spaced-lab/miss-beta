@@ -17,11 +17,22 @@ import type { Surface } from '../canvas';
 import { drawPicture } from '../pictureCache';
 import { modelForTopic } from '../../lore/models/catalog';
 import { drawModel } from '../../lore/models/viewer';
-import { drawPanel, panelForTopic } from '../../lore/data/panels';
+import type { DataPanel } from '../../lore/data/panels';
 import { ADVANCE, charsPerLine, drawText, drawTextFit, GLYPH_H, getTextScale, substitute, wrapText } from '../vectorFont';
 
 type Focus = 'TREE' | 'CONTENT' | 'LAB';
 type View = 'TOPICS' | 'LABS' | 'BOOKMARKS';
+
+/** The real-data panels (and their JSON) load on first use: they stay out of the main bundle (EDUCATION 0.4). */
+let panelsMod: typeof import('../../lore/data/panels') | null = null;
+let panelsLoading = false;
+function panels(): typeof import('../../lore/data/panels') | null {
+  if (!panelsMod && !panelsLoading) {
+    panelsLoading = true;
+    void import('../../lore/data/panels').then((m) => (panelsMod = m));
+  }
+  return panelsMod;
+}
 
 export class CenterScreen implements Screen {
   private index: LoreIndex | null = null;
@@ -269,7 +280,8 @@ export class CenterScreen implements Screen {
     const lw = this.wantsLab() ? Math.min(rw, CenterScreen.LAB_MAX) : 0;
     // Without a lab the right pane shows the topic's 3-D model when there is room for one.
     // Real data first (it is the stronger evidence), then the device model.
-    const dataPanel = lw === 0 && rw >= 260 ? panelForTopic(this.topicId) : null;
+    const pm = panels();
+    const dataPanel: DataPanel | null = lw === 0 && rw >= 260 && pm ? pm.panelForTopic(this.topicId) : null;
     const model = lw === 0 && rw >= 260 && !dataPanel ? modelForTopic(this.topicId) : null;
     const free = lw === 0 && !model && !dataPanel ? rw : 0;
     const readCount = this.index ? this.index.topics.filter((t) => progress[t.id]).length : 0;
@@ -340,7 +352,7 @@ export class CenterScreen implements Screen {
     } else if (!this.status) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
     if (dataPanel) {
       s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
-      drawPanel(s, dataPanel, { x: rx, y: top, w: Math.min(rw, CenterScreen.LAB_MAX), h: s.height - 46 - top }, this.settings.reduceMotion ? 60 : performance.now() / 1000);
+      pm?.drawPanel(s, dataPanel, { x: rx, y: top, w: Math.min(rw, CenterScreen.LAB_MAX), h: s.height - 46 - top }, this.settings.reduceMotion ? 60 : performance.now() / 1000);
     }
     if (model) {
       s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
