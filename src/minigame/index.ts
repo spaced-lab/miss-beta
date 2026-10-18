@@ -22,6 +22,7 @@ import { MG } from './config';
 import { renderMinigame } from './render';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
+import { isSavedReplay, Player, Recorder, type SavedReplay } from './replay';
 import { chaosLevel, createState, flash, fromSaved, isSavedGame, start, step, toSaved, type Input, type MinigameState } from './sim';
 
 const BEST_KEY = 'minigame.best';
@@ -34,6 +35,8 @@ const SAVE_KEY = 'minigame.save';
 const AUTOSAVE_SECONDS = 5;
 /** DAILY (IDEAS 6): the day's best, guarded; the seed is the date, the same for everyone. */
 const DAILY_KEY = 'minigame.daily';
+/** The best unassisted fresh game as (seed, collision, RLE inputs), guarded. */
+const REPLAY_KEY = 'minigame.replay';
 const isDaily = (v: unknown): v is { date: string; best: number } => typeof v === 'object' && v !== null && typeof (v as { date?: unknown }).date === 'string' && typeof (v as { best?: unknown }).best === 'number';
 /** Today's date (local), YYYY-MM-DD. */
 export const today = (): string => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -90,6 +93,10 @@ export class MinigameScreen implements Screen {
 
   /** DAILY mode on: new games use today's seed. */
   private daily = false;
+  /** Recording of the current game (null when it cannot be replayed: resumed, or a cheat was used). */
+  private rec: Recorder | null = null;
+  /** Playing a saved replay instead of the keyboard. */
+  private player: Player | null = null;
   private dailyBest = 0;
 
   private newSeed(): number {
@@ -148,6 +155,20 @@ export class MinigameScreen implements Screen {
     if (k.pressed('Digit2')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
     if (k.pressed('Digit3')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
 
+    if (st.status === 'ready' && k.pressed('Digit7')) {
+      // WATCH BEST: the saved best game, fed back step by step from its seed.
+      const r = loadJson(REPLAY_KEY, isSavedReplay, null);
+      if (r) {
+        this.st = createState(r.seed, r.collision);
+        start(this.st);
+        this.player = new Player(r.rle);
+        this.rec = null;
+        this.saved = null;
+        flash(this.st, `REPLAY OF THE BEST GAME: ${r.score}`, 3);
+        return;
+      }
+      flash(st, 'NO SAVED BEST GAME YET', 2);
+    }
     if (st.status === 'ready' && k.pressed('Digit6')) {
       // DAILY toggles the field: today's seed for everyone, its own best.
       this.daily = !this.daily;
@@ -162,6 +183,7 @@ export class MinigameScreen implements Screen {
       if (this.saved && k.anyPressed('Space', 'KeyR')) {
         this.st = this.saved;
         this.saved = null;
+        this.rec = null; // a resumed game has no recording from its seed
         this.sinceSave = 0;
         flash(this.st, 'RESUMED', 1.5);
         k.clearTyped();
@@ -171,12 +193,16 @@ export class MinigameScreen implements Screen {
         this.saved = null;
         removeSessionJson(SAVE_KEY);
         start(st);
+        this.rec = new Recorder();
+        this.player = null;
       }
     }
     if (st.status === 'over' && k.pressed('Space')) {
       removeSessionJson(SAVE_KEY);
       this.st = createState(this.newSeed(), st.collision);
       start(this.st);
+      this.rec = new Recorder();
+      this.player = null;
       return;
     }
 
@@ -184,6 +210,7 @@ export class MinigameScreen implements Screen {
     if (st.status === 'playing') {
       const fired = this.cheats.match(k.typed(), st);
       if (fired) {
+        this.rec = null; // cheated games are not saved as replays
         k.clearTyped();
         console.info(`[cheat] ${fired.code}: ${fired.message}`);
       }
@@ -203,6 +230,8 @@ export class MinigameScreen implements Screen {
     let steps = 0;
     let edges = input;
     while (this.acc >= MG.DT && steps < MG.MAX_STEPS_PER_FRAME) {
+      if (this.player && st.status === 'playing') edges = this.player.next() ?? { ...edges, left: false, right: false, fire: false };
+      else if (this.rec && st.status === 'playing') this.rec.push(edges);
       step(st, edges, MG.DT);
       edges = { ...input, pulse: false, seeker: false, swarm: false }; // an edge is consumed by the first step
       this.acc -= MG.DT;
@@ -226,6 +255,11 @@ export class MinigameScreen implements Screen {
     st.events.length = 0;
     if (st.status === 'playing') this.sfx.ambient(chaosLevel(st), Math.min(dtMs, 250) / 1000);
 
+    if (st.status === 'over' && this.rec && !st.cheats.assisted) {
+      const prev = loadJson(REPLAY_KEY, isSavedReplay, null);
+      if (!prev || st.score > prev.score) saveJson(REPLAY_KEY, { seed: st.seed, collision: st.collision, score: st.score, rle: this.rec.rle } satisfies SavedReplay);
+      this.rec = null;
+    }
     if (st.status === 'over' && !st.cheats.assisted && st.score > this.best) {
       this.best = st.score;
       saveJson(BEST_KEY, this.best);

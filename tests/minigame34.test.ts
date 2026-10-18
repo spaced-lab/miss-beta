@@ -161,3 +161,30 @@ describe('PERIMETER daily seed (IDEAS 6)', () => {
     expect(Number.isInteger(dailySeed('2026-10-18'))).toBe(true);
   });
 });
+
+describe('PERIMETER replays (IDEAS 4)', () => {
+  it('a recorded game replays to the identical state from its seed', async () => {
+    const { Recorder, Player, inputMask, maskInput } = await import('../src/minigame/replay');
+    const { snapshot } = await import('../src/minigame/sim');
+    expect(inputMask(maskInput(45))).toBe(45);
+    const play = (seed: number, feed: (i: number) => Parameters<typeof step>[1], rec?: InstanceType<typeof Recorder>) => {
+      const st = createState(seed, 'naive');
+      start(st);
+      for (let i = 0; i < Math.round(40 / MG.DT) && st.status === 'playing'; i++) {
+        const inp = feed(i);
+        rec?.push(inp);
+        step(st, inp, MG.DT);
+        st.events.length = 0;
+      }
+      return snapshot(st);
+    };
+    // A wobbly scripted player: sweeps left and right, fires in bursts, presses the weapon keys now and then.
+    const bot = (i: number) => ({ left: Math.floor(i / 90) % 2 === 0, right: Math.floor(i / 90) % 2 === 1, fire: i % 50 < 35, pulse: i % 997 === 0, seeker: i % 613 === 0, swarm: i % 1499 === 0 });
+    const rec = new Recorder();
+    const a = play(77, bot, rec);
+    expect(rec.rle.length).toBeLessThan(Math.round(40 / MG.DT));
+    const pl = new Player(rec.rle);
+    const b = play(77, () => pl.next() ?? NO_INPUT);
+    expect(b).toBe(a);
+  });
+});

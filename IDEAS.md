@@ -17,6 +17,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 4. **PERIMETER replay export (S).** The sim is already deterministic in (seed, inputs); store the input
    stream and offer "watch best run". Doubles as a regression fixture for the minigame.
    Recommendation: DO. Cheap, and the balance probe in `tests/minigame.test.ts` gets a real human run to replay.
+   Status 2026-10-18: DONE (src/minigame/replay.ts; the best unassisted fresh game is saved; 7 WATCH BEST).
 5. **PERIMETER as an in-universe terminal screen (M).** Reach it from the BETA office console in the main
    game ("TRAINING SIM"), with the real planet's continents and the current round's threat type as flavor.
    Recommendation: LATER. Flavor only; the deep link already exists.

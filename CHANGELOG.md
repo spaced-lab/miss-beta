@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER: DAILY field (6) and replays: the best unassisted game is saved as seed + run-length inputs and 7 plays
+  it back exactly. Main game: click anything to learn about it, mouse on the title and in the Learning Center.
+
 - SEED FLEET (SCI-FI, owner idea): seeds mine small bodies to copy themselves; the fleet doubles every 18 months
   and throws all its rocks at the threat at each doubling, so lead time buys strikes. Civilization level now opens
   SCI-FI and SIMULATION on its own; SCI-FI programs actually join the run.
