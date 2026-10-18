@@ -12,6 +12,7 @@ from pymiss.physics.elements3 import state_to_elements3
 from pymiss.physics.kepler import Elements, period, propagate
 from pymiss.physics.kepler3 import Elements3, angular_momentum3, lift_elements, propagate3
 from pymiss.sim.rng import Rng
+from pymiss.tests.near import near_diff
 
 VEC = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "vectors")
 MU_EARTH = 3.986004418e14
@@ -148,17 +149,17 @@ class TestVectors(unittest.TestCase):
         v = _load("kepler3.json")
         for c in v["propagate3"] + v["hyperbolic3"]:
             el = Elements3(c["a"], c["e"], c["w"], c["M0"], c["t0"], c["i"], c["raan"])
-            self.assertEqual(propagate3(el, c["mu"], c["t"]), (c["x"], c["y"], c["z"], c["vx"], c["vy"], c["vz"]))
+            self.assertIsNone(near_diff(propagate3(el, c["mu"], c["t"]), (c["x"], c["y"], c["z"], c["vx"], c["vy"], c["vz"])))
 
     def test_elements3(self):
         for c in _load("elements3.json")["stateToElements3"]:
             el = state_to_elements3(c["x"], c["y"], c["z"], c["vx"], c["vy"], c["vz"], c["mu"], c["t"], True)
-            self.assertEqual((el.a, el.e, el.w, el.M0, el.i, el.raan), (c["out_a"], c["out_e"], c["out_w"], c["out_M0"], c["out_i"], c["out_raan"]))
+            self.assertIsNone(near_diff((el.a, el.e, el.w, el.M0, el.i, el.raan), (c["out_a"], c["out_e"], c["out_w"], c["out_M0"], c["out_i"], c["out_raan"])))
 
     def test_close_approach3(self):
         for c in _load("closeApproach3.json")["closeApproach3"][:4]:
             ca = close_approach3(Elements3(**c["threat"]), Elements3(**c["home"]), MU_SUN, MU_HOME, R_HOME, c["tNominal"])
-            self.assertEqual((ca.t_ca, ca.d_min, ca.impact), (c["tCa"], c["dMin"], c["impact"]))
+            self.assertIsNone(near_diff((ca.t_ca, ca.d_min, ca.impact), (c["tCa"], c["dMin"], c["impact"])))
 
 
 if __name__ == "__main__":

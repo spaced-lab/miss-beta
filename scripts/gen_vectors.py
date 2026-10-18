@@ -4,9 +4,13 @@
 Both test suites consume these files: vitest (tests/*.test.ts) checks that the TypeScript physics
 reproduces them, and pymiss/tests checks that the Python does (trivially, since it wrote them, but the
 Python tests also hold hand-checked numbers). Inputs are drawn from the mirrored seeded RNG so this script
-is deterministic; re-running it must not change a byte unless the physics changed.
+is deterministic; re-running it on the same machine must not change a byte unless the physics changed.
 
-Usage: python3 scripts/gen_vectors.py
+Usage: python3 scripts/gen_vectors.py          # rewrite tests/vectors
+       python3 scripts/gen_vectors.py --check  # compare instead of writing (CI, scripts/check.sh)
+
+--check allows pymiss/tests/near.py REL_TOL (1e-8 relative) on numbers, because another machine's libm rounds
+differently (linux x64 vs the owner's darwin arm64: ulps, up to 8e-10 in close-approach distances).
 """
 from __future__ import annotations
 
@@ -40,13 +44,29 @@ from pymiss.physics.close_approach3 import close_approach3  # noqa: E402
 from pymiss.physics.risk import palermo, torino  # noqa: E402
 from pymiss.physics.rocket import mass_ratio_for, rocket_dv, staged_dv  # noqa: E402
 from pymiss.sim.rng import Rng, hash_seed  # noqa: E402
+from pymiss.tests.near import near_diff  # noqa: E402
 
 OUT = os.path.join(ROOT, "tests", "vectors")
+
+
+CHECK = "--check" in sys.argv[1:]
+FAILED: list[str] = []
 
 
 def write(name: str, data: object) -> None:
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, name)
+    if CHECK:
+        # NOTE: round-trip through JSON so tuples and floats compare the way the file stores them.
+        fresh = json.loads(json.dumps(data))
+        try:
+            with open(path, encoding="utf-8") as f:
+                d = near_diff(fresh, json.load(f))
+        except FileNotFoundError:
+            d = "missing"
+        if d:
+            FAILED.append(f"{name} {d}")
+        return
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1, sort_keys=True)
         f.write("\n")
@@ -358,3 +378,6 @@ if __name__ == "__main__":
     write("elements3.json", elements3_vectors())
     write("closeApproach3.json", close_approach3_vectors())
     write("lambert3.json", lambert3_vectors())
+    if FAILED:
+        print("FAIL: tests/vectors differ from pymiss; regenerate and commit:\n  " + "\n  ".join(FAILED))
+        sys.exit(1)

@@ -229,6 +229,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   captured it (`tests/fixtures/planarReplay.env.json`: darwin arm64 Node 26); V8's Math differs in the last bit
   across Node majors and CPUs (x64 drifts up to 1.9e-10 relative in close-approach outputs, ulps elsewhere),
   so elsewhere it allows 1e-8 relative and keeps strings, counts and events exact. Recapture only in a commit that changes nothing else.
+- Shared vectors are checked numerically, not byte for byte: `python3 scripts/gen_vectors.py --check` and the
+  Python vector tests use pymiss/tests/near.py (1e-8 relative); linux CI's libm differs from macOS by ulps, up to
+  8e-10 in close-approach distances. Reproduce CI locally with Docker: `node:26-bookworm`, `--platform linux/amd64`.
 
 ## Unverified
 

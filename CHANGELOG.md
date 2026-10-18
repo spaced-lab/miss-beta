@@ -10,6 +10,11 @@ Versions are YY.Q.N (docs/RELEASING.md).
   on a private spaced-lab/miss-beta without a red main. CI runs the Node major in .nvmrc (26). The planar replay
   stays bit for bit on the runtime that captured it and allows 1e-8 relative drift on others (V8's Math rounds
   a few results differently across Node majors and CPUs; x64 differs by ulps, up to 1.9e-10 at close approach).
+  Shared vectors: `gen_vectors.py --check` replaces the byte-for-byte git diff (CI and scripts/check.sh) and the
+  four 3-D Python vector tests compare through pymiss/tests/near.py, both at 1e-8 relative (linux libm differs
+  from macOS by ulps, up to 8e-10 in close-approach distances). The smoke test serves and fetches on 127.0.0.1
+  (on linux Vite bound only ::1 and node's fetch was refused).
+  docs/RELEASING.md gains a first-publish checklist (go public, enable Pages, add a macOS arm64 CI runner).
 
 - Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
   ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the

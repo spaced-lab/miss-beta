@@ -8,8 +8,10 @@ import { spawn } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 
 const port = 4190 + Math.floor(Math.random() * 100);
-const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore' });
-const base = `http://localhost:${port}`;
+// NOTE: an explicit IPv4 host on both sides. With `localhost`, Vite on linux binds only ::1 while node's fetch
+// connects to 127.0.0.1 and is refused (reproduced in a node:26 linux/amd64 container, 2026-10-18).
+const server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { stdio: 'ignore' });
+const base = `http://127.0.0.1:${port}`;
 const fail = (msg) => {
   console.error(`smoke: FAIL ${msg}`);
   server.kill();

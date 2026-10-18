@@ -8,7 +8,7 @@ echo "== typecheck"; npx tsc --noEmit
 echo "== tests";     npx vitest run --reporter=dot
 echo "== python";   python3 -m unittest discover -s pymiss/tests -t . -q 2>&1 | tail -3; [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "FAIL: python tests"; exit 1; }
 echo "== lore";     python3 scripts/build_lore.py --check 2>&1 | tail -3; [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "FAIL: lore build"; exit 1; }
-echo "== vectors";  python3 scripts/gen_vectors.py > /dev/null && git diff --quiet -- tests/vectors || { echo "FAIL: tests/vectors changed; regenerate and commit"; exit 1; }
+echo "== vectors";  python3 scripts/gen_vectors.py --check || exit 1
 echo "== audit";     npm audit --audit-level=moderate
 echo "== static security checks"
 # No dynamic code execution and no HTML injection from strings in game code.

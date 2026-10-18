@@ -9,6 +9,7 @@ from pymiss.physics.elements3 import state_to_elements3
 from pymiss.physics.kepler3 import propagate3
 from pymiss.physics.kinetic import along_track3, kinetic_impact3
 from pymiss.physics.lambert import lambert, lambert3
+from pymiss.tests.near import near_diff
 
 VEC = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "vectors")
 
@@ -40,7 +41,7 @@ class TestLambert3(unittest.TestCase):
     def test_vectors(self):
         for c in _load("lambert3.json")["lambert3"]:
             s = lambert3(tuple(c["r1"]), tuple(c["r2"]), c["dt"], c["mu"], c["prograde"])
-            self.assertEqual((list(s.v1), list(s.v2), s.z), (c["v1"], c["v2"], c["z"]))
+            self.assertIsNone(near_diff((list(s.v1), list(s.v2), s.z), (c["v1"], c["v2"], c["z"])))
 
     def test_kinetic3(self):
         dvx, dvy, dvz, U, Q = kinetic_impact3(580, 4.3e9, (0.0, 0.0, 6140.0), (0.0, 0.0, 0.0), 3.6)
