@@ -21,6 +21,12 @@ const LOADERS: Readonly<Record<string, () => Promise<{ lab: Lab }>>> = {
   LAB_TRACTOR: () => import('./tractor'),
   LAB_ROCKET_EQ: () => import('./rocketEq'),
   LAB_TORINO: () => import('./torino'),
+  LAB_LAMBERT_PORKCHOP: () => import('./lambertPorkchop'),
+  LAB_FLYBY: () => import('./flyby'),
+  LAB_SAIL_SPIRAL: () => import('./sailSpiral'),
+  LAB_SUNWARD: () => import('./sunward'),
+  LAB_MONTECARLO: () => import('./monteCarlo'),
+  LAB_RK4: () => import('./rk4'),
 };
 
 export const BUILT_LABS: readonly string[] = Object.keys(LOADERS);

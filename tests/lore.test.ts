@@ -93,11 +93,12 @@ describe('markdown to lines', () => {
 
 describe('LABS', () => {
   it('the built labs load lazily with fresh sliders, and their lines and nudges behave', async () => {
-    expect(BUILT_LABS.length).toBeGreaterThanOrEqual(14);
+    expect(BUILT_LABS.length).toBe(20);
     expect(labStatus('LAB_ELLIPSE')).toBe('BUILT');
-    expect(labStatus('LAB_RK4')).toBe('BACKLOG');
+    expect(labStatus('LAB_RK4')).toBe('BUILT');
+    expect(labStatus('LAB_NOT_A_LAB')).toBe('BACKLOG');
     expect(labStatus(null)).toBe('NONE');
-    expect(await loadLab('LAB_RK4')).toBeNull();
+    expect(await loadLab('LAB_NOT_A_LAB')).toBeNull();
     for (const id of BUILT_LABS) {
       const lab = await loadLab(id);
       expect(lab).not.toBeNull();

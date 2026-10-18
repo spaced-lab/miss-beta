@@ -148,6 +148,7 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 - [x] Tests LORE (TS loader/markdown/labs/built index; Python parser and validation) and the runtime no-fetch-at-boot test.
 - [ ] Deferred: click-to-open on entities and HUD numbers (keyboard `?` with a context topic instead), the remaining 13 labs, RUN IN PYTHON (Pyodide), quizzes (BACKLOG in EDUCATION.md).
   - 2026-10-18 labs batch A built: IMPACT_ENERGY, QSTAR, FRAGMENT_CLOUD, NUKE_STANDOFF, TRACTOR, ROCKET_EQ, TORINO (new `src/physics/risk.ts`, `rocket.ts`; notebooks for each).
+  - [x] Labs batch B (2026-10-18): LAMBERT_PORKCHOP, FLYBY, SAIL_SPIRAL, SUNWARD, MONTECARLO, RK4, animated on the lab clock, memo-cached (`src/lore/labs/kit.ts`), one notebook each in `pymiss/notebooks/`, tests in `tests/labsB.test.ts`.
 
 ## M10: Visual system
 

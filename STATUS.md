@@ -141,6 +141,15 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   titles at a word boundary with `..`. The Learning Center is three panes at every level: tree, reading column,
   right pane for the lab (max 460 px) or blank, which SIMPLE pictures and wide code may use.
 
+- Labs batch B (2026-10-18): LAMBERT_PORKCHOP, FLYBY, SAIL_SPIRAL, SUNWARD, MONTECARLO, RK4 are built. Heavy work is
+  cached by the rounded slider values (`Memo` in `src/lore/labs/kit.ts`; a porkchop grid costs 20-70 ms once, every
+  other lab under 10 ms once; a warm frame under 2 ms). LAB_MONTECARLO runs its own sampling loop on a lab-sized
+  kinetic scenario (kineticImpact + closeApproach, Rng(2026): beta then the velocity error per sample) rather than
+  resolveRound, which is too slow for 500 samples in a frame and has no sigma_v input; its Gaussian estimate
+  (sigmaB, impactProbability) agrees with the propagated histogram (0.946 vs 0.945 at the defaults). LAB_SUNWARD
+  evaluates `detects` night by night with one fixed-seed Rng per network, like `discover`. Lab scenario constants
+  live at the top of each lab file (they teach, they do not balance the game).
+
 ## Unverified
 
 - `[unverified]` Torino scale (`src/physics/risk.ts torino`): the published (E, P) chart is read as straight lines
