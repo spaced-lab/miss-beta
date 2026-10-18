@@ -108,7 +108,9 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
     ['rounds_survived', cap(s.rounds_survived)],
     ['current_threat', s.current_threat ? { name: s.current_threat.name, type: s.current_threat.type, D_m: cap(s.current_threat.D_m), t_impact_years: Math.round(cap(s.current_threat.t_impact_years) * 100) / 100, p_impact: cap(s.current_threat.p_impact), ...(s.current_threat.i_rad !== undefined && s.current_threat.raan_rad !== undefined ? { i_rad: s.current_threat.i_rad, raan_rad: s.current_threat.raan_rad } : {}) } : null],
     ['learning_level', s.learning_level],
-    ['lore_read', s.lore_read],
+    // Topic-id keys only, the reader's rule: a junk key from storage (a quote or comma in it) would be written bare
+    // and split the map on read, dropping the real topics after it (code review 2026-10-18).
+    ['lore_read', Object.fromEntries(Object.entries(s.lore_read).filter(([k]) => isTopicKey(k)))],
     ['color_mode', s.color_mode],
   ];
   const lines = ['---', ...fm.map(([k, v]) => `${k}: ${fmtValue(v)}`), '---', `# RUN ${s.seed}`, '', '| Round | Threat | Type | D (m) | Lead (y) | Discovered by | Plan | Outcome | Score |', '|---|---|---|---|---|---|---|---|---|'];
@@ -117,6 +119,9 @@ export function writeSave(s: SaveFile, rounds: { round: number; threat: string; 
   for (const p of s.programs) lines.push(`| ${p.id} | ${(p.progress * 100).toFixed(0)}% | ${p.progress >= 1 ? 'done' : p.funding >= 1 ? 'full' : p.funding > 0 ? `${(p.funding * 100).toFixed(0)}%` : 'none'} |`);
   return lines.join('\n') + '\n';
 }
+
+/** A Learning Center topic id: T1, D13, LAB_X. Example: isTopicKey('T1') = true; isTopicKey('a"b') = false. */
+const isTopicKey = (k: string): boolean => /^[A-Z][A-Z0-9_]{0,31}$/.test(k);
 
 // --- parser -------------------------------------------------------------------------------------------------
 
@@ -295,7 +300,7 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
   const loreRead: Record<string, string> = {};
   // NOTE: only topic-id-shaped keys (T1, D13, LAB_X); anything else, `constructor` or `__proto__` included, is an
   // edit artefact that would be stored as junk progress and could not be written back unquoted (SAFETY finding 9).
-  if (typeof lr === 'object' && lr !== null && !Array.isArray(lr)) for (const [k, v] of Object.entries(lr as Record<string, unknown>)) if (isStr(v) && /^[A-Z][A-Z0-9_]{0,31}$/.test(k)) loreRead[k] = v;
+  if (typeof lr === 'object' && lr !== null && !Array.isArray(lr)) for (const [k, v] of Object.entries(lr as Record<string, unknown>)) if (isStr(v) && isTopicKey(k)) loreRead[k] = v;
   if (!isStr(r['color_mode'])) return null;
   return {
     version: 1,

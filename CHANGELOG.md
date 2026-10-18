@@ -37,6 +37,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - The workflow files carry the full WHAT / WHY / HOW / LORE header (finding 16).
 - Saves: a hand-edited SAVE.md may put a `# note` after a list item, or blank and comment lines inside a list
   (programs, studies); both used to reject the file (findings 5-6).
+- Saves: only topic-id keys are written to `lore_read`, as only they are read back; a junk key in browser storage
+  could split the map and silently drop the topics read after it (finding 10).
 
 ## 26.4.0 (2026-10-18)
 

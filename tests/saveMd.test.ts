@@ -95,3 +95,10 @@ describe('hand-edited block lists (code review 2026-10-18 findings 5-6)', () => 
     expect(parseSave(edited)?.programs).toEqual(sample.programs);
   });
 });
+
+describe('lore_read keys from storage (code review 2026-10-18 finding 10)', () => {
+  it('a junk key with a quote or comma does not swallow the real topics', () => {
+    const sf: SaveFile = { ...sample, lore_read: { 'a"b': 'ADVANCED', 'x,y': 'SIMPLE', T1: 'EXPERT', D3: 'BEGINNER' } };
+    expect(parseSave(writeSave(sf))?.lore_read).toEqual({ T1: 'EXPERT', D3: 'BEGINNER' });
+  });
+});
