@@ -15,6 +15,8 @@ import { bookmarks, lore, progress, recordRead, toggleBookmark } from '../../lor
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawPicture } from '../pictureCache';
+import { modelForTopic } from '../../lore/models/catalog';
+import { drawModel } from '../../lore/models/viewer';
 import { ADVANCE, charsPerLine, drawText, drawTextFit, GLYPH_H, getTextScale, substitute } from '../vectorFont';
 
 type Focus = 'TREE' | 'CONTENT' | 'LAB';
@@ -240,6 +242,9 @@ export class CenterScreen implements Screen {
     this.ensureLines();
     const { tw, cx0, cw, rx, rw } = this.layout();
     const lw = this.wantsLab() ? Math.min(rw, CenterScreen.LAB_MAX) : 0;
+    // Without a lab the right pane shows the topic's 3-D model when there is room for one.
+    const model = lw === 0 && rw >= 260 ? modelForTopic(this.topicId) : null;
+    const free = lw === 0 && !model ? rw : 0;
     const readCount = this.index ? this.index.topics.filter((t) => progress[t.id]).length : 0;
     drawText(s, 'LEARNING CENTER', m, m, 16, { color: p.hot, glow: 1.5 });
     drawText(s, `${readCount} OF ${this.index?.topics.length ?? 0} TOPICS READ   LEVEL ${this.level}   VIEW ${this.view}${this.search ? `   SEARCH "${this.search.toUpperCase()}"` : ''}`, m + 270, m + 3, 10, { color: p.dim, glow: 0 });
@@ -279,11 +284,11 @@ export class CenterScreen implements Screen {
     const c = this.chunk;
     let cy = top;
     if (c) {
-      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + (lw > 0 ? 0 : rw),  { color: this.focus === 'CONTENT' ? p.hot : p.ink, glow: 1 });
+      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + free,  { color: this.focus === 'CONTENT' ? p.hot : p.ink, glow: 1 });
       cy += 22;
       if (c.pictureId && c.level === 'SIMPLE') {
         // The picture may spill into the empty right pane; the prose below stays at reading width.
-        const pw = Math.min(lw > 0 ? cw : cw + rw, 560);
+        const pw = Math.min(cw + free, 560);
         drawPicture(s, c.pictureId, cx0, cy, pw, (pw * 320) / 480);
         cy += (pw * 320) / 480 + 12;
         if (c.pictureCaption) {
@@ -296,7 +301,7 @@ export class CenterScreen implements Screen {
         const txt = substitute(l.text);
         if (l.kind === 'head') drawTextFit(s, txt.toUpperCase(), cx0, cy, 10, cw, { color: p.hot, glow: 0.8 });
         // Code and tables are never re-wrapped (columns would break): they may use the empty right pane, else shrink.
-        else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, cx0 + 6, cy, 8, (lw > 0 ? cw : cw + rw) - 6, { color: p.ink, glow: 0.2, lower: true });
+        else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, cx0 + 6, cy, 8, cw + free - 6, { color: p.ink, glow: 0.2, lower: true });
         else drawText(s, txt, cx0, cy, 9, { color: p.ink, glow: 0.3, lower: true });
         cy += 13;
       }
@@ -304,6 +309,10 @@ export class CenterScreen implements Screen {
       const meta = this.index?.topics.find((t) => t.id === c.id);
       if (meta && meta.related.length > 0) drawText(s, cutWords(`RELATED ${meta.related.join(' ')}   IN GAME: ${meta.game.join(', ').toUpperCase()}`, charsPerLine(cw, 8)), cx0, s.height - 52, 8, { color: p.dim, glow: 0 });
     } else if (!this.status) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
+    if (model) {
+      s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
+      drawModel(s, model, { x: rx, y: top, w: Math.min(rw, CenterScreen.LAB_MAX), h: s.height - 46 - top }, this.settings.reduceMotion ? 2 : performance.now() / 1000);
+    }
     // Lab.
     if (lw > 0) {
       const lx = rx;
