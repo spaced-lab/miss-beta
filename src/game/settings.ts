@@ -10,6 +10,7 @@ import { PALETTES, type ColorMode } from '../render/palettes';
 import type { GlowMode, Surface } from '../render/canvas';
 import { setTextScale } from '../render/vectorFont';
 import { loadJson, saveJson } from './persistence';
+import type { SoundStyle } from '../audio/ui';
 
 export type TextSize = 'SMALL' | 'NORMAL' | 'LARGE';
 export type Units = 'SI' | 'IMPERIAL';
@@ -33,8 +34,11 @@ export interface Settings {
   colourV?: number;
   /** Robot voice-overs (IDEAS 21, 2026-10-18). Optional so older saved settings stay valid; missing means FEMALE. */
   voice?: VoiceSetting;
+  /** Interface sounds: PERIMETER's lo-fi voices (ARCADE, default) or the original bleeps. Optional for old records. */
+  soundStyle?: SoundStyle;
 }
 
+export const SOUND_STYLES: readonly SoundStyle[] = ['ARCADE', 'CLASSIC'];
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
 export const GLOW_MODES: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 export const TEXT_SIZES: readonly TextSize[] = ['SMALL', 'NORMAL', 'LARGE'];
@@ -43,7 +47,7 @@ export const VOICES: readonly VoiceSetting[] = ['OFF', 'FEMALE', 'MALE'];
 export const LEARNING_LEVELS: readonly LearningLevel[] = ['SIMPLE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 const TEXT_SCALE: Record<TextSize, number> = { SMALL: 0.9, NORMAL: 1, LARGE: 1.15 };
 
-export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: true, colourV: 2, voice: 'FEMALE' };
+export const DEFAULT_SETTINGS: Settings = { colorMode: 'PHOSPHOR', crt: false, glow: 'understroke', sound: true, units: 'SI', reduceMotion: false, textSize: 'NORMAL', learningLevel: 'BEGINNER', spectrum: true, colourV: 2, voice: 'FEMALE', soundStyle: 'ARCADE' };
 
 const KEY = 'settings';
 
@@ -62,7 +66,8 @@ export function isSettings(v: unknown): v is Settings {
     (o.spectrum === undefined || typeof o.spectrum === 'boolean') &&
     (o.tips === undefined || typeof o.tips === 'boolean') &&
     (o.colourV === undefined || typeof o.colourV === 'number') &&
-    (o.voice === undefined || VOICES.includes(o.voice as VoiceSetting))
+    (o.voice === undefined || VOICES.includes(o.voice as VoiceSetting)) &&
+    (o.soundStyle === undefined || SOUND_STYLES.includes(o.soundStyle as SoundStyle))
   );
 }
 

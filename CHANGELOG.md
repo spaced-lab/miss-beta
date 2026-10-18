@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- OPTIONS > SOUND STYLE: ARCADE (default) plays PERIMETER's low lo-fi voices for menus, commits, launches and
+  impacts; CLASSIC keeps the original bleeps. Every menu now ticks on cursor moves and selects.
+
 - SUPER-DUPER-DEMO (title): AUTOPLAY that speeds up every game (x2 rising 15 % a game); after 100 games a
   montage that runs faster and faster (data centres, activation map, power, off-world compute, a time portal,
   teasers for tech not in the game), a pause, then a green teletype window with the closing line in the robot voice.

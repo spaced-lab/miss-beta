@@ -205,8 +205,8 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    click-to-learn, materialize frames on overlays, orbit-plane grid fade under tilt, discovery in the worker;
    inert program effects warheadBuildYears and damageMult; more labs polish.
 5b. Owner queue 2026-10-18 (in order): NEXT colours (NEON default, cyan text, pink/purple headers), assignable
-   keys with MANUAL on M, planner overlap fix, IDEAS 19 AUTOPLAY, 20 SUPER-DUPER-DEMO, 21 voice (all done); OPEN: PERIMETER lo-fi cues in
-   the main game and menus with an OPTIONS switch; then item 5's queue.
+   keys with MANUAL on M, planner overlap fix, IDEAS 19 AUTOPLAY, 20 SUPER-DUPER-DEMO, 21 voice, SOUND STYLE ARCADE/CLASSIC (all done);
+   next: item 5's queue.
    21 voice-overs DONE 2026-10-18: `scripts/gen_voice.py` (venv `.venv-voice`, py3.12) bakes 22 lines x 2 voices
    to `public/audio/voice/` (196 KB Opus 20 kbit/s), `src/audio/voice.ts` lazy-loads and plays them through the
    synth's master bus, OPTIONS > VOICE OFF/FEMALE/MALE (default FEMALE). New knobs `VOICE_*`. AUTOPLAY and

@@ -82,6 +82,7 @@ function boot(): void {
   options.openCenter = toCenter;
   options.sayVoice = (id) => {
     sfx.voice.mode = settings.voice ?? 'FEMALE';
+    sfx.style = settings.soundStyle ?? 'ARCADE';
     sfx.unlock();
     sfx.voice.say(id, true);
   };
@@ -137,6 +138,7 @@ function boot(): void {
     const t0 = performance.now();
     sfx.enabled = settings.sound;
     sfx.voice.mode = settings.voice ?? 'FEMALE';
+    sfx.style = settings.soundStyle ?? 'ARCADE';
     if (!settings.reduceMotion) surface.holoDrift = (surface.holoDrift + dt * 0.01) % 360;
     keys.pollGamepads();
     if (keys.anyKeyPressed()) sfx.unlock();
@@ -144,6 +146,11 @@ function boot(): void {
     if (!welcomed && currentId === 'title' && sfx.synth.ready) {
       welcomed = true;
       sfx.voice.say('WELCOME');
+    }
+    // Menu sounds everywhere (owner 2026-10-18): a cursor move and a select; the arcade and the demo have their own.
+    if (currentId !== 'minigame' && currentId !== 'demo' && currentId !== 'title') {
+      if (keys.anyPressed('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab')) sfx.move();
+      if (keys.anyPressed('Enter')) sfx.select();
     }
     current?.update(dt);
     keys.endFrame();
