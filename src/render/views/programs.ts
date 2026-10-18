@@ -6,6 +6,7 @@
 //       are read from the run; the sim advances them with the clock (sim/programs.ts).
 // LORE: G4 (programs), F7 (future missions)
 
+import { Materialize } from '../wire';
 import type { RunState } from '../../game/run';
 import { topicForProgram } from '../../game/loreLinks';
 import { NETWORKS } from '../../sim/detection';
@@ -20,6 +21,9 @@ import { drawGauge, gaugeHeight } from '../gaugeView';
 import type { GaugeReading } from '../../sim/gauge';
 
 export class ProgramsOverlay {
+  /** Overlay frame transition and the reduce-motion switch (set by the owner screen). */
+  private readonly mat = new Materialize();
+  still: () => boolean = () => false;
   /** Mouse targets from the last frame: each row's y and the progress / funding column's x. */
   private rowYs: number[] = [];
   private fundX = Infinity;
@@ -40,6 +44,7 @@ export class ProgramsOverlay {
   }
   show(): void {
     this.open = true;
+    this.mat.start();
   }
   hide(): void {
     this.open = false;
@@ -192,6 +197,9 @@ export class ProgramsOverlay {
     const m = 16;
     s.ctx.fillStyle = withAlpha(p.bg, 0.88);
     s.ctx.fillRect(0, 0, s.width, s.height);
+    // Materialize (24.2): the frame draws itself in when the overlay opens.
+    this.mat.tick(1 / 60);
+    this.mat.frame(s, 3, 3, s.width - 6, s.height - 6, 0.8, this.still());
     const burn = programBurn(run.programs);
     const sBurn = studyBurn(run.studies);
     drawText(s, `${this.tab}   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS  -${sBurn.toFixed(2)}/Y STUDIES)`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });

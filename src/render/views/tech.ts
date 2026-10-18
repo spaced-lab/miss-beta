@@ -5,6 +5,7 @@
 //       bright, available ones normal, locked ones dim with the reason.
 // LORE: D11 (the catalog and the chart), G1 (how to play)
 
+import { Materialize } from '../wire';
 import type { RunState } from '../../game/run';
 import { topicForTrack } from '../../game/loreLinks';
 import { canUnlock, TECH, TRACKS, unlock, type TechNode } from '../../game/tech';
@@ -14,6 +15,9 @@ import { uiColors, withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class TechOverlay {
+  /** Overlay frame transition and the reduce-motion switch (set by the owner screen). */
+  private readonly mat = new Materialize();
+  still: () => boolean = () => false;
   /** Mouse targets from the last frame: every node's box. */
   private boxes: { x: number; y: number; w: number; h: number; track: number; row: number }[] = [];
   /** Set by the owner screen: open the Learning Center on a topic. */
@@ -29,6 +33,7 @@ export class TechOverlay {
   }
   show(): void {
     this.open = true;
+    this.mat.start();
     this.note = '';
   }
   hide(): void {
@@ -88,6 +93,9 @@ export class TechOverlay {
     const m = 16;
     s.ctx.fillStyle = withAlpha(p.bg, 0.9);
     s.ctx.fillRect(0, 0, s.width, s.height);
+    // Materialize (24.2): the frame draws itself in when the overlay opens.
+    this.mat.tick(1 / 60);
+    this.mat.frame(s, 3, 3, s.width - 6, s.height - 6, 0.8, this.still());
     drawText(s, `TECH TREE   RESEARCH ${run.research}`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     // Twelve tracks need ~170 px each to read; narrower windows get two rows of six.
     const perRow = (s.width - 2 * m) / TRACKS.length < 170 ? Math.ceil(TRACKS.length / 2) : TRACKS.length;

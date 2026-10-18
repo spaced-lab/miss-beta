@@ -9,6 +9,7 @@
 //       commits all of the plan's missions through the callback; the overlay stays open for more.
 // LORE: G3 (the planner), O10 (A to B), D2 (early beats big), D4 (fragmentation)
 
+import { Materialize } from '../wire';
 import { KNOBS } from '../../config/knobs';
 import { YEAR } from '../../physics/constants';
 import { propagate } from '../../physics/kepler';
@@ -56,6 +57,9 @@ export interface PlannerSession {
 }
 
 export class PlannerOverlay {
+  /** Overlay frame transition and the reduce-motion switch (set by the owner screen). */
+  private readonly mat = new Materialize();
+  still: () => boolean = () => false;
   /** Mouse targets from the last frame: each plan's vertical extent and the list's left edge. */
   private planYs: { y0: number; y1?: number; idx: number }[] = [];
   /** Click-to-learn marks: one [?] per plan, opening the topic of its method. */
@@ -103,6 +107,7 @@ export class PlannerOverlay {
 
   show(session: PlannerSession): void {
     this.open = true;
+    this.mat.start();
     this.session = session;
     const t = session.world.t;
     this.targets = session.result.bodies.filter((b) => bodyAlive(b, t) && !b.harmless);
@@ -384,6 +389,9 @@ export class PlannerOverlay {
     const H = s.height;
     s.ctx.fillStyle = withAlpha(p.bg, 0.86);
     s.ctx.fillRect(0, 0, W, H);
+    // Materialize (24.2): the frame draws itself in when the overlay opens.
+    this.mat.tick(1 / 60);
+    this.mat.frame(s, 3, 3, W - 6, H - 6, 0.8, this.still());
     const top = m + 40;
     const bottom = H - m - 40;
     const leftW = Math.min(W * 0.46, 600);

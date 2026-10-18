@@ -12,6 +12,7 @@
 //       Pure drawing: it reads the world and never changes it.
 // LORE: F12 (visitors from other stars), F3 (the sunward blind spot), F5 (today's surveys), F11 (the gauge)
 
+import { Materialize } from '../wire';
 import { propagate } from '../../physics/kepler';
 import { NETWORKS } from '../../sim/detection';
 import { coverageAll, eclipticLatitude, nodeLine, tiltAboutNode } from '../../sim/sky';
@@ -36,6 +37,9 @@ export function elongationOf(lambdaDeg: number, betaDeg: number): number {
 }
 
 export class SkyOverlay {
+  /** Overlay frame transition and the reduce-motion switch (set by the owner screen). */
+  private readonly mat = new Materialize();
+  still: () => boolean = () => false;
   private open = false;
   constructor(private readonly s: Surface, private readonly keys: Input) {}
 
@@ -44,6 +48,7 @@ export class SkyOverlay {
   }
   show(): void {
     this.open = true;
+    this.mat.start();
   }
   hide(): void {
     this.open = false;
@@ -62,6 +67,9 @@ export class SkyOverlay {
     const ui = uiColors(p, s.spectrum);
     s.ctx.fillStyle = withAlpha(p.bg, 0.92);
     s.ctx.fillRect(0, 0, s.width, s.height);
+    // Materialize (24.2): the frame draws itself in when the overlay opens.
+    this.mat.tick(1 / 60);
+    this.mat.frame(s, 3, 3, s.width - 6, s.height - 6, 0.8, this.still());
     const cx = s.width / 2;
     const cy = s.height / 2 + 10;
     const R = Math.min(s.width, s.height) * 0.36;

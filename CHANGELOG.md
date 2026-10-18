@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PLANNER, PROGRAMS, TECH and SKY open with the materialize frame drawing itself in (instant with REDUCE MOTION);
+  under the 3-D tilt (I) a faint grid of rings and spokes marks the plane of the planets.
+
 - SUPER-DUPER-DEMO is now timed by the clock: SHORT 2.5, MEDIUM 5, LONG 10 minutes, speed rising from x4 to
   x120, FINALE IN m:ss in the header (a measured MEDIUM run was heading for 15 minutes). docs/DECISIONS.md D8-D9.
 

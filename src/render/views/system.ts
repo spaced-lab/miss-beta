@@ -202,6 +202,7 @@ export class SystemScreen implements Screen {
     this.tech.openLore = toCenter;
     this.programs.openLore = toCenter;
     this.planner.openLore = toCenter;
+    for (const o of [this.planner, this.programs, this.tech, this.sky]) o.still = () => this.settings.reduceMotion;
     this.cine = new Cinematics(s, () => this.settings.reduceMotion);
     this.cine.onHit = (sc) => {
       if (!this.sfx) return;
@@ -1127,6 +1128,25 @@ export class SystemScreen implements Screen {
       s.stroke([sx + Math.cos(a) * (sr + 3), sy + Math.sin(a) * (sr + 3), sx + Math.cos(a) * (sr + 8), sy + Math.sin(a) * (sr + 8)], { color: starC, glow: 1 });
     }
 
+    // Under the 3-D tilt (I), a faint grid on the plane of the planets gives the eye a floor: rings at 0.5-6 AU and
+    // spokes every 30 deg, fading with distance. Nothing is drawn top-down, where it would only add clutter.
+    if (this.cam.pitch > 0) {
+      const gridCol = s.spectrum ? s.role('orbit') : p.dim;
+      for (const rAu of [0.5, 1, 1.5, 2, 3, 4, 6]) {
+        const ring: number[] = [];
+        for (let i = 0; i <= 72; i++) {
+          const a = (i / 72) * 2 * Math.PI;
+          ring.push(...this.project(rAu * AU * Math.cos(a), rAu * AU * Math.sin(a)));
+        }
+        s.stroke(ring, { color: gridCol, glow: 0, alpha: 0.22 * Math.min(1, 1.6 / rAu), dash: [1, 5] });
+      }
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * 2 * Math.PI;
+        const spoke: number[] = [];
+        for (const rAu of [0.3, 1, 2, 4, 6]) spoke.push(...this.project(rAu * AU * Math.cos(a), rAu * AU * Math.sin(a)));
+        s.stroke(spoke, { color: gridCol, glow: 0, alpha: 0.12, dash: [1, 6] });
+      }
+    }
     for (const pl of w.planets) {
       let pts = this.orbitCache.get(pl.id);
       if (!pts) {
