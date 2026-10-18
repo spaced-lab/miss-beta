@@ -34,6 +34,9 @@ import { withAlpha } from '../palettes';
 import { drawText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
+import { ProgramsOverlay } from './programs';
+import { advancePrograms } from '../../sim/programs';
+import { exportSave, saveRun } from '../../game/savegame';
 
 export type ScaleMode = 'LINEAR' | 'COMPRESSED';
 type Phase = 'planning' | 'debrief' | 'over';
@@ -57,7 +60,10 @@ export class SystemScreen implements Screen {
   private readonly client = new PlannerClient();
   private readonly planner: PlannerOverlay;
   private readonly planet: PlanetOverlay;
+  private readonly programs: ProgramsOverlay;
   private planetOpen = false;
+  private noteText = '';
+  private noteT = 0;
   private mc: MonteCarloResult | null = null;
   private mcToken = 0;
 
@@ -66,6 +72,18 @@ export class SystemScreen implements Screen {
     this.run = createRun('DEV');
     this.planner = new PlannerOverlay(s, keys, this.client);
     this.planet = new PlanetOverlay(s);
+    this.programs = new ProgramsOverlay(s, keys);
+  }
+
+  /** Begin a run from a loaded run state (CONTINUE). */
+  resume(run: RunState): void {
+    this.run = run;
+    this.startRound();
+  }
+
+  private note(text: string, seconds = 3): void {
+    this.noteText = text;
+    this.noteT = seconds;
   }
 
   /** Monte Carlo for the committed mission set, shown in the brief. */
@@ -96,7 +114,12 @@ export class SystemScreen implements Screen {
   private startRound(): void {
     const { seed, round } = this.run;
     this.world = createWorld(seed, round);
+    // The run's networks (programs may have added some) drive discovery; the world keeps the live copy.
+    if (this.run.networks.active.length === 0) this.run.networks = { active: [...this.world.networks.active], since: {} };
+    this.world.networks = this.run.networks;
     this.world.threat = generateThreat(roundRng(seed, round), this.world, round);
+    this.run.evacuatedAt = null;
+    saveRun(this.run, this.world, null);
     this.missions = [];
     this.result = resolveRound(this.world, this.missions);
     this.requestMc();
@@ -126,6 +149,7 @@ export class SystemScreen implements Screen {
       navTier: this.run.navTier,
       sailTier: this.run.sailTier,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
+      buildTime: this.run.effects.buildTimeYears * YEAR,
       budget: budgetAt(this.run.economy, this.world.t),
       onCommit: (ms: Mission[]): boolean => {
         const cost = ms.reduce((a, m) => a + m.cost, 0);
@@ -146,10 +170,13 @@ export class SystemScreen implements Screen {
     this.world.t = res.ca.tCa;
     setWarp(this.world, 0);
     const available = this.run.economy.start + (this.run.economy.perYear * this.world.t) / YEAR;
+    // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
+    const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
+    const survivable = res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY');
     this.score = scoreRound({
       round: this.run.round,
       energyMt: res.energy.energyMt,
-      outcome: res.outcome,
+      outcome: survivable ? 'PARTIAL' : res.outcome,
       marginRadii: res.ca.marginRadii,
       budgetUnspent: budgetAt(this.run.economy, this.world.t),
       budgetAvailable: available,
@@ -159,10 +186,15 @@ export class SystemScreen implements Screen {
       producedFragments: res.producedFragments,
       netCapture: false,
     });
-    if (res.outcome !== 'HIT') {
-      this.run.score += this.score.roundScore;
-      this.run.research += this.score.research;
+    if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
+    const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
+    const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
+    this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
+    if (finalOutcome !== 'HIT') {
+      this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
+      this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
       this.phase = 'debrief';
+      saveRun(this.run, this.world, null);
     } else {
       this.phase = 'over';
       this.rank = recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted });
@@ -180,7 +212,12 @@ export class SystemScreen implements Screen {
       this.router.go('title');
       return;
     }
+    if (this.programs.isOpen) {
+      this.programs.update(this.run);
+      return;
+    }
     if (this.phase === 'debrief') {
+      if (k.pressed('KeyG')) this.programs.show();
       if (k.pressed('Space') || k.pressed('Enter')) {
         nextRound(this.run, budgetAt(this.run.economy, w.t));
         this.startRound();
@@ -192,6 +229,17 @@ export class SystemScreen implements Screen {
       return;
     }
     if (k.pressed('KeyV')) this.planetOpen = !this.planetOpen;
+    if (k.pressed('KeyG')) {
+      setWarp(w, 0);
+      this.programs.show();
+      return;
+    }
+    if (k.pressed('KeyE') && this.run.evacuatedAt === null && w.threat) {
+      if (spend(this.run.economy, w.t, KNOBS.EVACUATE_COST)) {
+        this.run.evacuatedAt = w.t;
+        this.note(`EVACUATION ORDERED  ${formatCountdown(w.threat.tImpact - w.t)}  (${this.run.effects.evacMinDays} D MINIMUM FOR CREDIT)`);
+      } else this.note('CANNOT AFFORD EVACUATION (COST 2)');
+    }
     if (k.pressed('KeyP')) {
       setWarp(w, 0);
       this.planetOpen = false;
@@ -213,11 +261,20 @@ export class SystemScreen implements Screen {
     this.panX += drag.x;
     this.panY += drag.y;
 
+    if (k.pressed('KeyX')) {
+      saveRun(this.run, this.world, null);
+      this.note(exportSave(this.run, this.world) ? 'SAVE.MD DOWNLOADED' : 'EXPORT UNAVAILABLE');
+    }
     if (k.pressed('KeyR') && this.result) {
       this.finishRound();
       return;
     }
+    const before = w.t;
     advance(w, Math.min(dtMs, 100) / 1000);
+    this.noteT = Math.max(0, this.noteT - dtMs / 1000);
+    // Programs run on the sim clock and drain the budget; completions change the networks for later rounds.
+    const done = advancePrograms(this.run.programs, { economy: this.run.economy, effects: this.run.effects, networks: this.run.networks }, w.t, w.t - before);
+    for (const id of done) this.note(`PROGRAM COMPLETE: ${id}`, 4);
     if (this.result && w.t >= this.result.ca.tCa) this.finishRound();
   }
 
@@ -274,8 +331,9 @@ export class SystemScreen implements Screen {
 
     this.drawCraft();
     this.drawThreat();
-    if (!this.planner.isOpen && !this.planetOpen) this.drawHud();
+    if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
+    this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t);
     if (this.phase === 'debrief') this.drawDebrief();
     if (this.phase === 'over') this.drawOver();
     this.planner.render();
@@ -433,11 +491,13 @@ export class SystemScreen implements Screen {
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
     drawText(s, `WARP ${warpLabel(w)}`, m, m + 24, 14, { color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     drawText(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, m, m + 48, 12);
-    drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}`, m, m + 68, 12, { color: p.dim, glow: 0 });
+    drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}`, m, m + 68, 12, { color: p.dim, glow: 0 });
+    if (this.noteT > 0) drawText(s, this.noteText, s.width / 2, m + 40, 12, { align: 'center', color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
+    if (th.noWarning) drawText(s, 'NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY (<E> EVACUATE).', s.width / 2, m + 58, 12, { align: 'center', color: p.hot, glow: 1.2 });
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
-    drawText(s, `THREAT BRIEF  ${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}`, s.width / 2, m, 12, { align: 'center' });
+    drawText(s, `THREAT BRIEF  ${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, s.width / 2, m, 12, { align: 'center' });
     const margin = res.ca.marginRadii;
     const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
     const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : res.outcome === 'MISS' ? '0.00' : '1.00';
@@ -452,7 +512,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <V> PLANET VIEW   <SPACE> PAUSE   [ ] WARP   R RESOLVE NOW   S SCALE   WHEEL ZOOM   DRAG PAN   Z RESET   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<P> PLANNER   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
@@ -473,7 +533,7 @@ export class SystemScreen implements Screen {
     const sc = this.score;
     if (!th || !res || !sc) return;
     const events = res.events.slice(-8);
-    const { x, y } = this.panel(Math.min(760, s.width - 32), 150 + events.length * 15 + 80);
+    const { x, y } = this.panel(Math.min(900, s.width - 32), 150 + events.length * 15 + 100);
     const cx = s.width / 2;
     drawText(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, { align: 'center', color: p.hot, glow: 2 });
     drawText(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, { align: 'center' });
@@ -485,7 +545,8 @@ export class SystemScreen implements Screen {
     ly += 8;
     drawText(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, { align: 'center' });
     drawText(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, { align: 'center', color: p.hot, glow: 1 });
-    drawText(s, '<SPACE> NEXT ROUND     <ESC> TITLE', cx, ly + 46, 14, { align: 'center', color: p.hot, glow: 1.5 });
+    drawText(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<SPACE> NEXT ROUND     <G> PROGRAMS     <ESC> TITLE', cx, ly + 56, 14, { align: 'center', color: p.hot, glow: 1.5 });
   }
 
   private drawOver(): void {

@@ -15,7 +15,7 @@ import { createWorld, planetById, type World } from '../src/sim/world';
 /** A world whose threat is a 120 m rubble pile (easy to disrupt) ten years out. */
 function rubbleWorld(seed: string): World {
   const w = createWorld(seed, 1);
-  const th = generateThreat(roundRng(seed, 1), w, 1);
+  const th = generateThreat(roundRng(seed, 1), w, 1, 0, { skipDiscovery: true });
   const type = { ...th.type, id: 'RUBBLE' as const, label: 'RUBBLE PILE', density: 1300, strengthMult: 0.5, kind: 'asteroid' as const };
   const D = 120;
   w.threat = { ...th, type, D, mass: (4 / 3) * Math.PI * 60 ** 3 * 1300 };
@@ -123,7 +123,7 @@ describe('resolver v2: fragmentation', () => {
 
   it('a cratering hit still reports Q/Q* and leaves one body', () => {
     const w = createWorld('CR', 1);
-    w.threat = generateThreat(roundRng('CR', 1), w, 1);
+    w.threat = generateThreat(roundRng('CR', 1), w, 1, 0, { skipDiscovery: true });
     const th = w.threat;
     const stony = { ...th.type, id: 'IRON' as const, strengthMult: 5, density: 5300 };
     w.threat = { ...th, type: stony, D: 300, mass: (4 / 3) * Math.PI * 150 ** 3 * 5300 };

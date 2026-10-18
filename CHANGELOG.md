@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M5: photometry and the detection model (ground optical, space IR, radar; today's networks with their
+  activation years and the proposed ones), the discovery search, rounds whose lead time comes from discovery
+  (with NO WARNING rounds), civil defense (E), the PROGRAMS panel (G) with completion effects, SAVE.md
+  (CONTINUE, X to export, drag-drop import), and the CODEX generated from config.
+
 - PERIMETER v3.1: Space resumes a saved game (Backspace starts new), swarms grow with level and avoid the
   moon, bullet hits are a slighter hull-thud (70 Hz pop + tiny crunch), shots are a soft low blip over a sub pop.
 

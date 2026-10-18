@@ -23,6 +23,7 @@ from pymiss.physics.constants import AU, DAY, MU_HOME, MU_SUN, R_HOME, YEAR  # n
 from pymiss.physics.flyby import flyby, soi_radius, turn_angle  # noqa: E402
 from pymiss.physics.integrate import gravity_deriv, integrate  # noqa: E402
 from pymiss.physics.sail import characteristic_accel, integrate_sail, sail_accel  # noqa: E402
+from pymiss.physics.photometry import absolute_magnitude, apparent_magnitude, view_geometry  # noqa: E402
 from pymiss.physics.fragment import disrupt, f_3d, fragment_masses, largest_remnant_fraction, q_star, specific_energy  # noqa: E402
 from pymiss.physics.estimates import LAUNCHERS, miss_from_impulse, miss_from_push, payload_for_c3  # noqa: E402
 from pymiss.physics.kinetic import kinetic_impact  # noqa: E402
@@ -150,6 +151,16 @@ def fragment_vectors() -> dict:
     return {"qStar": qs, "largestRemnant": lr, "masses": masses, "disrupt": d, "f3D": f3}
 
 
+def photometry_vectors() -> dict:
+    H = [{"D": D, "p": p, "H": absolute_magnitude(D, p)} for D, p in ((140, 0.14), (1000, 0.14), (20, 0.14), (50, 0.06), (300, 0.2))]
+    V = [{"H": h, "r": r, "d": d, "a": a, "V": apparent_magnitude(h, r, d, a)} for h, r, d, a in ((22, 1.1, 0.1, 20), (22, 1.1, 1.0, 20), (17.7, 2.3, 1.4, 12))]
+    G = []
+    for tx, ty, ox, oy in ((1.5 * AU, 0.0, AU, 0.0), (0.9 * AU, 0.02 * AU, AU, 0.0), (0.3 * AU, 1.2 * AU, -0.5 * AU, 0.8 * AU)):
+        r, d, a, e = view_geometry(tx, ty, ox, oy)
+        G.append({"tx": tx, "ty": ty, "ox": ox, "oy": oy, "r": r, "d": d, "alpha": a, "eps": e})
+    return {"H": H, "V": V, "geometry": G}
+
+
 def m4_vectors() -> dict:
     # RK4 two-body: one quarter orbit at 1 AU with 6 h steps, compare against Kepler in the TS test.
     from pymiss.physics.kepler import vis_viva
@@ -177,4 +188,5 @@ if __name__ == "__main__":
     write("lambert.json", lambert_vectors())
     write("fragment.json", fragment_vectors())
     write("m4.json", m4_vectors())
+    write("photometry.json", photometry_vectors())
     write("rng.json", rng_vectors())

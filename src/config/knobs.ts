@@ -89,6 +89,34 @@ export const KNOBS = {
   /** Onboard dv (DSM / powered flyby / sail-end match) by propulsion tier, m/s: P1 chemical kick, P2 ion, P3 NEP. */
   DSM_BUDGET: [1000, 5000, 15000] as readonly number[],
 
+  /** The calendar year of round time t = 0 (today). Network activation years are compared against it. */
+  EPOCH_YEAR: 2026,
+  /** 18.1: detection. Moon penalty: within MOON_PENALTY_DAYS of full moon ground V_lim drops by MOON_PENALTY_MAG. */
+  MOON_PENALTY_DAYS: 3,
+  MOON_PENALTY_MAG: 1.5,
+  SYNODIC_MONTH: 29.53 * DAY,
+  /** A survey discovers on the Nth consecutive detection night. */
+  DISCOVERY_NIGHTS: 3,
+  /** 18.2: search window before impact, years, and the sample step. */
+  DISCOVERY_YEARS: 20,
+  DISCOVERY_STEP: DAY,
+  /** Section 10 note: accept a candidate whose discovery-derived lead is within [LO, HI] x T_lead(k). */
+  LEAD_WINDOW: [0.6, 1.4] as readonly [number, number],
+  /** Probability of allowing a NO WARNING round at round k: p = SURPRISE_BASE + SURPRISE_PER_ROUND (k - 1), capped. */
+  SURPRISE_BASE: 0.03,
+  SURPRISE_PER_ROUND: 0.02,
+  SURPRISE_MAX: 0.2,
+  /** Lead time given to a NO WARNING round (airburst sensing, hours to days), s. */
+  NO_WARNING_LEAD: 3 * DAY,
+  /** Albedo by threat type (18.1). */
+  ALBEDO: { RUBBLE: 0.06, STONY: 0.2, IRON: 0.15, ICY: 0.04 } as Readonly<Record<string, number>>,
+
+  /** 18.6: civil defense. */
+  EVACUATE_COST: 2,
+  EVACUATE_MIN_DAYS: 7,
+  DAMAGE_MULT: { AIRBURST: 0.3, CITY: 0.4, REGIONAL: 0.7, GLOBAL: 1.0 } as Readonly<Record<string, number>>,
+  EVACUATED_HIT_SCORE_MULT: 0.25,
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 

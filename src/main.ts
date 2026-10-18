@@ -9,9 +9,11 @@ import { MinigameScreen } from './minigame/index';
 import { createSurface } from './render/canvas';
 import { PALETTES } from './render/palettes';
 import { drawText } from './render/vectorFont';
+import { CodexScreen } from './render/views/codex';
 import { LeaderboardScreen } from './render/views/leaderboard';
 import { SystemScreen } from './render/views/system';
 import { TitleScreen } from './render/views/title';
+import { importRun } from './game/savegame';
 import { Input } from './ui/input';
 
 function boot(): void {
@@ -32,17 +34,40 @@ function boot(): void {
       current.enter();
     },
   };
-  screens.set('title', new TitleScreen(surface, keys, router));
+  screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null));
   screens.set('minigame', new MinigameScreen(surface, keys, router));
   screens.set('system', new SystemScreen(surface, keys, router));
   screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
+  screens.set('codex', new CodexScreen(surface, keys, router));
 
   const onResize = (): void => surface.resize();
   window.addEventListener('resize', onResize);
 
+  // IMPORT by drag and drop (GAME_PLAN 22.1): a dropped SAVE.md is parsed (front matter only, validated) and,
+  // if valid, becomes the current save and CONTINUEs. Anything else is ignored with a console line.
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (!file || file.size > 300000) return;
+    void file.text().then((text) => {
+      const run = importRun(text);
+      if (!run) {
+        console.warn('[save] dropped file is not a valid SAVE.md');
+        return;
+      }
+      const sys = screens.get('system');
+      if (sys instanceof SystemScreen) {
+        current?.exit();
+        current = sys;
+        sys.resume(run);
+      }
+    });
+  });
+
   // Deep link for quick testing: index.html#minigame
   const hash = location.hash.slice(1);
-  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' ? hash : 'title');
+  router.go(hash === 'minigame' || hash === 'system' || hash === 'leaderboard' || hash === 'codex' ? hash : 'title');
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.

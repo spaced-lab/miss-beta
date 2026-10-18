@@ -5,7 +5,9 @@
 //       four-ring drawing with fake periods; it is replaced by kepler.ts output in M0.
 // LORE: G2 (screens and HUD), G8 (the look)
 
+import { hasSavedRun, loadRun } from '../../game/savegame';
 import type { Router, Screen } from '../../game/screen';
+import type { SystemScreen } from './system';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawText } from '../vectorFont';
@@ -23,10 +25,26 @@ export class TitleScreen implements Screen {
   private noteT = 0;
   private readonly items: Item[];
 
-  constructor(private readonly s: Surface, private readonly keys: Input, router: Router) {
+  constructor(private readonly s: Surface, private readonly keys: Input, router: Router, private readonly getSystem: () => SystemScreen | null = () => null) {
     this.items = [
       { label: 'NEW RUN', hotkey: 'KeyN', action: () => router.go('system') },
+      {
+        label: 'CONTINUE',
+        hotkey: 'KeyC',
+        action: () => {
+          const run = loadRun();
+          const sys = this.getSystem();
+          if (!run || !sys) {
+            this.note = run ? 'CONTINUE UNAVAILABLE' : 'NO SAVED RUN. START A NEW RUN OR DROP A SAVE.MD HERE.';
+            this.noteT = 2.5;
+            return;
+          }
+          router.go('system');
+          sys.resume(run);
+        },
+      },
       { label: 'PERIMETER  (ARCADE MINIGAME)', hotkey: 'KeyP', action: () => router.go('minigame') },
+      { label: 'CODEX', hotkey: 'KeyX', action: () => router.go('codex') },
       { label: 'LEADERBOARD', hotkey: 'KeyB', action: () => router.go('leaderboard') },
       { label: 'LEARN', hotkey: 'KeyL', action: null },
       { label: 'OPTIONS', hotkey: 'KeyO', action: null },
@@ -93,7 +111,7 @@ export class TitleScreen implements Screen {
       const it = this.items[i];
       if (!it) continue;
       const selected = i === this.sel;
-      const label = it.label + (it.action ? '' : '   [BUILDING]');
+      const label = it.label + (it.action ? '' : '   [BUILDING]') + (it.label === 'CONTINUE' ? (hasSavedRun() ? '   (SAVED RUN FOUND)' : '   (NO SAVE)') : '');
       if (selected) drawText(s, '>', cx - 190, y, 16, { color: p.hot, glow: 1.5 });
       drawText(s, label, cx - 160, y, 16, { color: selected ? p.hot : it.action ? p.ink : p.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
       y += 30;

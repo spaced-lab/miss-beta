@@ -37,6 +37,8 @@ export interface PlannerSession {
   navTier: number;
   sailTier: number;
   dsmBudget: number;
+  /** Build time for a new mission, s (programs can shorten it). */
+  buildTime: number;
   budget: number;
   onCommit: (ms: Mission[]) => boolean;
 }
@@ -96,7 +98,7 @@ export class PlannerOverlay {
     this.status = `COMPUTING PORKCHOP GRID FOR ${target.id} ...`;
     const w = session.world;
     const home = planetById(w, 'HOME');
-    const tMin = w.t + KNOBS.BUILD_TIME_KINETIC;
+    const tMin = w.t + session.buildTime;
     const token = ++this.jobToken;
     this.client
       .porkchop({ home: home.elements, threat: elementsAt(target.segments, tMin), muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier })

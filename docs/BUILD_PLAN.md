@@ -110,12 +110,12 @@ Goal: the four planets orbit the star with correct periods; the time-warp contro
 
 ## M5: Seeing it coming
 
-- [ ] `src/physics/photometry.ts` (18.1: H, V, phase), `src/sim/detection.ts` (ground optical, space IR, radar rules), `src/config/networks.json` (18.3, 18.4) with tags. Mirror + vectors. Tests PHOTOMETRY and DETECTION numbers of Section 16.
-- [ ] Discovery search in the worker (18.2); round generation switched to detection-derived lead with rejection sampling and `p_surprise(k)`.
-- [ ] Civil defense action (18.6). PROGRAMS panel + `src/sim/programs.ts` + `src/config/programs.json` (REALISTIC rows of 19).
-- [ ] `src/game/saveMd.ts`: SAVE.md writer and front-matter parser (minimal YAML subset, size-capped, type-guarded); `history/` export; File System Access API when available; drag-and-drop import.
-- [ ] CODEX screen generated from `config/*.json`.
-- [ ] Tests DISCOVERY (three cases), PROGRAMS progress, SAVE_MD round trip.
+- [x] `src/physics/photometry.ts` (18.1: H, V, phase), `src/sim/detection.ts` (ground optical, space IR, radar rules), `src/config/networks.json` (18.3, 18.4) with tags. Mirror + vectors. Tests PHOTOMETRY and DETECTION numbers of Section 16.
+- [x] Discovery search (18.2; runs synchronously at round start for now, worker move noted); round generation switched to detection-derived lead with rejection sampling and `p_surprise(k)`.
+- [x] Civil defense action (18.6). PROGRAMS panel + `src/sim/programs.ts` + `src/config/programs.json` (REALISTIC rows of 19).
+- [x] `src/game/saveMd.ts`: SAVE.md writer and front-matter parser (minimal YAML subset, size-capped, type-guarded); `history/` export; File System Access API when available; drag-and-drop import.
+- [x] CODEX screen generated from `config/*.json`.
+- [x] Tests DISCOVERY (three cases), PROGRAMS progress, SAVE_MD round trip.
 
 ## M6: The full tree
 

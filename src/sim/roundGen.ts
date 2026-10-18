@@ -3,15 +3,21 @@
 //       take HOME's state at the impact epoch, add a closing velocity of the type's speed in a random
 //       direction, convert to elements, and accept if the orbit is sane. Lead time, diameter and type ramp
 //       with the round index. Every draw comes from the round's RNG in a fixed order.
-// HOW:  Fallback lead-time draw (the detection model of M5 replaces it). Names are vector-style
-//       designations ("2041 KX-7"). Python has no mirror: this is sim, not physics.
+// HOW:  From M5 the lead time is discovery-derived (Section 10 note, 18.2): draw the orbit and size, run the
+//       discovery search against the run's networks, keep the candidate if the lead lands in the round's window,
+//       then re-base the clock so t = 0 is the discovery (planet and threat epochs shift). With probability
+//       p_surprise(k) a never-discovered candidate becomes a NO WARNING round with a few days of lead.
+//       The plain draw stays as the fallback (`skipDiscovery`). Names are vector-style designations
+//       ("2041 KX-7"). Python has no mirror: this is sim, not physics.
 // LORE: T1, T2, O7, O14
 
 import threatsJson from '../config/threats.json';
 import { AU, YEAR } from '../physics/constants';
 import { sphereMass } from '../physics/closeApproach';
 import { OrbitError, stateToElements } from '../physics/elements';
-import { apoapsis, periapsis } from '../physics/kepler';
+import { apoapsis, periapsis, type Elements } from '../physics/kepler';
+import { KNOBS } from '../config/knobs';
+import { discover } from './detection';
 import type { Rng } from './rng';
 import { generateAsteroidShape } from './shapes';
 import type { Threat, ThreatType } from './threat';
@@ -50,26 +56,31 @@ export function drawName(rng: Rng): string {
   return `${year} ${a}${b}-${rng.int(1, 99)}`;
 }
 
-/**
- * Build the round's threat. `now` is the round's start time (world.t). Throws only if 200 attempts fail,
- * which the acceptance tests show does not happen for the default system.
- */
-export function generateThreat(rng: Rng, world: World, k: number, now = world.t): Threat {
-  const lead = drawLeadTime(rng, k);
-  const D = drawDiameter(rng, k);
-  const type = drawType(rng, k);
-  const name = drawName(rng);
-  const shape = generateAsteroidShape(rng);
-  const tImpact = now + lead;
+/** Shift an element set's epoch so that new time t' = t - dt describes the same motion. */
+export function shiftEpoch(el: Elements, dt: number): Elements {
+  return { ...el, t0: el.t0 - dt };
+}
+
+export interface GenerateOpts {
+  /** Use the plain lead-time draw (M1 behaviour); tests and the title attract use it. */
+  skipDiscovery?: boolean;
+}
+
+/** p_surprise(k): chance that a never-discovered candidate is kept as a NO WARNING round. */
+export function surpriseProbability(k: number): number {
+  return Math.min(KNOBS.SURPRISE_MAX, KNOBS.SURPRISE_BASE + KNOBS.SURPRISE_PER_ROUND * (k - 1));
+}
+
+/** One colliding orbit for the given size/type at impact epoch tImpact, or null if 200 draws fail. */
+function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: number): { elements: Elements; uInf: number } | null {
   const home = planetById(world, 'HOME');
   const hs = planetState(world, home, tImpact);
   const maxApo = (type.kind === 'comet' ? 40 : 6) * AU;
-
   for (let attempt = 0; attempt < 200; attempt++) {
     const uInf = rng.logUniform(type.vInfMin * 1000, type.vInfMax * 1000);
     const phi = rng.float(0, Math.PI * 2);
     const v = { x: hs.v.x + uInf * Math.cos(phi), y: hs.v.y + uInf * Math.sin(phi) };
-    let elements;
+    let elements: Elements;
     try {
       elements = stateToElements(hs.r, v, world.star.mu, tImpact);
     } catch (e) {
@@ -79,18 +90,85 @@ export function generateThreat(rng: Rng, world: World, k: number, now = world.t)
     if (periapsis(elements) <= 0.25 * AU) continue;
     if (apoapsis(elements) >= maxApo) continue;
     if (elements.e >= 0.98) continue;
-    return {
-      kind: 'THREAT',
-      id: `T${k}`,
-      name,
-      type,
-      D,
-      mass: sphereMass(D, type.density),
-      elements,
-      tImpact,
-      vInfNominal: uInf,
-      shape,
-    };
+    return { elements, uInf };
   }
-  throw new Error('generateThreat: no acceptable orbit in 200 attempts');
+  return null;
+}
+
+/**
+ * Build the round's threat. `now` is the round's start time (world.t). With discovery on, the world's planet
+ * epochs are shifted so the round clock starts at the discovery. Throws only if every attempt fails.
+ */
+export function generateThreat(rng: Rng, world: World, k: number, now = world.t, opts: GenerateOpts = {}): Threat {
+  const lead = drawLeadTime(rng, k);
+  const D = drawDiameter(rng, k);
+  const type = drawType(rng, k);
+  const name = drawName(rng);
+  const shape = generateAsteroidShape(rng);
+  const home = planetById(world, 'HOME');
+  const inner = planetById(world, 'INNER');
+  const albedo = KNOBS.ALBEDO[type.id] ?? 0.15;
+
+  if (!opts.skipDiscovery) {
+    const [lo, hi] = KNOBS.LEAD_WINDOW;
+    const pSurprise = surpriseProbability(k);
+    for (let attempt = 0; attempt < 40; attempt++) {
+      // Candidate impact epoch: a draw in the round's window; the discovery decides the actual lead.
+      const tCand = now + lead * rng.float(lo, hi) * 1.2;
+      const orbit = drawCollidingOrbit(rng, world, type, tCand);
+      if (!orbit) continue;
+      const disc = discover({ threat: orbit.elements, home: home.elements, inner: inner.elements, muSun: world.star.mu, tImpact: tCand, D, albedo, activeIds: world.networks.active, sinceOverride: world.networks.since }, rng);
+      if (disc.tDisc === null) {
+        if (rng.chance(pSurprise)) {
+          // NO WARNING: sensed only at the end. Re-base so the round starts NO_WARNING_LEAD before impact.
+          const tDisc = tCand - KNOBS.NO_WARNING_LEAD;
+          return finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: null, noWarning: true }, tDisc);
+        }
+        continue;
+      }
+      if (disc.lead < lo * lead || disc.lead > hi * lead) continue;
+      const tDisc = disc.tDisc;
+      return finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: disc.networkId, noWarning: false }, tDisc);
+    }
+    // Fall through to the plain draw if rejection sampling found nothing (rare; keeps the game going).
+  }
+
+  const tImpact = now + lead;
+  const orbit = drawCollidingOrbit(rng, world, type, tImpact);
+  if (!orbit) throw new Error('generateThreat: no acceptable orbit in 200 attempts');
+  return finish(world, rng, { name, type, D, shape, elements: orbit.elements, tImpact, uInf: orbit.uInf, discoveredBy: 'ASSUMED', noWarning: false }, 0);
+}
+
+interface Draft {
+  name: string;
+  type: ThreatType;
+  D: number;
+  shape: Float64Array;
+  elements: Elements;
+  tImpact: number;
+  uInf: number;
+  discoveredBy: string | null;
+  noWarning: boolean;
+}
+
+/** Shift the world's planet epochs by tDisc (so t = 0 is the discovery) and assemble the threat record. */
+function finish(world: World, rng: Rng, d: Draft, tDisc: number): Threat {
+  void rng;
+  if (tDisc !== 0) {
+    for (const p of world.planets) (p as { elements: Elements }).elements = shiftEpoch(p.elements, tDisc);
+  }
+  return {
+    kind: 'THREAT',
+    id: `T${world.round}`,
+    name: d.name,
+    type: d.type,
+    D: d.D,
+    mass: sphereMass(d.D, d.type.density),
+    elements: d.elements,
+    tImpact: d.tImpact,
+    vInfNominal: d.uInf,
+    shape: d.shape,
+    discoveredBy: d.discoveredBy,
+    noWarning: d.noWarning,
+  };
 }

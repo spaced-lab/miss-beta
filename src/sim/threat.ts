@@ -37,4 +37,8 @@ export interface Threat {
   readonly vInfNominal: number;
   /** Seeded outline, vertex radius multipliers. */
   readonly shape: Float64Array;
+  /** Which network discovered it (null: NO WARNING round, sensed only at airburst). */
+  readonly discoveredBy: string | null;
+  /** True when the round is a NO WARNING special: civil defense only. */
+  readonly noWarning: boolean;
 }

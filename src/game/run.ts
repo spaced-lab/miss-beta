@@ -3,6 +3,7 @@
 // HOW:  Plain record plus small helpers. SAVE.md serialization arrives in M5.
 // LORE: G1 (how to play), G5 (scoring)
 
+import { createPrograms, defaultEffects, type ProgramState, type RunEffects } from '../sim/programs';
 import { createEconomy, type Economy } from './economy';
 
 export interface RunState {
@@ -23,6 +24,15 @@ export interface RunState {
   propulsionTier: number;
   assisted: boolean;
   startedAt: string;
+  programs: ProgramState[];
+  effects: RunEffects;
+  /** Networks active this run (ids) and activation years for ones completed in-game. */
+  networks: { active: string[]; since: Record<string, number> };
+  /** Round time at which EVACUATE was ordered this round, or null. */
+  evacuatedAt: number | null;
+  /** One line per finished round for SAVE.md. */
+  history: { round: number; threat: string; type: string; D: number; lead: number; by: string; plan: string; outcome: string; score: number }[];
+  cheatsUsed: string[];
 }
 
 export function createRun(seed: string): RunState {
@@ -42,6 +52,12 @@ export function createRun(seed: string): RunState {
     propulsionTier: 1,
     assisted: false,
     startedAt: new Date().toISOString().slice(0, 10),
+    programs: createPrograms(),
+    effects: defaultEffects(),
+    networks: { active: [], since: {} },
+    evacuatedAt: null,
+    history: [],
+    cheatsUsed: [],
   };
 }
 
@@ -49,5 +65,6 @@ export function createRun(seed: string): RunState {
 export function nextRound(run: RunState, budgetNow: number): void {
   run.round += 1;
   run.roundsSurvived += 1;
-  run.economy = createEconomy(budgetNow);
+  run.economy = createEconomy(budgetNow, run.economy.perYear);
+  run.evacuatedAt = null;
 }

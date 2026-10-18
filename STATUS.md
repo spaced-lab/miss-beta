@@ -14,8 +14,9 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | M2 First playable: direct kinetic | done | Lambert (+ mirror, vectors, Hohmann check), kinetic (DART), launcher tables, porkchop grid in a worker, KINETIC candidates ranked and resolved, resolver v1 with per-mission beta and terminal guidance, economy per year, Section 12 scoring, validated leaderboard, PLANNER overlay, craft in flight, play-by-play, DEBRIEF, next round |
 | M3 Breaking things | done | fragment.ts (+ mirror, vectors): Q*, largest remnant, Pareto shards, Rayleigh ejection with exact momentum; resolver v2 tracks bodies, disrupts above Q*, per-body close approach with the 3-D correction draw, PARTIAL outcome; Monte Carlo in the worker; planner targets any live body (Tab), SWARM bundles, DISRUPT flag, P(MISS) per plan; PLANET VIEW (V) |
 | M4 Going faster | done | integrate.ts (RK4 + Euler for the lab), sail.ts (force model, SPIRAL/COAST/TARGET_STEER, arcs), flyby.ts (patched conic), two-leg flyby search and sail search in the worker, KINETIC_FLYBY and SAIL_KINETIC plans with legs drawn, FLYBY WINDOWS; all mirrored in pymiss with vectors |
-| M5 Seeing it coming | todo | next: photometry.ts, detection.ts, networks.json, discovery search, civil defense, PROGRAMS, SAVE.md, codex |
-| M6 .. M12 | todo | see docs/BUILD_PLAN.md |
+| M5 Seeing it coming | done | photometry (+ mirror, vectors), detection model with today's and the proposed networks (activation years), discovery search, round generation on discovery-derived lead with NO WARNING rounds, civil defense (E), PROGRAMS panel (G) with effects on completion, SAVE.md writer/parser with CONTINUE, export (X) and drag-drop import, CODEX from config |
+| M6 The full tree | todo | next: tech.json + tech tree, autonomy and rules DSL, split impactors, nuclear, slow push family, PI, capture bag, tracking tiers, debrief scrubber |
+| M7 .. M12 | todo | see docs/BUILD_PLAN.md |
 
 ## Knobs changed from GAME_PLAN defaults
 
@@ -27,6 +28,16 @@ quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55
 DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 
 ## Decisions where the plan was silent
+
+- Networks carry an activation year (`since`); the game's now is EPOCH_YEAR 2026. The discovery search runs
+  20 years before impact in round time (t = 0 is now), so pre-2026 surveys can find old rocks and planned networks
+  only count from the year their program completes.
+- Discovery-derived rounds re-base the clock so t = 0 is the discovery: planet and threat epochs are shifted
+  together (roundGen.shiftEpoch). The discovery search runs synchronously at round start (tens of ms per
+  candidate); moving it to the worker is a BUILD_PLAN note.
+- NO WARNING rounds get NO_WARNING_LEAD (3 days) so the brief and EVACUATE are reachable.
+- SAVE.md is mirrored in localStorage as text and saved at round boundaries; missions in flight are not
+  persisted (CONTINUE restarts the current round). File System Access API folder saving is deferred.
 
 - Sail dv: GAME_PLAN 16 expects a Tier 3 sail to build 8..11 km/s in a year of SPIRAL OUT. That figure holds the
   sail at 1 AU (0.385 a_c x 1 yr = 9.97 km/s). The honest integral of tangential acceleration along the spiral is
@@ -61,6 +72,15 @@ DAMAGE_MAX_BY_LEVEL [12, 16, 25].
 - Stroke font: hand-built arcade face now; Hershey evaluated in M8 behind the same interface.
 
 ## Unverified
+
+- `[verify]` Detection network parameters (V_lim, p_cover, D_ref, since years) are the plan's approximations.
+- NEOMIR (SUNWARD_SENTINEL) ring eps 10..45 deg `[knob]`: an approach inside the 10 deg blind cone is not seen by it;
+  the plan's "25 m sunward object, >= 3 weeks lead in 90% of seeds" holds for approaches inside the ring and is
+  tested that way. The plan's "18 m sunward never discovered" holds for the final approach (no detection in the
+  last 90 days); the honest model sometimes catches such a rock on an earlier apparition years before.
+- The plan's "140 m Apollo-type found 5..15 years out": with Pan-STARRS (2010) and Catalina (1998) active before
+  2026 many such rocks are found earlier (longer lead); the test asserts >= 5 years of lead, and the round
+  generator's rejection sampling keeps rounds inside their window.
 
 - `[unverified]` Benz and Asphaug (1999) Q* coefficients (KNOBS.QSTAR_BASALT / QSTAR_ICE): the GAME_PLAN 6.10 sanity ladder
   (R = 100 m -> ~360 J/kg, 500 m -> ~510, 5 km -> ~7600) reproduces to within the stated tolerances (364 / 433 / 7.6k),

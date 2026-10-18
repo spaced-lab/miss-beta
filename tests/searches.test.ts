@@ -11,7 +11,7 @@ import { runJob } from '../src/worker/planner.worker';
 
 function worldFor(seed: string) {
   const w = createWorld(seed, 1);
-  w.threat = generateThreat(roundRng(seed, 1), w, 1);
+  w.threat = generateThreat(roundRng(seed, 1), w, 1, 0, { skipDiscovery: true });
   return w;
 }
 

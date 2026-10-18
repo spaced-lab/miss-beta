@@ -20,7 +20,7 @@ import { runJob } from '../src/worker/planner.worker';
 /** A Round-1 style world with a fixed 100 m stony threat ten years out (GAME_PLAN 17 balance target). */
 function balanceWorld(seed = 'BAL-1'): World {
   const w = createWorld(seed, 1);
-  const th = generateThreat(roundRng(seed, 1), w, 1);
+  const th = generateThreat(roundRng(seed, 1), w, 1, 0, { skipDiscovery: true });
   // Force the balance-target numbers while keeping the generated (colliding) orbit.
   const stony = th.type.id === 'STONY' ? th.type : { ...th.type, id: 'STONY' as const, label: 'STONY (S)', density: 2700 };
   const D = 100;

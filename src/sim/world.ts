@@ -12,6 +12,7 @@ import { KNOBS } from '../config/knobs';
 import { AU } from '../physics/constants';
 import { propagate, type Elements, type PropagatedState } from '../physics/kepler';
 import type { Planet, Star } from './body';
+import { defaultActiveNetworks } from './detection';
 import type { Threat } from './threat';
 import { roundRng, type Rng } from './rng';
 
@@ -26,6 +27,8 @@ export interface World {
   warp: number;
   /** The round's threat; null before roundGen runs (tests, title attract). */
   threat: Threat | null;
+  /** Detection networks active this run and activation-year overrides for ones built in-game. */
+  networks: { active: string[]; since: Record<string, number> };
 }
 
 interface PlanetRow {
@@ -53,7 +56,7 @@ export function createWorld(runSeed: string, round: number, rng: Rng = roundRng(
     };
     return { kind: 'PLANET', id: p.id, name: p.name, mu: p.mu, radius: p.radius, elements, detailLines: p.detailLines };
   });
-  return { runSeed, round, star, planets, t: 0, warp: KNOBS.WARP_DEFAULT, threat: null };
+  return { runSeed, round, star, planets, t: 0, warp: KNOBS.WARP_DEFAULT, threat: null, networks: { active: defaultActiveNetworks(), since: {} } };
 }
 
 export function planetById(w: World, id: string): Planet {
