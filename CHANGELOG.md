@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Research method and claim registry: `docs/RESEARCH.md` (statuses UNVERIFIED to UNFEASIBLE, a seven-step method,
+  the research backlog), `src/config/claims.json`, `tests/claims.test.ts`. Unchecked figures in the lore now read
+  UNVERIFIED with a claim id. New topic G9 "How we know" with dead ends (pushing Ceres, last-minute blasts).
+
 - Photosensitivity notice on first boot (acknowledged once); the SUPER-DUPER-DEMO montage never cuts more than
   three times a second (once with REDUCE MOTION). Title screen spells out MISS: and BETA: (purple labels, green
   words). docs/WARNINGS.md 8 (flashing) and 9 (GitHub Pages: shared origin, meta-tag CSP limits).

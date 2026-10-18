@@ -56,7 +56,7 @@ The game bundle does not include lore. On first open of any panel the client fet
 
 ### 0.5 Accuracy
 
-Facts carry a date where they can change ("as of 2026"). Numbers marked `[verify]` in GAME_PLAN.md are marked the same here. Every topic's EXPERT level names a primary source. Where a number is a game knob rather than a measured fact, the text says so.
+Facts carry a date where they can change ("as of 2026"). Numbers marked `[verify]` in GAME_PLAN.md are marked UNVERIFIED here with a claim id from `src/config/claims.json` (method: docs/RESEARCH.md). Every topic's EXPERT level names a primary source. Where a number is a game knob rather than a measured fact, the text says so.
 
 ### 0.6 Topic map
 
@@ -301,11 +301,11 @@ meta: related=[F1,F6,F7,F3]  game=[networks panel, codex]  tags=[detection,netwo
 PICTURE: pic-survey-map  A world map with telescope icons: Arizona, Hawaii, Chile, South Africa, Italy, China; a dashed ring for "space: empty".
 TEXT: A few telescopes on mountaintops scan the whole sky every night.
 ### BEGINNER
-A handful of survey telescopes find almost all NEOs: Catalina Sky Survey (Arizona), Pan-STARRS (Hawaii), ATLAS (four small telescopes on two hemispheres that scan the whole sky nightly), ZTF (California), ESA's new Flyeye (Italy), and since 2026 the huge Rubin Observatory in Chile, which is expected to roughly triple the catalog. There is currently no survey telescope in space; the last one, NEOWISE, retired in 2024. How small a rock each can find depends on how close it is: ATLAS can catch a 10 m rock about two days out and a 100 m rock about three weeks out.
+A handful of survey telescopes find almost all NEOs: Catalina Sky Survey (Arizona), Pan-STARRS (Hawaii), ATLAS (four small telescopes on two hemispheres that scan the whole sky nightly), ZTF (California), ESA's new Flyeye (Italy), and since 2026 the huge Rubin Observatory in Chile, which is expected to roughly triple the catalog. There is currently no survey telescope in space; the last one, NEOWISE, retired in 2024. How small a rock each can find depends on how close it is: ATLAS can catch a 10 m rock about two days out and a 100 m rock about three weeks out (UNVERIFIED, claim F5-2).
 ### INTERMEDIATE
-"Detectable size" is really "detectable brightness at a given distance." A survey with limiting magnitude 20 (ATLAS) sees a 140 m rock out to about 0.1 to 0.2 AU; one reaching magnitude 24.5 (Rubin) sees the same rock across the inner solar system, which is why Rubin finds things years before they come near. The known fraction as of 2026: about 95% of 1 km objects, about 45% of 140 m objects, and only a few percent of 30 to 100 m objects. Thirteen objects, all under 8 m, have been discovered before impact, nearly all by Catalina and ATLAS hours to a day ahead.
+"Detectable size" is really "detectable brightness at a given distance." A survey with limiting magnitude 20 (ATLAS) sees a 140 m rock out to about 0.1 to 0.2 AU; one reaching magnitude 24.5 (Rubin) sees the same rock across the inner solar system, which is why Rubin finds things years before they come near. The known fraction as of 2026: about 95% of 1 km objects, a little under half of 140 m objects, and only a few percent of 30 to 100 m objects (UNVERIFIED, claim F11-1). Thirteen objects, all under 8 m, have been discovered before impact (UNVERIFIED, claim F5-3), nearly all by Catalina and ATLAS hours to a day ahead.
 ### ADVANCED
-Game parameters (`config/networks.json`, GAME_PLAN.md 18.3; `[verify]` all):
+Game parameters (`config/networks.json`, GAME_PLAN.md 18.3; all UNVERIFIED, claim F5-1):
 
 ```
 Catalina (G96 1.5 m / 703 0.7 m)  V_lim 21.5 / 19.5   p_cover 0.5   eps >= 60
@@ -447,7 +447,7 @@ found on night k if min(Hmax[k-2..k]) >= H(D)   (three nights in a row); running
 trail = 2.5 log10(1 + omega t_exp / seeing),  omega = |v_rel x l| / delta   (30 s, 1.5 arcsec)
 tilt: in-plane orbit rotated by i about the impact node line, i in {4, 10, 18, 30} deg (visitors 20 to 90 deg)
 ```
-Model reading with today's networks (game year 2026): DEFLECT about 85 m, EVACUATE about 37 m, SUNWARD about 56 m, INTERSTELLAR about 270 m; by 2036 DEFLECT falls to about 45 m. These are the game's survey model, not measured catalog completeness. The real-world comparison point is the 2005 US goal of finding 90 percent of objects of 140 m and up, which surveys have not yet met; the share found so far is estimated at a little under half (UNVERIFIED: see docs/RESEARCH.md, claim F11-1).
+Model reading with today's networks (game year 2026): DEFLECT about 85 m, EVACUATE about 37 m, SUNWARD about 56 m, INTERSTELLAR about 270 m; by 2036 DEFLECT falls to about 45 m. These are the game's survey model, not measured catalog completeness. The real-world comparison point is the 2005 US goal of finding 90 percent of objects of 140 m and up, which surveys have not yet met; the share found so far is estimated at a little under half (UNVERIFIED, claim F11-1; method in docs/RESEARCH.md).
 ### EXPERT
 DEMO: LAB_GAUGE
 NOTES: The gauge lives in src/sim/gauge.ts (pure, tested in tests/gauge.test.ts) and runs in the planner worker; src/render/gaugeView.ts draws it. The rounds still fly a flat system without trailing loss, so the gauge is a little stricter than round generation; both meet at the 3-D orbits milestone. Common random numbers (one coverage draw per night shared by every size) keep each curve rising with size.
@@ -1223,6 +1223,38 @@ Contrast target: text >= 4.5:1 in every mode. Reduce-motion option disables flic
 DEMO: none
 NOTES: Glow is two passes: a wide low-alpha stroke under a crisp 1-1.25 px stroke; HOLO adds a WebGL2 bloom and a slow hue drift. The wireframe-3-D tilt is a camera pitch applied to the 2-D plane (z = 0 for everything), so it is a projection, not new physics.
 MORE: GAME_PLAN.md Section 24.
+
+## G9 How we know: claims, open questions and dead ends
+meta: related=[G7,F11,D13,D4,T6]  game=[Learning Center, CODEX tags]  tags=[method,science]
+### SIMPLE
+PICTURE: pic-method  Four boxes in a loop: an idea, a source book, a calculator, a check mark or a cross; an arrow back to the idea.
+TEXT: Every number here has a label: checked, still being checked, or proven not to work.
+### BEGINNER
+A game that teaches has to be honest about what it knows. Some numbers here come straight from measurements and papers (DART changed its moonlet's orbit by about 33 minutes). Some are best guesses that nobody on this project has checked yet; the text says UNVERIFIED next to them, so you know to treat them with care. Some are open questions that scientists are still working on. And some ideas have been checked and do not work at all: those are worth learning too, because knowing why an idea fails is how you find one that works. The game's SCI-FI and FICTION parts are a different thing: they are made up on purpose and labelled as such.
+### INTERMEDIATE
+Every real-world claim the game makes has an entry in a registry with a status. UNVERIFIED: not yet checked against a source. SOURCED: a primary source is named. CHECKED: sourced, and reproduced by our own calculation or test. CONTESTED: sources disagree. REFUTED: shown wrong, kept so the correction stays visible. OPEN: a research question. UNFEASIBLE: an idea that was checked and does not work. A claim moves along that list only with evidence, and the date it moved is written down.
+
+Dead ends (UNFEASIBLE):
+- Pushing a dwarf planet. Ceres weighs about 9.4e20 kg. Changing its speed by just 1 cm/s takes about 9.4e18 kg m/s of momentum. A DART-class hit delivers about 1.3e7, so it would take about 700 billion of them (claim U-1).
+- Blowing up a big rock at the last minute. The pieces fly apart at metres per second; in a few hours they spread a few kilometres, far less than the Earth is wide, so most of the mass still arrives (claim U-2). Early and gentle beats late and violent.
+### ADVANCED
+```
+Method for proposing an item (docs/RESEARCH.md):
+  1 CLAIM     one sentence, one number, units, the date it was true
+  2 TAG       REAL / PROPOSED / SPECULATIVE / FICTION (the game's method tags) and a registry status
+  3 SOURCE    a primary source: paper, mission document, law, standard; not a news story about one
+  4 CHECK     reproduce it: an order-of-magnitude calculation, a lab, a unit test (tests/claims.test.ts)
+  5 DECIDE    adopt (SOURCED / CHECKED), refine (still UNVERIFIED), reject (REFUTED / UNFEASIBLE)
+  6 TEACH     the Learning Center states it at the right level with its status
+  7 REVIEW    dated log line; re-check anything that can change (counts, "as of" dates)
+Feasibility questions for a proposed technology: does physics allow it (energy, momentum, thermodynamics)?
+what is its readiness level today? what would it cost and how long would it take? what has to be invented first?
+```
+U-1 worked: dp = M dv = 9.38e20 x 0.01 = 9.4e18 kg m/s; one hit beta m U = 3.6 x 580 x 6100 = 1.27e7 kg m/s; 9.4e18 / 1.27e7 = 7.4e11.
+### EXPERT
+DEMO: none
+NOTES: The registry is src/config/claims.json; tests/claims.test.ts checks its shape, recomputes the U-1 number, and fails if EDUCATION.md names a claim id that is not in the registry. The private idea folder feeds proposals; nothing from it is published until it has been through steps 1 to 5.
+MORE: Feynman's "Cargo Cult Science" (1974 Caltech commencement address) on bending over backwards to report what might be wrong; NASA's Technology Readiness Level definitions (NPR 7123.1); the W3C's WCAG 2.1 for the flash rule the game itself follows.
 
 ---
 

@@ -202,9 +202,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    Done: detection gauge (backlog 9): src/sim/gauge.ts in the worker, PROGRAMS + debrief, F11, LAB_GAUGE.
    Next in order: feasibility studies (backlog 6), then interstellar dial + sky coverage (10-12).
    Queue added 2026-10-18 (owner "enhancement" notes go here and are built in turn, no asking):
-   - research backlog + claim registry: unchecked real-world numbers show UNVERIFIED in game text; scientific
-     method for proposing items (docs/RESEARCH.md); Learning Center section for ideas found UNFEASIBLE.
-   - title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
+   - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
+     new real-world number enters the registry as UNVERIFIED before game text uses it.
+   - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
      spelled-out words green.
    - PERIMETER: a self-playing demo at 75 % speed; use it to tune the minigame and log suggestions/fixes in a
      minigame feature backlog (docs/MINIGAME_BACKLOG.md) for review; difficulty levels; start at level 10/20/30/40

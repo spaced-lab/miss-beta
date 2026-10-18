@@ -4,7 +4,7 @@
 //       one thing the eye should land on.
 // LORE: G8
 
-import { arc, circle, curve, earth, ellipse, glowDot, hatch, label, labelBox, line, picture, poly, rect, rock, star, sun, telescope, wave, type PicPalette } from './svg';
+import { arc, arrow, circle, curve, earth, ellipse, glowDot, hatch, label, labelBox, line, picture, poly, rect, rock, star, sun, telescope, wave, type PicPalette } from './svg';
 
 type Gen = (p: PicPalette) => string;
 
@@ -92,5 +92,15 @@ export const PICTURES_G: Readonly<Record<string, Gen>> = {
       const x = 45 + 135 * (i % 3), y = 50 + 120 * Math.floor(i / 3);
       return rect(x, y, 120, 80, { color: frame }) + wave(x + 12, y + 40, x + 108, 12, 2, { color: accent }) + circle(x + 100, y + 18, 5, { color: frame }) + label(x + 60, y + 98, name, { color: p.dim, anchor: 'middle', size: 9 });
     }),
+  ]),
+  // The method as a loop: idea -> source -> check -> verdict (tick or cross), and back to the idea.
+  'pic-method': (p) => picture(p, [
+    labelBox(40, 60, 150, 50, 'IDEA', p.ink), arrow(190, 85, 288, 85, { color: p.dim }),
+    labelBox(290, 60, 150, 50, 'SOURCE', p.ink), arrow(365, 110, 365, 188, { color: p.dim }),
+    labelBox(290, 190, 150, 50, 'CHECK', p.ink), arrow(290, 215, 192, 215, { color: p.dim }),
+    labelBox(40, 190, 150, 50, 'VERDICT', p.hot), arrow(115, 190, 115, 112, { color: p.dim, dash: '4 3' }),
+    line(70, 262, 80, 274, { color: p.ink }), line(80, 274, 98, 252, { color: p.ink }), label(108, 270, 'WORKS', { color: p.ink, size: 10 }),
+    line(150, 252, 168, 274, { color: p.hot }), line(168, 252, 150, 274, { color: p.hot }), label(176, 270, 'DEAD END', { color: p.hot, size: 10 }),
+    label(240, 300, 'EVERY NUMBER CARRIES ITS STATUS', { color: p.dim, anchor: 'middle' }),
   ]),
 };

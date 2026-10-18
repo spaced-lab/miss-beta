@@ -1,0 +1,125 @@
+{
+  "_comment": "Claim registry (docs/RESEARCH.md). Every real-world number the game or the Learning Center states as fact has an entry. status: UNVERIFIED (not yet checked against a source: game text must say so), SOURCED (a primary source is named), CHECKED (sourced and reproduced by our own calculation or test), CONTESTED (sources disagree), REFUTED (shown wrong: kept so the correction is visible), OPEN (a research question, no answer yet), UNFEASIBLE (an idea shown not to work: taught in G9). Game knobs are not claims.",
+  "claims": [
+    {
+      "id": "F11-1",
+      "topic": "F11",
+      "claim": "Share of near-Earth asteroids of 140 m and larger that have been found",
+      "value": "a little under half (estimate)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "Read the latest CNEOS discovery statistics and a population model (Granvik et al. 2018; Nesvorny et al. 2024); divide found by estimated total at H <= 22.",
+      "usedIn": ["EDUCATION.md F11 ADVANCED", "EDUCATION.md F5 INTERMEDIATE"]
+    },
+    {
+      "id": "F11-2",
+      "topic": "F11",
+      "claim": "US goal: find 90 percent of near-Earth objects of 140 m and larger",
+      "value": "set in 2005 by the George E. Brown, Jr. Near-Earth Object Survey Act",
+      "status": "SOURCED",
+      "source": "NASA Authorization Act of 2005 (Public Law 109-155), section 321",
+      "check": "Quote the section text.",
+      "usedIn": ["EDUCATION.md F11 ADVANCED", "src/config/knobs.ts GAUGE_DANGER_M"]
+    },
+    {
+      "id": "F11-3",
+      "topic": "F11",
+      "claim": "Damage begins near 20 m (Chelyabinsk class)",
+      "value": "Chelyabinsk, 15 February 2013, about 18 to 20 m, about 0.5 Mt airburst",
+      "status": "SOURCED",
+      "source": "Popova et al. 2013, Science 342, 1069; Brown et al. 2013, Nature 503, 238",
+      "check": "Read the size and energy estimates in both papers.",
+      "usedIn": ["EDUCATION.md F11 BEGINNER", "src/config/knobs.ts GAUGE_DANGER_M"]
+    },
+    {
+      "id": "F5-1",
+      "topic": "F5",
+      "claim": "Survey limiting magnitudes and nightly sky coverage used for each network",
+      "value": "src/config/networks.json (vLim, pCover, eps)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "For each survey, find the published single-visit limiting magnitude and the sky area per night; convert area to a per-night coverage chance for a random NEO position.",
+      "usedIn": ["src/config/networks.json", "EDUCATION.md F5 ADVANCED"]
+    },
+    {
+      "id": "F5-2",
+      "topic": "F5",
+      "claim": "ATLAS warning time for a 10 m and a 100 m impactor",
+      "value": "about two days and about three weeks",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "ATLAS project pages and Tonry et al. 2018 (PASP 130, 064505); reproduce with LAB_MAGNITUDE.",
+      "usedIn": ["EDUCATION.md F5 BEGINNER"]
+    },
+    {
+      "id": "F5-3",
+      "topic": "F5",
+      "claim": "Number of asteroids discovered before they hit the Earth",
+      "value": "thirteen, all under 8 m (as of 2026)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "Count the list maintained by the Minor Planet Center / CNEOS for pre-impact discoveries; the count changes, so date it.",
+      "usedIn": ["EDUCATION.md F5 INTERMEDIATE"]
+    },
+    {
+      "id": "D3-1",
+      "topic": "D3",
+      "claim": "DART momentum enhancement factor on Dimorphos",
+      "value": "beta about 3.6 (2.2 to 4.9 depending on Dimorphos's density)",
+      "status": "SOURCED",
+      "source": "Cheng et al. 2023, Nature 616, 457",
+      "check": "Read the beta range and its density assumption.",
+      "usedIn": ["src/config/knobs.ts", "EDUCATION.md D3"]
+    },
+    {
+      "id": "D3-2",
+      "topic": "D3",
+      "claim": "DART shortened Dimorphos's orbit around Didymos",
+      "value": "by about 33 minutes",
+      "status": "SOURCED",
+      "source": "Thomas et al. 2023, Nature 616, 448",
+      "check": "Read the measured period change and its uncertainty.",
+      "usedIn": ["EDUCATION.md D3"]
+    },
+    {
+      "id": "G8-1",
+      "topic": "G8",
+      "claim": "Content should not flash more than three times in any one second",
+      "value": "WCAG 2.3.1 Three Flashes or Below Threshold",
+      "status": "SOURCED",
+      "source": "W3C Web Content Accessibility Guidelines 2.1, success criterion 2.3.1",
+      "check": "Read the criterion and its general and red flash thresholds; measure our flashes against them.",
+      "usedIn": ["src/render/views/demo.ts", "docs/WARNINGS.md 8"]
+    },
+    {
+      "id": "U-1",
+      "topic": "G9",
+      "claim": "Deflecting a Ceres-class dwarf planet with kinetic impactors",
+      "value": "about 7e11 DART-class hits to change its speed by 1 cm/s",
+      "status": "UNFEASIBLE",
+      "source": "Ceres mass 9.38e20 kg: Park et al. 2016, Nature 537, 515. DART: m 580 kg, U 6.1 km/s, beta 3.6 (D3-1).",
+      "check": "dp = M dv = 9.38e20 x 0.01 = 9.4e18 kg m/s; one hit gives beta m U = 3.6 x 580 x 6100 = 1.27e7 kg m/s; ratio 7.4e11. Reproduced in tests/claims.test.ts.",
+      "usedIn": ["EDUCATION.md G9"]
+    },
+    {
+      "id": "U-2",
+      "topic": "G9",
+      "claim": "Blowing a large asteroid apart hours before it arrives",
+      "value": "the pieces keep almost all of the original momentum and most still hit",
+      "status": "UNFEASIBLE",
+      "source": "Momentum conservation; the game's own fragment model (src/physics/fragment.ts, EDUCATION D4)",
+      "check": "Spread speed of fragments (metres per second) times hours of warning is kilometres: far less than the Earth's radius, so the cloud still hits. LAB_FRAGMENT_CLOUD shows it.",
+      "usedIn": ["EDUCATION.md G9", "EDUCATION.md D4"]
+    },
+    {
+      "id": "O-1",
+      "topic": "G9",
+      "claim": "Is a molten-salt reactor practical in free fall?",
+      "value": "open: freezing in the loop, gas separation without buoyancy, corrosion and mass are the known problems",
+      "status": "OPEN",
+      "source": "",
+      "check": "Literature search on space molten-salt reactor studies; compare specific mass with liquid-metal designs at 1 MWe.",
+      "usedIn": ["docs/RESEARCH.md"]
+    }
+  ]
+}
