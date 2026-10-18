@@ -6,6 +6,10 @@ import type { Surface } from '../src/render/canvas';
 import { DAY } from '../src/physics/constants';
 import type { SimEventRecord } from '../src/sim/eventLog';
 import type { ThreatTypeId } from '../src/sim/threat';
+import { PALETTES, type ColorMode } from '../src/render/palettes';
+import { falseRamp, falseStep, nozzles, rocketSprite, ROCKETS, SPENT_STAGE, towerSprite } from '../src/render/cinematics/pixel';
+import { renderScene } from '../src/render/cinematics/draw';
+import { mockSurface } from './helpers/mockSurface';
 
 const shape = new Float64Array([1, 1.1, 0.9, 1.05, 0.95, 1, 1.08, 0.92]);
 const ctx = (typeId: ThreatTypeId = 'STONY', betaHidden = false): CineContext => ({ name: 'T1', typeId, D: 140, shape, betaHidden, energyMt: 67 });
@@ -152,5 +156,83 @@ describe('push scenes', () => {
     expect(cine.enqueue([{ ...EVENTS.PUSH!, t: t + DAY } as SimEventRecord], ctx())).toBe(0);
     cine.clear();
     expect(cine.enqueue([EVENTS.PUSH!], ctx())).toBe(1);
+  });
+});
+
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+const KEYS = new Set(['.', 'W', 'w', 'g', 'c', 'b', 'y', 'o', 'r', 'a', 'm', 'k', 'G']);
+
+describe('launch pixel art (owner 2026-10-18: finer cells, false-colour thrust head)', () => {
+  it('rocket, stage and tower sprites are rectangular, use known colour keys and are finer than before', () => {
+    const oldRows: Record<number, number> = { 1: 11, 2: 14, 3: 15 };
+    for (const tier of [1, 2, 3]) {
+      const sp = rocketSprite(tier);
+      expect(ROCKETS[tier]).toEqual(sp);
+      expect(sp.length).toBeGreaterThanOrEqual(2 * (oldRows[tier] ?? 0) - 2);
+      const w = sp[0]!.length;
+      for (const row of sp) {
+        expect(row.length).toBe(w);
+        for (const ch of row) expect(KEYS.has(ch), `${tier}:${ch}`).toBe(true);
+      }
+      // Every nozzle sits on a drawn cell of the sprite.
+      for (const [nx, ny] of nozzles(tier)) {
+        const col = nx + (w - 1) / 2;
+        const row = ny + (sp.length - 1) / 2;
+        expect(sp[row]?.[col], `tier ${tier} nozzle ${nx},${ny}`).not.toBe('.');
+      }
+    }
+    expect(nozzles(3).length).toBe(3);
+    for (const sp of [SPENT_STAGE, towerSprite(30)]) for (const row of sp) expect(row.length).toBe(sp[0]!.length);
+  });
+
+  it('the false-colour ramp gives valid colours, hottest first, in every palette, NEON or mono', () => {
+    for (const mode of Object.keys(PALETTES) as ColorMode[]) {
+      for (const spectrum of [false, true]) {
+        const ramp = falseRamp(PALETTES[mode], spectrum);
+        expect(ramp.length).toBeGreaterThanOrEqual(3);
+        for (const c of ramp) expect(c, `${mode} ${spectrum}`).toMatch(HEX);
+        expect(falseStep(ramp, 1)).toBe(ramp[0]);
+        expect(falseStep(ramp, 0)).toBe(ramp[ramp.length - 1]);
+        expect(falseStep(ramp, 7)).toBe(ramp[0]);
+        expect(falseStep(ramp, -3)).toBe(ramp[ramp.length - 1]);
+        expect(falseStep(ramp, NaN)).toBe(ramp[ramp.length - 1]);
+      }
+    }
+    // NEON gets the knob ramp; a mono mode stays in its own hue; DAYLIGHT (no glow) stays mono even with spectrum.
+    expect(falseRamp(PALETTES.PHOSPHOR, true)).toEqual(KNOBS.CINE_FALSE_RAMP);
+    expect(falseRamp(PALETTES.PHOSPHOR, false)[0]).toBe(PALETTES.PHOSPHOR.hot);
+    expect(falseRamp(PALETTES.DAYLIGHT, true)[0]).toBe(PALETTES.DAYLIGHT.hot);
+  });
+
+  it('rendering a launch is a pure function of (scene, elapsed): same draw calls, scene untouched, valid colours', () => {
+    for (const tier of [1, 2, 3]) {
+      const sc = buildScene({ ...EVENTS.LAUNCH!, tier } as SimEventRecord, null, ctx())!;
+      const before = JSON.stringify(sc);
+      for (const spectrum of [true, false]) {
+        const a = mockSurface(PALETTES.PHOSPHOR, spectrum);
+        const b = mockSurface(PALETTES.PHOSPHOR, spectrum);
+        for (const el of [0.1, 0.9, 1.7, 2.4]) {
+          renderScene(a.s, sc, el, 'T-0', false);
+          renderScene(b.s, sc, el, 'T-0', false);
+        }
+        expect(a.log.join('|')).toBe(b.log.join('|'));
+        expect(a.dots).toBeGreaterThan(500);
+        for (const c of a.colours) expect(c).toMatch(/^(#[0-9A-Fa-f]{6}|rgba\()/);
+        if (spectrum) expect(a.colours.has(KNOBS.CINE_FALSE_RAMP[2]!)).toBe(true);
+      }
+      expect(JSON.stringify(sc)).toBe(before);
+    }
+  });
+
+  it('impact and breakup bursts render deterministically with hot false-colour ejecta', () => {
+    const sc = buildScene(EVENTS.FRAGMENTATION!, EVENTS.IMPACT!, ctx('RUBBLE'))!;
+    const a = mockSurface(PALETTES.PHOSPHOR, true);
+    const b = mockSurface(PALETTES.PHOSPHOR, true);
+    for (const el of [sc.hitAt + 0.01, sc.hitAt + 0.5, sc.hitAt + 1.5]) {
+      renderScene(a.s, sc, el, 'T-0', false);
+      renderScene(b.s, sc, el, 'T-0', false);
+    }
+    expect(a.log.join('|')).toBe(b.log.join('|'));
+    expect(a.colours.has(KNOBS.CINE_FALSE_RAMP[0]!)).toBe(true);
   });
 });

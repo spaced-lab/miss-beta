@@ -288,4 +288,25 @@ export const KNOBS = {
   AUTO_SPEEDS: { SLOW: 1, NORMAL: 1.5, FAST: 2.25 },
   DEMO_SPEED_GROWTH: 1.15,
   DEMO_SPEED_MAX: 400,
+  /** Owner 2026-10-18: "finer pixels" in the LAUNCH cinematic. Cell size of the launch pixel art in px at scale 1
+   *  (was 3 for the pad and 2.5 + 0.5 x tier for the rocket); the sprites are drawn at about twice the old
+   *  resolution so the rocket keeps its size on screen. Never below 1 device px. */
+  CINE_LAUNCH_CELL_PX: 1.5,
+  /** False-colour thrust head (owner 2026-10-18): the hottest part of the plume, at the nozzle, is drawn in a
+   *  thermal false-colour ramp instead of the fire palette. Off draws the plain fire ramp all the way down. */
+  CINE_FALSE_COLOUR: true,
+  /** Fraction of the plume length drawn in false colour, then a dithered hand-off to the fire palette. */
+  CINE_FALSE_HEAD_FRAC: 0.42,
+  /** Width of the dithered hand-off band, as a fraction of the plume length. */
+  CINE_FALSE_DITHER_FRAC: 0.16,
+  /** The ramp under NEON, hottest first: white, ice, cyan, magenta, violet, deep violet (a thermal-camera look).
+   *  Mono palettes step hot -> ink -> alt -> dim instead (falseRamp in render/cinematics/pixel.ts). */
+  CINE_FALSE_RAMP: ['#FFFFFF', '#C8FFFF', '#00E5FF', '#FF3DF0', '#A43CFF', '#5A1FA8'] as readonly string[],
+  /** Ember sparks: tiny false-colour pixels shed from each nozzle, count per nozzle and lifetime, s. */
+  CINE_EMBERS: 40,
+  CINE_EMBER_LIFE_S: 0.55,
+  /** Impact, breakup and trail debris pixel size relative to the old chunky size (1 = old). */
+  CINE_DEBRIS_PX_SCALE: 0.6,
+  /** A debris pixel is drawn in false colour for this long after it is born (hot ejecta), s. */
+  CINE_HOT_EJECTA_S: 0.14,
 } as const;

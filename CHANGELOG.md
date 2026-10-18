@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Launch cinematic in finer pixels: a more detailed rocket (L3 with strap-on boosters), tower and pad, and the
+  hottest head of the exhaust in a thermal false-colour ramp (white, cyan, magenta, violet) handing off to the
+  fire colours down the plume, with tiny false-colour ember sparks. Impact and breakup bursts use finer pixels
+  with hot false-colour ejecta. Mono palettes use their own hot / ink / dim steps. Knobs `CINE_*`.
 - AUTOPLAY pace SLOW / NORMAL / FAST (1x, 1.5x default, 2.25x on panes, step waits and the sim clock): `-` and `=`
   change it while it plays, the hint sits under the pane bottom left; OPTIONS > AUTOPLAY SPEED stores it.
   OPTIONS > DEMO LENGTH: SUPER-DUPER-DEMO SHORT (2-3 min), MEDIUM (5 min, default), LONG (10 min).
