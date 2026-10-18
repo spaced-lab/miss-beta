@@ -37,8 +37,9 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
    `src/style.css` (a linked stylesheet); no CSP violations in the production build (title, run, planner worker,
    lore pictures, Learning Center).
 3. FIXED 2026-10-18: `worker-src blob:` dropped; the planner worker ships as a same-origin file.
-4. One origin per GitHub account: other project pages on `<user>.github.io` share this game's localStorage.
-   Data is validated on read, but a custom domain or a dedicated account isolates it. WARNINGS 9.
+4. DECIDED 2026-10-18: one origin per GitHub account means other project pages on `<user>.github.io` share
+   localStorage (the owner's account already serves two Pages sites). The game is published from its own
+   organization, `spaced-lab`, so its origin `spaced-lab.github.io` holds MISS beta only. WARNINGS 9.
 5. Source maps ship with the build (a teaching repo; DECISIONS D2, WARNINGS 10). Confirm that is still wanted.
 6. CHECKED 2026-10-18: the dev server's screenshot sink and the dev hooks are absent from the production build
    (`grep -rl "__dev\|__miss\|localhost" dist` finds nothing; the voice generator is a script, never shipped).

@@ -249,7 +249,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 **NEXT: code review, then the first public publish as v26.4.0 (owner 2026-10-18).** The tree is committed and
 the gate is green. The owner runs the code review (planned in Fable) and the full security review
 (docs/SAFETY.md checklist) before publishing; after the review: fix findings, follow docs/RELEASING.md, push from
-the owner's account (IDEAS 28: consider a project organization for its own origin), CI deploys to Pages.
+the organization `spaced-lab` (owner creates it on github.com; repository spaced-lab/miss-beta, git remote
+`origin` already set), CI deploys to Pages at https://spaced-lab.github.io/miss-beta/ (enable Pages: source
+GitHub Actions in the repository settings).
 Owner answers 2026-10-18: version YY.Q.N (v26.4.0); CI deploy on; source maps ship; framing accepted for now
 (IDEAS 29); no CLA (AGPL inbound = outbound); coffee-fund support line without naming the platform; MIT history
 and every backup copy scrubbed; SOUND on by default; FEMALE voice default (voice work IDEAS 36); AUTOPLAY NORMAL,

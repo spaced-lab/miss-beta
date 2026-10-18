@@ -162,7 +162,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 28. **Hosting origin (S).** Owner 2026-10-18: publish from the owner's GitHub account (in the keyring). Suggestion:
     a free GitHub organization for the project (for example `spacedlab`) keeps the owner's account but gives the
     game its own origin `<org>.github.io`, so no other project page shares its browser storage; a custom domain can
-    come later (then the X.509 items, IDEAS 23). Status: owner to choose before the first push.
+    come later (then the X.509 items, IDEAS 23). Status: DECIDED 2026-10-18: organization `spaced-lab` (the owner
+    creates it on github.com), repository `spaced-lab/miss-beta`, site https://spaced-lab.github.io/miss-beta/.
 
 29. **Framing and response headers (S-M).** Owner: fine for now, understand and adjust later. GitHub Pages cannot
     send `frame-ancestors` or other headers; options are a custom domain behind a CDN that sets headers, or a

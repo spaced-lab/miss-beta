@@ -75,8 +75,9 @@ it lives, what it can do, and what to do about it. Add an entry whenever a conve
 - **Shared origin:** every project page of one account lives on the same origin, `https://<user>.github.io`.
   `localStorage` and `sessionStorage` are per origin, so **any other project page under the same account can read
   and write this game's saved settings, runs and leaderboard**, and this game can read theirs. Our reads are all
-  type-guarded (entry 3), so tampering cannot run code, but treat the data as public. A custom domain or a
-  dedicated account gives the game its own origin.
+  type-guarded (entry 3), so tampering cannot run code, but treat the data as public. MISS beta is therefore
+  published from its own organization, `spaced-lab` (https://spaced-lab.github.io/miss-beta/): keep other Pages
+  sites out of that organization, or give them a custom domain.
 - **Headers:** Pages does not let us set response headers. The CSP is a `<meta>` tag (`csp()` in
   `vite.config.ts`), which cannot carry `frame-ancestors`, so other sites can frame the game (clickjacking is low
   risk: there is nothing to click that spends money or sends data). No `Permissions-Policy` or

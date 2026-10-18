@@ -21,6 +21,10 @@ and `docs/WARNINGS.md` (this game contains flashing images; see the first-boot n
 
 ## Play
 
+In the browser: https://spaced-lab.github.io/miss-beta/ (source: https://github.com/spaced-lab/miss-beta).
+
+Locally:
+
 ```
 npm install
 python3 scripts/build_lore.py   # builds the Learning Center chunks into public/lore (needed once)
