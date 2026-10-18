@@ -68,6 +68,7 @@ import { Cinematics } from '../cinematics/index';
 import type { CineContext } from '../cinematics/scene';
 import { debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
 import { craftRemaining, WarpDown } from '../../game/warpDown';
+import { pickTip, TIP_SECONDS } from '../../game/tips';
 import type { SimEventRecord } from '../../sim/eventLog';
 
 export type ScaleMode = 'LINEAR' | 'COMPRESSED';
@@ -139,6 +140,12 @@ export class SystemScreen implements Screen {
     this.tech = new TechOverlay(s, keys);
     this.console = new ConsoleOverlay(s, keys);
     this.tele = new Teletype(s);
+    const toCenter = (id: string): void => {
+      setWarp(this.world, 0);
+      openCenter?.(id, this.settings.learningLevel as Level);
+    };
+    this.tech.openLore = toCenter;
+    this.programs.openLore = toCenter;
     this.cine = new Cinematics(s, () => this.settings.reduceMotion);
     this.cine.onHit = (sc) => {
       if (!this.sfx) return;
@@ -275,7 +282,7 @@ export class SystemScreen implements Screen {
       drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
       ly += lineH;
     }
-    drawTextFit(s, `<?> LORE ${step.lore.join(' ')}   <L> LEARNING CENTER   <TAB> SKIP TUTORIAL   <F1> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.dim, glow: 0, alpha });
+    drawTextFit(s, `<TAB> SKIP TUTORIAL   <?> LORE ${step.lore.join(' ')}   <L> LEARNING CENTER   <F1> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.ink, glow: 0.3, alpha });
   }
 
   /** The next NEW RUN is a sandbox (set by the title before routing here). */
@@ -1102,6 +1109,10 @@ export class SystemScreen implements Screen {
     if (this.noteT > 0) drawText(s, this.noteText, s.width / 2, m + 40, 12, { align: 'center', color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
     if (th.noWarning) drawText(s, 'NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY (<E> EVACUATE).', s.width / 2, m + 58, 12, { align: 'center', color: p.hot, glow: 1.2 });
     if (this.phase === 'planning' && this.missions.length > 0 && !craftRemaining(res.missionsResolved, w.t)) drawText(s, 'NO CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', m, m + 96, 10, { color: p.dim, glow: 0 });
+    if (this.phase === 'planning' && this.settings.tips !== false && !this.tut && !this.tele.isOpen) {
+      const tip = pickTip({ missions: this.missions.length, inFlight: craftRemaining(res.missionsResolved, w.t), budget: budgetAt(this.run.economy, w.t), leadLeftYears: (th.tImpact - w.t) / YEAR, predictedMiss: res.outcome === 'MISS' }, Math.floor(performance.now() / 1000 / TIP_SECONDS));
+      if (tip) drawTextFit(s, `TIP  ${tip.text}`, s.width - m, s.height - m - 50, 9, Math.min(620, s.width * 0.5), { align: 'right', color: s.spectrum ? s.role('program') : p.dim, glow: 0.2 });
+    }
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);

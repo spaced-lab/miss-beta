@@ -7,6 +7,7 @@
 // LORE: G4 (programs), F7 (future missions)
 
 import type { RunState } from '../../game/run';
+import { topicForProgram } from '../../game/loreLinks';
 import { NETWORKS } from '../../sim/detection';
 import { programBurn, programById } from '../../sim/programs';
 import type { Input } from '../../ui/input';
@@ -15,6 +16,8 @@ import { withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class ProgramsOverlay {
+  /** Set by the owner screen: open the Learning Center on a topic. */
+  openLore: ((id: string) => void) | null = null;
   private open = false;
   private sel = 0;
   constructor(private readonly s: Surface, private readonly keys: Input) {}
@@ -34,6 +37,11 @@ export class ProgramsOverlay {
     const k = this.keys;
     if (k.pressed('Escape') || k.pressed('KeyG')) {
       this.hide();
+      return;
+    }
+    if ((k.pressed('KeyL') || k.pressed('Slash')) && this.openLore) {
+      const ps = run.programs[this.sel];
+      if (ps) this.openLore(topicForProgram(ps.id));
       return;
     }
     const n = run.programs.length;
@@ -86,6 +94,6 @@ export class ProgramsOverlay {
       if (ny > s.height - 50) break;
     }
     void t;
-    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT FUNDING    <ENTER> FULL / NONE    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT FUNDING    <ENTER> FULL / NONE    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

@@ -6,6 +6,7 @@
 // LORE: D11 (the catalog and the chart), G1 (how to play)
 
 import type { RunState } from '../../game/run';
+import { topicForTrack } from '../../game/loreLinks';
 import { canUnlock, TECH, TRACKS, unlock, type TechNode } from '../../game/tech';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
@@ -13,6 +14,8 @@ import { withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class TechOverlay {
+  /** Set by the owner screen: open the Learning Center on a topic. */
+  openLore: ((id: string) => void) | null = null;
   private open = false;
   private track = 0;
   private row = 0;
@@ -39,6 +42,11 @@ export class TechOverlay {
     const k = this.keys;
     if (k.pressed('Escape') || k.pressed('KeyT')) {
       this.hide();
+      return;
+    }
+    if ((k.pressed('KeyL') || k.pressed('Slash')) && this.openLore) {
+      // The Learning Center on this track's topic; Esc there comes back here with the tree still open.
+      this.openLore(topicForTrack(TRACKS[this.track] as string));
       return;
     }
     if (k.pressed('ArrowLeft')) {
@@ -99,6 +107,6 @@ export class TechOverlay {
     const sel = this.nodesOf(TRACKS[this.track] as string)[this.row];
     if (sel) drawText(s, `${sel.name}${sel.note ? ': ' + sel.note.toUpperCase() : ''}`, m, s.height - m - 48, 11, { color: p.ink, glow: 0.3 });
     if (this.note) drawText(s, this.note, m, s.height - m - 30, 11, { color: p.hot, glow: 0.8 });
-    drawTextFit(s, 'LEFT / RIGHT TRACK    UP / DOWN NODE    <ENTER> UNLOCK    <T> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT TRACK    UP / DOWN NODE    <ENTER> UNLOCK    <L> LEARN ABOUT THIS TRACK    <T> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

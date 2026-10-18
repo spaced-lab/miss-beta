@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- 2026-10-18 build-out: COLOUR is a plain MONO / NEON option (orbits blue, stars warm white); rotating 3-D
+  wireframe models (DART, Rubin, Goldstone, NEO Surveyor, sail, tractor, launcher, HAMMER, rubble pile) and real
+  NASA/JPL data panels (fireballs, closest passes, Sentry list) in the Learning Center; pixel-art launch and
+  impact cinematics; L opens the Learning Center from OPTIONS, the tech tree, the programs panel and the manual,
+  and Esc returns there; situation-aware in-game TIPS (OPTIONS toggle); the tutorial's skip key is up front.
+
 - Readable columns (2026-10-18, owner screenshots): the Learning Center is three panes at every level with prose
   capped at 72 characters and re-wrapped whenever the pane changes (the lab arriving no longer leaves text running
   under it), titles cut on whole words, lab plots clipped to their frame, code and tables fitted; the PERIMETER

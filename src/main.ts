@@ -54,7 +54,8 @@ function boot(): void {
     center.openTopic(id, level);
     router.go('center');
   }));
-  screens.set('options', new OptionsScreen(surface, keys, router, settings));
+  const options = new OptionsScreen(surface, keys, router, settings);
+  screens.set('options', options);
   const center = new CenterScreen(surface, keys, router, settings);
   screens.set('center', center);
   screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
@@ -66,6 +67,13 @@ function boot(): void {
   };
   const help = new HelpScreen(surface, keys, router);
   screens.set('help', help);
+  // Every screen with an L key opens the Learning Center on its topic; the center's Esc returns to the opener.
+  const toCenter = (id: string): void => {
+    center.openTopic(id);
+    router.go('center');
+  };
+  help.openCenter = toCenter;
+  options.openCenter = toCenter;
 
   const onResize = (): void => surface.resize();
   window.addEventListener('resize', onResize);

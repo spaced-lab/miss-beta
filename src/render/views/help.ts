@@ -156,6 +156,8 @@ export class HelpScreen implements Screen {
   }
   /** Where Esc returns to. */
   returnTo: ScreenId = 'title';
+  /** Set by main: open the Learning Center (L), Esc there returns to this page. */
+  openCenter: ((id: string) => void) | null = null;
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {}
   enter(): void {
     this.scroll = 0;
@@ -165,6 +167,10 @@ export class HelpScreen implements Screen {
     const k = this.keys;
     if (k.pressed('Escape') || k.pressed('F1')) {
       this.router.go(this.returnTo);
+      return;
+    }
+    if (k.pressed('KeyL') && this.openCenter) {
+      this.openCenter('G1');
       return;
     }
     if (k.pressed('ArrowRight') || k.pressed('Space')) {
@@ -206,6 +212,6 @@ export class HelpScreen implements Screen {
       drawTextFit(s, line, m, y, size, s.width - 2 * m, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
       y += lineH;
     }
-    drawTextFit(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <L> LEARNING CENTER    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

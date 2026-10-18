@@ -26,6 +26,8 @@ export interface Settings {
   learningLevel: LearningLevel;
   /** SPECTRUM layer (24.1): unlocked by the first clean miss, then a toggle. */
   spectrum: boolean;
+  /** In-game tips line in the HUD (2026-10-18). Optional so older saved settings stay valid. */
+  tips?: boolean;
 }
 
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
@@ -51,7 +53,8 @@ export function isSettings(v: unknown): v is Settings {
     typeof o.reduceMotion === 'boolean' &&
     TEXT_SIZES.includes(o.textSize as TextSize) &&
     LEARNING_LEVELS.includes(o.learningLevel as LearningLevel) &&
-    (o.spectrum === undefined || typeof o.spectrum === 'boolean')
+    (o.spectrum === undefined || typeof o.spectrum === 'boolean') &&
+    (o.tips === undefined || typeof o.tips === 'boolean')
   );
 }
 

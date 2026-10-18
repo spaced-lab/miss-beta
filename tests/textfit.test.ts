@@ -41,3 +41,19 @@ describe('Learning Center columns', () => {
     expect(cutWords(t, 31)).toBe(' E T6   COMETS AND VISITORS..');
   });
 });
+
+describe('lore links and tips', () => {
+  it('every linked topic exists, and tips match the situation first', async () => {
+    // @ts-ignore node types are not installed
+    const { readFileSync } = await import('fs');
+    const md = (readFileSync as (p: string, e: string) => string)('EDUCATION.md', 'utf8');
+    const { TRACK_TOPIC, PROGRAM_TOPIC, OPTION_TOPIC } = await import('../src/game/loreLinks');
+    for (const id of [...Object.values(TRACK_TOPIC), ...Object.values(PROGRAM_TOPIC), ...Object.values(OPTION_TOPIC)]) expect(md).toMatch(new RegExp(`^## ${id} `, 'm'));
+    const { pickTip, TIPS } = await import('../src/game/tips');
+    expect(TIPS.length).toBeGreaterThan(5);
+    const t = pickTip({ missions: 0, inFlight: false, budget: 5, leadLeftYears: 5, predictedMiss: false }, 0);
+    expect(t?.when).toBe('NO_MISSIONS');
+    const r = pickTip({ missions: 2, inFlight: false, budget: 50, leadLeftYears: 5, predictedMiss: false }, 0);
+    expect(r?.when).toBe('RICH');
+  });
+});

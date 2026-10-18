@@ -364,7 +364,7 @@ export class CenterScreen implements Screen {
         }
       }
     }
-    drawText(s, `UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
   }
 }
 

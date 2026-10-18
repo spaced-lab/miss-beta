@@ -5,6 +5,7 @@
 // LORE: G8 (the look), G2 (screens and HUD)
 
 import type { Router, Screen } from '../../game/screen';
+import { topicForOption } from '../../game/loreLinks';
 import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, TEXT_SIZES, UNITS, type Settings } from '../../game/settings';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
@@ -19,12 +20,15 @@ interface Row {
 
 export class OptionsScreen implements Screen {
   private sel = 0;
+  /** Set by main: open the Learning Center on a topic (Esc there returns here). */
+  openCenter: ((id: string) => void) | null = null;
   private readonly rows: Row[];
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings) {
     const st = settings;
     this.rows = [
       { label: 'COLOR MODE', value: () => st.colorMode, change: (d) => (st.colorMode = cycle(COLOR_MODES, st.colorMode, d)), note: 'PHOSPHOR IS THE DEFAULT TERMINAL GREEN. DAYLIGHT IS DARK INK ON PAPER, NO GLOW.' },
       { label: 'COLOUR', value: () => (st.spectrum ? 'NEON' : 'MONO'), change: () => (st.spectrum = !st.spectrum), note: 'MONO: ONE PHOSPHOR COLOUR, THE CLASSIC LOOK. NEON: ORBITS BLUE, THREAT AMBER, CRAFT CYAN, FRAGMENTS PINK, PROGRAMS PURPLE, SAILS ACID. EACH ALSO KEEPS ITS OWN LINE STYLE.' },
+      { label: 'TIPS', value: () => (st.tips === false ? 'OFF' : 'ON'), change: () => (st.tips = st.tips === false), note: 'A SHORT TIP UNDER THE HUD WHILE YOU PLAN, MATCHED TO WHAT IS HAPPENING. NEVER DURING A CINEMATIC.' },
       { label: 'CRT EFFECTS', value: () => (st.crt ? 'ON' : 'OFF'), change: () => (st.crt = !st.crt), note: 'SCANLINES, VIGNETTE AND A FAINT FLICKER OVER THE WHOLE FRAME.' },
       { label: 'GLOW', value: () => st.glow.toUpperCase(), change: (d) => (st.glow = cycle(GLOW_MODES, st.glow, d)), note: 'UNDERSTROKE IS A WIDE FAINT LINE UNDER EVERY STROKE (CHEAP). SHADOW USES CANVAS BLUR (SOFTER, SLOWER).' },
       { label: 'SOUND', value: () => (st.sound ? 'ON' : 'OFF'), change: () => (st.sound = !st.sound), note: 'INTERFACE BLEEPS AND EVENT SOUNDS IN THE MAIN GAME. THE ARCADE MODE HAS ITS OWN SWITCH (KEY 4).' },
@@ -42,6 +46,11 @@ export class OptionsScreen implements Screen {
     const k = this.keys;
     if (k.pressed('Escape') || k.pressed('KeyO')) {
       this.router.go('title');
+      return;
+    }
+    if ((k.pressed('KeyL') || k.pressed('Slash')) && this.openCenter) {
+      const r = this.rows[this.sel];
+      this.openCenter(topicForOption(r?.label ?? ''));
       return;
     }
     if (k.pressed('ArrowUp')) this.sel = (this.sel + this.rows.length - 1) % this.rows.length;
@@ -79,6 +88,6 @@ export class OptionsScreen implements Screen {
     });
     const row = this.rows[this.sel];
     if (row) drawText(s, row.note, s.width / 2, y + 20, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT CHANGE    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT CHANGE    <L> LEARN ABOUT THIS    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }
