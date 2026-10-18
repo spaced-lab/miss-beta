@@ -1,0 +1,26 @@
+MISS beta (MISS β): a browser planetary-defense simulator and open teaching repository.
+Created by Ridley DiSiena aka SPACED.
+Copyright (C) 2026 Ridley DiSiena (SPACED)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+General Public License as published by the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+License for more details. You should have received a copy of it in the file LICENSE; if not, see
+<https://www.gnu.org/licenses/>.
+
+Additional term under section 7(b) of the GNU AGPL: you must preserve the author attribution
+"Created by SPACED" in the credits screen (or an equivalent screen) of any copy or modified version of the
+game that you convey or run for users over a network, and keep this NOTICE file with the source.
+
+Network use (section 13): if you run a modified version for users over a network (for example as a website),
+you must offer those users the corresponding source code of your version.
+
+Support: buying a coffee or donating helps keep this content free and open source.
+https://www.patreon.com/cw/spacedlab
+
+Third-party material keeps its own licence: Kokoro-82M voices (Apache-2.0), Natural Earth (public domain),
+NASA/JPL data (public domain); see the in-game CREDITS AND SOURCES page and README.md. Development tools in
+package-lock.json carry their own licences.

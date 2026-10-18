@@ -17,3 +17,9 @@ MISS β is a game and a course. Read `CLAUDE.md` (the working rules), then `docs
 - New ideas go to `IDEAS.md` as one paragraph with a size; do not build them unasked.
 - Good first issues: a color mode, a SPAWN scenario from the JPL Small-Body Database, a SIMPLE picture, a
   lore quiz (templates in `.github/ISSUE_TEMPLATE`).
+
+## Licence of contributions
+
+MISS β is licensed AGPL-3.0-or-later (see `LICENSE` and `NOTICE`). Contributions come in under the same terms
+("inbound = outbound"): by opening a pull request you agree your change is licensed AGPL-3.0-or-later. Keep the
+"Created by SPACED" credit on the credits screen (NOTICE, section 7(b) term).

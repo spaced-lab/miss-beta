@@ -72,7 +72,21 @@ node scripts/smoke.mjs   # serve dist and check the page, bundle, CSP and lore c
 CI (`.github/workflows/ci.yml`) runs the same gate on every push and deploys `main` to GitHub Pages.
 
 Read `docs/WARNINGS.md` before exposing the dev server to a network. Design: `GAME_PLAN.md`. Lore and Learning Center content: `EDUCATION.md`. Work order: `docs/BUILD_PLAN.md`.
-Ideas not in the plan: `IDEAS.md`. License: AGPL-3.0.
+Ideas not in the plan: `IDEAS.md`.
+
+## License and credit
+
+Created by Ridley DiSiena aka SPACED. Licensed under the GNU Affero General Public License, version 3 or (at your
+option) any later version (`AGPL-3.0-or-later`; full text in `LICENSE`, notices and the attribution term in
+`NOTICE`). You may use, study, change and share it, including in classrooms; if you distribute a changed version
+or run one for people over a network, you must offer its source under the same licence and keep the
+"Created by SPACED" credit.
+
+## Support this project
+
+Buying me a coffee or donating helps keep this content free and open source:
+[patreon.com/cw/spacedlab](https://www.patreon.com/cw/spacedlab). Support is always voluntary; the game and the
+code stay free for everyone either way.
 
 Voice lines (`public/audio/voice/`) were rendered with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
 by hexgrad (Apache-2.0), voices `bf_emma` and `bm_fable`, then vocoded by `scripts/gen_voice.py`.

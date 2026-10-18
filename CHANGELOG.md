@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Licence: GNU AGPL-3.0-or-later (LICENSE, NOTICE with the "Created by SPACED" attribution term, CONTRIBUTING).
+  CREATED BY SPACED on the title screen; the credits page names Ridley DiSiena aka SPACED and the Patreon
+  (patreon.com/cw/spacedlab): support is voluntary and helps keep the content free and open source.
+
 - Usability: OPTIONS grouped into LOOK, SOUND, PLAY, RUNS and AUTOPLAY with headings; COLOUR is now COLOUR
   ACCENTS (it sat next to COLOR MODE); long option notes wrap. The in-game manual and docs/HOW_TO_PLAY.md list
   the new keys (K sky, I tilt, A autoplay with - and =, L / ? learning, M manual, Esc closes overlays) and explain

@@ -130,7 +130,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     NOTICE/AUTHORS file; an AGPL section 7 term preserving "Created by SPACED" on the credits screen; an ABOUT page
     with "Created by Ridley DiSiena aka SPACED"; FUNDING.yml and a voluntary "Support this project" line once the
     owner's Patreon is set up; CLA only if dual licensing is wanted; third-party attribution refined. Not legal
-    advice; the owner decides. Status: backlog, before going public.
+    advice; the owner decides. Status: licence, NOTICE, attribution and support DONE 2026-10-18; CLA and the repository URL
+    in the credits remain.
 
 26. **More bodies to defend (L).** Owner 2026-10-18. Two or more protected bodies: first a Moon base (the Moon as a
     second target with its own small b-crit and damage scale), then Mars cities (a second planet: the threat may be

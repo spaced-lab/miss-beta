@@ -232,13 +232,13 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
      smallest footprint without losing quality) with every change recorded in docs/DECISIONS.md (analysis, type).
    - DONE more bodies to defend (IDEAS 26): MOON_BASE, MARS_CITIES, GIANT_MOON_OUTPOSTS sites (src/sim/targets.ts,
      SITE_* / MOON_* knobs, T7). Saturn-like moons wait for a Saturn-like planet in bodies.json.
-   - PRE-PUBLIC CHECKLIST (owner 2026-10-18, review with the owner before publishing; IDEAS 25): licence model
-     AGPL-3.0 (adopted 2026-10-18; LICENSE copyright line "Ridley DiSiena (SPACED)");
-     NOTICE/AUTHORS file; AGPL section 7 additional term requiring the "Created by SPACED" notice be preserved on
-     the credits screen; "Created by SPACED" visible in game; an ABOUT page with "Created by Ridley DiSiena aka
-     SPACED"; .github/FUNDING.yml + "Support this project" line (README, credits) once the owner's Patreon exists
-     (donations voluntary, never a condition of use); decide on a CLA for contributions (only needed for dual
-     licensing); refine attribution of third-party assets (Kokoro voices, Natural Earth, NASA/JPL data).
+   - PRE-PUBLIC CHECKLIST (owner 2026-10-18): DONE licence AGPL-3.0-or-later everywhere, history rewritten so no
+     commit ever said MIT (owner's call: nothing was public); NOTICE with copyright "Ridley DiSiena (SPACED)" and an
+     AGPL section 7(b) term keeping "Created by SPACED" on the credits screen (tested); CREATED BY SPACED on the
+     title footer; ABOUT line "Created by Ridley DiSiena aka SPACED" on the credits page; .github/FUNDING.yml
+     (patreon: spacedlab) and a voluntary support line in README, NOTICE and credits; CONTRIBUTING inbound =
+     outbound. Still open: a CLA only if dual licensing is ever wanted; the repository URL in the credits once
+     the GitHub remote exists (AGPL section 13 source offer); refine third-party attribution.
    - finer launch-cinematic pixels, false-colour thrust head and spark pixels (side agent, in progress).
    Done 2026-10-18 (item 5 queue): AUTOPLAY buys tech and funds programs (chooseTech / chooseProgram), L4_L5_PICKET
    and SAIL_KITS programs (PICKET_*, KIT_* knobs), planner [?] and program-row click-to-learn. Item 5 closed:
@@ -282,4 +282,4 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    2026-10-18 more voices: TERMINAL (af_heart, heavy vocoder), COMPUTER (am_michael, mostly dry), MAINFRAME (am_onyx,
    pitched down 16 %), TOY (af_bella, 8 kHz sample-and-hold), 23 lines incl. PLAY_A_GAME ("Would you like to play a
    game?", the OPTIONS sample and the new VOICE TEST row); 6 voices 612 KB; per-voice styles in `gen_voice.py`.
-6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.
+6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0-or-later). CI is written but unrun.
