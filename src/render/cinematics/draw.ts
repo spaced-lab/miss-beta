@@ -32,6 +32,51 @@ function polyAt(s: Surface, pts: readonly number[], ox: number, oy: number, k: n
   if (buf.length >= 4) s.stroke(buf, { closed: pts.length > 4, ...style });
 }
 
+/**
+ * The body as a fuller wireframe (owner 2026-10-18: higher-detail wireframes): the outline, two inner contours
+ * shifted toward a lit point (a cheap sense of a rounded, lumpy surface), ridge lines from that point to every
+ * second vertex, and a few seeded craters on the near face. All in body units, rotated with the body.
+ * Cost: about 3 + n/2 strokes plus 3 crater rings for an n-vertex outline.
+ */
+function wireBody(s: Surface, pts: readonly number[], ox: number, oy: number, k: number, rot: number, color: string, seed: number): void {
+  polyAt(s, pts, ox, oy, k, rot, { color, glow: 1.2, width: 1.5 });
+  const n = pts.length / 2;
+  if (n < 5) return;
+  // The lit point sits up-left of centre; contours shrink toward it.
+  const lx = -0.28;
+  const ly = -0.22;
+  let rMean = 0;
+  for (let i = 0; i < n; i++) rMean += Math.hypot(pts[i * 2] ?? 0, pts[i * 2 + 1] ?? 0) / n;
+  const cx = lx * rMean;
+  const cy = ly * rMean;
+  for (const f of [0.7, 0.4]) {
+    const ring: number[] = [];
+    for (let i = 0; i < n; i++) ring.push(cx + ((pts[i * 2] ?? 0) - cx) * f, cy + ((pts[i * 2 + 1] ?? 0) - cy) * f);
+    polyAt(s, ring, ox, oy, k, rot, { color, glow: 0.4, width: 1, alpha: f > 0.5 ? 0.55 : 0.35 });
+  }
+  const c = Math.cos(rot);
+  const sn = Math.sin(rot);
+  const P = (x: number, y: number): [number, number] => [ox + (x * c - y * sn) * k, oy + (x * sn + y * c) * k];
+  for (let i = 0; i < n; i += 2) {
+    const [ax, ay] = P(cx + ((pts[i * 2] ?? 0) - cx) * 0.4, cy + ((pts[i * 2 + 1] ?? 0) - cy) * 0.4);
+    const [bx, by] = P(pts[i * 2] ?? 0, pts[i * 2 + 1] ?? 0);
+    s.stroke([ax, ay, bx, by], { color, glow: 0, width: 1, alpha: 0.3 });
+  }
+  // Craters: deterministic per body (seed), placed inside the 0.7 contour.
+  // NOTE: five craters of mixed sizes at golden-angle spacing: three equal ones read as a face.
+  const h = (j: number, salt: number): number => {
+    const u = Math.sin(seed * 12.9898 + j * 78.233 + salt * 37.719) * 43758.5453;
+    return u - Math.floor(u);
+  };
+  for (let j = 0; j < 5; j++) {
+    const ang = h(j, 1) * 0.6 + j * 2.39996;
+    const rr = rMean * (0.15 + 0.5 * h(j, 2));
+    const [qx, qy] = P(cx * 0.4 + Math.cos(ang) * rr, cy * 0.4 + Math.sin(ang) * rr);
+    const cr = rMean * k * (j === 0 ? 0.13 : 0.035 + 0.05 * h(j, 3));
+    s.circle(qx, qy, Math.max(1.2, cr), { color, glow: 0, width: 1, alpha: 0.4 });
+  }
+}
+
 export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: string, reduceMotion: boolean): void {
   const p = s.palette;
   s.clear();
@@ -82,7 +127,7 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
     const pts = hit ? sc.bodyAfter : sc.body;
     if (pts && Number.isFinite(bx)) {
       const rot = sc.kind === 'CLOSE_APPROACH' ? t * 0.8 : t * 0.15;
-      polyAt(s, pts.map((v, i) => v * sc.bodyR * (i % 2 === 0 ? 1 : 1)), X(bx), Y(by), k, rot, { color: s.role('threat'), glow: 1.2, width: 1.5 });
+      wireBody(s, pts.map((v) => v * sc.bodyR), X(bx), Y(by), k, rot, s.role('threat'), sc.body.length + sc.bodyR);
     }
   }
 

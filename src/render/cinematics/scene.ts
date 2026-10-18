@@ -421,7 +421,8 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
           sc.particles.push({ x: Math.cos(a) * R, y: Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.3, ay: 0, t0: t0 + 0.05, life: rng.float(0.6, 1.5), size: 2, role: 'threat' });
         }
       }
-      if (!standoff) sc.bodyAfter = notch(sc.body, Math.PI, 0.55, 0.3);
+      // A standoff burst ablates the near face but leaves the body whole; a contact burst gouges it.
+      sc.bodyAfter = standoff ? sc.body.map((v) => v * 0.97) : notch(sc.body, Math.PI, 0.55, 0.3);
       sc.bodyDrift = { vx: 8, vy: 0 };
       sc.title = `${e.missionId} ${e.mode} BURST  ${e.yieldMt} MT${pulses > 1 ? ` X ${pulses}` : ''}`;
       sc.subtitle = `dV ${(e.dv * 1000).toFixed(2)} MM/S   Q/Q* ${e.qRatio.toFixed(2)}   ${e.qRatio >= 1 ? 'DISRUPTED' : 'INTACT'}`;

@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Cinematics: the rock is a fuller wireframe (two lit inner contours, ridge lines, five seeded craters).
+  Fixed: after a nuclear STANDOFF burst the body vanished although the brief says INTACT; it now stays, ablated.
+
 - Usability: TECH shows four node states (owned, buy now, next with how many more research points, locked) and
   says where research comes from; CODEX methods read IN GAME or CONSOLE COMMAND instead of stale PLANNED (M6/M7).
 
