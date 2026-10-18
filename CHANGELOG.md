@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Usability: when no single plan makes the rock miss, the planner says so and how to stack pushes (commit one,
+  reopen the planner) or wait for budget and research.
+
 - Cinematics: the rock is a fuller wireframe (two lit inner contours, ridge lines, five seeded craters).
   Fixed: after a nuclear STANDOFF burst the body vanished although the brief says INTACT; it now stays, ablated.
 
