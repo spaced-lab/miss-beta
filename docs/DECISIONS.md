@@ -209,3 +209,25 @@ do not rewrite history.
   the text, and buys nothing over a linked file.
 - **Re-measure:** `npm run build && npx vite preview`, then play with a `securitypolicyviolation` listener and the
   console open; `node scripts/smoke.mjs` checks the CSP tag.
+
+## D11. Planner ranking in the worker (2026-10-18)
+
+- **TYPE:** runtime CPU (UI-thread stalls).
+- **Analysis:** the owner saw the SUPER-DUPER-DEMO "choke and catch up". Frame times logged in Chrome over 40 s of
+  the demo (rAF deltas plus `__miss.cpuMs`) were steady at the vsync interval except at two moments per plan:
+  150 to 210 ms when the porkchop grid arrived and 420 ms right after a commit. Wrapping every planner and system
+  method found the cost: `PlannerOverlay.rank` 640 to 1030 ms and `rankExtra` 120 to 280 ms, run on the UI thread
+  when the grid lands and again on every commit (`refresh`). Ranking resolves the best cells against the whole
+  round; the grid itself was already computed in the worker. Every player paid this, not only the demo.
+- **Decision:** `src/planner/rank.ts` makes the pass a pure function of plain data (world, committed missions,
+  target body, tiers); `contextFor` rebuilds the resolve and velocity callbacks on whichever thread runs it. A
+  `rank` worker job runs it, and `runJob` is the same code inline when there is no worker. The overlay shows
+  RANKING PLANS while it waits, refuses a commit until the new list lands (its verdicts would predate the last
+  commit), and AUTOPLAY waits for the ranked list. `tests/rank.test.ts` checks that a job sent through
+  structuredClone ranks the same list as the inline call.
+- **Numbers:** same 40 s demo window, same machine: worst frame 420 ms to 153 ms, p99 50 ms; the largest
+  main-thread call is now `startRound` at 16 to 24 ms (D8). The remaining spikes carry no long JS call (garbage
+  collection and structured-clone receive).
+- **Alternatives rejected:** (a) caching the ranking across commits: the verdicts include the committed missions,
+  so every commit changes them. (b) Fewer resolves (a smaller top-N): changes which plans the player sees.
+- **Re-measure:** in dev, wrap `__miss.screens.get('system').planner` methods with a timer and run the demo.

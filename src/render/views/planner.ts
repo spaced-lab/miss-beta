@@ -13,17 +13,16 @@ import { Materialize } from '../wire';
 import { KNOBS } from '../../config/knobs';
 import { YEAR } from '../../physics/constants';
 import { propagate } from '../../physics/kepler';
-import { rankCandidates, rankMissions, rankNukes, rankPI, rankSlowPush, type Candidate, type CandidateContext } from '../../planner/candidates';
+import type { Candidate } from '../../planner/candidates';
+import type { RankInput } from '../../planner/rank';
 import { RULE_PRESETS } from '../../planner/rules';
 import type { FlybyResult } from '../../planner/flybySearch';
-import { missionFromFlyby, missionFromSail } from '../../planner/legs';
 import type { SailResult } from '../../planner/sailSearch';
 import type { MonteCarloResult } from '../../planner/monteCarlo';
 import type { PorkchopGrid } from '../../planner/porkchop';
 import type { PlannerClient } from '../../planner/workerClient';
 import type { Mission } from '../../sim/mission';
-import { bodyAlive, elementsAt, resolveRound, type Body, type RoundResult } from '../../sim/resolver';
-import { stateAt } from '../../sim/orbit3';
+import { bodyAlive, elementsAt, type Body, type RoundResult } from '../../sim/resolver';
 import { planetById, type World } from '../../sim/world';
 import { formatCountdown } from '../../ui/hud';
 import type { Input } from '../../ui/input';
@@ -84,6 +83,11 @@ export class PlannerOverlay {
   private sailRes: SailResult | null = null;
   private extra: Candidate[] = [];
   private extraStatus = '';
+  /** Latest ranking request per pass, so a stale reply (an older commit or refresh) never overwrites a newer list. */
+  private gridTicket = 0;
+  private extraTicket = 0;
+  /** True once the grid's plans have been ranked for the current target. */
+  private ranked = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly client: PlannerClient) {}
 
@@ -96,7 +100,7 @@ export class PlannerOverlay {
     const budget = this.session?.budget ?? 0;
     return {
       open: this.open,
-      ready: this.grid !== null,
+      ready: this.grid !== null && this.ranked,
       sel: this.sel,
       cands: this.cands.map((c) => ({ label: this.label(c), outcome: c.verdict?.outcome ?? 'HIT', margin: c.verdict?.marginRadii ?? -9, cost: c.cost, affordable: c.cost <= budget, warhead: !!c.missions[0]?.warhead })),
     };
@@ -120,6 +124,7 @@ export class PlannerOverlay {
     const session = this.session;
     const target = this.target;
     this.grid = null;
+    this.ranked = false;
     this.cands = [];
     this.extra = [];
     this.flybyRes = null;
@@ -171,80 +176,49 @@ export class PlannerOverlay {
     }
   }
 
-  private context(): CandidateContext | null {
+  /** The ranking pass's inputs (planner/rank.ts): plain data, so the worker can run it. */
+  private rankInput(): RankInput | null {
     const s = this.session;
     const target = this.target;
-    if (!s || !target) return null;
-    const w = s.world;
-    const th = w.threat;
-    if (!th) return null;
-    const home = planetById(w, 'HOME');
-    const range = KNOBS.BETA_RANGE[th.type.id] ?? ([2, 4] as const);
-    const betaMid = (range[0] + range[1]) / 2;
+    if (!s || !target || !s.world.threat) return null;
     return {
-      targetId: target.id,
-      targetMass: target.mass,
-      targetD: target.D,
-      threatType: th.type.id,
-      threatDensity: th.type.density,
-      threatStrength: th.type.strengthMult,
-      threatMaterial: th.type.kind === 'comet' ? 'ice' : 'basalt',
+      world: s.world,
+      missions: [...s.missions],
+      target,
       threatEnergyMt: s.result.energy.energyMt,
-      tImpact: th.tImpact,
-      rHome: home.radius,
       launcherTier: s.launcherTier,
       impactorTier: s.impactorTier,
-      budget: s.budget,
-      committedAt: w.t,
-      targetVelocity: (t) => stateAt(elementsAt(target.segments, t), w.star.mu, t).v,
-      resolve: (ms) => {
-        const r = resolveRound(w, [...s.missions, ...ms], { betaOverride: betaMid });
-        return { outcome: r.outcome, marginRadii: r.ca.marginRadii, hitEnergyMt: r.hitEnergyMt, producedFragments: r.producedFragments };
-      },
+      warheadTier: s.warheadTier,
+      slowPushTier: s.slowPushTier,
+      sailTier: s.sailTier,
       swarmTier: s.swarmTier,
       autonomyTier: s.autonomyTier,
-      dvBudget: s.dsmBudget,
+      pi: s.pi,
+      dsmBudget: s.dsmBudget,
+      budget: s.budget,
     };
   }
 
-  /** Rank flyby and sail plans (pre-built missions) and merge them into the shown list. */
+  /** Rank flyby and sail plans (pre-built missions) in the worker and merge them into the shown list. */
   private rankExtra(): void {
-    const s = this.session;
-    const target = this.target;
-    const ctx = this.context();
-    if (!s || !target || !ctx) return;
-    const w = s.world;
-    const home = planetById(w, 'HOME');
-    const legCtx = { home: home.elements, muSun: w.star.mu, launcherTier: s.launcherTier, impactorTier: s.impactorTier, committedAt: w.t, targetId: target.id };
-    const list: { archetype: 'KINETIC_FLYBY' | 'SAIL_KINETIC'; missions: Mission[] }[] = [];
-    if (this.flybyRes) {
-      // Keep the best few flyby cells by closing speed per planet so the resolve budget is spent well.
-      const byPlanet = new Map<string, typeof this.flybyRes.cells>();
-      for (const c of this.flybyRes.cells) {
-        const arr = byPlanet.get(c.planetId) ?? [];
-        arr.push(c);
-        byPlanet.set(c.planetId, arr);
-      }
-      for (const arr of byPlanet.values()) {
-        arr.sort((a, b) => b.U * Math.min(b.payload, 2e4) - a.U * Math.min(a.payload, 2e4));
-        for (const c of arr.slice(0, 4)) {
-          const m = missionFromFlyby(c, legCtx, 'FLYBY');
-          if (m) list.push({ archetype: 'KINETIC_FLYBY', missions: [m] });
-        }
-      }
-    }
-    if (this.sailRes) {
-      const cells = [...this.sailRes.cells].sort((a, b) => b.U * b.impactorKg - a.U * a.impactorKg).slice(0, 6);
-      for (const c of cells) {
-        const m = missionFromSail(c, legCtx, 'SAIL', s.sailTier);
-        if (m) list.push({ archetype: 'SAIL_KINETIC', missions: [m] });
-      }
-    }
-    this.extra = rankMissions(list, ctx);
-    const nf = this.flybyRes ? this.flybyRes.cells.length : 0;
-    const ns = this.sailRes ? this.sailRes.cells.length : 0;
-    this.extraStatus = `${this.flybyRes ? `FLYBY ${nf} CELLS` : 'FLYBY ...'}   ${this.sailRes ? `SAIL ${ns} ARCS` : s.sailTier >= 1 ? 'SAIL ...' : ''}`;
-    this.merge();
+    const inp = this.rankInput();
+    if (!inp) return;
+    const token = this.jobToken;
+    const ticket = ++this.extraTicket;
+    const flyby = this.flybyRes;
+    const sail = this.sailRes;
+    const sailTier = inp.sailTier;
+    this.client
+      .rank(inp, null, flyby, sail)
+      .then((cands) => {
+        if (token !== this.jobToken || ticket !== this.extraTicket) return;
+        this.extra = cands;
+        const nf = flyby ? flyby.cells.length : 0;
+        const ns = sail ? sail.cells.length : 0;
+        this.extraStatus = `${flyby ? `FLYBY ${nf} CELLS` : 'FLYBY ...'}   ${sail ? `SAIL ${ns} ARCS` : sailTier >= 1 ? 'SAIL ...' : ''}`;
+        this.merge();
+      })
+      .catch(() => undefined);
   }
 
   /** Merge grid candidates and extra plans into one list sorted by score, ids renumbered. */
@@ -287,17 +261,31 @@ export class PlannerOverlay {
   }
 
   private rank(): void {
-    const s = this.session;
     const g = this.grid;
     const target = this.target;
-    const ctx = this.context();
-    if (!s || !g || !target || !ctx) return;
-    this.cands = this.cadence([...rankCandidates(g, ctx), ...rankNukes(g, ctx, s.warheadTier), ...rankSlowPush(g, ctx, s.slowPushTier, s.sailTier, s.dsmBudget, (s.world.threat?.type.id ?? '') === 'IRON'), ...rankPI(g, ctx, s.pi)]);
-    this.sel = 0;
-    this.status = g.feasible === 0 ? `NO FEASIBLE LAUNCH WINDOW TO ${target.id} FOR THIS LAUNCHER` : `TARGET ${target.id} (${target.D.toFixed(0)} M)   ${g.feasible} FEASIBLE CELLS  ${g.nL}X${g.nA}  STEP ${(g.step / 86400).toFixed(0)} D`;
-    if (this.cadenceHidden > 0) this.status += `   ${this.cadenceHidden} PLAN${this.cadenceHidden === 1 ? '' : 'S'} HIDDEN: ${this.session?.launchCap ?? 2} LAUNCHES PER YEAR (G: HEAVY LAUNCH CADENCE)`;
-    if (this.extra.length > 0) this.merge();
-    else this.scheduleMc();
+    const inp = this.rankInput();
+    if (!g || !target || !inp) return;
+    // NOTE: ranking resolves the top cells against the whole round (0.6 to 1 s), so it runs in the worker
+    // (D11); the list stays empty and AUTOPLAY waits until it lands.
+    const token = this.jobToken;
+    const ticket = ++this.gridTicket;
+    this.ranked = false;
+    this.status = `RANKING PLANS FOR ${target.id} ...`;
+    this.client
+      .rank(inp, g)
+      .then((cands) => {
+        if (token !== this.jobToken || ticket !== this.gridTicket) return;
+        this.cands = this.cadence(cands);
+        this.ranked = true;
+        this.sel = 0;
+        this.status = g.feasible === 0 ? `NO FEASIBLE LAUNCH WINDOW TO ${target.id} FOR THIS LAUNCHER` : `TARGET ${target.id} (${target.D.toFixed(0)} M)   ${g.feasible} FEASIBLE CELLS  ${g.nL}X${g.nA}  STEP ${(g.step / 86400).toFixed(0)} D`;
+        if (this.cadenceHidden > 0) this.status += `   ${this.cadenceHidden} PLAN${this.cadenceHidden === 1 ? '' : 'S'} HIDDEN: ${this.session?.launchCap ?? 2} LAUNCHES PER YEAR (G: HEAVY LAUNCH CADENCE)`;
+        if (this.extra.length > 0) this.merge();
+        else this.scheduleMc();
+      })
+      .catch((e: unknown) => {
+        this.status = `PLANNER ERROR: ${e instanceof Error ? e.message.toUpperCase() : 'UNKNOWN'}`;
+      });
   }
 
   /** Monte Carlo for the selected plan, debounced so arrow-key browsing does not flood the worker. */
@@ -360,7 +348,8 @@ export class PlannerOverlay {
       this.sel = (this.sel + 1) % n;
       this.scheduleMc();
     }
-    if (k.pressed('Enter') || clickCommit) {
+    // NOTE: no commit while a re-rank is in flight: the shown verdicts predate the last commit.
+    if ((k.pressed('Enter') || clickCommit) && this.ranked) {
       const c = this.cands[this.sel];
       const session = this.session;
       if (c && session) {

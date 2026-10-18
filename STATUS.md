@@ -287,6 +287,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
    - IN PROGRESS (owner go 2026-10-18, unattended): on branch `fix/post-ship-and-review`, local commits only, NO
      PUSH until the owner reviews. Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
      then all 31 findings in `ideas/CODE_REVIEW_2026-10-18.md`, verify then fix, one commit each (both gitignored).
+     Done: P1 part 1, planner ranking in the worker (D11: the demo's freeze).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,

@@ -12,6 +12,8 @@ import type { Elements } from '../physics/kepler';
 import { flybySearch, type FlybyPlanet, type FlybyResult } from '../planner/flybySearch';
 import { monteCarlo, type MonteCarloResult } from '../planner/monteCarlo';
 import { computePorkchop, type PorkchopGrid } from '../planner/porkchop';
+import { rankExtras, rankGrid, type RankInput } from '../planner/rank';
+import type { Candidate } from '../planner/candidates';
 import { sailSearch, type SailResult } from '../planner/sailSearch';
 import type { Mission } from '../sim/mission';
 import type { World } from '../sim/world';
@@ -81,7 +83,17 @@ export interface AttractJob {
   seed: string;
 }
 
-export type WorkerJob = PorkchopJob | MonteCarloJob | FlybyJob | SailJob | GaugeJob | AttractJob;
+/** Plan ranking (planner/rank.ts, D11): the grid pass, or the flyby / sail pass when `grid` is null. */
+export interface RankJob {
+  id: number;
+  type: 'rank';
+  input: RankInput;
+  grid: PorkchopGrid | null;
+  flyby: FlybyResult | null;
+  sail: SailResult | null;
+}
+
+export type WorkerJob = PorkchopJob | MonteCarloJob | FlybyJob | SailJob | GaugeJob | AttractJob | RankJob;
 
 export interface PorkchopReply {
   id: number;
@@ -119,7 +131,13 @@ export interface AttractReply {
   round: AttractRound;
 }
 
-export type WorkerReply = PorkchopReply | MonteCarloReply | FlybyReply | SailReply | GaugeReply | AttractReply | { id: number; type: 'error'; message: string };
+export interface RankReply {
+  id: number;
+  type: 'rank';
+  cands: Candidate[];
+}
+
+export type WorkerReply = RankReply | PorkchopReply | MonteCarloReply | FlybyReply | SailReply | GaugeReply | AttractReply | { id: number; type: 'error'; message: string };
 
 function isElements(v: unknown): v is Elements {
   if (typeof v !== 'object' || v === null) return false;
@@ -164,6 +182,24 @@ function isGaugeJob(v: unknown): v is GaugeJob {
     typeof since === 'object' && since !== null && Object.values(since).every((x) => typeof x === 'number') && typeof o['year'] === 'number' && Number.isFinite(o['year']);
 }
 
+function isWorld(v: unknown): v is World {
+  if (typeof v !== 'object' || v === null) return false;
+  const w = v as Record<string, unknown>;
+  return typeof w['runSeed'] === 'string' && Array.isArray(w['planets']) && typeof w['t'] === 'number' && typeof w['star'] === 'object' && w['star'] !== null;
+}
+
+function isRankJob(v: unknown): v is RankJob {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  const inp = o['input'] as Record<string, unknown> | undefined;
+  const tgt = inp?.['target'] as Record<string, unknown> | undefined;
+  const g = o['grid'] as Record<string, unknown> | null | undefined;
+  return o['type'] === 'rank' && Number.isInteger(o['id']) && typeof inp === 'object' && inp !== null && isWorld(inp['world']) && Array.isArray(inp['missions']) &&
+    typeof tgt === 'object' && tgt !== null && typeof tgt['id'] === 'string' && Array.isArray(tgt['segments']) &&
+    ['threatEnergyMt', 'launcherTier', 'impactorTier', 'warheadTier', 'slowPushTier', 'sailTier', 'swarmTier', 'autonomyTier', 'dsmBudget', 'budget'].every((k) => typeof inp[k] === 'number') &&
+    typeof inp['pi'] === 'boolean' && (g === null || (typeof g === 'object' && g !== undefined && Number.isInteger(g['nL']) && Number.isInteger(g['nA'])));
+}
+
 function isAttractJob(v: unknown): v is AttractJob {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
@@ -182,6 +218,7 @@ export function runJob(job: WorkerJob): WorkerReply {
     const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), c3Bonus: job.c3Bonus ?? 0 });
     return { id: job.id, type: 'porkchop', grid };
   }
+  if (isRankJob(job)) return { id: job.id, type: 'rank', cands: job.grid ? rankGrid(job.grid, job.input) : rankExtras(job.flyby, job.sail, job.input) };
   if (isAttractJob(job)) return { id: job.id, type: 'attract', round: buildAttract(job.seed) };
   if (isGaugeJob(job)) return { id: job.id, type: 'gauge', reading: readGauge(job.active, job.since, job.year) };
   if (isMonteCarloJob(job)) {

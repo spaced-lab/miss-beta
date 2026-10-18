@@ -6,12 +6,14 @@
 
 import type { Mission } from '../sim/mission';
 import type { World } from '../sim/world';
-import { runJob, type AttractJob, type FlybyJob, type GaugeJob, type MonteCarloJob, type PorkchopJob, type SailJob, type WorkerJob, type WorkerReply } from '../worker/planner.worker';
+import { runJob, type AttractJob, type FlybyJob, type GaugeJob, type MonteCarloJob, type PorkchopJob, type RankJob, type SailJob, type WorkerJob, type WorkerReply } from '../worker/planner.worker';
 import type { AttractRound } from '../game/attract';
 import type { FlybyResult } from './flybySearch';
 import type { MonteCarloResult } from './monteCarlo';
 import type { PorkchopGrid } from './porkchop';
 import type { SailResult } from './sailSearch';
+import type { Candidate } from './candidates';
+import type { RankInput } from './rank';
 import type { GaugeReading } from '../sim/gauge';
 
 export class PlannerClient {
@@ -87,6 +89,15 @@ export class PlannerClient {
     return this.submit(full, (r) => {
       if (r.type !== 'montecarlo') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
       return r.result;
+    });
+  }
+
+  /** Rank plans off the UI thread (D11): the porkchop grid, or with `grid` null the flyby and sail results. */
+  rank(input: RankInput, grid: PorkchopGrid | null, flyby: FlybyResult | null = null, sail: SailResult | null = null): Promise<Candidate[]> {
+    const full: RankJob = { id: this.nextId++, type: 'rank', input, grid, flyby, sail };
+    return this.submit(full, (r) => {
+      if (r.type !== 'rank') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.cands;
     });
   }
 

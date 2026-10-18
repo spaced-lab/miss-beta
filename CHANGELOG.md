@@ -2,6 +2,12 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+## Unreleased
+
+- Planner: plans are ranked in the planner worker (`planner/rank.ts`, docs/DECISIONS.md D11), not on the UI
+  thread. Opening the planner or committing a plan froze the screen for 0.6 to 1 s; that freeze was the stutter in
+  AUTOPLAY and the SUPER-DUPER-DEMO. The overlay shows RANKING PLANS while it waits.
+
 ## 26.4.0 (2026-10-18)
 
 Versions are YY.Q.N (docs/RELEASING.md).
