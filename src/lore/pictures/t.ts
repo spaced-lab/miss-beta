@@ -84,4 +84,11 @@ export const PICTURES_T: Readonly<Record<string, Gen>> = {
     sun(120, 160, 10, p.hot),
     label(400, 100, 'FAR AND COLD', { color: p.dim, anchor: 'middle' }),
   ]),
+  // The Earth with a Moon base beside it, a red planet with domes further out, one rock heading for the Moon.
+  'pic-sites': (p) => picture(p, [
+    earth(110, 170, 34, { color: p.ink }), circle(175, 120, 10, { color: p.ink }), rect(170, 106, 10, 5, { color: p.hot }), label(175, 96, 'MOON BASE', { color: p.dim, anchor: 'middle', size: 10 }),
+    circle(380, 190, 26, { color: p.hot }), poly([[366, 170], [372, 162], [378, 170]], { color: p.ink }), poly([[384, 168], [390, 160], [396, 168]], { color: p.ink }), label(380, 236, 'CITIES', { color: p.dim, anchor: 'middle', size: 10 }),
+    rock(300, 60, 8, 4, { color: p.hot }), arrow(292, 66, 190, 112, { color: p.hot }),
+    label(240, 290, 'MORE THAN ONE WORLD TO DEFEND', { color: p.dim, anchor: 'middle' }),
+  ]),
 };

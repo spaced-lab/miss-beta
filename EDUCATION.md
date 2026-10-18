@@ -216,6 +216,30 @@ DEMO: none
 NOTES: 3I/ATLAS was reported on 1 July 2025 by the ATLAS unit in Chile at about 670 million km, the third known interstellar visitor. Non-gravitational forces are the reason comet impact predictions are harder than asteroid ones; Marsden's A1/A2/A3 parameterization is the standard.
 MORE: Jewitt and Seligman 2023, "The Interstellar Interlopers" (Annual Review); JPL Small-Body Database for 3I/ATLAS; Yeomans, "Comets: A Chronological History".
 
+## T7 Protecting more than one world
+meta: related=[O12,T2,D2,G4,T6]  game=[MOON_BASE, MARS_CITIES, GIANT_MOON_OUTPOSTS programs; TARGET in the threat brief]  tags=[threat,sites]
+### SIMPLE
+PICTURE: pic-sites  The Earth with a small Moon base beside it, a red planet with domes further out, and one rock heading for the Moon.
+TEXT: Once we live on the Moon or Mars, a rock can be aimed at them too.
+### BEGINNER
+Today there is one world to protect. A crewed base on the Moon, or cities on Mars, would add more. In the game you build them as programs; from then on some rocks come for them instead of the Earth. Losing a base is a disaster for the people there and a big score penalty, but the Earth is safe and the run goes on; you can rebuild it. The Moon has almost no gravity, so it does not pull rocks in the way the Earth does: a rock aimed at it must be pushed only a little to miss, but the Moon is close to the Earth, so you have the same short warning.
+### INTERMEDIATE
+A planet's gravity bends a passing rock toward it, which widens the target: the capture distance is b_crit = R sqrt(1 + v_esc^2 / v_inf^2). For the Earth (v_esc 11.2 km/s) at a typical 15 km/s that is 1.25 Earth radii; for the Moon (v_esc 2.4 km/s) it is 1.01 Moon radii, a target about a quarter the Earth's size with almost no focusing. Mars-like cities sit further out, where main-belt rocks cross more often and the interceptors from Earth take longer to arrive. A Ganymede-like moon of the giant planet is deepest of all in a gravity well, so rocks fall in faster.
+### ADVANCED
+```
+targets (src/sim/targets.ts)         mu (m^3/s^2)   R (km)   orbit
+HOME                                  3.986e14       6371     its own Kepler orbit
+MOON (circular around HOME)           4.905e12       1737     a 384,400 km, n = sqrt(mu_E / a^3), 27.4 d
+OUTER (Mars-like planet)              4.283e13       3390     its own Kepler orbit
+GIANT_MOON (circular around GIANT)    9.888e12       2634     a 1,070,400 km, 7.2 d
+b_crit = R sqrt(1 + v_esc^2 / v_inf^2),  v_esc = sqrt(2 mu / R);   a round aims at a built site with chance 0.3
+```
+The rock is built backward from the target's state at impact, exactly as for HOME (GAME_PLAN 10). Close approach to a moon scans the moon's moving position (coarse hourly steps, then a golden-section refinement); dynamics stay heliocentric, so the moon's own pull on the rock is only in b_crit.
+### EXPERT
+DEMO: LAB_FOCUSING
+NOTES: The moon's phase comes from a hash of the run seed and is measured from its planet's epoch, so re-basing the round clock at discovery keeps the moon where the rock was aimed. Losing a site resets its program (rebuild it), scores the round zero and costs SITE_LOSS_SCORE. Lunar and Martian numbers are standard values (claims T7-1).
+MORE: NASA planetary fact sheets (nssdc.gsfc.nasa.gov/planetary/factsheet); Artemis program pages for lunar surface plans.
+
 ---
 
 # F. FINDING THEM

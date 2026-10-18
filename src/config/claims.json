@@ -255,6 +255,20 @@
       "usedIn": [
         "EDUCATION.md F12 INTERMEDIATE"
       ]
+    },
+    {
+      "id": "T7-1",
+      "topic": "T7",
+      "claim": "Masses, radii and orbits of the Moon, Mars and Ganymede used for the sites",
+      "value": "Moon GM 4.905e12 m^3/s^2, R 1737.4 km, a 384,400 km; Mars GM 4.283e13, R 3389.5 km; Ganymede GM 9.888e12, R 2634.1 km, a 1,070,400 km",
+      "status": "SOURCED",
+      "source": "NASA planetary fact sheets (NSSDCA); JPL planetary physical parameters",
+      "check": "Compare each value with the fact sheets.",
+      "usedIn": [
+        "src/config/knobs.ts MOON_* GIANT_MOON_*",
+        "src/config/bodies.json OUTER",
+        "EDUCATION.md T7"
+      ]
     }
   ]
 }

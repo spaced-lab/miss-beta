@@ -13,9 +13,10 @@
 //       from per-(seed, round, mission, sample) streams: order independent and exactly replayable.
 // LORE: O12 (close approach), D3 (kinetic and beta), D4 (fragmentation), G7 (under the hood)
 
+import { targetCloseApproach, targetOf } from './targets';
 import { KNOBS } from '../config/knobs';
 import { AU, DAY, YEAR } from '../physics/constants';
-import { bCrit as bCritOf, closeApproach, impactCategory, impactEnergy, sphereMass, type CloseApproach, type ImpactCategory, type ImpactEnergy } from '../physics/closeApproach';
+import { bCrit as bCritOf, impactCategory, impactEnergy, sphereMass, type CloseApproach, type ImpactCategory, type ImpactEnergy } from '../physics/closeApproach';
 import { OrbitError, stateToElements } from '../physics/elements';
 import { disrupt, f3D, harmlessDiameter, qStar, specificEnergy } from '../physics/fragment';
 import { propagate, type Elements } from '../physics/kepler';
@@ -155,6 +156,8 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   const threat = world.threat;
   if (!threat) throw new Error('resolveRound: no threat');
   const home = planetById(world, 'HOME');
+  // IDEAS 26: the body this rock is aimed at (HOME unless a site was drawn); close approaches are measured to it.
+  const tgt = targetOf(world, threat.targetId);
   const mu = world.star.mu;
   const sample = opts.sampleSeed ?? 0;
   const iron = threat.type.id === 'IRON';
@@ -242,7 +245,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       .filter((b) => bodyAlive(b, t) && !b.harmless)
       .map((b) => {
         const el = elementsAt(b.segments, t);
-        const ca = closeApproach(el, home.elements, mu, home.mu, home.radius, threat.tImpact, b.role === 'THREAT' ? {} : { window: KNOBS.FRAG_CA_WINDOW });
+        const ca = targetCloseApproach(el, tgt, mu, threat.tImpact, b.role === 'THREAT' ? {} : { window: KNOBS.FRAG_CA_WINDOW });
         return { body: b, hits: ca.impact };
       });
 
@@ -407,7 +410,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   const predictedMargin = (t: number): number => {
     const primary = bodies.find((b) => (b.role === 'THREAT' || b.role === 'REMNANT') && bodyAlive(b, t));
     if (!primary) return 0;
-    return closeApproach(elementsAt(primary.segments, t), home.elements, mu, home.mu, home.radius, threat.tImpact).marginRadii;
+    return targetCloseApproach(elementsAt(primary.segments, t), tgt, mu, threat.tImpact).marginRadii;
   };
 
   /** Process pending assessments and default sub-impactor deployments up to time t. */
@@ -459,7 +462,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         events.push({ t: m.arrivalTime, kind: 'PI', missionId: m.id, targetId: target.id, D, damageMt: 0, ok: false, reason: `BODY OVER ${KNOBS.PI_MAX_D} M` });
         continue;
       }
-      const caNow = closeApproach(current, home.elements, mu, home.mu, home.radius, threat.tImpact, target.role === 'THREAT' ? {} : { window: KNOBS.FRAG_CA_WINDOW });
+      const caNow = targetCloseApproach(current, tgt, mu, threat.tImpact, target.role === 'THREAT' ? {} : { window: KNOBS.FRAG_CA_WINDOW });
       const energy = impactEnergy(D, threat.type.density, caNow.vImpact).energyMt;
       const damage = caNow.impact ? KNOBS.PI_DAMAGE_FRACTION * energy : 0;
       piDamageMt += damage;
@@ -727,10 +730,10 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     if (b.escaped || b.tDeath !== Infinity) continue;
     const el = elementsAt(b.segments, Infinity);
     const isFrag = b.role !== 'THREAT';
-    const ca = closeApproach(el, home.elements, mu, home.mu, home.radius, threat.tImpact, isFrag ? { window: KNOBS.FRAG_CA_WINDOW } : {});
+    const ca = targetCloseApproach(el, tgt, mu, threat.tImpact, isFrag ? { window: KNOBS.FRAG_CA_WINDOW } : {});
     let hits = ca.impact && !b.harmless;
     if (hits && isFrag && b.vEj > 0) {
-      const p = f3D(bCritOf(home.mu, home.radius, ca.vInf), b.vEj, Math.max(0, threat.tImpact - b.tBirth));
+      const p = f3D(bCritOf(tgt.mu, tgt.radius, ca.vInf), b.vEj, Math.max(0, threat.tImpact - b.tBirth));
       hits = draw.chance(p);
     }
     if (hits && sf && sf.netTier >= 1 && b.D < KNOBS.NET_CAPTURE_D) {
@@ -749,7 +752,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   events.sort((a, b) => a.t - b.t);
   if (!primary || !primary.ca) {
     // Every damaging body was shredded (PI) before the approach: the round resolves on the original orbit's numbers.
-    const ca0 = closeApproach(threat.elements, home.elements, mu, home.mu, home.radius, threat.tImpact);
+    const ca0 = targetCloseApproach(threat.elements, tgt, mu, threat.tImpact);
     const e0 = impactEnergy(threat.D, threat.type.density, ca0.vImpact);
     const total = hitEnergyMt + piDamageMt;
     const outcome0: Outcome = total <= 0 ? 'MISS' : total < KNOBS.PARTIAL_ENERGY_FRACTION * e0.energyMt ? 'PARTIAL' : 'HIT';

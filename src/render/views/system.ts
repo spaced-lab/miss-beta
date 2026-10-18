@@ -11,6 +11,7 @@
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
+import { targetOf, type TargetId } from '../../sim/targets';
 import { canUnlock, TECH, unlock } from '../../game/tech';
 import { SkyOverlay } from './sky';
 import { nodeLine, tiltAboutNode } from '../../sim/sky';
@@ -432,7 +433,7 @@ export class SystemScreen implements Screen {
       // OPTIONS INTERSTELLAR RATE: REALISTIC rounds may bring a visitor from another star (its own seeded stream).
       const rate = KNOBS.INTERSTELLAR_RATES[this.settings.interstellarRate ?? 'REAL'];
       if (this.run.mode === 'REALISTIC' && (this.settings.interstellarRate ?? 'REAL') !== 'REAL' && !this.run.tutorial) this.run.exaggerated = true;
-      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC', interstellarRate: this.run.tutorial ? 0 : rate, runSeed: this.run.seed });
+      this.world.threat = generateThreat(rng, this.world, round, 0, { scifi: this.run.mode !== 'REALISTIC', interstellarRate: this.run.tutorial ? 0 : rate, runSeed: this.run.seed, sites: this.run.tutorial ? [] : (this.run.effects.sites as TargetId[]) });
     }
     if (this.run.mode !== 'REALISTIC' && this.run.economy.perYear < KNOBS.BUDGET_PER_YEAR * budgetScale(this.run.mode)) {
       // SCI-FI and beyond: budget scale x10 (21.2), applied once.
@@ -462,8 +463,8 @@ export class SystemScreen implements Screen {
     this.zoom = 1;
     this.panX = 0;
     this.panY = 0;
-    const home = planetById(this.world, 'HOME');
-    const hs = planetState(this.world, home, this.world.threat.tImpact);
+    // Where the target will be at impact (HOME, or the site this rock is aimed at).
+    const hs = targetOf(this.world, this.world.threat.targetId).state(this.world.threat.tImpact);
     this.ghost = { x: hs.r.x, y: hs.r.y };
     this.warpDown = new WarpDown();
     this.cine.clear();
@@ -612,7 +613,9 @@ export class SystemScreen implements Screen {
     // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
     const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
     // A guided DART replay is practice: a hit there scores like a survived partial and the run continues.
-    const survivable = (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield) || (res.outcome === 'HIT' && (this.tut?.script === 'DART' || this.run.tutorial));
+    // IDEAS 26: a rock that hits a site (not HOME) destroys the site; HOME is safe and the run goes on.
+    const siteLost = res.outcome === 'HIT' && th.targetId !== undefined && th.targetId !== 'HOME' && !this.run.shield;
+    const survivable = siteLost || (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield) || (res.outcome === 'HIT' && (this.tut?.script === 'DART' || this.run.tutorial));
     if (this.run.noclip && res.outcome === 'HIT') {
       // NOCLIP: HOME is non-colliding this round; the resolver's numbers stand, the outcome is a miss.
       this.result = { ...res, outcome: 'MISS' };
@@ -634,6 +637,7 @@ export class SystemScreen implements Screen {
     this.panelHidden = false;
     if (survivable) this.score = { ...this.score, roundScore: Math.round(this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT), research: Math.floor((this.score.roundScore * KNOBS.EVACUATED_HIT_SCORE_MULT) / 50) };
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
+    if (siteLost && th.targetId) this.loseSite(th.targetId);
     if (!this.approachSounded) this.sfx?.approach(finalOutcome === 'HIT');
     this.sfx?.voice.say(finalOutcome === 'HIT' ? 'HIT' : finalOutcome === 'PARTIAL' ? 'PARTIAL' : 'MISS', true, finalOutcome === 'HIT' ? 'GAME_OVER' : undefined);
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
@@ -915,6 +919,21 @@ export class SystemScreen implements Screen {
     }
   }
 
+  /** A site was hit: it is gone (rebuild it in PROGRAMS), the round scores nothing and the run loses SITE_LOSS_SCORE. */
+  private loseSite(id: TargetId): void {
+    this.run.effects.sites = this.run.effects.sites.filter((x) => x !== id);
+    for (const ps of this.run.programs) {
+      if (programById(ps.id).effects.some((e) => e.kind === 'SITE' && e.site === id)) {
+        ps.progress = 0;
+        ps.completedAt = null;
+        ps.funding = 0;
+      }
+    }
+    if (this.score) this.score = { ...this.score, roundScore: 0, research: 0 };
+    this.run.score = Math.max(0, this.run.score - KNOBS.SITE_LOSS_SCORE);
+    this.note(`${targetOf(this.world, id).label} LOST. HOME IS SAFE. REBUILD IT IN PROGRAMS.`, 8);
+  }
+
   /** Ask the worker for a fresh gauge when the networks or the whole calendar year changed (cheap to test per frame). */
   private refreshGauge(): void {
     const nets = this.world.networks;
@@ -1120,6 +1139,29 @@ export class SystemScreen implements Screen {
       }
       drawText(s, pl.name, px + pr + 5, py - 5, 10, { color: p.dim, glow: 0 });
       this.hit(px - 10, py - 10, 20 + pl.name.length * 9, 20, pl.id === 'HOME' ? 'O12' : pl.id === 'GIANT' ? 'O11' : 'O7', pl.id === 'HOME' ? 'HOME: CLOSE APPROACH' : `${pl.name}: ${pl.id === 'GIANT' ? 'GRAVITY ASSISTS' : 'ORBITAL ELEMENTS'}`);
+    }
+    // IDEAS 26: built sites. Moons are drawn at an exaggerated distance (a true 0.0026 AU is under a pixel) in their
+    // true direction from the planet; a planet site gets a ring. The rock's target is drawn in the threat colour.
+    for (const id of this.run.effects.sites as TargetId[]) {
+      const tg = targetOf(w, id);
+      const st = tg.state(w.t);
+      const aimedHere = w.threat?.targetId === id;
+      const col = aimedHere ? (s.spectrum ? s.role('threat') : p.hot) : s.spectrum ? s.role('planet') : p.ink;
+      if (id === 'OUTER') {
+        const [px, py] = this.project(st.r.x, st.r.y);
+        s.circle(px, py, 8, { color: col, glow: 0.8, dash: [2, 2] });
+        drawText(s, 'CITIES', px + 10, py + 6, 9, { color: col, glow: 0.4 });
+        continue;
+      }
+      const host = planetState(w, planetById(w, id === 'MOON' ? 'HOME' : 'GIANT'));
+      const [hx, hy] = this.project(host.r.x, host.r.y);
+      const ang = Math.atan2(st.r.y - host.r.y, st.r.x - host.r.x);
+      const off = id === 'MOON' ? 14 : 16;
+      const mx = hx + off * Math.cos(ang);
+      const my = hy - off * Math.sin(ang);
+      s.circle(mx, my, 2.5, { color: col, glow: 0.8 });
+      drawText(s, id === 'MOON' ? 'MOON BASE' : 'OUTPOSTS', mx + 4, my + 5, 8, { color: col, glow: 0.3 });
+      this.hit(mx - 8, my - 8, 16, 16, 'T7', `${tg.label}: A SECOND WORLD TO DEFEND`);
     }
 
     if (this.mv) this.drawMultiverse(this.mv);
@@ -1584,7 +1626,7 @@ export class SystemScreen implements Screen {
 
     if (this.ghost) {
       const [gx, gy] = this.project(this.ghost.x, this.ghost.y);
-      this.hit(gx - 14, gy - 14, 28, 28, 'O12', 'WHERE HOME WILL BE AT IMPACT');
+      this.hit(gx - 14, gy - 14, 28, 28, 'O12', 'WHERE THE TARGET WILL BE AT IMPACT');
       s.circle(gx, gy, 9, { color: p.hot, glow: 0.8, width: 1, dash: [2, 3] });
       for (const [dx, dy] of [[-14, 0], [5, 0], [0, -14], [0, 5]] as const) {
         s.stroke([gx + dx, gy + dy, gx + dx + (dx === 0 ? 0 : 9), gy + dy + (dy === 0 ? 0 : 9)], { color: p.hot, glow: 0.6 });
@@ -1670,7 +1712,7 @@ export class SystemScreen implements Screen {
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
-    drawTextFit(s, `THREAT BRIEF  ${th.name}  ${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, rx, m, 12, rw, { align: 'center' });
+    drawTextFit(s, `THREAT BRIEF  ${th.name}  ${th.targetId && th.targetId !== 'HOME' ? `TARGET ${targetOf(w, th.targetId).label}  ` : ''}${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, rx, m, 12, rw, { align: 'center' });
     this.hit(rx - rw / 2, m, rw, 18, 'T2', 'THREAT BRIEF: HOW BIG IS DANGEROUS');
     const margin = res.ca.marginRadii;
     const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
@@ -1719,7 +1761,8 @@ export class SystemScreen implements Screen {
     const fitW = pw - 32;
     const cx = s.width / 2;
     // A hit that the run survives (evacuated, shielded, or a practice round) says so instead of "MISS BY -x".
-    const why = this.run.tutorial || this.tut?.script === 'DART' ? 'PRACTICE ROUND' : this.run.shield ? 'SHIELDED' : 'EVACUATED';
+    const site = th.targetId && th.targetId !== 'HOME' ? targetOf(this.world, th.targetId).label : null;
+    const why = this.run.tutorial || this.tut?.script === 'DART' ? 'PRACTICE ROUND' : this.run.shield ? 'SHIELDED' : site ? `${site} LOST` : 'EVACUATED';
     const head = res.outcome === 'HIT' ? `HIT, SURVIVED: ${why}` : res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`;
     drawTextFit(s, head, cx, y + 22, 30, fitW, { align: 'center', color: p.hot, glow: 2 });
     drawTextFit(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, fitW, { align: 'center' });

@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- MORE WORLDS TO DEFEND (IDEAS 26): programs MOON_BASE (REALISTIC), MARS_CITIES and GIANT_MOON_OUTPOSTS (SCI-FI)
+  build protected sites; once built, three rounds in ten aim at a site (TARGET in the brief, the site drawn on the
+  map). A hit on a site destroys it (rebuild it), scores the round zero and costs 400 points; HOME is safe and the
+  run goes on. Moons ride circular orbits around their planet (src/sim/targets.ts). New topic T7 (61 topics).
+
 - AUTOPLAY invests between rounds: up to three tech nodes (launch and impactor tracks first, cheapest) and one
   program at a time in teaching order, each with a pane saying why. SCI-FI programs L4/L5 PICKET (two parked
   impactors at every new threat) and ATTACHABLE SAIL KITS (two tethered 1 km^2 sails pulling for years).

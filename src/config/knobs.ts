@@ -273,6 +273,17 @@ export const KNOBS = {
   /** SEED FLEET (30, owner idea): seeds reach the threat's neighbourhood after SEED_FLEET_DELAY, then the fleet
    *  doubles every SEED_FLEET_DOUBLING, mining small bodies for copies, and at each doubling throws all its rocks
    *  (shepherd-sized) at the threat: 1, 2, 4 ... up to SEED_FLEET_MAX rocks a strike. Lead time buys doublings. */
+  /** IDEAS 26: protected sites besides HOME. Moon (mass, radius, orbit radius), a Ganymede-like moon of GIANT, and
+   *  the chance per round, once a site is built, that the threat is aimed at a site instead of HOME (one site drawn
+   *  uniformly from those built). Losing a site costs SITE_LOSS_SCORE and the site must be rebuilt; the run goes on. */
+  MOON_MU: 4.9048695e12,
+  MOON_RADIUS: 1.7374e6,
+  MOON_A: 3.844e8,
+  GIANT_MOON_MU: 9.8878e12,
+  GIANT_MOON_RADIUS: 2.6341e6,
+  GIANT_MOON_A: 1.0704e9,
+  SITE_TARGET_SHARE: 0.3,
+  SITE_LOSS_SCORE: 400,
   /** L4/L5 PICKET (30, owner idea): impactors parked at HOME's L4 and L5, fuelled and waiting. Each new threat
    *  gets one from each point PICKET_DELAY after the round starts: dv = 2 beta m U / M (one-hour impulse each). */
   PICKET_KG: 5000,

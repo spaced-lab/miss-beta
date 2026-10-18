@@ -19,6 +19,7 @@ import { apoapsis, periapsis, type Elements } from '../physics/kepler';
 import { KNOBS } from '../config/knobs';
 import { discover } from './detection';
 import { hashSeed, Rng } from './rng';
+import { targetOf, type Target, type TargetId } from './targets';
 import { generateAsteroidShape } from './shapes';
 import type { Threat, ThreatFlavor, ThreatType } from './threat';
 import { planetById, planetState, type World } from './world';
@@ -72,6 +73,16 @@ export interface GenerateOpts {
   interstellarRate?: number;
   /** Run seed, for the visitor draw's own stream (keeps every other draw of the round unchanged). */
   runSeed?: string;
+  /** IDEAS 26: protected sites built so far; a share of rounds aim at one of them (own seeded stream). */
+  sites?: readonly TargetId[];
+}
+
+/** The body a round aims at: HOME, or with chance SITE_TARGET_SHARE one built site, drawn on its own stream. */
+export function pickTarget(runSeed: string, k: number, sites: readonly TargetId[] = []): TargetId {
+  if (sites.length === 0) return 'HOME';
+  const side = new Rng(hashSeed(`${runSeed}:${k}:TARGET`));
+  if (!side.chance(KNOBS.SITE_TARGET_SHARE)) return 'HOME';
+  return sites[side.int(0, sites.length - 1)] ?? 'HOME';
 }
 
 /** Orbit-draw limits for one flavor. */
@@ -110,9 +121,9 @@ function orbitOptsFor(type: ThreatType, flavor: ThreatFlavor | null): OrbitDrawO
 }
 
 /** One colliding orbit for the given size/type at impact epoch tImpact, or null if 200 draws fail. */
-function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: number, o: OrbitDrawOpts = orbitOptsFor(type, null), attempts = 200): { elements: Elements; uInf: number } | null {
-  const home = planetById(world, 'HOME');
-  const hs = planetState(world, home, tImpact);
+function drawCollidingOrbit(rng: Rng, world: World, type: ThreatType, tImpact: number, o: OrbitDrawOpts = orbitOptsFor(type, null), attempts = 200, target?: Target): { elements: Elements; uInf: number } | null {
+  // The rock is built backward from the target's state at impact (HOME unless a site was drawn).
+  const hs = target ? target.state(tImpact) : planetState(world, planetById(world, 'HOME'), tImpact);
   for (let attempt = 0; attempt < attempts; attempt++) {
     const uInf = rng.logUniform(o.uInfMin, o.uInfMax);
     const phi = rng.float(0, Math.PI * 2);
@@ -145,6 +156,8 @@ export function generateThreat(rng: Rng, world: World, k: number, now = world.t,
     const side = new Rng(hashSeed(`${opts.runSeed ?? world.runSeed}:${k}:INTERSTELLAR`));
     if (side.chance(opts.interstellarRate ?? 0)) return generateRealVisitor(side, world, k, now);
   }
+  const targetId = pickTarget(opts.runSeed ?? world.runSeed, k, opts.sites);
+  const target = targetId === 'HOME' ? undefined : targetOf(world, targetId);
   const lead = drawLeadTime(rng, k);
   const D = drawDiameter(rng, k);
   const type = drawType(rng, k);
@@ -160,28 +173,33 @@ export function generateThreat(rng: Rng, world: World, k: number, now = world.t,
     for (let attempt = 0; attempt < 40; attempt++) {
       // Candidate impact epoch: a draw in the round's window; the discovery decides the actual lead.
       const tCand = now + lead * rng.float(lo, hi) * 1.2;
-      const orbit = drawCollidingOrbit(rng, world, type, tCand);
+      const orbit = drawCollidingOrbit(rng, world, type, tCand, undefined, 200, target);
       if (!orbit) continue;
       const disc = discover({ threat: orbit.elements, home: home.elements, inner: inner.elements, muSun: world.star.mu, tImpact: tCand, D, albedo, activeIds: world.networks.active, sinceOverride: world.networks.since }, rng);
       if (disc.tDisc === null) {
         if (rng.chance(pSurprise)) {
           // NO WARNING: sensed only at the end. Re-base so the round starts NO_WARNING_LEAD before impact.
           const tDisc = tCand - KNOBS.NO_WARNING_LEAD;
-          return finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: null, noWarning: true }, tDisc);
+          return aimed(finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: null, noWarning: true }, tDisc), targetId);
         }
         continue;
       }
       if (disc.lead < lo * lead || disc.lead > hi * lead) continue;
       const tDisc = disc.tDisc;
-      return finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: disc.networkId, noWarning: false }, tDisc);
+      return aimed(finish(world, rng, { name, type, D, shape, elements: shiftEpoch(orbit.elements, tDisc), tImpact: tCand - tDisc, uInf: orbit.uInf, discoveredBy: disc.networkId, noWarning: false }, tDisc), targetId);
     }
     // Fall through to the plain draw if rejection sampling found nothing (rare; keeps the game going).
   }
 
   const tImpact = now + lead;
-  const orbit = drawCollidingOrbit(rng, world, type, tImpact);
+  const orbit = drawCollidingOrbit(rng, world, type, tImpact, undefined, 200, target);
   if (!orbit) throw new Error('generateThreat: no acceptable orbit in 200 attempts');
-  return finish(world, rng, { name, type, D, shape, elements: orbit.elements, tImpact, uInf: orbit.uInf, discoveredBy: 'ASSUMED', noWarning: false }, 0);
+  return aimed(finish(world, rng, { name, type, D, shape, elements: orbit.elements, tImpact, uInf: orbit.uInf, discoveredBy: 'ASSUMED', noWarning: false }, 0), targetId);
+}
+
+/** Tag a threat with its target (HOME stays untagged, so HOME rounds and their saves are unchanged). */
+function aimed(th: Threat, targetId: TargetId): Threat {
+  return targetId === 'HOME' ? th : { ...th, targetId };
 }
 
 /**

@@ -5,6 +5,7 @@
 // LORE: T1 (what is a NEO), T5 (what they are made of)
 
 import type { Elements } from '../physics/kepler';
+import type { TargetId } from './targets';
 
 export type ThreatTypeId = 'RUBBLE' | 'STONY' | 'IRON' | 'ICY';
 
@@ -49,6 +50,8 @@ export interface Threat {
    */
   readonly incl?: number;
   readonly node?: number;
+  /** IDEAS 26: the protected body it is aimed at (sim/targets.ts); absent means HOME. */
+  readonly targetId?: TargetId;
 }
 
 /** INTERSTELLAR: hyperbolic, 50 to 90 km/s. LONG_PERIOD: a comet with one year of warning. GIANT: a 5 km body. */

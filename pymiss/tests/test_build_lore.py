@@ -12,7 +12,7 @@ class TestBuildLore(unittest.TestCase):
     def test_parses_every_topic_with_five_levels(self):
         with open(os.path.join(ROOT, "EDUCATION.md"), encoding="utf-8") as fh:
             topics, labs, errors = build_lore.parse(fh.read())
-        self.assertEqual(len(topics), 60)
+        self.assertEqual(len(topics), 61)
         self.assertEqual(len(labs), 22)
         self.assertEqual([e for e in errors if "em dash" in e], [])
         for t in topics:

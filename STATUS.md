@@ -229,7 +229,8 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    - backlog: X.509 compliance enhancements (IDEAS.md).
    - owner 2026-10-18: after the backlog, usability and visual enhancement passes; browser efficiency (bloat,
      smallest footprint without losing quality) with every change recorded in docs/DECISIONS.md (analysis, type).
-   - backlog: more bodies to defend (IDEAS 26): a Moon base, then Mars cities, then Jupiter / Saturn moons.
+   - DONE more bodies to defend (IDEAS 26): MOON_BASE, MARS_CITIES, GIANT_MOON_OUTPOSTS sites (src/sim/targets.ts,
+     SITE_* / MOON_* knobs, T7). Saturn-like moons wait for a Saturn-like planet in bodies.json.
    - PRE-PUBLIC CHECKLIST (owner 2026-10-18, review with the owner before publishing; IDEAS 25): licence model
      AGPL-3.0 (adopted 2026-10-18; LICENSE copyright line "Ridley DiSiena (SPACED)");
      NOTICE/AUTHORS file; AGPL section 7 additional term requiring the "Created by SPACED" notice be preserved on

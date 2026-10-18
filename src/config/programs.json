@@ -270,6 +270,21 @@
       "note": "a craft parked at Sun-Earth L2 waiting for a target: no build time against a visitor from another star"
     },
     {
+      "id": "MOON_BASE",
+      "name": "MOON BASE (CREWED OUTPOST)",
+      "tag": "PROPOSED",
+      "years": 6,
+      "costPerYear": 3,
+      "mode": "REALISTIC",
+      "effects": [
+        {
+          "kind": "SITE",
+          "site": "MOON"
+        }
+      ],
+      "note": "a crewed base on the Moon: one more body to defend, with almost no gravity to bend rocks into it"
+    },
+    {
       "id": "SAIL_SWARM_DEPOT",
       "name": "SAIL SWARM DEPOT",
       "tag": "SPECULATIVE",
@@ -431,6 +446,36 @@
         }
       ],
       "note": "square-kilometre sails tethered to the rock: sunlight pulls it off course for years"
+    },
+    {
+      "id": "MARS_CITIES",
+      "name": "CITIES ON OUTER (MARS-LIKE)",
+      "tag": "SPECULATIVE",
+      "years": 15,
+      "costPerYear": 6,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "SITE",
+          "site": "OUTER"
+        }
+      ],
+      "note": "settlements on the Mars-like planet: rocks from the main belt reach it more often than HOME"
+    },
+    {
+      "id": "GIANT_MOON_OUTPOSTS",
+      "name": "OUTPOSTS ON A MOON OF GIANT",
+      "tag": "SPECULATIVE",
+      "years": 20,
+      "costPerYear": 8,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "SITE",
+          "site": "GIANT_MOON"
+        }
+      ],
+      "note": "bases on a Ganymede-like moon: far from the interceptors, deep in the giant's gravity well"
     }
   ]
 }
