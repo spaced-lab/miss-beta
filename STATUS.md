@@ -184,8 +184,11 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    panels; pixel-art cinematics; SCI-FI speculative capabilities (nanoforge, thruster swarm, shepherd network,
    fusion tugs); SIMULATION/MULTIVERSE fiction stays in character (REALITY ON shows the physics); PEEL and
    ambient peels. Reference images: local only in temp/refs (docs/ASSET_REQUESTS.md rules), never committed.
-5. Done since: seed fleet, push cinematics, D13 topic + speculative models, IDEAS 4/6/8/13/14 (replays, daily
-   seed, click-to-learn, program effects, civilization unlock), mouse everywhere, debrief counterfactual, paradox
-   commands, operator bulletins, SIMULATION anomalies, coastlines, credits page. Still queued: attachable kits,
-   an L4/L5 picket line, planner/program-row click-to-learn, IDEAS 2/7 (touch, gamepad), more labs polish.
+5. Done since: seed fleet, push cinematics, D13 topic + 14 rotating models, IDEAS 2/4/6/7/8/13/14/15/18
+   (touch, replays, daily seed, gamepad, click-to-learn, program effects, civilization unlock, DART guided
+   replay, quiz on Q), mouse everywhere, F1 MANUAL box, debrief counterfactual, paradox commands (BOOTSTRAP,
+   RETROCAUSAL, BORROW), operator bulletins, SIMULATION anomalies, coastlines, credits page, pushed bodies
+   blend onto their new orbit. Still queued: attachable kits, an L4/L5 picket line, planner/program-row
+   click-to-learn, materialize frames on overlays, orbit-plane grid fade under tilt, discovery in the worker;
+   inert program effects warheadBuildYears and damageMult; more labs polish.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.
