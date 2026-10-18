@@ -51,8 +51,14 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
    links went straight past the title, and a dropped SAVE.md jumped into the run. Now `bootScreen()` lands on the
    title until `photoAck`, the tutorial starts on the acknowledging keypress, and a pre-acknowledgement drop is
    only stored (CONTINUE after). tests/bootScreen.test.ts; checked in the browser (fresh boot, `#minigame`).
-9. NOTED 2026-10-18 (not a security issue): a SAVE.md `lore_read` map may carry unknown keys; `__proto__` is
-   dropped, but e.g. `constructor: ADVANCED` is stored in `missb.lore.progress` as an inert unknown topic id.
+9. FIXED 2026-10-18 (not a security issue): a SAVE.md `lore_read` map could carry unknown keys (`constructor:
+   ADVANCED` was stored in `missb.lore.progress`). toSaveFile now keeps topic-id-shaped keys only.
+10. FIXED 2026-10-18 (fuzz, tests/saveFuzz.test.ts: 20 000 seeded cases per run, 200 000 once): no input made the
+   parser throw, break an invariant or touch Object.prototype, and no case was slow. It found four save-loss bugs
+   (a save that loads but whose next autosave no longer loads, or the writer's own output rejected): a string
+   that looks like a number or keyword (`12E45`, `true`) written unquoted; ` #` inside a quoted string read as a
+   comment; `\"` inside a quoted string splitting a flow map; `budget: 1e308` rounded to Infinity on write. Fixed
+   in src/game/saveMd.ts (fmtScalar, stripComment, splitTop, SAVE_MAX_ABS = 1e15); regression cases kept.
 
 ## Assessment checklist (owner, before going live)
 
@@ -66,12 +72,12 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 - [x] Import a hand-edited and an oversized SAVE.md: rejected cleanly, nothing breaks (2026-10-18, synthetic drops:
       hand-edited with `round: -9e999`, an `<img onerror>` research value and a `<script>` tail: rejected, nothing
       stored, nothing executed; 280 KB: rejected by the parser cap; 400 KB: ignored by the drop cap; a `__proto__` /
-      `constructor` lore map: accepted, prototype untouched, see finding 9)
+      `constructor` lore map: accepted, prototype untouched, see finding 9; then fuzzed, finding 10)
 - [x] Clear site data, reload: the photosensitivity notice shows; REDUCE MOTION calms every listed effect
       (2026-10-18: failed first, finding 8, fixed; then shown on a fresh boot and on `#minigame`, tutorial after the
       keypress. REDUCE MOTION: cinematics still (runtime), hit flash, glitch, peel, CRT flicker off and montage 1 cut/s
       (code: draw.ts:221, system.ts:1231/1242, main.ts:166, demo.ts:71), PERIMETER shake 0 (unit test))
-- [ ] Review findings 1-9 above and record the decision for each
+- [ ] Review findings 1-10 above and record the decision for each
 - [x] Review docs/WARNINGS.md end to end (owner, 2026-10-18)
 - [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain (owner 2026-10-18: GitHub's certificate on
       spaced-lab.github.io accepted as normal; still open: signed release tag, build checksums)

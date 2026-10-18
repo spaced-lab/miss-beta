@@ -21,6 +21,10 @@ Versions are YY.Q.N (docs/RELEASING.md).
   SAVE.md went past it; now everything waits on the acknowledgement (`bootScreen`, docs/SAFETY.md finding 8). The
   smoke test reports a build without the Learning Center plainly; the release recipe builds the lore first.
 
+- SAVE.md fuzz (tests/saveFuzz.test.ts, seeded, 20 000 cases a run): fixed four ways a hand-edited or unusual
+  save could load once and then be lost at the next autosave (unquoted number-like strings, ` #` and `\"` inside
+  quotes, numbers beyond 1e15); `lore_read` keeps topic ids only. docs/SAFETY.md findings 9 and 10.
+
 - Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
   ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the
   routed threat; a dropped SAVE.md goes through the screen router; the lore index retries after a failed fetch

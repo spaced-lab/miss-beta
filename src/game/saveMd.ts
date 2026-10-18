@@ -70,7 +70,9 @@ type Value = Scalar | Scalar[] | Record<string, Scalar> | Record<string, Scalar>
 
 function fmtScalar(v: Scalar): string {
   if (v === null) return 'null';
-  if (typeof v === 'string') return /^[A-Za-z0-9_.:-]+$/.test(v) && v !== '' ? v : JSON.stringify(v);
+  // NOTE: bare only when the parser reads the same string back; '12E45', 'true' or 'null' would come back as a
+  // number, a boolean or null and the save would be rejected (found by tests/saveFuzz.test.ts).
+  if (typeof v === 'string') return /^[A-Za-z0-9_.:-]+$/.test(v) && v !== '' && parseScalar(v) === v ? v : JSON.stringify(v);
   return String(v);
 }
 
@@ -146,13 +148,16 @@ function parseFlowMap(raw: string): Record<string, Scalar> {
   return out;
 }
 
-/** Split on commas outside quotes. */
+/** Split on commas outside quotes; a backslash inside quotes escapes the next character (JSON strings). */
 function splitTop(s: string): string[] {
   const out: string[] = [];
   let cur = '';
   let q = false;
+  let esc = false;
   for (const ch of s) {
-    if (ch === '"') q = !q;
+    if (esc) esc = false;
+    else if (q && ch === '\\') esc = true;
+    else if (ch === '"') q = !q;
     if (ch === ',' && !q) {
       out.push(cur);
       cur = '';
@@ -172,6 +177,23 @@ function parseValue(raw: string): Value {
   return parseScalar(t);
 }
 
+/**
+ * Drop a trailing ` # comment`, but never inside a quoted string: writeSave quotes 'x #2' and the reader must
+ * give it back whole (found by tests/saveFuzz.test.ts). stripComment('7 # note') -> '7'.
+ */
+function stripComment(s: string): string {
+  let q = false;
+  let esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (esc) esc = false;
+    else if (q && ch === '\\') esc = true;
+    else if (ch === '"') q = !q;
+    else if (!q && ch === '#' && i > 0 && /\s/.test(s[i - 1] as string)) return s.slice(0, i).trimEnd();
+  }
+  return s;
+}
+
 /** Parse the YAML front matter into a plain record. Throws on malformed input or oversized text. */
 export function parseFrontMatter(text: string): Record<string, Value> {
   if (text.length > SAVE_MAX_BYTES) throw new Error('save too large');
@@ -186,7 +208,7 @@ export function parseFrontMatter(text: string): Record<string, Value> {
     const m = /^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$/.exec(line);
     if (!m) throw new Error(`bad line: ${line.slice(0, 40)}`);
     const key = m[1] as string;
-    const rest = (m[2] as string).replace(/\s+#.*$/, '');
+    const rest = stripComment(m[2] as string);
     if (rest.trim() === '') {
       // Block list of flow maps.
       const items: Record<string, Scalar>[] = [];
@@ -204,7 +226,11 @@ export function parseFrontMatter(text: string): Record<string, Value> {
 }
 
 const isStr = (v: unknown): v is string => typeof v === 'string';
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+// NOTE: every number in a save is bounded. A hand-edited `budget: 1e308` is finite, but the next autosave rounds
+// it (Math.round(x * 100) / 100) to Infinity and the save no longer loads (found by tests/saveFuzz.test.ts).
+// No real budget, score or count comes near 1e15, and 1e15 * 100 stays finite and exact to the cent.
+export const SAVE_MAX_ABS = 1e15;
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= SAVE_MAX_ABS;
 const isStrArr = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 
 /** Validate a parsed record into a SaveFile, or return null. Unknown keys are ignored. */
@@ -258,7 +284,9 @@ export function toSaveFile(r: Record<string, unknown>): SaveFile | null {
   if (!isStr(r['learning_level']) || !levels.includes(r['learning_level'])) return null;
   const lr = r['lore_read'];
   const loreRead: Record<string, string> = {};
-  if (typeof lr === 'object' && lr !== null && !Array.isArray(lr)) for (const [k, v] of Object.entries(lr as Record<string, unknown>)) if (isStr(v)) loreRead[k] = v;
+  // NOTE: only topic-id-shaped keys (T1, D13, LAB_X); anything else, `constructor` or `__proto__` included, is an
+  // edit artefact that would be stored as junk progress and could not be written back unquoted (SAFETY finding 9).
+  if (typeof lr === 'object' && lr !== null && !Array.isArray(lr)) for (const [k, v] of Object.entries(lr as Record<string, unknown>)) if (isStr(v) && /^[A-Z][A-Z0-9_]{0,31}$/.test(k)) loreRead[k] = v;
   if (!isStr(r['color_mode'])) return null;
   return {
     version: 1,
