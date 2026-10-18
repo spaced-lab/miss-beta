@@ -1,7 +1,7 @@
 // WHAT: LAB registry with dynamic imports (code-split; loaded only when a lab is opened).
 // WHY:  EDUCATION.md 0.4: demos never sit in the main bundle.
 // HOW:  Each entry is a lazy `import()`; ids not listed here are BACKLOG (the registry in EDUCATION.md
-//       Section 7 names 20; six are built in M9). `labStatus` tells the Learning Center which.
+//       Section 7 names 22). `labStatus` tells the Learning Center which.
 // LORE: C2 (reading the code)
 
 import type { Lab } from './lab';
@@ -25,6 +25,7 @@ const LOADERS: Readonly<Record<string, () => Promise<{ lab: Lab }>>> = {
   LAB_FLYBY: () => import('./flyby'),
   LAB_SAIL_SPIRAL: () => import('./sailSpiral'),
   LAB_SUNWARD: () => import('./sunward'),
+  LAB_INTERSTELLAR: () => import('./interstellar'),
   LAB_GAUGE: () => import('./gauge'),
   LAB_MONTECARLO: () => import('./monteCarlo'),
   LAB_RK4: () => import('./rk4'),

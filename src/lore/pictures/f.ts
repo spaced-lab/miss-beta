@@ -1,4 +1,4 @@
-// WHAT: SIMPLE pictures for section F (finding and warning: EDUCATION.md F1-F10).
+// WHAT: SIMPLE pictures for section F (finding and warning: EDUCATION.md F1-F12).
 // WHY:  See index.ts.
 // HOW:  One generator per picture id using ./svg helpers. Ink is the subject, dim the scaffolding, hot the
 //       one thing the eye should land on.
@@ -147,4 +147,15 @@ export const PICTURES_F: Readonly<Record<string, Gen>> = {
     f.push(label(240, 270, 'FUND TELESCOPES: THE ARROWS GROW LEFT', { color: p.dim, anchor: 'middle' }));
     return picture(p, f);
   },
+
+  // The planets' flat disc seen edge-on; a fast dark rock dives steeply from far above toward the Earth while the
+  // telescopes' band of sky looks along the disc; a clock with only a sliver of time left.
+  'pic-interstellar': (p) => picture(p, [
+    ellipse(220, 210, 190, 22, { color: p.dim, dash: '4 4' }), label(60, 250, 'WHERE THE PLANETS ARE', { color: p.dim }),
+    sun(220, 210, 10, p.hot), earth(330, 214, 9),
+    line(340, 204, 440, 186, { color: p.dim, dash: '2 3' }), line(340, 220, 440, 236, { color: p.dim, dash: '2 3' }), label(400, 262, 'TELESCOPES', { color: p.dim, anchor: 'middle' }),
+    rock(130, 50, 8, 6, { color: p.ink }), arrow(140, 60, 318, 200, { color: p.hot }), label(150, 36, 'FROM ANOTHER STAR: FAST AND DARK', { color: p.ink }),
+    circle(430, 70, 26, { color: p.dim }), line(430, 70, 430, 50, { color: p.ink }), line(430, 70, 445, 76, { color: p.ink }),
+    arc(430, 70, 22, -1.57, -1.05, { color: p.hot }), label(430, 116, 'WEEKS', { color: p.hot, anchor: 'middle' }),
+  ]),
 };
