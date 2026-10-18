@@ -456,7 +456,9 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
       const NAME: Record<string, string> = { GROUND_LASER_: '', NANOFORGE: 'NANOFORGE SEEDS TAKE HOLD', THRUSTER_SWARM: 'THRUSTER SWARM LOCKS ON', SHEPHERD: 'SHEPHERD ROCK INBOUND', FUSION_TUG: 'FUSION TUG DOCKED', DE_STAR: 'DE-STAR ARRAY FIRING', GENERIC: `${e.method.replace(/_/g, ' ')} ON STATION` };
       sc.title = e.method === 'GROUND_LASER' ? 'GROUND LASER FIRING' : e.method === 'SAIL_DEPOT' ? 'PARKED SAILS STRIKE' : e.method === 'SEED_FLEET' ? 'THE SEED FLEET THROWS' : (NAME[method] ?? e.method);
       const f = e.force < 1 ? `${(e.force * 1000).toFixed(2)} MN` : e.force < 1e4 ? `${e.force.toFixed(1)} N` : `${(e.force / 1000).toFixed(1)} KN`;
-      sc.subtitle = `${e.targetId}   F ${f}   ${(e.duration / DAY_S).toFixed(0)} D   DV ${(e.dv * 1000).toFixed(2)} MM/S`;
+      const dvTxt = e.dv >= 1 ? `${e.dv.toFixed(2)} M/S` : `${(e.dv * 1000).toFixed(2)} MM/S`;
+      // A strike (shepherd, sail depot, seed fleet) is an impulse: no force, no duration, just what it gave.
+      sc.subtitle = e.duration < DAY_S ? `${e.targetId}   ONE STRIKE${e.missionId.includes(' X') ? ` (${e.missionId.split(' ').pop()} ROCKS)` : ''}   DV ${dvTxt}` : `${e.targetId}   F ${f}   ${(e.duration / DAY_S).toFixed(0)} D   DV ${dvTxt}`;
       if (method === 'SHEPHERD') {
         sc.hitAt = 1.2;
         sc.streak = { from: STREAK_FROM, to: [-R, 0], tArrive: sc.hitAt, passThrough: false, role: 'threat', tail: 70 };
