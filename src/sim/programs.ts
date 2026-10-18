@@ -126,6 +126,22 @@ export function syncPrograms(states: ProgramState[], mode: 'REALISTIC' | 'SCIFI'
   return added;
 }
 
+/** Complete every program the mode allows (the KARDASHEV codes): progress 1, completed at `t`, effects applied once. */
+export function completeAll(states: ProgramState[], mode: 'REALISTIC' | 'SCIFI', ctx: ProgramsContext, t: number): number {
+  syncPrograms(states, mode);
+  let n = 0;
+  for (const st of states) {
+    const def = PROGRAMS.find((p) => p.id === st.id);
+    if (!def || (def.mode === 'SCIFI' && mode !== 'SCIFI') || st.completedAt !== null) continue;
+    st.progress = 1;
+    st.funding = 0;
+    st.completedAt = t;
+    applyEffects(def, ctx, t);
+    n++;
+  }
+  return n;
+}
+
 export interface ProgramsContext {
   economy: Economy;
   effects: RunEffects;

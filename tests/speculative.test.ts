@@ -96,3 +96,13 @@ describe('seed fleet', () => {
     if (strikes.length >= 2 && strikes[0]!.kind === 'PUSH' && strikes[1]!.kind === 'PUSH') expect(strikes[1]!.dv / strikes[0]!.dv).toBeGreaterThan(1.8);
   });
 });
+
+describe('KARDASHEV on the title', () => {
+  it('completes the programs on the pending run even without a round', async () => {
+    const { runCommand } = await import('../src/game/console');
+    const run = createRun('TITLE');
+    runCommand('KARDASHEV2', { run, round: null });
+    expect(run.programs.some((p) => p.id === 'NANOFORGE_SEEDS' && p.completedAt !== null)).toBe(true);
+    expect(run.effects.nanoforge).toBe(1);
+  });
+});
