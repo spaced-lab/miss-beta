@@ -399,8 +399,11 @@ export const KNOBS = {
   ATTRACT_RATE: 1.2,
   /** Seconds a tip stays before the next one. [knob] */
   TIP_SECONDS: 12,
-  /** Montage pacing [knob]: first scene length (s), shrink per pass, the blur floor, the pause, typing speed. */
-  DEMO_MONTAGE: { SCENE_S0: 3.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_PASSES: 2, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
+  /** Montage pacing [knob]: first scene length (s), shrink per pass, the blur floor, cuts at the floor before the
+   *  pause, the pause, typing speed. NOTE: owner 2026-10-18 "faster, the ending is perfect": SCENE_S0 3.2 -> 1.2 so
+   *  the passes reach the blur sooner; the blur is counted in cuts (BLUR_CUTS 12 = the old two floor passes of six
+   *  scenes, so it lasts as long as before with nine scenes), PAUSE_S and TYPE_CPS unchanged. */
+  DEMO_MONTAGE: { SCENE_S0: 1.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_CUTS: 12, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
   DEMO_SPEED_MAX: 400,
   /** Owner 2026-10-18: "finer pixels" in the LAUNCH cinematic. Cell size of the launch pixel art in px at scale 1
    *  (was 3 for the pad and 2.5 + 0.5 x tier for the rocket); the sprites are drawn at about twice the old

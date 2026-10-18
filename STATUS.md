@@ -68,7 +68,7 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster"): DEMO_LENGTHS 150/300/600 ->
 75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
-cuts 0.9 -> 0.4 s, voice 50 %).
+cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 replaced by BLUR_CUTS 12 (same blur).
 
 ## Decisions
 
@@ -293,6 +293,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
      then all 31 findings in `ideas/CODE_REVIEW_2026-10-18.md`, verify then fix, one commit each (both gitignored).
      Done: P1 part 1, planner ranking in the worker (D11: the demo's freeze).
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).
+     Done: P1 part 3, finale montage (SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 -> BLUR_CUTS 12, ending unchanged).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,

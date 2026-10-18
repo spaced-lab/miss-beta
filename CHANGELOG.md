@@ -13,6 +13,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   centres, a globe of data centres, clocks being adjusted, hit after hit) with a random voice line, more often and
   shorter as it speeds up (`render/views/demoCut.ts`, `render/demoScenes.ts`, knobs DEMO_CUT, DEMO_CINE_S). Never
   more than three screen changes a second; REDUCE MOTION turns cutaways off.
+- SUPER-DUPER-DEMO finale: the montage reaches the blur in about 28 s (was 50) and gains scenes: a globe filling with
+  data centres, racks that grow more complex and futuristic each pass (hex compute modules by the last), clocks
+  and calendars adjusted over and over, and hit after hit on a planet with a bass rumble per hit that grows heavier;
+  data-centre scenes blip; the time portal is shorter and spins faster. The ending is unchanged: the same blur
+  (BLUR_CUTS 12, the old two passes of six), the same 2.4 s pause and typing speed.
 
 ## 26.4.0 (2026-10-18)
 
