@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- M12: the exhaustion check. GAME_PLAN 19, 20 and 22.2 and the EDUCATION topic map and LAB registry walked
+  against the code: everything the plan lists exists; ten program effects are stored but never read (IDEAS 13),
+  13 of 20 labs are still BUILDING (IDEAS 9). IDEAS.md renumbered with a recommendation per entry.
+
 - M11: the teaching repo. Python mirror completed (every physics export has a twin), one notebook per built
   lab, docs/CODE_TOUR.md, docs/ASSUMPTIONS.md A1 to A16, docs/LESSONS pages generated from EDUCATION.md, the
   README play and learn paths, CONTRIBUTING and four good-first-issue templates, a GitHub Actions workflow

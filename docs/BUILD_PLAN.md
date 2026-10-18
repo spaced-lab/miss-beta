@@ -170,7 +170,7 @@ Design addition from the user (recorded in GAME_PLAN.md Section 29). Build after
 
 ## M12: Exhaustion check and idea harvest
 
-- [ ] Walk 19, 20, 22.2 and the EDUCATION topic map and LAB registry; final STATUS.md; print IDEAS.md numbered with a recommendation each; stop.
+- [x] Walk 19, 20, 22.2 and the EDUCATION topic map and LAB registry; final STATUS.md; print IDEAS.md numbered with a recommendation each; stop. (2026-10-17: findings in STATUS.md "M12 walk"; ten inert program effects are IDEAS 13.)
 
 ---
 
@@ -181,4 +181,4 @@ Design addition from the user (recorded in GAME_PLAN.md Section 29). Build after
 - [x] v2.1: synthesized sound kits, laser pulse, difficulty ramp, shorter turrets, less halo.
 - [x] v2.2: rock gravity/bounces/binaries, continents v2, moon hit points and craters, sentry tiers and SUPER, bass voices, chaos static.
 - [ ] Tuning pass with the user (knobs in `src/minigame/config.ts`, kits in `src/minigame/sfx.ts`).
-- [ ] Moves to IDEAS.md for anything beyond tuning (power-ups, touch, sound, replay, daily seed).
+- [x] Moves to IDEAS.md for anything beyond tuning (power-ups, touch, sound, replay, daily seed): IDEAS 1 to 6 and 10.
