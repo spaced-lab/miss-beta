@@ -8,15 +8,17 @@
 //       freshest news is the one that matters), a line that arrives later than VOICE_STALE_S is dropped, and the
 //       same id is not repeated within VOICE_REPEAT_S. A line may name one follow-up (`then`) that plays when it
 //       ends uncut ("IMPACT. EARTH HAS BEEN HIT." then "GAME OVER."). Playback goes through the shared Synth's master bus and
-//       compressor, so the SOUND volume and the loudness cap apply. The voice has its own OFF/FEMALE/MALE mode.
+//       compressor, so the SOUND volume and the loudness cap apply. The voice has its own mode: OFF or one of the
+//       baked robot voices (FEMALE, MALE, TERMINAL, COMPUTER, MAINFRAME, TOY), each a folder named after it.
 // LORE: G8 (the look, and the sound)
 
 import manifest from '../config/voice.json';
 import { KNOBS } from '../config/knobs';
 import type { SimEventRecord } from '../sim/eventLog';
+import type { VoiceSetting } from '../game/settings';
 import type { Synth } from './synth';
 
-export type VoiceMode = 'OFF' | 'FEMALE' | 'MALE';
+export type VoiceMode = VoiceSetting;
 export type VoiceId = keyof typeof manifest;
 
 export const VOICE_IDS = Object.keys(manifest) as VoiceId[];
@@ -26,9 +28,13 @@ export function voiceText(id: VoiceId): string {
   return manifest[id];
 }
 
-/** Path of a clip relative to the page (Vite's base is relative, so this also works from a sub-path). */
+/**
+ * Path of a clip relative to the page (Vite's base is relative, so this also works from a sub-path). The folder is
+ * the voice's name in lower case, so a new voice is a new folder plus a VOICES entry, nothing else.
+ * Example: voiceUrl('MAINFRAME', 'PLAY_A_GAME') = 'audio/voice/mainframe/PLAY_A_GAME.ogg'.
+ */
 export function voiceUrl(mode: Exclude<VoiceMode, 'OFF'>, id: VoiceId): string {
-  return `audio/voice/${mode === 'FEMALE' ? 'female' : 'male'}/${id}.ogg`;
+  return `audio/voice/${mode.toLowerCase()}/${id}.ogg`;
 }
 
 /**

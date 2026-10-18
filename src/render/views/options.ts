@@ -7,7 +7,7 @@
 import type { Router, Screen } from '../../game/screen';
 import { topicForOption } from '../../game/loreLinks';
 import { applySettings, AUTO_SPEED_LEVELS, COLOR_MODES, DEMO_LENGTH_LEVELS, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, SOUND_STYLES, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
-import type { VoiceId } from '../../audio/voice';
+import { voiceText, type VoiceId } from '../../audio/voice';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors } from '../palettes';
@@ -48,7 +48,8 @@ export class OptionsScreen implements Screen {
       { label: 'AUTOPLAY SPEED', value: () => st.autoSpeed ?? 'NORMAL', change: (d) => (st.autoSpeed = cycle(AUTO_SPEED_LEVELS, st.autoSpeed ?? 'NORMAL', d)), note: 'HOW FAST AUTOPLAY READS ITS PANES AND RUNS THE CLOCK. SLOW IS THE FIRST PACE, NORMAL 1.5X, FAST 2.25X. - AND = CHANGE IT WHILE IT PLAYS.' },
       { label: 'DEMO LENGTH', value: () => ({ SHORT: 'SHORT (2-3 MIN)', MEDIUM: 'MEDIUM (5 MIN)', LONG: 'LONG (10 MIN)' })[st.demoLength ?? 'MEDIUM'], change: (d) => (st.demoLength = cycle(DEMO_LENGTH_LEVELS, st.demoLength ?? 'MEDIUM', d)), note: 'SUPER-DUPER-DEMO: ROUGHLY HOW LONG THE FASTER-AND-FASTER GAMES RUN BEFORE THE FINALE.' },
       { label: 'SOUND STYLE', value: () => st.soundStyle ?? 'ARCADE', change: (d) => (st.soundStyle = cycle(SOUND_STYLES, st.soundStyle ?? 'ARCADE', d)), note: 'ARCADE: THE LOW LO-FI VOICES BORROWED FROM PERIMETER FOR MENUS, LAUNCHES AND IMPACTS. CLASSIC: THE ORIGINAL SOFT BLEEPS.' },
-      { label: 'VOICE', value: () => st.voice ?? 'FEMALE', change: (d) => { st.voice = cycle(VOICES, st.voice ?? 'FEMALE', d); this.sayVoice?.('LAUNCHING'); }, note: 'A LO-FI ROBOT MISSION VOICE FOR BIG MOMENTS. BRITISH KOKORO TTS VOICES (APACHE-2.0) THROUGH A VOCODER.' },
+      { label: 'VOICE', value: () => st.voice ?? 'FEMALE', change: (d) => { st.voice = cycle(VOICES, st.voice ?? 'FEMALE', d); this.sayVoice?.('PLAY_A_GAME'); }, note: 'A LO-FI ROBOT MISSION VOICE FOR BIG MOMENTS: FEMALE, MALE, TERMINAL (HEAVY VOCODER), COMPUTER (CLEAN), MAINFRAME (DEEP, SLOW), TOY (8-BIT). KOKORO TTS (APACHE-2.0) THROUGH A VOCODER.' },
+      { label: 'VOICE TEST', value: () => 'PLAY', change: () => this.sayVoice?.('PLAY_A_GAME'), note: `ENTER TO HEAR THE VOICE SAY: "${voiceText('PLAY_A_GAME').toUpperCase()}"  (SILENT WHEN VOICE IS OFF)` },
       { label: 'UNITS', value: () => st.units, change: (d) => (st.units = cycle(UNITS, st.units, d)), note: 'DISPLAY ONLY. THE SIMULATION IS SI INSIDE. IMPERIAL SHOWS MILES AND MPH WHERE A READOUT SUPPORTS IT.' },
       { label: 'REDUCE MOTION', value: () => (st.reduceMotion ? 'ON' : 'OFF'), change: () => (st.reduceMotion = !st.reduceMotion), note: 'NO FLICKER, NO GLITCH TEARS, NO SWEEPS.' },
       { label: 'TEXT SIZE', value: () => st.textSize, change: (d) => (st.textSize = cycle(TEXT_SIZES, st.textSize, d)), note: 'SCALES EVERY LABEL. LARGE MAY WRAP LONG READOUTS OFF SCREEN ON NARROW WINDOWS.' },

@@ -2,7 +2,7 @@
 // WHY:  Short synthesized cues from the same Synth as the arcade mode; nothing sampled, nothing loaded.
 // HOW:  One method per cue with its numbers at the call site; `enabled` mirrors the SOUND option. The
 //       synth needs a user gesture to start, so `unlock()` is called on the first key press. `voice` (voice.ts)
-//       plays the canned robot lines through the same synth; it has its own OFF/FEMALE/MALE switch, so the
+//       plays the canned robot lines through the same synth; it has its own OFF/voice switch, so the
 //       context unlocks when either the bleeps or the voice is on.
 // LORE: G8 (the look)
 

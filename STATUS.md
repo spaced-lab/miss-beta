@@ -192,7 +192,7 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    refine cinematics toward detailed wireframes. Done: AUTOPLAY pace SLOW/NORMAL/FAST (`AUTO_SPEEDS`, - and =),
    DEMO LENGTH SHORT/MEDIUM/LONG (`DEMO_LENGTHS`, MEDIUM default). NEON shades approved for now (owner reviews later).
    Older questions (kept for the record):
-   a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE). Clear enough? A speech-recognition check got 17 of 24
+   a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24
       lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).
    b. SOUND STYLE: ARCADE (PERIMETER's lo-fi sounds) is the new default. Keep it? The owner's saved SOUND is OFF.
    c. SUPER-DUPER-DEMO runs about 10 minutes before the finale (DEMO_SPEED_START 2, GROWTH 1.15, 100 games in
@@ -227,4 +227,7 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    to `public/audio/voice/` (196 KB Opus 20 kbit/s), `src/audio/voice.ts` lazy-loads and plays them through the
    synth's master bus, OPTIONS > VOICE OFF/FEMALE/MALE (default FEMALE). New knobs `VOICE_*`. AUTOPLAY and
    FINALE clips exist; items 19/20 call `sfx.voice.say('AUTOPLAY')` / `say('FINALE')`. Game-sound half open.
+   2026-10-18 more voices: TERMINAL (af_heart, heavy vocoder), COMPUTER (am_michael, mostly dry), MAINFRAME (am_onyx,
+   pitched down 16 %), TOY (af_bella, 8 kHz sample-and-hold), 23 lines incl. PLAY_A_GAME ("Would you like to play a
+   game?", the OPTIONS sample and the new VOICE TEST row); 6 voices 612 KB; per-voice styles in `gen_voice.py`.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.
