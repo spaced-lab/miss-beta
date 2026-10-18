@@ -184,6 +184,8 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
    panels; pixel-art cinematics; SCI-FI speculative capabilities (nanoforge, thruster swarm, shepherd network,
    fusion tugs); SIMULATION/MULTIVERSE fiction stays in character (REALITY ON shows the physics); PEEL and
    ambient peels. Reference images: local only in temp/refs (docs/ASSET_REQUESTS.md rules), never committed.
-5. Queued ideas from the owner: seed fleets that build more of themselves, attachable kits, an L4/L5 picket line,
-   more deadpan fiction (singularity projectiles exist as MICROHOLE), speculative-push cinematics.
+5. Done since: seed fleet, push cinematics, D13 topic + speculative models, IDEAS 4/6/8/13/14 (replays, daily
+   seed, click-to-learn, program effects, civilization unlock), mouse everywhere, debrief counterfactual, paradox
+   commands, operator bulletins, SIMULATION anomalies, coastlines, credits page. Still queued: attachable kits,
+   an L4/L5 picket line, planner/program-row click-to-learn, IDEAS 2/7 (touch, gamepad), more labs polish.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.
