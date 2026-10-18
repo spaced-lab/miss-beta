@@ -47,6 +47,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   restarts the round at t = 0 without its missions: the round's income could be banked again and again, and money
   already spent on missions in flight was lost (finding 20).
 - Scoring: a round where the CNT net captured a body earns the +0.3 style bonus GAME_PLAN 12 promises; it was never passed (finding 21).
+- SCI-FI standing pushes that overlap (THRUSTER-SWARM with SHEPHERD, PICKET, SAIL KITS, NANOFORGE, ...) are integrated
+  in time order with their accelerations added where they overlap. They were applied in code order, so a segment
+  could run backwards and a push started from the wrong orbit; a second laser array had the same fault (finding 22).
 
 ## 26.4.0 (2026-10-18)
 

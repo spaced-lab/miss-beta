@@ -132,3 +132,28 @@ describe('KARDASHEV on the title', () => {
     expect(run.effects.nanoforge).toBe(1);
   });
 });
+
+describe('overlapping standing pushes (code review 2026-10-18 finding 22)', () => {
+  it('apply in time order: the segment timeline stays contiguous and every push is kept', () => {
+    const world = round('SPEC-OVERLAP');
+    // THRUSTER-SWARM runs from its transit to the end margin; SHEPHERD strikes inside that span, and SAIL KITS
+    // start inside it too: all three overlap.
+    const r = resolveRound(world, [], { scifi: { ...base, thrusterSwarmSince: 0, shepherdSince: 0, kitsSince: 0 } });
+    const segs = r.segments;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      expect(s && s.tFrom <= s.tTo, `segment ${i} runs backwards`).toBe(true);
+      const nx = segs[i + 1];
+      if (s && nx) expect(nx.tFrom, `gap or overlap after segment ${i}`).toBe(s.tTo);
+    }
+    const methods = r.events.filter((e) => e.kind === 'PUSH').map((e) => (e.kind === 'PUSH' ? e.method : ''));
+    expect(methods).toEqual(expect.arrayContaining(['THRUSTER_SWARM', 'SHEPHERD', 'SAIL_KIT']));
+    // Superposition: together they move the close approach about as much as the sum of each alone (same sign,
+    // all along-track), not as one of them.
+    const none = resolveRound(world, [], { scifi: base }).ca.dMin;
+    const one = (k: 'thrusterSwarmSince' | 'shepherdSince' | 'kitsSince'): number => resolveRound(world, [], { scifi: { ...base, [k]: 0 } }).ca.dMin - none;
+    const sum = one('thrusterSwarmSince') + one('shepherdSince') + one('kitsSince');
+    const all = r.ca.dMin - none;
+    expect(Math.abs(all - sum) / Math.abs(sum)).toBeLessThan(0.25);
+  });
+});

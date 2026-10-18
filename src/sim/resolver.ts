@@ -155,6 +155,20 @@ export function bodyAlive(b: Body, t: number): boolean {
   return t >= b.tBirth && t < b.tDeath && !b.escaped;
 }
 
+/** A standing push waiting to be integrated (resolveRound's applyPushes): along-track acceleration a, m/s^2. */
+interface PushReq {
+  b: Body;
+  tIn: number;
+  tOut: number;
+  a: number;
+  /** Credited as the pieces are integrated, m/s. */
+  dv: number;
+  missionId: string;
+  method: string;
+  force: number;
+  note: string;
+}
+
 export function resolveRound(world: World, missions: readonly Mission[] = [], opts: ResolveOpts = {}): RoundResult {
   const threat = world.threat;
   if (!threat) throw new Error('resolveRound: no threat');
@@ -619,7 +633,9 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     for (const b of bodies) {
       if (b.escaped || b.tDeath !== Infinity || b.harmless) continue;
       let el = elementsAt(b.segments, Infinity);
-      let t = Math.max(since, b.tBirth === -Infinity ? since : b.tBirth, tLast);
+      // NOTE: never before the body's open segment: a second array (GROUND after DE-STAR) used to start from `since`
+      // again, rewrite a later segment's end to an earlier time and push from the wrong orbit (code review 2026-10-18).
+      let t = Math.max(since, b.tBirth === -Infinity ? since : b.tBirth, tLast, b.segments[b.segments.length - 1]?.tFrom ?? -Infinity);
       const inRange = (tt: number): boolean => {
         const a = stateAt(el, mu, tt);
         const h = propagate(home.elements, mu, tt);
@@ -656,10 +672,61 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   // GROUND_LASER (19, Phipps): the same windows from the ground, only inside 0.05 AU, through the atmosphere.
   if (sf && sf.groundLaserSince !== null && sf.groundLaserSince !== undefined) laserWindows(KNOBS.GROUND_LASER_POWER_W * KNOBS.GROUND_LASER_ATM_EFF, KNOBS.GROUND_LASER_RANGE_AU, sf.groundLaserSince, 'GROUND-LASER', 'GROUND_LASER', KNOBS.DE_STAR_END_MARGIN);
 
+  /**
+   * Integrate a body's standing pushes in time order. Between consecutive start and end times the active pushes'
+   * along-track accelerations add (superposition, all along-track), so one pushArc per piece; each push is credited
+   * its share of each piece's dv. Nothing starts before the body's open segment (laser windows may have written the
+   * earlier ones): a push that would is moved to start there, keeping its length up to the end margin.
+   * Example: one push alone is one piece, the same pushArc call as applying it directly.
+   */
+  const applyPushes = (b: Body, rs: PushReq[], tEnd: number): void => {
+    if (rs.length === 0) return;
+    const open = b.segments[b.segments.length - 1]?.tFrom ?? -Infinity;
+    const live: PushReq[] = [];
+    for (const r of rs) {
+      if (r.tIn < open) {
+        const len = r.tOut - r.tIn;
+        r.tIn = open;
+        r.tOut = Math.min(tEnd, open + len);
+      }
+      if (r.tOut - r.tIn < 3600) events.push({ t: r.tIn, kind: 'NOTE', text: `${r.missionId} FOUND NO TIME LEFT ON ${b.id}; NOT APPLIED` });
+      else live.push(r);
+    }
+    const cuts = [...new Set(live.flatMap((r) => [r.tIn, r.tOut]))].sort((x, y) => x - y);
+    let el = elementsAt(b.segments, Infinity);
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      const p = cuts[i] as number;
+      const q = cuts[i + 1] as number;
+      const active = live.filter((r) => r.tIn <= p && r.tOut >= q);
+      if (active.length === 0) continue;
+      const aSum = active.reduce((acc, r) => acc + r.a, 0);
+      try {
+        const arc = pushArc(el, mu, p, q, aSum);
+        const lastSeg = b.segments[b.segments.length - 1];
+        if (lastSeg) lastSeg.tTo = p;
+        b.segments.push({ tFrom: p, tTo: q, elements: el });
+        b.segments.push({ tFrom: q, tTo: Infinity, elements: arc.elements });
+        el = arc.elements;
+        for (const r of active) r.dv += arc.dv * (r.a / aSum);
+      } catch (e) {
+        if (!(e instanceof OrbitError)) throw e;
+        for (const r of live.filter((x) => x.tOut > p)) events.push({ t: Math.max(p, r.tIn), kind: 'NOTE', text: `${r.missionId} PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+        for (const r of live) if (r.tOut > p) r.tOut = -Infinity;
+        break;
+      }
+    }
+    for (const r of live) if (r.tOut !== -Infinity) events.push({ t: r.tIn, kind: 'PUSH', missionId: r.missionId, targetId: b.id, method: r.method, force: r.force, dv: r.dv, duration: r.tOut - r.tIn, viable: true, note: r.note });
+  };
+
   // 30: speculative standing pushes (SCI-FI): each acts on the threat or its largest remnant from a start time
   // to the push end margin with a constant force, like DE-STAR's windows but without a range limit.
+  // NOTE: the pushes are first collected, then integrated per body in time order: where they overlap their
+  // along-track accelerations add, piece by piece between start and end times (applyPushes). Applying them one by
+  // one in code order let a later-coded push start before an earlier one ended, so a segment ran backwards and the
+  // push started from an orbit that only held later (code review 2026-10-18).
   if (sf) {
     const tEnd = threat.tImpact - KNOBS.PUSH_END_MARGIN;
+    const reqs: PushReq[] = [];
     const standing = (label: string, method: string, since: number | null | undefined, delay: number, force: (b: Body) => number, duration?: number): void => {
       if (since === null || since === undefined) return;
       for (const b of bodies) {
@@ -667,19 +734,8 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         const tIn = Math.max(since, b.tBirth === -Infinity ? 0 : b.tBirth, tLast, 0) + delay;
         const tOut = Math.min(tEnd, duration !== undefined ? tIn + duration : tEnd);
         if (tOut - tIn < 3600) continue;
-        const el = elementsAt(b.segments, Infinity);
         const F = force(b);
-        try {
-          const arc = pushArc(el, mu, tIn, tOut, F / b.mass);
-          const lastSeg = b.segments[b.segments.length - 1];
-          if (lastSeg) lastSeg.tTo = tIn;
-          b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
-          b.segments.push({ tFrom: tOut, tTo: Infinity, elements: arc.elements });
-          events.push({ t: tIn, kind: 'PUSH', missionId: label, targetId: b.id, method, force: F, dv: arc.dv, duration: tOut - tIn, viable: true, note: label });
-        } catch (e) {
-          if (!(e instanceof OrbitError)) throw e;
-          events.push({ t: tIn, kind: 'NOTE', text: `${label} PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
-        }
+        reqs.push({ b, tIn, tOut, a: F / b.mass, dv: 0, missionId: label, method, force: F, note: label });
       }
     };
     // NANOFORGE: the rock is its own propellant. It runs until NANOFORGE_MAX_EAT of the body is thrown away (or the
@@ -693,21 +749,10 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         const m0 = b.mass;
         const m1 = m0 - KNOBS.NANOFORGE_MDOT * (tOut - tIn);
         const dv = KNOBS.NANOFORGE_VE * Math.log(m0 / m1);
-        const el = elementsAt(b.segments, Infinity);
-        try {
-          const arc = pushArc(el, mu, tIn, tOut, dv / (tOut - tIn));
-          const lastSeg = b.segments[b.segments.length - 1];
-          if (lastSeg) lastSeg.tTo = tIn;
-          b.segments.push({ tFrom: tIn, tTo: tOut, elements: el });
-          b.segments.push({ tFrom: tOut, tTo: Infinity, elements: arc.elements });
-          b.mass = m1;
-          b.D *= Math.cbrt(m1 / m0);
-          b.harmless = b.D < harmlessDiameter(iron);
-          events.push({ t: tIn, kind: 'PUSH', missionId: 'NANOFORGE', targetId: b.id, method: 'NANOFORGE', force: KNOBS.NANOFORGE_MDOT * KNOBS.NANOFORGE_VE, dv: arc.dv, duration: tOut - tIn, viable: true, note: `ATE ${((1 - m1 / m0) * 100).toFixed(0)}% OF THE BODY` });
-        } catch (e) {
-          if (!(e instanceof OrbitError)) throw e;
-          events.push({ t: tIn, kind: 'NOTE', text: `NANOFORGE PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
-        }
+        reqs.push({ b, tIn, tOut, a: dv / (tOut - tIn), dv: 0, missionId: 'NANOFORGE', method: 'NANOFORGE', force: KNOBS.NANOFORGE_MDOT * KNOBS.NANOFORGE_VE, note: `ATE ${((1 - m1 / m0) * 100).toFixed(0)}% OF THE BODY` });
+        b.mass = m1;
+        b.D *= Math.cbrt(m1 / m0);
+        b.harmless = b.D < harmlessDiameter(iron);
       }
     }
     standing('THRUSTER-SWARM', 'THRUSTER_SWARM', sf.thrusterSwarmSince, KNOBS.THRUSTER_TRANSIT, () => KNOBS.THRUSTER_ETA * KNOBS.THRUSTER_SWARM_N * KNOBS.THRUSTER_UNIT_N);
@@ -729,6 +774,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     standing('PICKET L4+L5', 'PICKET', sf.picketSince, KNOBS.PICKET_DELAY, () => (2 * KNOBS.PICKET_BETA * KNOBS.PICKET_KG * KNOBS.PICKET_U) / 3600, 3600);
     // SAIL KITS: sails tethered to the rock pull on sunlight for the rest of the round (force taken at 1 AU).
     standing(`SAIL KITS X${KNOBS.KIT_COUNT}`, 'SAIL_KIT', sf.kitsSince, KNOBS.KIT_TRANSIT, () => KNOBS.KIT_COUNT * KNOBS.KIT_EFF * 2 * 4.56e-6 * KNOBS.KIT_AREA);
+    for (const b of bodies) applyPushes(b, reqs.filter((r) => r.b === b), tEnd);
   }
 
   // Close approach of every live body.

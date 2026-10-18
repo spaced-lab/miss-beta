@@ -72,6 +72,11 @@ cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 
 
 ## Decisions
 
+- 2026-10-18 (code review finding 22): overlapping SCI-FI standing pushes superpose. They are collected, then each body
+  integrates them in time order, one pushArc per piece between start and end times with the active along-track
+  accelerations added; each push is credited its share of each piece's dv. A push may not start before the body's
+  open segment (laser windows), and is moved there keeping its length. One push alone is the same single pushArc call.
+
 - 3-D lite (2026-10-18): visitors from other stars carry an inclination about their impact node; only detection
   (3-D view geometry, trailing loss, latitude-dependent coverage) and drawing use it; the resolver stays flat,
   which is exact at the node where the encounter happens. The visitor draw uses its own seeded stream, so every
@@ -299,7 +304,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).
      Done: P1 part 3, finale montage (SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 -> BLUR_CUTS 12, ending unchanged).
      Done: P2, PERIMETER GAME SETUP box, retry setup on game over, OPTIONS > PERIMETER.
-     Review findings done: 1-2 (save numbers clamped, not rejected), 7 (actions pinned by SHA), 8 (version via env), 3 (CI and release run check.sh), 4 (no stale-tag deploy), 9 (dated release notes only), 16 (workflow headers), 5-6 (comments in save lists), 10 (lore_read keys), 11 (byte cap), 12 (one quote scanner), 13-15 (fuzz test: Rng.pick, parse once, FUZZ_N check), 17 (late STATUS lines), 18 (NOCLIP), 19 (debrief saves the next round), 20 (EXPORT = last boundary), 21 (net-capture bonus).
+     Review findings done: 1-2 (save numbers clamped, not rejected), 7 (actions pinned by SHA), 8 (version via env), 3 (CI and release run check.sh), 4 (no stale-tag deploy), 9 (dated release notes only), 16 (workflow headers), 5-6 (comments in save lists), 10 (lore_read keys), 11 (byte cap), 12 (one quote scanner), 13-15 (fuzz test: Rng.pick, parse once, FUZZ_N check), 17 (late STATUS lines), 18 (NOCLIP), 19 (debrief saves the next round), 20 (EXPORT = last boundary), 21 (net-capture bonus), 22 (standing pushes superpose in time order).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
