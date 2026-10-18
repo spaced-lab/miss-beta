@@ -9,6 +9,12 @@
 import { Rng } from '../sim/rng';
 import type { Surface } from './canvas';
 
+/** Parallax factor per star layer (far to near). */
+const LAYER_FACTORS = [0.15, 0.3, 0.5] as const;
+/** Scratch polyline for wireSphere: 49 points. s.stroke reads it synchronously, so one buffer serves every ring
+ *  (it was two fresh arrays per ring per frame; docs/DECISIONS.md D6). */
+const RING = new Float64Array(98);
+
 export class StarField {
   private readonly layers: Float64Array[] = [];
   constructor(seed = 7, counts: readonly number[] = [90, 60, 30]) {
@@ -22,9 +28,8 @@ export class StarField {
   /** Draw with the given pan (px); factor per layer 0.15, 0.3, 0.5 so far stars move least. */
   draw(s: Surface, panX: number, panY: number, parallax = true): void {
     const p = s.palette;
-    const factors = [0.15, 0.3, 0.5];
     this.layers.forEach((a, li) => {
-      const f = parallax ? (factors[li] as number) : 0;
+      const f = parallax ? (LAYER_FACTORS[li] ?? 0) : 0;
       const size = li === 2 ? 1.6 : 1.1;
       const alpha = li === 0 ? 0.25 : li === 1 ? 0.4 : 0.6;
       for (let i = 0; i < a.length; i += 2) {
@@ -43,22 +48,22 @@ export function wireSphere(s: Surface, cx: number, cy: number, R: number, rot: n
     const phi = (i / (lat + 1)) * Math.PI - Math.PI / 2;
     const ry = R * Math.sin(phi);
     const rr = R * Math.cos(phi);
-    const pts: number[] = [];
     for (let k = 0; k <= 48; k++) {
       const th = (k / 48) * Math.PI * 2;
-      pts.push(cx + rr * Math.cos(th), cy + ry * 0.35 + rr * 0.0 + Math.sin(th) * rr * 0.25);
+      RING[2 * k] = cx + rr * Math.cos(th);
+      RING[2 * k + 1] = cy + ry * 0.35 + rr * 0.0 + Math.sin(th) * rr * 0.25;
     }
-    s.stroke(pts, { color: col, glow: 0, width: 1, alpha: 0.6 });
+    s.stroke(RING, { color: col, glow: 0, width: 1, alpha: 0.6 });
   }
   for (let j = 0; j < lon; j++) {
     const lam = rot + (j / lon) * Math.PI;
     const rx = Math.abs(R * Math.cos(lam));
-    const pts: number[] = [];
     for (let k = 0; k <= 48; k++) {
       const th = (k / 48) * Math.PI * 2;
-      pts.push(cx + rx * Math.sin(th) * Math.sign(Math.cos(lam) || 1), cy - R * Math.cos(th));
+      RING[2 * k] = cx + rx * Math.sin(th) * Math.sign(Math.cos(lam) || 1);
+      RING[2 * k + 1] = cy - R * Math.cos(th);
     }
-    s.stroke(pts, { color: col, glow: 0, width: 1, alpha: 0.35 });
+    s.stroke(RING, { color: col, glow: 0, width: 1, alpha: 0.35 });
   }
 }
 

@@ -5,7 +5,6 @@
 // LORE: C1 (how the game is built)
 
 import type { Router, Screen, ScreenId } from './game/screen';
-import { MinigameScreen } from './minigame/index';
 import { createSurface } from './render/canvas';
 import { PALETTES } from './render/palettes';
 import { drawText } from './render/vectorFont';
@@ -20,8 +19,8 @@ import { loadBindings, remapFor, setBindings } from './game/keybinds';
 import { crtPass } from './render/crt';
 import { OptionsScreen } from './render/views/options';
 import { UiSfx } from './audio/ui';
-import { DemoScreen } from './render/views/demo';
-import { CenterScreen } from './render/views/center';
+import type { CenterScreen } from './render/views/center';
+import { LazyScreen } from './game/lazyScreen';
 import { Input } from './ui/input';
 
 function boot(): void {
@@ -46,7 +45,10 @@ function boot(): void {
       if (!next) throw new Error(`unknown screen ${id}`);
       // The manual remembers where it was opened from.
       if (id === 'help' && currentId !== 'help') (next as HelpScreen).returnTo = currentId;
-      if (id === 'center' && currentId !== 'center') (next as CenterScreen).returnTo = currentId;
+      if (id === 'center' && currentId !== 'center') {
+        const from = currentId;
+        center.with((c) => (c.returnTo = from));
+      }
       current?.exit();
       current = next;
       currentId = id;
@@ -54,28 +56,30 @@ function boot(): void {
     },
   };
   screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null, sfx, settings));
-  screens.set('minigame', new MinigameScreen(surface, keys, router, () => settings.reduceMotion));
+  // NOTE: PERIMETER, the Learning Center and the demo finale load on first use (D1 in docs/DECISIONS.md):
+  // they are over half the code and none of it is needed to draw the title.
+  screens.set('minigame', new LazyScreen('PERIMETER', () => import('./minigame/index').then((m) => new m.MinigameScreen(surface, keys, router, () => settings.reduceMotion)), surface, keys, router));
   screens.set('system', new SystemScreen(surface, keys, router, settings, sfx, (id, level) => {
-    center.openTopic(id, level);
+    center.with((c) => c.openTopic(id, level));
     router.go('center');
   }));
   const options = new OptionsScreen(surface, keys, router, settings);
   screens.set('options', options);
-  const center = new CenterScreen(surface, keys, router, settings);
+  const center = new LazyScreen<CenterScreen>('LEARNING CENTER', () => import('./render/views/center').then((m) => new m.CenterScreen(surface, keys, router, settings)), surface, keys, router);
   screens.set('center', center);
   screens.set('leaderboard', new LeaderboardScreen(surface, keys, router));
   const codex = new CodexScreen(surface, keys, router);
   screens.set('codex', codex);
   codex.openCenter = (id) => {
-    (screens.get('center') as CenterScreen).openTopic(id);
+    center.with((c) => c.openTopic(id));
     router.go('center');
   };
   const help = new HelpScreen(surface, keys, router);
   screens.set('help', help);
-  screens.set('demo', new DemoScreen(surface, keys, router, sfx, settings));
+  screens.set('demo', new LazyScreen('DEMO', () => import('./render/views/demo').then((m) => new m.DemoScreen(surface, keys, router, sfx, settings)), surface, keys, router));
   // Every screen with an L key opens the Learning Center on its topic; the center's Esc returns to the opener.
   const toCenter = (id: string): void => {
-    center.openTopic(id);
+    center.with((c) => c.openTopic(id));
     router.go('center');
   };
   help.openCenter = toCenter;
@@ -119,7 +123,9 @@ function boot(): void {
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.
   // `screens` is exposed too so an automated visual check can read a screen's state (dev only).
-  const stats = { cpuMs: 0, frameMs: 0, stale: false, screens };
+  // A lazy screen unwraps to the real one once loaded (null until then), so console checks read the same state.
+  const devScreens = { get: (id: ScreenId): Screen | null | undefined => { const sc = screens.get(id); return sc instanceof LazyScreen ? (sc.target as Screen | null) : sc; } };
+  const stats = { cpuMs: 0, frameMs: 0, stale: false, screens: devScreens };
   if (import.meta.env.DEV) (window as unknown as { __miss: typeof stats }).__miss = stats;
   // NOTE: accept hot updates here without re-booting, so a source save on the dev server never reloads
   // the page under a running game. The running code is simply stale until the player refreshes; a notice
@@ -132,6 +138,7 @@ function boot(): void {
 
   let last = performance.now();
   let welcomed = false;
+  let firstFrame = true;
   const frame = (now: number): void => {
     const dt = now - last;
     last = now;
@@ -160,6 +167,12 @@ function boot(): void {
     const cpu = performance.now() - t0;
     stats.cpuMs = stats.cpuMs * 0.9 + cpu * 0.1;
     stats.frameMs = stats.frameMs * 0.9 + dt * 0.1;
+    // Boot cost, measurable in any build: performance.getEntriesByName('miss:first-frame')[0].startTime
+    // is ms from navigation start to the end of the first drawn frame (docs/DECISIONS.md, how to re-measure).
+    if (firstFrame) {
+      firstFrame = false;
+      performance.mark('miss:first-frame');
+    }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

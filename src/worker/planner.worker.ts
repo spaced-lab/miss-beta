@@ -5,6 +5,7 @@
 //       The request shape is validated before use (it crosses a trust boundary in principle).
 // LORE: C1 (how the game is built)
 
+import { buildAttract, type AttractRound } from '../game/attract';
 import { readGauge, type GaugeReading } from '../sim/gauge';
 import { launcherTier } from '../physics/estimates';
 import type { Elements } from '../physics/kepler';
@@ -73,7 +74,14 @@ export interface GaugeJob {
   year: number;
 }
 
-export type WorkerJob = PorkchopJob | MonteCarloJob | FlybyJob | SailJob | GaugeJob;
+/** The title screen's self-playing round (game/attract.ts): 200-300 ms of planning, moved off the UI thread (D4). */
+export interface AttractJob {
+  id: number;
+  type: 'attract';
+  seed: string;
+}
+
+export type WorkerJob = PorkchopJob | MonteCarloJob | FlybyJob | SailJob | GaugeJob | AttractJob;
 
 export interface PorkchopReply {
   id: number;
@@ -105,7 +113,13 @@ export interface GaugeReply {
   reading: GaugeReading;
 }
 
-export type WorkerReply = PorkchopReply | MonteCarloReply | FlybyReply | SailReply | GaugeReply | { id: number; type: 'error'; message: string };
+export interface AttractReply {
+  id: number;
+  type: 'attract';
+  round: AttractRound;
+}
+
+export type WorkerReply = PorkchopReply | MonteCarloReply | FlybyReply | SailReply | GaugeReply | AttractReply | { id: number; type: 'error'; message: string };
 
 function isElements(v: unknown): v is Elements {
   if (typeof v !== 'object' || v === null) return false;
@@ -150,6 +164,12 @@ function isGaugeJob(v: unknown): v is GaugeJob {
     typeof since === 'object' && since !== null && Object.values(since).every((x) => typeof x === 'number') && typeof o['year'] === 'number' && Number.isFinite(o['year']);
 }
 
+function isAttractJob(v: unknown): v is AttractJob {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return o['type'] === 'attract' && Number.isInteger(o['id']) && typeof o['seed'] === 'string' && o['seed'].length <= 200;
+}
+
 /** Runs a job synchronously; exported so the main thread can fall back to it when Workers are unavailable. */
 export function runJob(job: WorkerJob): WorkerReply {
   if (isFlybyJob(job)) {
@@ -162,6 +182,7 @@ export function runJob(job: WorkerJob): WorkerReply {
     const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), c3Bonus: job.c3Bonus ?? 0 });
     return { id: job.id, type: 'porkchop', grid };
   }
+  if (isAttractJob(job)) return { id: job.id, type: 'attract', round: buildAttract(job.seed) };
   if (isGaugeJob(job)) return { id: job.id, type: 'gauge', reading: readGauge(job.active, job.since, job.year) };
   if (isMonteCarloJob(job)) {
     // NOTE: the world crosses postMessage by structured clone; Float64Array shapes and plain records survive.

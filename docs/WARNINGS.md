@@ -84,3 +84,14 @@ it lives, what it can do, and what to do about it. Add an entry whenever a conve
 - **Do:** deploy only `npm run build` output (entry 2); keep "Enforce HTTPS" on in the Pages settings; never put
   secrets in the repo or the build (everything shipped is public); review the security assessment in
   `docs/SAFETY.md` before each release. X.509 / certificate items are IDEAS 23.
+
+## 10. Source maps ship with the build
+
+- **What:** `npm run build` writes `.map` files next to every chunk (`sourcemap` in `vite.config.ts`), so anyone
+  with devtools reads the full TypeScript source. Browsers fetch them only when devtools are open; players
+  download nothing extra. Code-split screens (docs/DECISIONS.md D1) load by same-origin `import()` only, inside
+  the unchanged CSP (`script-src 'self'`).
+- **Why accepted:** the repo is public and is a course; nothing secret is in the source (entry 9: nothing secret
+  may be in the build at all). docs/DECISIONS.md D2 has the numbers.
+- **Do:** if a fork ever bundles something that must not be read, build with `MISS_SOURCEMAP=0` (and remember the
+  minified JS is still readable).

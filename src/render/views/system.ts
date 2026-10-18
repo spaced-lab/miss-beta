@@ -28,7 +28,7 @@ import { AU, DAY, YEAR } from '../../physics/constants';
 import { stateToElements } from '../../physics/elements';
 import { orbitPoints, propagate, type Elements } from '../../physics/kepler';
 import type { MonteCarloResult } from '../../planner/monteCarlo';
-import { PlannerClient } from '../../planner/workerClient';
+import { sharedPlanner } from '../../planner/workerClient';
 import { formatEvent } from '../../sim/eventLog';
 import type { Mission } from '../../sim/mission';
 import { bodyAlive, elementsAt, resolveRound, type ResolveOpts, type RoundResult } from '../../sim/resolver';
@@ -104,7 +104,7 @@ export class SystemScreen implements Screen {
   private threatOrbitCache: { el: Elements; pts: Float64Array } | null = null;
   private readonly craftCache = new Map<string, Elements>();
   private ghost: { x: number; y: number } | null = null;
-  private readonly client = new PlannerClient();
+  private readonly client = sharedPlanner();
   private readonly planner: PlannerOverlay;
   private readonly planet: PlanetOverlay;
   private readonly programs: ProgramsOverlay;

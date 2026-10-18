@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Faster boot (docs/DECISIONS.md): the title draws its first frame in about 50 ms instead of 250 ms (the
+  attract round is planned in the worker), and the boot download is 29 % smaller (PERIMETER, the Learning
+  Center, the demo finale and the lore pictures load when first opened, with a LOADING line for the moment
+  it takes). One planner worker serves the whole page. New `docs/DECISIONS.md`: the index of measured
+  engineering decisions.
+
 - SKY view (K): the sky from HOME as a turning wireframe sphere, every direction marked by how often the active
   networks look there (dot, ring, diamond for blind), the Sun and its glare cap, and the threat's track over the
   last 400 days. Fixed: Esc inside PROGRAMS, TECH, the lore panel or the planet view now closes it instead of

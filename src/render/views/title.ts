@@ -10,7 +10,8 @@ import { createRun, type RunState } from '../../game/run';
 import { ConsoleOverlay } from './console';
 import { loadJson } from '../../game/persistence';
 import { TUTORIAL_SEEN_KEY } from '../../game/tutorial';
-import { buildAttract, dailySeed, tickAttract, type AttractRound } from '../../game/attract';
+import { dailySeed, tickAttract, type AttractRound } from '../../game/attract';
+import { AttractBuilder } from '../../game/attractClient';
 import { drawMiniSystem } from '../miniSystem';
 import type { UiSfx } from '../../audio/ui';
 import type { Router, Screen } from '../../game/screen';
@@ -39,6 +40,9 @@ export class TitleScreen implements Screen {
 
   private attract: AttractRound | null = null;
   private attractN = 0;
+  /** Rounds are planned in a worker (D4 in docs/DECISIONS.md); while one is on its way the old one holds still. */
+  private readonly attractBuilder = new AttractBuilder();
+  private attractBusy = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly getSystem: () => SystemScreen | null = () => null, private readonly sfx: UiSfx | null = null, private readonly settings: Settings | null = null) {
     this.console = new ConsoleOverlay(s, keys);
@@ -130,11 +134,18 @@ export class TitleScreen implements Screen {
 
   /** A new self-playing round for the background; the seed walks so each visit differs. */
   private nextAttract(): void {
-    try {
-      this.attract = buildAttract(`ATTRACT-${dailySeed()}-${this.attractN++}`);
-    } catch {
-      this.attract = null;
-    }
+    if (this.attractBusy) return;
+    this.attractBusy = true;
+    this.attractBuilder.build(`ATTRACT-${dailySeed()}-${this.attractN++}`).then(
+      (a) => {
+        this.attract = a;
+        this.attractBusy = false;
+      },
+      () => {
+        this.attract = null;
+        this.attractBusy = false;
+      },
+    );
   }
 
   private startTutorial(): void {
@@ -167,7 +178,7 @@ export class TitleScreen implements Screen {
       this.console.show();
       return;
     }
-    if (this.attract && tickAttract(this.attract, dtMs / 1000)) this.nextAttract();
+    if (this.attract && !this.attractBusy && tickAttract(this.attract, dtMs / 1000)) this.nextAttract();
     if (k.pressed('ArrowUp') || k.pressed('KeyW')) {
       this.sel = (this.sel + this.items.length - 1) % this.items.length;
       this.sfx?.move();

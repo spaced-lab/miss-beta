@@ -9,7 +9,7 @@
 // LORE: F11 (the detection gauge), F5 (today's surveys), F7 (future missions)
 
 import { KNOBS } from '../../config/knobs';
-import { PlannerClient } from '../../planner/workerClient';
+import { sharedPlanner, type PlannerClient } from '../../planner/workerClient';
 import { drawGauge, gaugeX } from '../../render/gaugeView';
 import { defaultActiveNetworks } from '../../sim/detection';
 import { sizeLabel, type GaugeReading, type NeedleId } from '../../sim/gauge';
@@ -42,7 +42,7 @@ function reading(v: Record<string, number>): GaugeReading | null {
   if (hit === 'PENDING') return null;
   if (hit) return hit;
   readings.set(key, 'PENDING');
-  client ??= new PlannerClient();
+  client ??= sharedPlanner();
   const since = Object.fromEntries(on.map((id) => [id, PLANNED_SINCE]));
   client
     .gauge([...defaultActiveNetworks(), ...on], since, year)
