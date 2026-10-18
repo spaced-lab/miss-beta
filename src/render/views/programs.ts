@@ -16,6 +16,9 @@ import { withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class ProgramsOverlay {
+  /** Mouse targets from the last frame: each row's y and the progress / funding column's x. */
+  private rowYs: number[] = [];
+  private fundX = Infinity;
   /** Set by the owner screen: open the Learning Center on a topic. */
   openLore: ((id: string) => void) | null = null;
   private open = false;
@@ -45,6 +48,15 @@ export class ProgramsOverlay {
       return;
     }
     const n = run.programs.length;
+    const click = k.takeClick();
+    if (click) {
+      const i = this.rowYs.findIndex((y) => click.y >= y - 2 && click.y < y + 15);
+      if (i >= 0) {
+        this.sel = i;
+        const ps = run.programs[i];
+        if (ps && ps.completedAt === null && click.x >= this.fundX - 8) ps.funding = ps.funding >= 1 ? 0 : Math.min(1, Math.round((ps.funding + 0.25) * 4) / 4);
+      }
+    }
     if (k.pressed('ArrowUp')) this.sel = (this.sel + n - 1) % n;
     if (k.pressed('ArrowDown')) this.sel = (this.sel + 1) % n;
     const st = run.programs[this.sel];
@@ -65,9 +77,12 @@ export class ProgramsOverlay {
     drawText(s, `PROGRAMS   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS)`, m, m, 14, { color: p.hot, glow: 1.2 });
     // Columns are placed by x, not by padding, so a long tag (SPECULATIVE) never runs into YEARS.
     const cTag = m + 300, cYr = m + 420, cCost = m + 470, bx = m + 540, bw = 150;
+    this.fundX = bx;
     for (const [x, h] of [[m, 'ID'], [cTag, 'TAG'], [cYr, 'YEARS'], [cCost, 'COST/Y'], [bx, 'PROGRESS'], [bx + bw + 14, 'FUNDING']] as const) drawText(s, h, x, m + 26, 10, { color: p.dim, glow: 0 });
     let y = m + 44;
+    this.rowYs = [];
     run.programs.forEach((st, i) => {
+      this.rowYs.push(y);
       const def = programById(st.id);
       const selected = i === this.sel;
       const col = st.completedAt !== null ? p.dim : selected ? p.hot : p.ink;
@@ -99,6 +114,6 @@ export class ProgramsOverlay {
       if (ny > s.height - 50) break;
     }
     void t;
-    drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT FUNDING    <ENTER> FULL / NONE    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN OR CLICK SELECT    LEFT / RIGHT OR CLICK FUNDING    <ENTER> FULL / NONE    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

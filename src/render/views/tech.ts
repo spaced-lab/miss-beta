@@ -14,6 +14,8 @@ import { withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class TechOverlay {
+  /** Mouse targets from the last frame: every node's box. */
+  private boxes: { x: number; y: number; w: number; h: number; track: number; row: number }[] = [];
   /** Set by the owner screen: open the Learning Center on a topic. */
   openLore: ((id: string) => void) | null = null;
   private open = false;
@@ -57,10 +59,20 @@ export class TechOverlay {
       this.track = (this.track + 1) % TRACKS.length;
       this.row = 0;
     }
+    const click = k.takeClick();
+    let clickUnlock = false;
+    if (click) {
+      const box = this.boxes.find((b) => click.x >= b.x && click.x <= b.x + b.w && click.y >= b.y && click.y <= b.y + b.h);
+      if (box) {
+        if (box.track === this.track && box.row === this.row) clickUnlock = true;
+        this.track = box.track;
+        this.row = box.row;
+      }
+    }
     const nodes = this.nodesOf(TRACKS[this.track] as string);
     if (k.pressed('ArrowUp')) this.row = (this.row + nodes.length - 1) % nodes.length;
     if (k.pressed('ArrowDown')) this.row = (this.row + 1) % nodes.length;
-    if (k.pressed('Enter')) {
+    if (k.pressed('Enter') || clickUnlock) {
       const n = nodes[this.row];
       if (n) {
         const v = unlock(run, n.id);
@@ -82,6 +94,7 @@ export class TechOverlay {
     const colW = (s.width - 2 * m) / perRow;
     const rowH = 20 + 4 * 58 + 10;
     const top0 = m + 40;
+    this.boxes = [];
     TRACKS.forEach((track, ti) => {
       const x = m + (ti % perRow) * colW;
       const top = top0 + Math.floor(ti / perRow) * rowH;
@@ -95,6 +108,7 @@ export class TechOverlay {
         const selected = selectedTrack && ri === this.row;
         const col = owned ? p.hot : verdict === 'OK' ? p.ink : p.dim;
         const w = colW - 12;
+        this.boxes.push({ x, y, w, h: 46, track: ti, row: ri });
         s.stroke([x, y, x + w, y, x + w, y + 46, x, y + 46], { closed: true, color: col, glow: selected ? 1.5 : owned ? 0.8 : 0, width: selected ? 1.5 : 1, ...(owned || verdict === 'OK' ? {} : { dash: [3, 4] }) });
         if (ri > 0) s.stroke([x + w / 2, y - 12, x + w / 2, y], { color: p.dim, glow: 0 });
         drawText(s, `${n.id}  ${owned ? 'OWNED' : `${n.cost} RP`}`, x + 6, y + 6, 10, { color: col, glow: selected ? 0.8 : 0.2 });
@@ -107,6 +121,6 @@ export class TechOverlay {
     const sel = this.nodesOf(TRACKS[this.track] as string)[this.row];
     if (sel) drawText(s, `${sel.name}${sel.note ? ': ' + sel.note.toUpperCase() : ''}`, m, s.height - m - 48, 11, { color: p.ink, glow: 0.3 });
     if (this.note) drawText(s, this.note, m, s.height - m - 30, 11, { color: p.hot, glow: 0.8 });
-    drawTextFit(s, 'LEFT / RIGHT TRACK    UP / DOWN NODE    <ENTER> UNLOCK    <L> LEARN ABOUT THIS TRACK    <T> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'LEFT / RIGHT TRACK    UP / DOWN NODE    <ENTER> OR CLICK AGAIN UNLOCK    <L> LEARN ABOUT THIS TRACK    <T> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }
