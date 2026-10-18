@@ -537,7 +537,7 @@ export class SystemScreen implements Screen {
     // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
     const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
     // A guided DART replay is practice: a hit there scores like a survived partial and the run continues.
-    const survivable = (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield) || (res.outcome === 'HIT' && this.tut?.script === 'DART');
+    const survivable = (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield) || (res.outcome === 'HIT' && (this.tut?.script === 'DART' || this.run.tutorial));
     if (this.run.noclip && res.outcome === 'HIT') {
       // NOCLIP: HOME is non-colliding this round; the resolver's numbers stand, the outcome is a miss.
       this.result = { ...res, outcome: 'MISS' };
@@ -1434,7 +1434,10 @@ export class SystemScreen implements Screen {
     const { x, y } = this.panel(pw, 150 + events.length * 15 + 116);
     const fitW = pw - 32;
     const cx = s.width / 2;
-    drawTextFit(s, res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 22, 30, fitW, { align: 'center', color: p.hot, glow: 2 });
+    // A hit that the run survives (evacuated, shielded, or a practice round) says so instead of "MISS BY -x".
+    const why = this.run.tutorial || this.tut?.script === 'DART' ? 'PRACTICE ROUND' : this.run.shield ? 'SHIELDED' : 'EVACUATED';
+    const head = res.outcome === 'HIT' ? `HIT, SURVIVED: ${why}` : res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`;
+    drawTextFit(s, head, cx, y + 22, 30, fitW, { align: 'center', color: p.hot, glow: 2 });
     drawTextFit(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, fitW, { align: 'center' });
     let ly = y + 92;
     const firstIdx = res.events.length - events.length;
