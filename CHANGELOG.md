@@ -40,6 +40,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - Saves: only topic-id keys are written to `lore_read`, as only they are read back; a junk key in browser storage
   could split the map and silently drop the topics read after it (finding 10).
 - Saves: the 256 KiB SAVE.md cap counts UTF-8 bytes; it counted characters, so wide text passed at 3x (finding 11).
+- NOCLIP works: the round scored and ended the run as the HIT it replaced; it is now a miss everywhere (finding 18).
 
 ## 26.4.0 (2026-10-18)
 

@@ -615,6 +615,13 @@ export class SystemScreen implements Screen {
     } catch {
       this.counterfactual = null;
     }
+    if (this.run.noclip && res.outcome === 'HIT') {
+      // NOCLIP: HOME is non-colliding this round; the resolver's numbers stand, the outcome is a miss. NOTE: `res`
+      // itself becomes the miss, before anything reads its outcome: scoring, the run-over decision and the history
+      // all used the HIT copy, so the cheat ended the run anyway (code review 2026-10-18).
+      res = { ...res, outcome: 'MISS' };
+      this.result = res;
+    }
     const available = this.run.economy.start + (this.run.economy.perYear * this.world.t) / YEAR;
     // Civil defense (18.6): an evacuated AIRBURST/CITY hit ordered early enough scores as PARTIAL x0.25 and the run continues.
     const evacOk = this.run.evacuatedAt !== null && th.tImpact - this.run.evacuatedAt >= this.run.effects.evacMinDays * DAY;
@@ -622,10 +629,6 @@ export class SystemScreen implements Screen {
     // IDEAS 26: a rock that hits a site (not HOME) destroys the site; HOME is safe and the run goes on.
     const siteLost = res.outcome === 'HIT' && th.targetId !== undefined && th.targetId !== 'HOME' && !this.run.shield;
     const survivable = siteLost || (res.outcome === 'HIT' && evacOk && (res.category === 'AIRBURST' || res.category === 'CITY')) || (res.outcome === 'HIT' && this.run.shield) || (res.outcome === 'HIT' && (this.tut?.script === 'DART' || this.run.tutorial));
-    if (this.run.noclip && res.outcome === 'HIT') {
-      // NOCLIP: HOME is non-colliding this round; the resolver's numbers stand, the outcome is a miss.
-      this.result = { ...res, outcome: 'MISS' };
-    }
     this.score = scoreRound({
       round: this.run.round,
       energyMt: res.energy.energyMt,
