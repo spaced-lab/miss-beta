@@ -4,8 +4,8 @@
 // HOW:  Curtis, Orbital Mechanics for Engineering Students, Algorithm 5.2, prograde, single revolution:
 //         dtheta from the cross product sign;  A = sin(dtheta) sqrt(r1 r2 / (1 - cos dtheta))
 //         y(z) = r1 + r2 + A (z S - 1) / sqrt(C);   F(z) = (y/C)^1.5 S + A sqrt(y) - sqrt(mu) dt
-//       Bracket z in [-4pi^2, 4pi^2) where y > 0, bisect until the bracket is 1e-13 wide, then three Newton
-//       steps. Lagrange coefficients give v1 and v2. Returns null when the geometry is degenerate (dtheta
+//       Bracket z in [-4pi^2, 4pi^2) where y > 0 (extended down to Z_FLOOR for fast hyperbolic transfers),
+//       bisect until the bracket is 1e-13 wide, then three Newton steps. Lagrange coefficients give v1 and v2. Returns null when the geometry is degenerate (dtheta
 //       within 1e-3 of 0 or pi: A -> 0 and the plane is undefined) or no root exists.
 //       lambert3 (M14 phase 2) is the same root in the plane of r1 and r2, with the prograde sense taken from
 //       the z part of r1 x r2, for targets off the ecliptic.
@@ -30,6 +30,8 @@ export interface LambertResult {
 }
 
 export const LAMBERT_DEGENERATE = 1e-3;
+/** Lowest z the bracket extends to: sqrt(-z) = 316 keeps cosh in the Stumpff functions finite in float64. */
+export const Z_FLOOR = -1e5;
 
 /**
  * Solve the prograde single-revolution Lambert problem.
@@ -82,6 +84,32 @@ function solveUniversal(r1: number, r2: number, A: number, dt: number, mu: numbe
     steps++;
   }
   if (!(y(lo) > 0)) return null;
+  // Fast transfers are strongly hyperbolic; F rises steeply from -sqrt(mu) dt at the edge where y reaches 0, so the
+  // first 0.1 step past the edge can already be beyond the root (dtheta < pi), and with dtheta > pi (y grows as z
+  // falls) the root can lie below -4pi^2. If F(lo) > 0, close in on the edge by bisection on y, or extend the
+  // bracket down by doubling to Z_FLOOR. NOTE: such cells read infeasible on the porkchop and autonomy retargets
+  // failed (code review 2026-10-18).
+  if (F(lo) > 0) {
+    const edge = (bad: number, good: number): number => {
+      for (let i = 0; i < 100; i++) {
+        const mid = 0.5 * (bad + good);
+        if (y(mid) > 0 && Number.isFinite(F(mid))) good = mid;
+        else bad = mid;
+      }
+      return good;
+    };
+    if (steps > 0) lo = edge(lo - 0.1, lo);
+    else {
+      for (let k = 0; k < 20 && F(lo) > 0 && lo > Z_FLOOR; k++) {
+        const next = Math.max(Z_FLOOR, lo * 2);
+        if (y(next) > 0 && Number.isFinite(F(next))) lo = next;
+        else {
+          lo = edge(next, lo);
+          break;
+        }
+      }
+    }
+  }
   let hi = zMax;
   let flo = F(lo);
   let fhi = F(hi);

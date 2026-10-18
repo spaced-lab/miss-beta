@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .stumpff import stumpff_c, stumpff_s
 
 LAMBERT_DEGENERATE = 1e-3
+Z_FLOOR = -1e5  # lowest z the bracket extends to (mirror of Z_FLOOR)
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,42 @@ def _solve_universal(r1: float, r2: float, A: float, dt: float, mu: float) -> tu
         steps += 1
     if not y(lo) > 0:
         return None
+    # Fast transfers (mirror of solveUniversal): if F(lo) > 0, close in on the y = 0 edge by bisection, or extend
+    # the bracket down by doubling to Z_FLOOR when y > 0 already held at -4 pi^2.
+    def F_or_nan(z: float) -> float:
+        try:
+            return F(z)
+        except (OverflowError, ValueError, ZeroDivisionError):
+            return math.nan
+
+    def y_or_nan(z: float) -> float:
+        try:
+            return y(z)
+        except (OverflowError, ValueError, ZeroDivisionError):
+            return math.nan
+
+    def edge(bad: float, good: float) -> float:
+        for _ in range(100):
+            mid = 0.5 * (bad + good)
+            if y_or_nan(mid) > 0 and math.isfinite(F_or_nan(mid)):
+                good = mid
+            else:
+                bad = mid
+        return good
+
+    if F_or_nan(lo) > 0:
+        if steps > 0:
+            lo = edge(lo - 0.1, lo)
+        else:
+            for _ in range(20):
+                if not (F_or_nan(lo) > 0 and lo > Z_FLOOR):
+                    break
+                nxt = max(Z_FLOOR, lo * 2)
+                if y_or_nan(nxt) > 0 and math.isfinite(F_or_nan(nxt)):
+                    lo = nxt
+                else:
+                    lo = edge(nxt, lo)
+                    break
     hi = z_max
     flo, fhi = F(lo), F(hi)
     if not (math.isfinite(flo) and math.isfinite(fhi)) or flo > 0 or fhi < 0:

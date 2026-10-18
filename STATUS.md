@@ -72,6 +72,12 @@ cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 
 
 ## Decisions
 
+- 2026-10-18 (code review finding 27): Lambert closes in on the y = 0 edge by bisection when the 0.1 walk-up passes
+  the root, and extends the lower bracket by doubling to Z_FLOOR = -1e5 when y > 0 already held at -4 pi^2. Cells and
+  retargets that used to read infeasible for fast transfers are now solved, so a few rounds can offer plans they did
+  not before. tests/vectors/lambert3.json was regenerated: random geometries that used to have no solution now do,
+  which shifts the seeded sequence after them.
+
 - 2026-10-18 (code review finding 22): overlapping SCI-FI standing pushes superpose. They are collected, then each body
   integrates them in time order, one pushArc per piece between start and end times with the active along-track
   accelerations added; each push is credited its share of each piece's dv. A push may not start before the body's
@@ -304,7 +310,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).
      Done: P1 part 3, finale montage (SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 -> BLUR_CUTS 12, ending unchanged).
      Done: P2, PERIMETER GAME SETUP box, retry setup on game over, OPTIONS > PERIMETER.
-     Review findings done: 1-2 (save numbers clamped, not rejected), 7 (actions pinned by SHA), 8 (version via env), 3 (CI and release run check.sh), 4 (no stale-tag deploy), 9 (dated release notes only), 16 (workflow headers), 5-6 (comments in save lists), 10 (lore_read keys), 11 (byte cap), 12 (one quote scanner), 13-15 (fuzz test: Rng.pick, parse once, FUZZ_N check), 17 (late STATUS lines), 18 (NOCLIP), 19 (debrief saves the next round), 20 (EXPORT = last boundary), 21 (net-capture bonus), 22 (standing pushes superpose in time order), 23 (leaderboard keeps valid entries), 24 (worker survives a failed job), 25 (key remap is a permutation), 26 (no stuck keys).
+     Review findings done: 1-2 (save numbers clamped, not rejected), 7 (actions pinned by SHA), 8 (version via env), 3 (CI and release run check.sh), 4 (no stale-tag deploy), 9 (dated release notes only), 16 (workflow headers), 5-6 (comments in save lists), 10 (lore_read keys), 11 (byte cap), 12 (one quote scanner), 13-15 (fuzz test: Rng.pick, parse once, FUZZ_N check), 17 (late STATUS lines), 18 (NOCLIP), 19 (debrief saves the next round), 20 (EXPORT = last boundary), 21 (net-capture bonus), 22 (standing pushes superpose in time order), 23 (leaderboard keeps valid entries), 24 (worker survives a failed job), 25 (key remap is a permutation), 26 (no stuck keys), 27 (Lambert fast transfers; vectors regenerated).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,

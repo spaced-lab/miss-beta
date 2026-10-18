@@ -152,6 +152,15 @@ def lambert_vectors() -> dict:
             continue
         cases.append({"r1x": r1 * math.cos(t1), "r1y": r1 * math.sin(t1), "r2x": r2 * math.cos(t2), "r2y": r2 * math.sin(t2), "dt": dt, "mu": MU_SUN,
                       "v1x": res.v1x, "v1y": res.v1y, "v2x": res.v2x, "v2y": res.v2y, "z": res.z, "dtheta": res.dtheta})
+    # Fast hyperbolic transfers (code review 2026-10-18): roots just above the y = 0 edge (under 180 deg) and below
+    # z = -4 pi^2 (over 180 deg). Fixed, after the random cases so the seeded sequence above is untouched.
+    for deg, days in ((120, 4), (90, 2), (150, 6), (60, 1), (200, 3), (240, 2), (300, 1.5)):
+        a = math.radians(deg)
+        r2x, r2y, dt = 1.2 * AU * math.cos(a), 1.2 * AU * math.sin(a), days * DAY
+        res = lambert(AU, 0.0, r2x, r2y, dt, MU_SUN)
+        if res is not None:
+            cases.append({"r1x": AU, "r1y": 0.0, "r2x": r2x, "r2y": r2y, "dt": dt, "mu": MU_SUN,
+                          "v1x": res.v1x, "v1y": res.v1y, "v2x": res.v2x, "v2y": res.v2y, "z": res.z, "dtheta": res.dtheta})
     kin = []
     for _ in range(10):
         m = rng.float(300, 20000)
