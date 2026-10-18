@@ -57,7 +57,9 @@ import { scenarioById, spawnScenario } from '../../sim/scenarios';
 import { shiftEpoch } from '../../sim/roundGen';
 import { craftPosition } from '../../planner/legs';
 import { hashSeed, Rng } from '../../sim/rng';
-import { applyEffects, createPrograms, programById } from '../../sim/programs';
+import { applyEffects, createPrograms, programById, syncPrograms } from '../../sim/programs';
+import { advanceCivilization } from '../../game/civ';
+import { modeIndex } from '../../game/modes';
 import { stateToElements as toElements } from '../../physics/elements';
 import { sphereMass } from '../../physics/closeApproach';
 import { boardFor } from '../../game/modes';
@@ -310,6 +312,8 @@ export class SystemScreen implements Screen {
     // The run's networks (programs may have added some) drive discovery; the world keeps the live copy.
     if (this.run.networks.active.length === 0) this.run.networks = { active: [...this.world.networks.active], since: {} };
     this.world.networks = this.run.networks;
+    // Programs the current mode allows (SCI-FI adds its own when the mode is entered by code or by level).
+    syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
     const rng = roundRng(seed, round);
     if (this.run.spawnNext) {
       const sc = scenarioById(this.run.spawnNext);
@@ -521,6 +525,8 @@ export class SystemScreen implements Screen {
       }),
       true,
     );
+    const civ = finalOutcome !== 'HIT' ? advanceCivilization(this.run) : null;
+    if (civ) this.note(civ, 8);
     if (finalOutcome !== 'HIT') {
       this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
@@ -624,7 +630,8 @@ export class SystemScreen implements Screen {
       if (k.pressed('KeyH')) this.panelHidden = !this.panelHidden;
     }
     if (this.phase === 'debrief') {
-      if (k.pressed('KeyG')) this.programs.show();
+      if (k.pressed('KeyG')) syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
+      this.programs.show();
       if (k.pressed('KeyT')) this.tech.show();
       if (k.pressed('Space') || k.pressed('Enter')) {
         if (this.run.tutorial) {
@@ -646,6 +653,7 @@ export class SystemScreen implements Screen {
     if (k.pressed('KeyV')) this.planetOpen = !this.planetOpen;
     if (k.pressed('KeyG')) {
       setWarp(w, 0);
+      syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
       this.programs.show();
       return;
     }

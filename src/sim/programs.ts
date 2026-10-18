@@ -112,6 +112,18 @@ export function createPrograms(mode: 'REALISTIC' | 'SCIFI' = 'REALISTIC'): Progr
   return PROGRAMS.filter((p) => p.mode === 'REALISTIC' || mode === 'SCIFI').map((p) => ({ id: p.id, progress: 0, funding: 0, completedAt: null }));
 }
 
+/** Add the program states a mode allows but the run does not have yet (entering SCI-FI adds its programs). */
+export function syncPrograms(states: ProgramState[], mode: 'REALISTIC' | 'SCIFI'): number {
+  let added = 0;
+  for (const st of createPrograms(mode)) {
+    if (!states.some((s) => s.id === st.id)) {
+      states.push(st);
+      added++;
+    }
+  }
+  return added;
+}
+
 export interface ProgramsContext {
   economy: Economy;
   effects: RunEffects;

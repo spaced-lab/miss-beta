@@ -67,6 +67,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     without a code, all SPECULATIVE complete unlocks SIMULATION. `civilizationLevel` is computed; the title
     readout exists; only the codes move the mode today.
     Recommendation: DO with 13 (one check at round end, one note line).
+    Status 2026-10-18: DONE (src/game/civ.ts). Also fixed: entering SCI-FI never added the SCI-FI programs to the run.
 15. **DART as a full second tutorial (M).** The DART code prints the real mission numbers; the plan wants a
     guided replay round with the Didymos geometry and the measured beta.
     Recommendation: LATER. The TUTORIAL round covers onboarding; this is a history lesson for the Learning Center.

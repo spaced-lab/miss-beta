@@ -66,3 +66,21 @@ describe('IDEAS 13: program effects that act', () => {
     expect(best(b)).toBeGreaterThan(best(a));
   });
 });
+
+describe('civilization level (IDEAS 14)', () => {
+  it('completing every REALISTIC program enters SCI-FI and adds its programs; every SPECULATIVE one enters SIMULATION', async () => {
+    const { advanceCivilization } = await import('../src/game/civ');
+    const { PROGRAMS } = await import('../src/sim/programs');
+    const run = createRun('CIV');
+    expect(advanceCivilization(run)).toBeNull();
+    for (const p of run.programs) p.completedAt = 0;
+    expect(advanceCivilization(run)).toContain('LEVEL 1');
+    expect(run.mode).toBe('SCIFI');
+    const scifiIds = PROGRAMS.filter((p) => p.mode === 'SCIFI').map((p) => p.id);
+    for (const id of scifiIds) expect(run.programs.some((s) => s.id === id)).toBe(true);
+    for (const p of run.programs) p.completedAt = 0;
+    expect(advanceCivilization(run)).toContain('LEVEL 2');
+    expect(run.mode).toBe('SIMULATION');
+    expect(advanceCivilization(run)).toBeNull();
+  });
+});
