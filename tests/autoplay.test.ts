@@ -56,3 +56,24 @@ describe('autopilot walk', () => {
     expect(keys).toContain('BracketRight');
   });
 });
+
+describe('AUTOPLAY investments', () => {
+  it('chooseTech prefers launch and impactor nodes, then the cheapest; null when nothing is unlockable', async () => {
+    const { chooseTech } = await import('../src/game/autoplay');
+    expect(chooseTech([{ id: 'L2', name: 'L', track: 'LAUNCH', cost: 5, ok: true }, { id: 'I2', name: 'I', track: 'IMPACTOR', cost: 4, ok: true }, { id: 'T1', name: 'T', track: 'TRACKING', cost: 1, ok: true }])?.id).toBe('I2');
+    expect(chooseTech([{ id: 'T1', name: 'T', track: 'TRACKING', cost: 1, ok: true }, { id: 'L2', name: 'L', track: 'LAUNCH', cost: 5, ok: false }])?.id).toBe('T1');
+    expect(chooseTech([{ id: 'L2', name: 'L', track: 'LAUNCH', cost: 5, ok: false }])).toBeNull();
+  });
+  it('chooseProgram funds one at a time, in order, within the budget rules', async () => {
+    const { chooseProgram, AUTO_PROGRAM_RESERVE } = await import('../src/game/autoplay');
+    const rows = [
+      { id: 'INTL_COORDINATION', name: 'A', costPerYear: 1, funded: false, done: true },
+      { id: 'GROUND_SURVEY_EXPANSION', name: 'B', costPerYear: 2, funded: false, done: false },
+      { id: 'SPACE_IR_SURVEYOR', name: 'C', costPerYear: 3, funded: false, done: false },
+    ];
+    expect(chooseProgram(rows, 10, 6)?.id).toBe('GROUND_SURVEY_EXPANSION');
+    expect(chooseProgram(rows, AUTO_PROGRAM_RESERVE - 1, 6)).toBeNull();
+    expect(chooseProgram(rows.map((r) => (r.id === 'SPACE_IR_SURVEYOR' ? { ...r, funded: true } : r)), 10, 6)).toBeNull();
+    expect(chooseProgram(rows, 10, 3)).toBeNull();
+  });
+});

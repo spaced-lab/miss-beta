@@ -125,6 +125,9 @@ export interface SciFiOpts {
   sailDepotSince?: number | null;
   /** SEED_FLEET program completion (round time) or null. */
   seedFleetSince?: number | null;
+  /** L4_L5_PICKET and SAIL_KITS program completions (round time) or null. */
+  picketSince?: number | null;
+  kitsSince?: number | null;
 }
 
 function streamFor(world: World, tag: string, sample: number): Rng {
@@ -709,6 +712,10 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       }
     }
     standing('SHEPHERD', 'SHEPHERD', sf.shepherdSince, KNOBS.SHEPHERD_DELAY, () => (KNOBS.SHEPHERD_BETA * KNOBS.SHEPHERD_KG * KNOBS.SHEPHERD_U) / 3600, 3600);
+    // L4/L5 PICKET: two parked impactors, one from each point, delivered together as a one-hour impulse.
+    standing('PICKET L4+L5', 'PICKET', sf.picketSince, KNOBS.PICKET_DELAY, () => (2 * KNOBS.PICKET_BETA * KNOBS.PICKET_KG * KNOBS.PICKET_U) / 3600, 3600);
+    // SAIL KITS: sails tethered to the rock pull on sunlight for the rest of the round (force taken at 1 AU).
+    standing(`SAIL KITS X${KNOBS.KIT_COUNT}`, 'SAIL_KIT', sf.kitsSince, KNOBS.KIT_TRANSIT, () => KNOBS.KIT_COUNT * KNOBS.KIT_EFF * 2 * 4.56e-6 * KNOBS.KIT_AREA);
   }
 
   // Close approach of every live body.

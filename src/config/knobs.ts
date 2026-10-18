@@ -273,6 +273,19 @@ export const KNOBS = {
   /** SEED FLEET (30, owner idea): seeds reach the threat's neighbourhood after SEED_FLEET_DELAY, then the fleet
    *  doubles every SEED_FLEET_DOUBLING, mining small bodies for copies, and at each doubling throws all its rocks
    *  (shepherd-sized) at the threat: 1, 2, 4 ... up to SEED_FLEET_MAX rocks a strike. Lead time buys doublings. */
+  /** L4/L5 PICKET (30, owner idea): impactors parked at HOME's L4 and L5, fuelled and waiting. Each new threat
+   *  gets one from each point PICKET_DELAY after the round starts: dv = 2 beta m U / M (one-hour impulse each). */
+  PICKET_KG: 5000,
+  PICKET_U: 15000,
+  PICKET_BETA: 2.5,
+  PICKET_DELAY: 120 * DAY,
+  /** ATTACHABLE SAIL KITS (30): KIT_COUNT sails of KIT_AREA m^2 tethered to the rock after KIT_TRANSIT, pulling at
+   *  F = KIT_EFF x 2 P0 A per kit, P0 = 4.56e-6 N/m^2 (sunlight pressure at 1 AU, full reflection gives 2 P0).
+   *  Example: one 1 km^2 kit at efficiency 0.5 -> 0.5 x 2 x 4.56e-6 x 1e6 = 4.6 N. */
+  KIT_AREA: 1e6,
+  KIT_EFF: 0.5,
+  KIT_COUNT: 2,
+  KIT_TRANSIT: 300 * DAY,
   SEED_FLEET_DELAY: 365 * DAY,
   SEED_FLEET_DOUBLING: 1.5 * 365 * DAY,
   SEED_FLEET_MAX: 16,

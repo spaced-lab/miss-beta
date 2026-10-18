@@ -28,7 +28,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import type { AutoCand } from '../../game/autoplay';
-import { drawText, drawTextFit } from '../vectorFont';
+import { drawText, drawTextFit, measureText } from '../vectorFont';
 
 export interface PlannerSession {
   world: World;
@@ -58,6 +58,10 @@ export interface PlannerSession {
 export class PlannerOverlay {
   /** Mouse targets from the last frame: each plan's vertical extent and the list's left edge. */
   private planYs: { y0: number; y1?: number; idx: number }[] = [];
+  /** Click-to-learn marks: one [?] per plan, opening the topic of its method. */
+  private learnHits: { x: number; y: number; topic: string }[] = [];
+  /** Set by the owner screen: open the Learning Center on a topic. */
+  openLore: ((id: string) => void) | null = null;
   private planX = 0;
   private open = false;
   private session: PlannerSession | null = null;
@@ -330,6 +334,11 @@ export class PlannerOverlay {
     const n = Math.max(1, this.cands.length);
     const click = k.takeClick();
     let clickCommit = false;
+    const learn = click ? this.learnHits.find((h) => Math.abs(click.x - h.x) <= 14 && Math.abs(click.y - h.y) <= 9) : undefined;
+    if (learn && this.openLore) {
+      this.openLore(learn.topic);
+      return;
+    }
     if (click) {
       const hit = this.planYs.find((r) => click.y >= r.y0 && click.y < (r.y1 ?? r.y0 + 90) && click.x > this.planX);
       if (hit) {
@@ -459,6 +468,7 @@ export class PlannerOverlay {
     const range = KNOBS.BETA_RANGE[th.type.id] ?? ([2, 4] as const);
     if (this.cands.length === 0 && g) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
     this.planYs = [];
+    this.learnHits = [];
     this.cands.forEach((c, idx) => {
       const selected = idx === this.sel;
       this.planYs.push({ y0: ly - 4, idx });
@@ -486,6 +496,11 @@ export class PlannerOverlay {
         ` COST    ${c.cost} / ${this.session!.budget.toFixed(1)}`,
       ];
       if (selected) s.stroke([lx - 8, ly - 4, lx - 8, ly + lines.length * 13 + 2], { color: p.hot, glow: 1.2, width: 2 });
+      // [?] after the headline: the method's lore topic (kinetic D3, nuclear D5, slow push D6, sail D7, flyby O11).
+      const topic = c.archetype === 'PI' ? 'D4' : c.archetype === 'SLOW_PUSH' ? 'D6' : c.archetype === 'SAIL_KINETIC' ? 'D7' : first.warhead ? 'D5' : c.archetype === 'KINETIC_FLYBY' ? 'O11' : 'D3';
+      const qx = lx + measureText(lines[0] ?? '', 10) + 18;
+      drawText(s, '[?]', qx - 10, ly, 10, { color: uiColors(p, s.spectrum).sub, glow: 0.6 });
+      this.learnHits.push({ x: qx, y: ly + 5, topic });
       for (const l of lines) {
         drawText(s, l, lx, ly, 10, { color: col, glow: selected ? 1.4 : 0.3 });
         ly += 13;
@@ -494,7 +509,7 @@ export class PlannerOverlay {
       const last = this.planYs[this.planYs.length - 1];
       if (last) last.y1 = ly;
     });
-    drawTextFit(s, 'UP / DOWN OR CLICK SELECT     <ENTER> OR CLICK AGAIN COMMIT     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, 'UP / DOWN OR CLICK SELECT     <ENTER> OR CLICK AGAIN COMMIT     CLICK [?] LEARN     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
     void this.mcTimer;
   }
 }

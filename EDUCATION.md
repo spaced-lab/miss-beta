@@ -1045,6 +1045,8 @@ THRUSTER SWARM:     F = eta_spin N F_unit = 0.6 x 120 x 25 N = 1.8e3 N, after a 
 SHEPHERD NETWORK:   dv = beta m_rock U / M = 2 x 2e6 kg x 12 km/s / M, once per threat, 150 d after discovery
 FUSION TUG FLEET:   F = 5e4 N continuous after a 1 yr transit
 SEED FLEET:         arrives after 1 yr, doubles every 1.5 yr; strike k throws 2^k shepherd rocks (max 16)
+L4/L5 PICKET:       two parked 5 t impactors (one from each point) 120 d after discovery: dv = 2 x 2.5 x 5000 x 15 km/s / M
+SAIL KITS:          two 1 km^2 sails tethered to the rock after 300 d: F = 2 x 0.5 x 2 x 4.56e-6 N/m^2 x 1e6 m^2 = 9.1 N
 All are knobs in src/config/knobs.ts and act through the resolver's standing-push routine (integratePush).
 ```
 The physics is ordinary rocketry and momentum; only the machines are imaginary. The rocket equation still rules the forge: the rock loses mass as it throws regolith, so dv = v_e ln(M0 / M1) caps what a given fraction of the body can buy.

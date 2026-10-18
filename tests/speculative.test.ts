@@ -37,6 +37,22 @@ describe('speculative standing capabilities (GAME_PLAN 30)', () => {
       expect(push.dv / expected).toBeLessThan(1.05);
     }
   });
+  it('the L4/L5 picket delivers dv = 2 beta m U / M; sail kits pull with KIT_COUNT x KIT_EFF x 2 P0 A', () => {
+    const world = round('SPEC3');
+    const none = resolveRound(world, [], { scifi: base });
+    const r = resolveRound(world, [], { scifi: { ...base, picketSince: 0 } });
+    const push = r.events.find((e) => e.kind === 'PUSH' && e.method === 'PICKET');
+    expect(push && push.kind === 'PUSH').toBe(true);
+    if (push && push.kind === 'PUSH') {
+      const expected = (2 * KNOBS.PICKET_BETA * KNOBS.PICKET_KG * KNOBS.PICKET_U) / (world.threat?.mass ?? 1);
+      expect(push.dv / expected).toBeGreaterThan(0.95);
+      expect(push.dv / expected).toBeLessThan(1.05);
+    }
+    const k = resolveRound(world, [], { scifi: { ...base, kitsSince: 0 } });
+    const kit = k.events.find((e) => e.kind === 'PUSH' && e.method === 'SAIL_KIT');
+    expect(kit && kit.kind === 'PUSH' && kit.force).toBeCloseTo(KNOBS.KIT_COUNT * KNOBS.KIT_EFF * 2 * 4.56e-6 * KNOBS.KIT_AREA, 9);
+    expect(Math.abs(k.ca.dMin - none.ca.dMin)).toBeGreaterThan(0);
+  });
   it('programs finished in an earlier round act from the next round start', () => {
     const run = createRun('X');
     const p = run.programs[0]!;

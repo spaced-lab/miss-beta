@@ -35,6 +35,8 @@ export interface AutoView {
   readonly cine: boolean;
   readonly canEvacuate: boolean;
   readonly debrief: { readonly outcome: string; readonly score: number } | null;
+  /** Debrief investments the screen can make now (pure picks, see chooseTech / chooseProgram), or null. */
+  readonly invest?: { readonly tech: { readonly id: string; readonly name: string; readonly cost: number } | null; readonly program: { readonly id: string; readonly name: string; readonly costPerYear: number } | null };
 }
 
 export interface Pane {
@@ -47,6 +49,37 @@ export interface Pane {
 export interface AutoOut {
   keys: string[];
   pane: Pane | null;
+  /** An investment the screen should make (it then shows the panel briefly so the viewer sees it happen). */
+  invest?: { kind: 'TECH' | 'PROGRAM'; id: string };
+}
+
+/** Programs AUTOPLAY funds, in teaching order: coordination first, then finding rocks, then reacting [knob]. */
+export const AUTO_PROGRAMS: readonly string[] = ['INTL_COORDINATION', 'GROUND_SURVEY_EXPANSION', 'SPACE_IR_SURVEYOR', 'SUNWARD_SENTINEL', 'PRECURSOR_FLEET', 'INTERCEPTOR_STOCKPILE', 'CIVIL_DEFENSE_READY', 'RADAR_NET'];
+/** Fund a program only while the budget stays above this and all funded programs cost under half the income [knob]. */
+export const AUTO_PROGRAM_RESERVE = 6;
+
+/**
+ * The cheapest tech node AUTOPLAY can unlock now, launch and impactor tracks first (they decide most rounds).
+ * `nodes` carry their unlock verdict. Example: L2 (5, OK), I2 (4, OK) -> I2.
+ */
+export function chooseTech(nodes: readonly { id: string; name: string; track: string; cost: number; ok: boolean }[]): { id: string; name: string; cost: number } | null {
+  const rank = (t: string): number => (t === 'LAUNCH' || t === 'IMPACTOR' ? 0 : 1);
+  const best = nodes.filter((n) => n.ok).sort((a, b) => rank(a.track) - rank(b.track) || a.cost - b.cost)[0];
+  return best ? { id: best.id, name: best.name, cost: best.cost } : null;
+}
+
+/**
+ * The next program AUTOPLAY funds: the first in AUTO_PROGRAMS not yet funded or done, if nothing else is running
+ * and the money allows (budget above the reserve, its cost under half the yearly income).
+ */
+export function chooseProgram(rows: readonly { id: string; name: string; costPerYear: number; funded: boolean; done: boolean }[], budget: number, perYear: number): { id: string; name: string; costPerYear: number } | null {
+  if (rows.some((r) => r.funded && !r.done)) return null;
+  if (budget < AUTO_PROGRAM_RESERVE) return null;
+  for (const id of AUTO_PROGRAMS) {
+    const r = rows.find((x) => x.id === id);
+    if (r && !r.funded && !r.done && r.costPerYear <= perYear * 0.5) return { id: r.id, name: r.name, costPerYear: r.costPerYear };
+  }
+  return null;
 }
 
 /** Reading time for a pane [knob]: 2.5 s plus 0.32 s a word, between 4 and 14 s (slow readers get the long end). */
@@ -135,6 +168,7 @@ export class Autopilot {
   /** SUPER-DUPER-DEMO: cinematics are cut short and `speed` climbs every game. */
   demo = false;
   private cineT = 0;
+  private invested = 0;
 
   step(v: AutoView, dtS: number): AutoOut {
     const out: AutoOut = { keys: [], pane: null };
@@ -319,9 +353,23 @@ export class Autopilot {
         if (this.round !== -2) {
           this.round = -2;
           this.rounds++;
+          this.invested = 0;
           const outcome = d?.outcome ?? '';
           const body = outcome === 'MISS' ? `It missed. ${d?.score ?? 0} points and research for better tech next round. Early, cheap pushes beat late, big ones.` : `A partial result: some energy still came through. ${d?.score ?? 0} points. More lead time or a bigger push next time.`;
           return show(pane(`DEBRIEF: ${outcome}`, body));
+        }
+        // Spend between rounds like a player would: research on tech, spare budget on one program at a time.
+        if (this.invested < 3 && v.invest?.tech) {
+          this.invested++;
+          const tch = v.invest.tech;
+          out.invest = { kind: 'TECH', id: tch.id };
+          return show(pane(`TECH: ${tch.name}`, `Research points buy tech between rounds. ${tch.name} costs ${tch.cost}. Launchers and impactors first: they decide what one mission can push.`));
+        }
+        if (this.invested < 4 && v.invest?.program) {
+          this.invested = 4;
+          const pr = v.invest.program;
+          out.invest = { kind: 'PROGRAM', id: pr.id };
+          return show(pane(`PROGRAM: ${pr.name}`, `Programs pay off over many rounds. This one costs ${pr.costPerYear} a year while it builds. Most of them buy warning time, the strongest lever in the game.`));
         }
         out.keys.push('Space');
         this.wait = AUTO_STEP_S * 2;

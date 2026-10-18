@@ -4,6 +4,13 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- AUTOPLAY invests between rounds: up to three tech nodes (launch and impactor tracks first, cheapest) and one
+  program at a time in teaching order, each with a pane saying why. SCI-FI programs L4/L5 PICKET (two parked
+  impactors at every new threat) and ATTACHABLE SAIL KITS (two tethered 1 km^2 sails pulling for years).
+  Click-to-learn: a [?] after every planner plan, and a click on the selected PROGRAMS or STUDIES row's name.
+  Fixed: the debrief panel drew over TECH and PROGRAMS opened from it; the gauge line no longer reads "> 10 KM"
+  while the gauge is computing; PERIMETER's HULL label was clipped by the top edge.
+
 - SKY view (K): the sky from HOME as a turning wireframe sphere, every direction marked by how often the active
   networks look there (dot, ring, diamond for blind), the Sun and its glare cap, and the threat's track over the
   last 400 days. Fixed: Esc inside PROGRAMS, TECH, the lore panel or the planet view now closes it instead of

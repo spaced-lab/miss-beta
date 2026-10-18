@@ -13,7 +13,7 @@ import { YEAR } from '../physics/constants';
 import type { Economy } from '../game/economy';
 import { yearOf } from './detection';
 
-export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD' | 'SEED_FLEET' | 'STUDY_FUSION_TUGS' | 'STANDBY_INTERCEPTOR';
+export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD' | 'SEED_FLEET' | 'STUDY_FUSION_TUGS' | 'STANDBY_INTERCEPTOR' | 'PICKET' | 'SAIL_KITS';
 
 export interface Effect {
   kind: EffectKind;
@@ -237,6 +237,10 @@ export function applyEffects(def: ProgramDef, ctx: ProgramsContext, t: number): 
         break;
       case 'SEED_FLEET':
         ctx.effects.seedFleet = 1;
+        break;
+      case 'PICKET':
+      case 'SAIL_KITS':
+        // Standing capabilities: the resolver reads the program's completion time (system resolveOpts).
         break;
       case 'STANDBY_INTERCEPTOR':
         ctx.effects.standbyInterceptor = true;

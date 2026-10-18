@@ -11,6 +11,7 @@
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
+import { canUnlock, TECH, unlock } from '../../game/tech';
 import { SkyOverlay } from './sky';
 import { nodeLine, tiltAboutNode } from '../../sim/sky';
 import { advanceStudies, studyById } from '../../sim/studies';
@@ -40,7 +41,7 @@ import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertai
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
-import { Autopilot, type Pane } from '../../game/autoplay';
+import { Autopilot, chooseProgram, chooseTech, type AutoView, type Pane } from '../../game/autoplay';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
@@ -199,6 +200,7 @@ export class SystemScreen implements Screen {
     };
     this.tech.openLore = toCenter;
     this.programs.openLore = toCenter;
+    this.planner.openLore = toCenter;
     this.cine = new Cinematics(s, () => this.settings.reduceMotion);
     this.cine.onHit = (sc) => {
       if (!this.sfx) return;
@@ -246,8 +248,21 @@ export class SystemScreen implements Screen {
         sailDepot: scifiMode ? this.run.effects.sailDepot : 0,
         sailDepotSince: scifiMode ? done('SAIL_SWARM_DEPOT') : null,
         seedFleetSince: scifiMode ? done('SEED_FLEET') : null,
+        picketSince: scifiMode ? done('L4_L5_PICKET') : null,
+        kitsSince: scifiMode ? done('SAIL_KITS') : null,
       },
     };
+  }
+
+  /** What AUTOPLAY could buy at the debrief: the cheapest unlockable tech and the next program in its list. */
+  private autoInvestView(): NonNullable<AutoView['invest']> {
+    const mode = modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC';
+    const tech = chooseTech(TECH.map((n) => ({ id: n.id, name: n.name, track: n.track, cost: n.cost, ok: canUnlock(this.run, n.id, mode) === 'OK' })));
+    const program = chooseProgram(this.run.programs.map((ps) => {
+      const def = programById(ps.id);
+      return { id: ps.id, name: def.name, costPerYear: def.costPerYear, funded: ps.funding > 0, done: ps.completedAt !== null };
+    }), budgetAt(this.run.economy, this.world.t), this.run.economy.perYear);
+    return { tech, program };
   }
 
   /** EXPERIMENTAL studies are offered with OPTIONS > EXPERIMENTAL TECH, or in any SCI-FI-or-above run. */
@@ -977,8 +992,18 @@ export class SystemScreen implements Screen {
       cine: this.cine.isOpen,
       canEvacuate: this.run.evacuatedAt === null && budgetAt(this.run.economy, w.t) >= KNOBS.EVACUATE_COST,
       debrief: this.score ? { outcome: this.run.history[this.run.history.length - 1]?.outcome.split(' ')[0] ?? '', score: this.score.roundScore } : null,
+      ...(this.phase === 'debrief' ? { invest: this.autoInvestView() } : {}),
     }, dtMs / 1000);
     for (const c of out.keys) k.inject(c);
+    if (out.invest?.kind === 'TECH' && unlock(this.run, out.invest.id, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC') === 'OK') this.tech.show();
+    if (out.invest?.kind === 'PROGRAM') {
+      const ps = this.run.programs.find((x) => x.id === out.invest?.id);
+      if (ps && ps.completedAt === null) {
+        ps.funding = 1;
+        this.programs.show();
+        this.sfx?.voice.say('PROGRAM_FUNDED');
+      }
+    }
     if (out.pane) this.autoPane = { pane: out.pane, t: 0 };
   }
 
@@ -1108,10 +1133,12 @@ export class SystemScreen implements Screen {
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge, this.experimental());
     this.tech.render(this.run);
     this.sky.render(this.world, performance.now() / 1000, this.settings.reduceMotion);
-    if (!this.panelHidden && !this.tele.isModal) {
+    // The debrief panel stays under any overlay the player (or AUTOPLAY) opened from it.
+    const overlay = this.programs.isOpen || this.tech.isOpen || this.sky.isOpen;
+    if (!this.panelHidden && !this.tele.isModal && !overlay) {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
-    } else if (this.phase !== 'planning') {
+    } else if (this.phase !== 'planning' && !overlay) {
       drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 62, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
@@ -1711,12 +1738,12 @@ export class SystemScreen implements Screen {
       // The lesson in one line: what the round would have done without the player's missions.
       const moved = res.ca.marginRadii - cf.margin;
       drawTextFit(s, `WITHOUT YOUR MISSIONS: ${cf.outcome === 'HIT' ? 'IMPACT' : cf.outcome}, MARGIN ${cf.margin >= 0 ? '+' : ''}${cf.margin.toFixed(2)} R.   YOU MOVED IT ${moved >= 0 ? '+' : ''}${moved.toFixed(2)} R.`, cx, ly + 20, 11, fitW, { align: 'center', color: s.spectrum ? s.role('craft') : p.ink, glow: 0.6 });
-      ly += 16;
+      ly += 19;
     }
     drawTextFit(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}${this.run.exaggerated ? '   EXAGGERATED: INTERSTELLAR RATE ABOVE REAL' : ''}`, cx, ly + 20, 12, fitW, { align: 'center', color: p.hot, glow: 1 });
     drawTextFit(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, fitW, { align: 'center', color: p.dim, glow: 0 });
     // Where this rock sat on the detection gauge: seen by design, or by luck.
-    drawTextFit(s, gaugeVerdict(th.D, th.tImpact, th.noWarning, this.gauge?.needles.DEFLECT ?? null), cx, ly + 54, 10, fitW, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0.5 });
+    drawTextFit(s, this.gauge ? gaugeVerdict(th.D, th.tImpact, th.noWarning, this.gauge.needles.DEFLECT) : `THIS ROCK: ${th.D.toFixed(0)} M. THE DETECTION GAUGE IS STILL COMPUTING.`, cx, ly + 54, 10, fitW, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0.5 });
     drawGauge(s, this.gauge, x + 16, ly + 72, pw - 32, { rock: th.D, title: false });
     ly += gaugeHeight(undefined, false, true) + 24;
     drawTextFit(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });

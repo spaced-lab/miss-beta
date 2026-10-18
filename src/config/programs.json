@@ -267,7 +267,7 @@
           "kind": "STANDBY_INTERCEPTOR"
         }
       ],
-      "note": "a craft parked at L1 waiting for a target: no build time against a visitor from another star"
+      "note": "a craft parked at Sun-Earth L2 waiting for a target: no build time against a visitor from another star"
     },
     {
       "id": "SAIL_SWARM_DEPOT",
@@ -403,6 +403,34 @@
         }
       ],
       "note": "seeds mine small bodies to copy themselves; the fleet doubles every 18 months and throws its rocks at the threat each time"
+    },
+    {
+      "id": "L4_L5_PICKET",
+      "name": "L4/L5 PICKET (PARKED IMPACTORS)",
+      "tag": "SPECULATIVE",
+      "years": 8,
+      "costPerYear": 6,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "PICKET"
+        }
+      ],
+      "note": "fuelled impactors parked at the Earth's L4 and L5, one from each point launched at every new threat"
+    },
+    {
+      "id": "SAIL_KITS",
+      "name": "ATTACHABLE SAIL KITS (TETHERED)",
+      "tag": "SPECULATIVE",
+      "years": 10,
+      "costPerYear": 5,
+      "mode": "SCIFI",
+      "effects": [
+        {
+          "kind": "SAIL_KITS"
+        }
+      ],
+      "note": "square-kilometre sails tethered to the rock: sunlight pulls it off course for years"
     }
   ]
 }

@@ -31,6 +31,8 @@ export class ProgramsOverlay {
   private tab: 'PROGRAMS' | 'STUDIES' = 'PROGRAMS';
   private studySel = 0;
   private studyRowYs: number[] = [];
+  /** Right edge of the name column, CSS px: a click left of it on the selected row opens the lore. */
+  private readonly nameW = 16 + 190;
   constructor(private readonly s: Surface, private readonly keys: Input) {}
 
   get isOpen(): boolean {
@@ -67,6 +69,12 @@ export class ProgramsOverlay {
     const click = k.takeClick();
     if (click) {
       const i = this.rowYs.findIndex((y) => click.y >= y - 2 && click.y < y + 15);
+      // Click-to-learn: a click on the name of the row already selected opens its lore topic.
+      const ps0 = run.programs[i];
+      if (i >= 0 && i === this.sel && click.x < this.nameW && ps0 && this.openLore) {
+        this.openLore(topicForProgram(ps0.id));
+        return;
+      }
       if (i >= 0) {
         this.sel = i;
         const ps = run.programs[i];
@@ -99,6 +107,10 @@ export class ProgramsOverlay {
     const click = k.takeClick();
     if (click) {
       const i = this.studyRowYs.findIndex((y) => click.y >= y - 2 && click.y < y + 15);
+      if (i >= 0 && i === this.studySel && click.x < this.nameW && this.openLore) {
+        this.openLore('D14');
+        return;
+      }
       if (i >= 0) this.studySel = i;
     }
     if (k.pressed('ArrowUp')) this.studySel = (this.studySel + n - 1) % n;

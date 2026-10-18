@@ -237,6 +237,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
      (donations voluntary, never a condition of use); decide on a CLA for contributions (only needed for dual
      licensing); refine attribution of third-party assets (Kokoro voices, Natural Earth, NASA/JPL data).
    - finer launch-cinematic pixels, false-colour thrust head and spark pixels (side agent, in progress).
+   Done 2026-10-18 (item 5 queue): AUTOPLAY buys tech and funds programs (chooseTech / chooseProgram), L4_L5_PICKET
+   and SAIL_KITS programs (PICKET_*, KIT_* knobs), planner [?] and program-row click-to-learn. Still queued from
+   item 5: materialize frames on overlays, orbit-plane grid fade under tilt, discovery in the worker.
    Older questions (kept for the record):
    a. Voice: listen to OPTIONS > VOICE (FEMALE / MALE / TERMINAL / COMPUTER / MAINFRAME / TOY, VOICE TEST). Clear enough? A speech-recognition check got 17 of 24
       lines right; clarity settings are at the top of `scripts/gen_voice.py` (DRY, ENV_HZ, RING, QUANT, BAND).

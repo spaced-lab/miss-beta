@@ -394,7 +394,8 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   const bw = 160;
   const bh = 12;
   const bx = W - m - bw;
-  let by = m + 2;
+  // The first label sits above its bar: leave it room so it is never clipped by the top edge.
+  let by = m + fs + 8;
   drawText(s, 'HULL', bx, by - fs - 6, fs);
   const hf = st.hp / MG.MAX_HP;
   bar(s, bx, by, bw, bh, hf, hf < 0.3 ? p.hot : p.ink, hf < 0.3 ? 1.5 : 0.8);
