@@ -31,6 +31,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
    state. The plan wants a click on any body, readout, planner line, program or network to open its topic:
    needs hit regions registered by each draw call (a small `hitmap` in the Surface) and a pointer-up handler.
    Recommendation: DO after M13. It is GAME_PLAN 23's main entry point and the Learning Center's front door.
+   Status 2026-10-18: DONE for the system view (star, planets, the ghost, the threat and fragments, craft, the
+   clock, budget, brief and prediction lines); hovering names the topic. Planner lines and program rows: next.
 9. **Remaining 13 labs and RUN IN PYTHON (L).** Seven labs exist (ELLIPSE, VISVIVA, KEPLER_SOLVER, BETA,
    FOCUSING, 3DVT, MAGNITUDE). The other 13 in EDUCATION.md Section 7 follow the same `Lab` interface;
    RUN IN PYTHON needs Pyodide loaded on click (about 10 MB) and the pymiss mirror shipped as a wheel.

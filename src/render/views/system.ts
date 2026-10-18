@@ -140,6 +140,18 @@ export class SystemScreen implements Screen {
   private freeNext = false;
   /** Last operator bulletin slot shown (SIMULATION ambience). */
   private opSlot = -1;
+  /** Click-to-learn (IDEAS 8): regions registered by this frame's draw calls, topmost last. */
+  private hits: { x: number; y: number; w: number; h: number; topic: string; label: string }[] = [];
+  private hit(x: number, y: number, w: number, h: number, topic: string, label: string): void {
+    this.hits.push({ x, y, w, h, topic, label });
+  }
+  private hitAt(px: number, py: number): { topic: string; label: string } | null {
+    for (let i = this.hits.length - 1; i >= 0; i--) {
+      const h = this.hits[i];
+      if (h && px >= h.x && px <= h.x + h.w && py >= h.y && py <= h.y + h.h) return h;
+    }
+    return null;
+  }
   private approachSounded = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
@@ -584,6 +596,16 @@ export class SystemScreen implements Screen {
       this.lore.update();
       return;
     }
+    // Click-to-learn (IDEAS 8): a click on a body, a craft or a HUD readout opens its lore topic.
+    const click = k.takeClick();
+    if (click && !this.planetOpen) {
+      const h = this.hitAt(click.x, click.y);
+      if (h) {
+        setWarp(w, 0);
+        this.lore.show(h.topic, this.settings.learningLevel as Level);
+        return;
+      }
+    }
     if (k.pressed('Slash')) {
       // The lore panel opens on what the player is looking at (GAME_PLAN 23 entry points).
       setWarp(w, 0);
@@ -773,6 +795,7 @@ export class SystemScreen implements Screen {
       return;
     }
     s.clear();
+    this.hits.length = 0;
     this.stars.draw(s, this.panX, this.panY, !this.settings.reduceMotion);
     if (this.matPhase !== this.phase) {
       this.matPhase = this.phase;
@@ -783,6 +806,7 @@ export class SystemScreen implements Screen {
     const [sx, sy] = this.project(0, 0);
     const sr = 7;
     const starC = s.spectrum ? s.role('star') : p.hot;
+    this.hit(sx - 14, sy - 14, 28, 28, 'O6', 'THE STAR: KEPLER AND ORBITS');
     s.circle(sx, sy, sr, { color: starC, glow: 2 });
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
@@ -806,6 +830,7 @@ export class SystemScreen implements Screen {
         s.stroke([px - half, yy, px + half, yy], { glow: 0.5, width: 1 });
       }
       drawText(s, pl.name, px + pr + 5, py - 5, 10, { color: p.dim, glow: 0 });
+      this.hit(px - 10, py - 10, 20 + pl.name.length * 9, 20, pl.id === 'HOME' ? 'O12' : pl.id === 'GIANT' ? 'O11' : 'O7', pl.id === 'HOME' ? 'HOME: CLOSE APPROACH' : `${pl.name}: ${pl.id === 'GIANT' ? 'GRAVITY ASSISTS' : 'ORBITAL ELEMENTS'}`);
     }
 
     if (this.mv) this.drawMultiverse(this.mv);
@@ -832,6 +857,12 @@ export class SystemScreen implements Screen {
     }
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
     if (this.tele.isModal || (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.planetOpen)) this.tele.render(this.tele.isModal ? 'center' : 'dock');
+    // Hover: name what a click would teach.
+    const mp = this.keys.mouse;
+    if (mp && this.phase === 'planning' && !this.planner.isOpen && !this.lore.isOpen && !this.console.isOpen) {
+      const h = this.hitAt(mp.x, mp.y);
+      if (h) drawText(s, `${h.label}  (CLICK: LEARN ${h.topic})`, mp.x + 14, mp.y + 14, 9, { color: s.spectrum ? s.role('program') : p.hot, glow: 0.6 });
+    }
     this.lore.render();
     this.console.render(this.gameContext());
     if (this.glitch && !this.settings.reduceMotion) {
@@ -1155,6 +1186,7 @@ export class SystemScreen implements Screen {
       if (w.t < m.launchTime || w.t >= m.arrivalTime) continue;
       const st = propagate(el, w.star.mu, w.t);
       const [cx, cy] = this.project(st.r.x, st.r.y);
+      this.hit(cx - 10, cy - 10, 20, 20, m.archetype === 'SAIL_KINETIC' ? 'D7' : m.warhead ? 'D5' : m.archetype === 'SLOW_PUSH' ? 'D6' : 'D3', `${m.id}: HOW IT WORKS`);
       const ang = Math.atan2(-st.v.y, st.v.x);
       const r = 5;
       const craftRole = m.archetype === 'SAIL_KINETIC' ? 'sail' : m.warhead ? 'nuclear' : 'craft';
@@ -1252,6 +1284,7 @@ export class SystemScreen implements Screen {
 
     if (this.ghost) {
       const [gx, gy] = this.project(this.ghost.x, this.ghost.y);
+      this.hit(gx - 14, gy - 14, 28, 28, 'O12', 'WHERE HOME WILL BE AT IMPACT');
       s.circle(gx, gy, 9, { color: p.hot, glow: 0.8, width: 1, dash: [2, 3] });
       for (const [dx, dy] of [[-14, 0], [5, 0], [0, -14], [0, 5]] as const) {
         s.stroke([gx + dx, gy + dy, gx + dx + (dx === 0 ? 0 : 9), gy + dy + (dy === 0 ? 0 : 9)], { color: p.hot, glow: 0.6 });
@@ -1265,6 +1298,7 @@ export class SystemScreen implements Screen {
       const bel = elementsAt(b.segments, w.t);
       const st = propagate(bel, w.star.mu, w.t);
       const [tx, ty] = this.project(st.r.x, st.r.y);
+      this.hit(tx - 12, ty - 12, 24, 24, b.role === 'FRAGMENT' ? 'D4' : 'T5', b.role === 'FRAGMENT' ? `${b.id}: FRAGMENTS` : `${th.name}: WHAT IT IS MADE OF`);
       const n = th.shape.length;
       const size = b.role === 'THREAT' ? 6 : b.role === 'REMNANT' ? 4.5 : Math.max(1.5, Math.min(3.5, b.D / 30));
       buf.length = 0;
@@ -1300,6 +1334,8 @@ export class SystemScreen implements Screen {
     if (!th || !res) return;
 
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
+    this.hit(m, m, 200, 40, 'G2', 'CLOCK AND WARP');
+    this.hit(m, m + 44, 240, 20, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
     // The clock / warp / budget column on the left; the centred readouts use the space to its right.
     const leftW = 2 * m + Math.max(measureText(`WARP ${warpLabel(w)}`, 14), measureText(`BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, 12)) * getTextScale();
     const rx = (leftW + s.width - m) / 2;
@@ -1318,6 +1354,7 @@ export class SystemScreen implements Screen {
     const kms = (res.ca.vInf / 1000).toFixed(1);
     const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
     drawTextFit(s, `THREAT BRIEF  ${th.name}  ${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`, rx, m, 12, rw, { align: 'center' });
+    this.hit(rx - rw / 2, m, rw, 18, 'T2', 'THREAT BRIEF: HOW BIG IS DANGEROUS');
     const margin = res.ca.marginRadii;
     const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
     // Tracking uncertainty (6.14): a Gaussian over the impact parameter with sigma_b = 3 sigma_v T_rem.
@@ -1328,6 +1365,7 @@ export class SystemScreen implements Screen {
     const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : pTrack.toFixed(2);
     const frag = res.producedFragments ? `   BODIES ${res.outcomes.length}` : '';
     drawTextFit(s, `V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   ${pred}   P(IMPACT) ${pImpact}${this.mc ? ` (MC N ${this.mc.n})` : ''}   TRACKING T${tier} SIGMA-V ${(sv * 1000).toFixed(1)} MM/S  P ${pTrack.toFixed(2)}${frag}`, rx, m + 18, 12, rw, { align: 'center', color: res.outcome === 'HIT' ? p.hot : p.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
+    this.hit(rx - rw / 2, m + 18, rw, 18, 'F9', 'PREDICTION AND P(IMPACT): RISK SCALES');
 
     // Play-by-play: the last six events whose time has passed.
     const passed = res.events.filter((e) => e.t <= w.t).slice(-6);

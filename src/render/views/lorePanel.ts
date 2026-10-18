@@ -98,7 +98,8 @@ export class LorePanel {
     const y = 8;
     const h = s.height - 16;
     // Dim the panel area so the text reads over the map.
-    s.ctx.globalAlpha = 0.85;
+    // Nearly opaque: bright HUD text behind the panel must not bleed through its words.
+    s.ctx.globalAlpha = 0.97;
     s.ctx.fillStyle = p.bg;
     s.ctx.fillRect(x, y, PANEL_W, h);
     s.ctx.globalAlpha = 1;

@@ -44,15 +44,20 @@ export class Input {
       if (e.button !== 0) return;
       this.dragging = true;
       this.lastMouse = { x: e.clientX, y: e.clientY };
+      this.downAt = { x: e.clientX, y: e.clientY };
     });
     target.addEventListener('mousemove', (e) => {
+      this.mouse = { x: e.clientX, y: e.clientY };
       if (!this.dragging) return;
       this.dragAcc.x += e.clientX - this.lastMouse.x;
       this.dragAcc.y += e.clientY - this.lastMouse.y;
       this.lastMouse = { x: e.clientX, y: e.clientY };
     });
-    target.addEventListener('mouseup', () => {
+    target.addEventListener('mouseup', (e) => {
       this.dragging = false;
+      // A click is a press and release that barely moved (a drag pans instead).
+      if (this.downAt && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) < 5) this.click = { x: e.clientX, y: e.clientY };
+      this.downAt = null;
     });
     // Touch (GAME_PLAN 13 mouse/touch): one finger pans, two fingers pinch-zoom (folded into the wheel
     // accumulator so screens need no new code: zoom = exp(-wheel * 0.0015), so wheel = -ln(ratio) / 0.0015).
@@ -86,6 +91,18 @@ export class Input {
       if (e.touches.length === 0) this.dragging = false;
       pinch = 0;
     });
+  }
+
+  /** Last pointer position in CSS px (the canvas fills the window), or null before the mouse moved. */
+  mouse: { x: number; y: number } | null = null;
+  private downAt: { x: number; y: number } | null = null;
+  private click: { x: number; y: number } | null = null;
+
+  /** The click since the last call, or null. Clears it. */
+  takeClick(): { x: number; y: number } | null {
+    const c = this.click;
+    this.click = null;
+    return c;
   }
 
   /** Accumulated wheel delta since the last call (positive = scroll down). Clears it. */
