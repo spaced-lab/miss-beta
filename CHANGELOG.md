@@ -32,6 +32,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   greps and audit only production dependencies at high severity (finding 3).
 - Release: a tag deploys to Pages only when it contains all of main, so re-running an old release or tagging a
   hotfix behind main no longer rolls the live site back (finding 4).
+- Release notes come only from a dated `## YY.Q.N (YYYY-MM-DD)` heading with real content; an `(unreleased: ...)`
+  heading or a blank section stops the run before the immutable release is created (finding 9).
 
 ## 26.4.0 (2026-10-18)
 

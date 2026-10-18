@@ -65,9 +65,11 @@ jobs:
           mkdir -p release
           (cd dist && zip -qrX "../release/miss-beta-${v}.zip" .)
           (cd release && sha256sum "miss-beta-${v}.zip" > SHA256SUMS && cat SHA256SUMS)
-          # The CHANGELOG section for this version, from its heading to the next one.
-          awk -v v="${v}" 'index($0, "## " v " ") == 1 {on = 1; next} on && /^## / {exit} on' CHANGELOG.md > release/NOTES.md
-          [ -s release/NOTES.md ] || { echo "CHANGELOG.md has no '## ${v} (...)' section"; exit 1; }
+          # The CHANGELOG section for this version, from its dated heading `## YY.Q.N (YYYY-MM-DD)` to the next one.
+          # NOTE: only the dated form counts, so an `(unreleased: ...)` heading or a section of blank lines stops
+          # the run here: an immutable release cannot have its notes fixed afterwards.
+          awk -v v="${v}" 'index($0, "## " v " (") == 1 && $0 ~ /^## [^ ]+ \([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\)[ \t]*$/ {on = 1; next} on && /^## / {exit} on' CHANGELOG.md > release/NOTES.md
+          grep -q '[^[:space:]]' release/NOTES.md || { echo "CHANGELOG.md has no dated '## ${v} (YYYY-MM-DD)' section with notes"; exit 1; }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release
