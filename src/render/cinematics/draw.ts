@@ -127,6 +127,9 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
     }
   }
 
+  // Push scenes: the speculative capabilities and the slow pushes, each with its own mechanism.
+  if (sc.push && !reduceMotion) drawPushScene(s, sc, t, X, Y, k);
+
   // Launch vehicle.
   if (sc.launch && !reduceMotion) {
     const u = launchProgress(t, sc.duration);
@@ -234,4 +237,120 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
   const f = Math.min(1, elapsed / sc.duration);
   s.ctx.fillStyle = withAlpha(p.dim, 0.5);
   s.ctx.fillRect(0, s.height - 2, s.width * f, 2);
+}
+
+/** The mechanism of a push, drawn around the body at the origin (scene units, X/Y map to screen). */
+function drawPushScene(s: Surface, sc: Scene, t: number, X: (x: number) => number, Y: (y: number) => number, k: number): void {
+  const push = sc.push;
+  if (!push) return;
+  const R = sc.bodyR;
+  const drift = t > sc.hitAt ? sc.bodyDrift.vx * (t - sc.hitAt) : 0;
+  const onSurface = (i: number, n: number): [number, number] => {
+    const a = (i / n) * Math.PI * 2;
+    const j = Math.floor((a / (Math.PI * 2)) * (sc.body.length / 2)) * 2;
+    const r = Math.hypot(sc.body[j] ?? 1, sc.body[j + 1] ?? 0) * R;
+    return [Math.cos(a) * r + drift, Math.sin(a) * r];
+  };
+  const fire = (x: number, y: number, ang: number, len: number, seed: number): void => {
+    const frame = Math.floor(t * 30);
+    for (let i = 0; i < 10; i++) {
+      const d = (i / 10) * len * (0.8 + 0.4 * hash01(i, frame, seed));
+      s.dot(X(x + Math.cos(ang) * d), Y(y + Math.sin(ang) * d), Math.max(1.5, 2.5 * k * (1 - i / 12)), fireColor(s, 1 - i / 10), 0.9 - i * 0.07);
+    }
+  };
+  switch (push.method) {
+    case 'NANOFORGE': {
+      // Seeds fall onto the surface; from each landing point a lattice of replicators creeps inward over the
+      // body (grid points inside the outline, revealed by distance from the nearest seed), then the forge
+      // fires a regolith jet off the trailing side.
+      const seeds: [number, number, number][] = [];
+      for (let i = 0; i < push.n; i++) {
+        const land = 0.2 + (i / push.n) * 0.8;
+        const [sx, sy] = onSurface(i * 7, push.n * 7);
+        if (t < land) {
+          const u = t / land;
+          s.dot(X(sx - 260 * (1 - u)), Y(sy - 180 * (1 - u)), 2.5 * k, s.role('craft'), 0.9);
+        } else seeds.push([sx, sy, t - land]);
+      }
+      const step = Math.max(6, R / 9);
+      const inside = (x: number, y: number): boolean => {
+        // Ray-cast against the outline polygon (scene units).
+        let c = false;
+        const n = sc.body.length / 2;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const xi = (sc.body[i * 2] ?? 0) * R + drift, yi = (sc.body[i * 2 + 1] ?? 0) * R;
+          const xj = (sc.body[j * 2] ?? 0) * R + drift, yj = (sc.body[j * 2 + 1] ?? 0) * R;
+          if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+        }
+        return c;
+      };
+      for (let gx = -R; gx <= R; gx += step) {
+        for (let gy = -R; gy <= R; gy += step) {
+          const x = gx + drift;
+          if (!inside(x, gy)) continue;
+          let reach = Infinity;
+          for (const [sx, sy, age] of seeds) reach = Math.min(reach, Math.hypot(x - sx, gy - sy) - age * R * 0.45);
+          if (reach < 0) s.dot(X(x), Y(gy), 2.2 * k, s.role('sail'), Math.min(0.9, -reach / step + 0.3));
+        }
+      }
+      if (t > sc.hitAt) {
+        const frame = Math.floor(t * 30);
+        for (let i = 0; i < 70; i++) {
+          const d = (((t - sc.hitAt) * 260 + i * 9) % 300);
+          const spread = (hash01(i, frame, 4) - 0.5) * (4 + d * 0.18);
+          s.dot(X(-R + drift - d), Y(spread), Math.max(1.5, 3 * k * (1 - d / 360)), d < 40 ? fireColor(s, 0.9) : s.role('fragment'), 1 - d / 320);
+        }
+      }
+      break;
+    }
+    case 'THRUSTER_SWARM': {
+      for (let i = 0; i < push.n; i++) {
+        const arrive = 0.3 + (i / push.n) * 1.1;
+        const [ex, ey] = onSurface(i, push.n);
+        const u = Math.min(1, t / arrive);
+        const x = ex + (1 - u) * (-300 + 40 * hash01(i, 5));
+        const y = ey + (1 - u) * (-160 + 320 * hash01(i, 6));
+        s.dot(X(x), Y(y), 3 * k, s.role('craft'), 1);
+        // Units on the trailing side fire together once the swarm is down.
+        if (t > sc.hitAt && ex < drift) fire(x - 3, y, Math.PI, 40, i);
+      }
+      break;
+    }
+    case 'FUSION_TUG': {
+      const dock = Math.min(1, t / sc.hitAt);
+      const cx = -R - 18 - (1 - dock) * 240 + drift;
+      s.stroke([X(cx - 14), Y(-6), X(cx + 10), Y(-6), X(cx + 10), Y(6), X(cx - 14), Y(6)], { closed: true, color: s.role('craft'), glow: 1.2 });
+      if (t > sc.hitAt) {
+        const frame = Math.floor(t * 30);
+        for (let i = 0; i < 40; i++) s.dot(X(cx - 16 - i * 7 * (0.9 + 0.2 * hash01(i, frame))), Y((hash01(i, frame, 2) - 0.5) * (2 + i * 0.6)), 2.4 * k, i < 6 ? '#FFFFFF' : s.role('orbit'), 1 - i / 44);
+      }
+      break;
+    }
+    case 'DE_STAR': {
+      const on = t > sc.hitAt;
+      if (on) {
+        s.stroke([X(-700), Y(0), X(-R + drift), Y(0)], { color: s.role('nuclear'), glow: 2.5, width: 3, alpha: 0.9 });
+        s.stroke([X(-700), Y(0), X(-R + drift), Y(0)], { color: '#FFFFFF', glow: 0, width: 1, alpha: 0.8 });
+        // Vapour boils off the lit face, back toward the beam.
+        for (let i = 0; i < 40; i++) {
+          const a = Math.PI + (hash01(i, 9) - 0.5) * 1.6;
+          const d = ((t * 60 + i * 13) % 80);
+          s.dot(X(-R + drift + Math.cos(a) * d), Y(Math.sin(a) * d), 2 * k, s.role('fragment'), 1 - d / 80);
+        }
+      }
+      break;
+    }
+    case 'GENERIC': {
+      // A craft hovering beside the rock, holding station on canted plumes: the gravity tractor's posture.
+      const hx = drift;
+      const hy = -R - 40 + 4 * Math.sin(t * 2);
+      s.stroke([X(hx - 10), Y(hy - 5), X(hx + 10), Y(hy - 5), X(hx + 10), Y(hy + 5), X(hx - 10), Y(hy + 5)], { closed: true, color: s.role('craft'), glow: 1.2 });
+      s.stroke([X(hx - 26), Y(hy), X(hx + 26), Y(hy)], { color: s.role('program'), glow: 0.6 });
+      // Plumes canted outward so they miss the rock below (the tractor must not blast what it pulls).
+      fire(hx - 8, hy + 5, Math.PI / 2 + 0.75, 70, 1);
+      fire(hx + 8, hy + 5, Math.PI / 2 - 0.75, 70, 2);
+      s.stroke([X(hx), Y(hy + 8), X(hx), Y(-R * 0.6)], { color: s.role('sail'), dash: [2, 4], glow: 0.3, alpha: 0.7 });
+      break;
+    }
+  }
 }

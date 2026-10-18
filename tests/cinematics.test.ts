@@ -17,6 +17,7 @@ const EVENTS: Record<string, SimEventRecord> = {
   NUKE: { t, kind: 'NUKE', missionId: 'M-2', targetId: 'THREAT', mode: 'STANDOFF', yieldMt: 1, dv: 0.012, qRatio: 0.4, fuzed: true, pulses: 3 },
   PI: { t, kind: 'PI', missionId: 'M-3', targetId: 'THREAT', D: 60, damageMt: 0.4, ok: true, reason: '' },
   CLOSE_APPROACH: { t, kind: 'CLOSE_APPROACH', dMin: 2.1e7, bCrit: 8.4e6, marginRadii: 2.0, impact: false },
+  PUSH: { t, kind: 'PUSH', missionId: 'NANOFORGE', targetId: 'THREAT', method: 'NANOFORGE', force: 36000, dv: 0.01, duration: 400 * DAY, viable: true, note: '' },
 };
 
 describe('cinematic scenes (GAME_PLAN 29)', () => {
@@ -25,7 +26,7 @@ describe('cinematic scenes (GAME_PLAN 29)', () => {
       const sc = buildScene(EVENTS[kind]!, null, ctx());
       expect(sc, kind).not.toBeNull();
       expect(sc!.duration).toBe(KNOBS.CINEMATIC_SECONDS[kind]);
-      expect(sc!.particles.length + sc!.shards.length + sc!.rings.length + (sc!.approach ? 1 : 0)).toBeGreaterThan(0);
+      expect(sc!.particles.length + sc!.shards.length + sc!.rings.length + (sc!.approach ? 1 : 0) + (sc!.push ? 1 : 0)).toBeGreaterThan(0);
       expect(sc!.title.length).toBeGreaterThan(0);
       expect(sc!.hitAt).toBeLessThan(sc!.duration);
     }
@@ -136,5 +137,20 @@ describe('fragment clouds (playtest 2026-10-18)', () => {
     expect(sc.title).toContain('32 BODIES');
     const cine = new Cinematics({} as Surface, () => false);
     expect(cine.enqueue(cas, ctx())).toBe(1);
+  });
+});
+
+describe('push scenes', () => {
+  it('every push method builds a scene; a non-viable push has none; each method plays once per round', () => {
+    for (const method of ['NANOFORGE', 'THRUSTER_SWARM', 'SHEPHERD', 'FUSION_TUG', 'DE_STAR', 'GRAVITY_TRACTOR']) {
+      const sc = buildScene({ ...EVENTS.PUSH!, method } as SimEventRecord, null, ctx());
+      expect(sc?.push?.method, method).toBe(method === 'GRAVITY_TRACTOR' ? 'GENERIC' : method);
+    }
+    expect(buildScene({ ...EVENTS.PUSH!, viable: false } as SimEventRecord, null, ctx())).toBeNull();
+    const cine = new Cinematics({} as Surface, () => false);
+    expect(cine.enqueue([EVENTS.PUSH!], ctx())).toBe(1);
+    expect(cine.enqueue([{ ...EVENTS.PUSH!, t: t + DAY } as SimEventRecord], ctx())).toBe(0);
+    cine.clear();
+    expect(cine.enqueue([EVENTS.PUSH!], ctx())).toBe(1);
   });
 });

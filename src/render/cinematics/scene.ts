@@ -16,8 +16,11 @@ import { hashSeed, Rng } from '../../sim/rng';
 import type { ThreatTypeId } from '../../sim/threat';
 import type { Role } from '../palettes';
 
-export type CineKind = 'LAUNCH' | 'IMPACT' | 'FRAGMENTATION' | 'NUKE' | 'PI' | 'CLOSE_APPROACH';
-export const CINE_KINDS: readonly CineKind[] = ['LAUNCH', 'IMPACT', 'FRAGMENTATION', 'NUKE', 'PI', 'CLOSE_APPROACH'];
+export type CineKind = 'LAUNCH' | 'IMPACT' | 'FRAGMENTATION' | 'NUKE' | 'PI' | 'CLOSE_APPROACH' | 'PUSH';
+export const CINE_KINDS: readonly CineKind[] = ['LAUNCH', 'IMPACT', 'FRAGMENTATION', 'NUKE', 'PI', 'CLOSE_APPROACH', 'PUSH'];
+
+/** Push methods with their own scene; any other viable push gets the generic hover-and-pull scene. */
+export const PUSH_SCENES: readonly string[] = ['NANOFORGE', 'THRUSTER_SWARM', 'SHEPHERD', 'FUSION_TUG', 'DE_STAR'];
 
 export interface CineContext {
   name: string;
@@ -108,6 +111,8 @@ export interface Scene {
   particles: Particle[];
   shards: Shard[];
   launch: { tier: number; stages: number[] } | null;
+  /** PUSH scenes: the method and how many actors (seeds, thruster units). */
+  push: { method: string; n: number } | null;
   approach: { homeR: number; ringR: number; d: number; impact: boolean; angle: number; sHit: number } | null;
   /** Other bodies passing in the same frame (a fragment cloud): their offsets from the main path, px. */
   crowd: { d: number; lag: number; hit: boolean }[];
@@ -244,6 +249,7 @@ function base(kind: CineKind, e: SimEventRecord, ctx: CineContext): Scene {
     particles: [],
     shards: [],
     launch: null,
+    push: null,
     approach: null,
     crowd: [],
   };
@@ -290,6 +296,8 @@ export function groupEvents(events: readonly SimEventRecord[]): { main: SimEvent
 }
 
 const STREAK_FROM: [number, number] = [-620, -70];
+
+const DAY_S = 86400;
 
 function kms(v: number): string {
   return `${(v / 1000).toFixed(1)} KM/S`;
@@ -434,6 +442,29 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
         sc.title = `${e.missionId} PI FAILED`;
         sc.subtitle = e.reason.toUpperCase();
         sc.titleRole = 'danger';
+      }
+      break;
+    }
+    case 'PUSH': {
+      if (!e.viable) return null;
+      const method = PUSH_SCENES.includes(e.method) ? e.method : 'GENERIC';
+      sc.push = { method, n: method === 'NANOFORGE' ? 36 : method === 'THRUSTER_SWARM' ? 28 : 1 };
+      sc.titleRole = method === 'DE_STAR' ? 'nuclear' : method === 'SHEPHERD' ? 'threat' : 'sail';
+      const NAME: Record<string, string> = { NANOFORGE: 'NANOFORGE SEEDS TAKE HOLD', THRUSTER_SWARM: 'THRUSTER SWARM LOCKS ON', SHEPHERD: 'SHEPHERD ROCK INBOUND', FUSION_TUG: 'FUSION TUG DOCKED', DE_STAR: 'DE-STAR ARRAY FIRING', GENERIC: `${e.method.replace(/_/g, ' ')} ON STATION` };
+      sc.title = NAME[method] ?? e.method;
+      const f = e.force < 1 ? `${(e.force * 1000).toFixed(2)} MN` : e.force < 1e4 ? `${e.force.toFixed(1)} N` : `${(e.force / 1000).toFixed(1)} KN`;
+      sc.subtitle = `${e.targetId}   F ${f}   ${(e.duration / DAY_S).toFixed(0)} D   DV ${(e.dv * 1000).toFixed(2)} MM/S`;
+      if (method === 'SHEPHERD') {
+        sc.hitAt = 1.2;
+        sc.streak = { from: STREAK_FROM, to: [-R, 0], tArrive: sc.hitAt, passThrough: false, role: 'threat', tail: 70 };
+        sc.rings.push({ x: -R, y: 0, t0: sc.hitAt, dur: 0.5, r0: 4, r1: R * 1.2, role: 'threat' });
+        burst(rng, sc.particles, -R, 0, 90, 60, 200, 0.5, 1.6, sc.hitAt, 'fragment', 3, Math.PI, 0.9);
+        sc.bodyAfter = notch(sc.body, Math.PI, 0.5, 0.18);
+        sc.bodyDrift = { vx: 8, vy: 0 };
+      } else {
+        sc.hitAt = method === 'NANOFORGE' ? 2.2 : method === 'THRUSTER_SWARM' ? 1.6 : 0.8;
+        sc.bodyAfter = sc.body;
+        sc.bodyDrift = { vx: 5, vy: 0 };
       }
       break;
     }

@@ -18,6 +18,8 @@ export class Cinematics {
   private cur: Scene | null = null;
   private elapsed = 0;
   private hitFired = false;
+  /** Push methods already shown this round: a DE-STAR firing eight windows plays its scene once. */
+  private shownPush = new Set<string>();
   /** Fired once per scene at its hit moment (or at the start for a launch). */
   onHit: ((scene: Scene) => void) | null = null;
 
@@ -37,12 +39,17 @@ export class Cinematics {
   clear(): void {
     this.queue = [];
     this.cur = null;
+    this.shownPush.clear();
   }
 
   /** Queue scenes for the events that passed this frame. Returns how many scenes were added. */
   enqueue(events: readonly SimEventRecord[], ctx: CineContext): number {
     let n = 0;
     for (const g of groupEvents(events)) {
+      if (g.main.kind === 'PUSH') {
+        if (this.shownPush.has(g.main.method)) continue;
+        this.shownPush.add(g.main.method);
+      }
       const sc = buildScene(g.main, g.companion, ctx, g.crowd ?? []);
       if (!sc) continue;
       this.queue.push(sc);
