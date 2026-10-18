@@ -43,6 +43,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: check
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write

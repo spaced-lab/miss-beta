@@ -1,0 +1,101 @@
+# WHAT: The release pipeline for a version tag (vYY.Q.N): the full check, the production build, a zip with
+#       SHA256SUMS, a keyless build-provenance attestation, a GitHub Release, and a Pages deploy of that build.
+# WHY:  Checksums and signatures without a personal signing key (docs/RELEASING.md): the attestation is signed
+#       through Sigstore with this run's short-lived OIDC identity, so it proves "this zip came from this commit,
+#       built by this workflow in spaced-lab/miss-beta". Immutable releases (repository setting) lock the tag and
+#       the assets once published. Verify a download with:
+#         gh attestation verify miss-beta-<version>.zip -R spaced-lab/miss-beta
+# HOW:  build (read-only) -> release (contents, id-token, attestations) -> deploy (pages, id-token). Artifact
+#       attestations need a public repository on GitHub's free plans, so the first run is the v26.4.0 tag after
+#       the repository goes public.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - id: version
+        name: Tag must match package.json
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${v}" ]; then echo "tag ${GITHUB_REF_NAME} does not match package.json ${v}"; exit 1; fi
+          echo "version=${v}" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: python3 -m unittest discover -s pymiss/tests -t . -q
+      - run: python3 scripts/build_lore.py --check
+      - run: python3 scripts/gen_vectors.py --check
+      - run: npm audit --omit=dev --audit-level=high
+      - run: python3 scripts/build_lore.py && npm run build
+      - run: node scripts/smoke.mjs
+      - name: Zip, checksums and release notes
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          mkdir -p release
+          (cd dist && zip -qrX "../release/miss-beta-${v}.zip" .)
+          (cd release && sha256sum "miss-beta-${v}.zip" > SHA256SUMS && cat SHA256SUMS)
+          # The CHANGELOG section for this version, from its heading to the next one.
+          awk -v v="${v}" 'index($0, "## " v " ") == 1 {on = 1; next} on && /^## / {exit} on' CHANGELOG.md > release/NOTES.md
+          [ -s release/NOTES.md ] || { echo "CHANGELOG.md has no '## ${v} (...)' section"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/miss-beta-${{ needs.build.outputs.version }}.zip
+      # NOTE: created with its assets in one call, so an immutable release is complete the moment it exists.
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ needs.build.outputs.version }}"
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "MISS β ${v}" \
+            --notes-file release/NOTES.md "release/miss-beta-${v}.zip" release/SHA256SUMS
+  deploy:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    # NOTE: shared with ci.yml's deploy job so a main deploy and a release deploy never overlap. The github-pages
+    # environment must allow tags v* (Settings > Environments), or this deploy is refused (docs/RELEASING.md).
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

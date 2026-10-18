@@ -22,12 +22,26 @@ git tag `vYY.Q.N`.
 3. Move the CHANGELOG items under a new `## YY.Q.N (date)` heading.
 4. `bash scripts/gate.sh && python3 scripts/build_lore.py && npm run build && node scripts/smoke.mjs` (public/lore is
    generated and gitignored; without build_lore the build ships no Learning Center).
-5. Commit `release: vYY.Q.N`, tag `vYY.Q.N`, push; CI deploys `main` to GitHub Pages.
+5. Commit `release: vYY.Q.N`, push, then `git tag vYY.Q.N && git push origin vYY.Q.N`. The tag runs
+   `.github/workflows/release.yml`: the full check, the build, `miss-beta-YY.Q.N.zip` with `SHA256SUMS`, a keyless
+   build-provenance attestation (Sigstore, this run's OIDC identity; no personal key), a GitHub Release with the
+   CHANGELOG section as notes, and a Pages deploy of that same build. The tag must equal `package.json`'s version
+   and CHANGELOG must have the `## YY.Q.N (date)` heading, or the run stops before anything is published.
+6. Check the run is green and verify the download once:
+   `gh release download vYY.Q.N -R spaced-lab/miss-beta && gh attestation verify miss-beta-YY.Q.N.zip -R spaced-lab/miss-beta`
+   and `shasum -a 256 -c SHA256SUMS`.
 
 ## First public publish only (v26.4.0)
 
 - [ ] Make the repository public, then enable Pages (Settings > Pages > Source: GitHub Actions; keep "Enforce
       HTTPS" on). The deploy job skips itself while the repository is private.
+- [ ] Enable immutable releases (Settings > General > Releases): once published, a release's tag and assets
+      cannot be moved or replaced, and GitHub adds its own signed release attestation. This stands in for a
+      signed tag without a personal signing key. Confirm the setting's current name and behaviour when enabling.
+- [ ] Allow the release deploy: Settings > Environments > github-pages > deployment branches and tags: keep
+      `main`, add the tag rule `v*`. Without it the release workflow's deploy job is refused.
+- [ ] The first `release.yml` run is the v26.4.0 tag (artifact attestations need a public repository on GitHub's
+      free plans). Afterwards run step 6 and confirm `gh attestation verify` passes.
 - [ ] Add a macOS arm64 runner to the CI matrix next to ubuntu-latest (free on a public repository, 10x minutes on a
       private one). On it `tests/planarReplay.test.ts` runs bit for bit, because the fixture was captured on
       darwin arm64 Node 26 (`tests/fixtures/planarReplay.env.json`); linux x64 keeps the 1e-8 tolerance path. Keep

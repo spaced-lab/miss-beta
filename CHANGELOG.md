@@ -21,6 +21,10 @@ Versions are YY.Q.N (docs/RELEASING.md).
   SAVE.md went past it; now everything waits on the acknowledgement (`bootScreen`, docs/SAFETY.md finding 8). The
   smoke test reports a build without the Learning Center plainly; the release recipe builds the lore first.
 
+- Release pipeline (`.github/workflows/release.yml`): a version tag builds, zips with SHA256SUMS, attests build
+  provenance keylessly (Sigstore, no personal signing key), publishes a GitHub Release and deploys that build.
+  docs/RELEASING.md steps 5-6 and the first-publish checklist (immutable releases, github-pages tag rule).
+
 - SAVE.md fuzz (tests/saveFuzz.test.ts, seeded, 20 000 cases a run): fixed four ways a hand-edited or unusual
   save could load once and then be lost at the next autosave (unquoted number-like strings, ` #` and `\"` inside
   quotes, numbers beyond 1e15); `lore_read` keeps topic ids only. docs/SAFETY.md findings 9 and 10.

@@ -80,7 +80,9 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 - [ ] Review findings 1-10 above and record the decision for each
 - [x] Review docs/WARNINGS.md end to end (owner, 2026-10-18)
 - [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain (owner 2026-10-18: GitHub's certificate on
-      spaced-lab.github.io accepted as normal; still open: signed release tag, build checksums)
+      spaced-lab.github.io accepted as normal. Owner 2026-10-18: no personal signing key; instead release.yml
+      publishes SHA256SUMS and a keyless Sigstore build-provenance attestation per tag, and immutable releases
+      lock tag and assets. Tick after the first release verifies, docs/RELEASING.md step 6)
 - [ ] Record the result below with the commit hash
 
 ## Assessment log
