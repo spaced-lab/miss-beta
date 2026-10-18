@@ -15,6 +15,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   networks look there (dot, ring, diamond for blind), the Sun and its glare cap, and the threat's track over the
   last 400 days. Fixed: Esc inside PROGRAMS, TECH, the lore panel or the planet view now closes it instead of
   leaving for the title.
+- Learning Center: topic F12 "Visitors from other stars: the warning problem" (60 topics) and LAB_INTERSTELLAR
+  (22 labs): size, albedo, excess speed, tilt and side; each survey's days of warning on a log timeline, the
+  track in a side view with its height above the plane, and which defences still fit. New picture
+  pic-interstellar; claims F12-3..5 (UNVERIFIED).
 
 - VISITORS FROM OTHER STARS in REALISTIC runs: OPTIONS > INTERSTELLAR RATE (REAL, ELEVATED 2 %, FREQUENT 10 %,
   STORM 30 %; above REAL stamps the run EXAGGERATED on the debrief, the save and the leaderboard). A visitor is

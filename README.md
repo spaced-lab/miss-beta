@@ -10,7 +10,7 @@ whole game runs on: `miss ≈ 3 · β · (m/M) · U · T`, so **MISS ∝ β**.
 Status: milestones M0 to M11 built (see `STATUS.md` and `docs/BUILD_PLAN.md`): the full round loop, the
 planner with porkchops and Monte Carlo, fragmentation, sails and flybys, detection networks and programs,
 the tech tree, autonomy, nuclear and slow-push methods, modes with a console of public cheat codes, the
-tutorial, the Learning Center with 59 topics at five levels, 21 live labs, rotating 3-D models and real NASA/JPL data, and the arcade side mode
+tutorial, the Learning Center with 60 topics at five levels, 22 live labs, rotating 3-D models and real NASA/JPL data, and the arcade side mode
 **PERIMETER**.
 
 ## Play

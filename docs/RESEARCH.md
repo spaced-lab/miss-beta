@@ -69,6 +69,8 @@ Each line: claim id, what to do, size. The registry holds the details.
 - O-1: molten-salt reactors in free fall: literature search; compare specific mass with liquid-metal designs. M.
 - Gauge calibration (F11): compare the model's needles with a published NEO population model; the gauge tilts
   orbits and charges a trailing loss that the rounds do not yet (3-D orbits milestone). L.
+- F12-3, F12-5: read v_inf and the discovery and perihelion dates from the 1I, 2I and 3I papers. S.
+- F12-4: Comet Interceptor launch date and parking point from ESA documents. S.
 - Future-tech backlog items (hive survey, mothership, radiators, fission and fusion tiers, feasibility studies,
   interstellar warning): each real-world figure enters the registry as UNVERIFIED before any card uses it. L.
 
@@ -80,4 +82,5 @@ Append, never delete. Date, who, claim, change, reason.
 2026-10-18  Claude  registry created: F11-1..3, F5-1..3, D3-1..2, G8-1, U-1, U-2, O-1
 2026-10-18  Claude  F5 text: "[verify]" marks replaced by UNVERIFIED with claim ids; F11 and G9 written
 2026-10-18  Claude  SOURCED entries name sources from memory; each needs the quote re-read before it is CHECKED
+2026-10-18  Claude  F12-3..5 added UNVERIFIED for topic F12 (visitors from other stars)
 ```

@@ -1,4 +1,4 @@
-// WHAT: Tests for the second batch of labs (porkchop, flyby, sail spiral, sunward, Monte Carlo, RK4).
+// WHAT: Tests for the second batch of labs (porkchop, flyby, sail spiral, sunward, interstellar, Monte Carlo, RK4).
 // WHY:  Labs run inside the Learning Center every frame: they must load lazily, print finite numbers at every
 //       slider extreme, draw without throwing at any time, and stay cheap once their cache is warm.
 // HOW:  loadLab for each id; lines() at min, default and max of all sliders together; draw() against a stub
@@ -14,7 +14,7 @@ import { values } from '../src/lore/labs/lab';
 import type { Surface } from '../src/render/canvas';
 import { PALETTES } from '../src/render/palettes';
 
-const IDS = ['LAB_LAMBERT_PORKCHOP', 'LAB_FLYBY', 'LAB_SAIL_SPIRAL', 'LAB_SUNWARD', 'LAB_MONTECARLO', 'LAB_RK4'];
+const IDS = ['LAB_LAMBERT_PORKCHOP', 'LAB_FLYBY', 'LAB_SAIL_SPIRAL', 'LAB_SUNWARD', 'LAB_INTERSTELLAR', 'LAB_MONTECARLO', 'LAB_RK4'];
 
 function stubSurface(): Surface & { strokes: number } {
   const noop = (): void => {};
@@ -122,6 +122,19 @@ describe('labs batch B', () => {
     // A big rock from the night side is found long before a small one out of the sun.
     const night = sun!.lines({ dir: 180, D: 500, sentinel: 0 });
     expect(night[1]).toMatch(/first discovery/);
+    const vis = await loadLab('LAB_INTERSTELLAR');
+    // A 2 km visitor is found by today's surveys months out, in time for a standby nuclear craft; an 80 m one
+    // never gets more than a couple of weeks; the warning line is distance over mean closing speed.
+    const big = vis!.lines({ D: 2000, p: 0.04, vinf: 40, incl: 0, dir: 90, surveyor: 0, hive: 0 });
+    expect(Number(/, (\d+) days before impact/.exec(big[1] ?? '')?.[1])).toBeGreaterThan(90);
+    expect(big[3]).toMatch(/NUKE STANDBY/);
+    const ratio = /= ([0-9.]+) days$/.exec(big[2] ?? '');
+    expect(Math.abs(Number(ratio?.[1]) - Number(/, (\d+) days/.exec(big[1] ?? '')?.[1]))).toBeLessThan(5);
+    for (const incl of [0, 60, 120]) {
+      const small = vis!.lines({ D: 80, p: 0.04, vinf: 40, incl, dir: 90, surveyor: 0, hive: 0 });
+      const w = Number(/, (\d+) days before impact/.exec(small[1] ?? '')?.[1] ?? 0);
+      expect(w).toBeLessThan(21);
+    }
   });
 
   it('kit: memo, keys, loop and contours', () => {

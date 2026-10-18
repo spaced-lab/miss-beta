@@ -64,6 +64,7 @@ Facts carry a date where they can change ("as of 2026"). Numbers marked `[verify
 T  THE THREAT       T1 what is a NEO   T2 size ladder   T3 how often   T4 case files   T5 what they're made of   T6 comets and visitors
 F  FINDING THEM     F1 moving dots   F2 brightness and size   F3 sunward blind spot   F4 seeing heat   F5 today's surveys
                     F6 radar   F7 future missions   F8 dots to orbits   F9 Torino and Palermo   F10 who's in charge
+                    F11 the detection gauge   F12 visitors from other stars
 O  ORBITS AND MATH  O1 numbers   O2 logs and magnitudes   O3 vectors   O4 Newton   O5 energy and momentum   O6 Kepler
                     O7 elements   O8 vis-viva   O9 anomalies   O10 A to B   O11 gravity assists   O12 close approach
                     O13 integration   O14 randomness and probability
@@ -200,7 +201,7 @@ NOTES: The strength-vs-gravity regime crossover in Q* happens near 100 to 300 m:
 MORE: Carry 2012, "Density of asteroids" (Planetary and Space Science); OSIRIS-REx and Hayabusa2 mission papers (Lauretta et al. 2019; Watanabe et al. 2019); Scheeres et al. on rubble-pile structure.
 
 ## T6 Comets and visitors from other stars
-meta: related=[T1,T5,F3,F7]  game=[comet rounds, INTERSTELLAR_WATCH program]  tags=[comets]
+meta: related=[T1,T5,F3,F7,F12]  game=[comet rounds, INTERSTELLAR_WATCH program]  tags=[comets]
 ### SIMPLE
 PICTURE: pic-comet-orbit  A long thin oval reaching far from the Sun, a comet with a tail near the Sun; a straight-ish line passing through for a visitor.
 TEXT: Comets come from far away, fast, with little warning. Some visitors never come back.
@@ -452,6 +453,32 @@ Model reading with today's networks (game year 2026): DEFLECT about 85 m, EVACUA
 DEMO: LAB_GAUGE
 NOTES: The gauge lives in src/sim/gauge.ts (pure, tested in tests/gauge.test.ts) and runs in the planner worker; src/render/gaugeView.ts draws it. The rounds still fly a flat system without trailing loss, so the gauge is a little stricter than round generation; both meet at the 3-D orbits milestone. Common random numbers (one coverage draw per night shared by every size) keep each curve rising with size.
 MORE: The NEO population models of Granvik et al. 2018 (Icarus) and Nesvorny et al. 2024 are the standard references for how many rocks of each size exist; CNEOS discovery statistics give the found share by size; the George E. Brown, Jr. Near-Earth Object Survey Act (2005) set the 140 m goal.
+
+## F12 Visitors from other stars: the warning problem
+meta: related=[T6,F3,F11,F2,D5,D14,G9]  game=[OPTIONS INTERSTELLAR RATE, REALISTIC visitor rounds, INTERCEPTOR_ON_STANDBY program, PROGRAMS gauge INTERSTELLAR needle, LAB_INTERSTELLAR]  tags=[detection,interstellar,comets]
+### SIMPLE
+PICTURE: pic-interstellar  The flat disc of planet orbits seen edge-on; a fast dark rock dives steeply from far above it toward the Earth while the telescopes' band of sky looks the other way; a short clock.
+TEXT: A rock from another star comes fast, dark, from any direction. We see it weeks before, if at all.
+### BEGINNER
+Every few years a telescope catches something that does not belong to the Sun: a rock or a comet from another star, passing through once on its way somewhere else. Three are known so far. If one of them were ever aimed at the Earth, it would be the hardest kind of threat there is. It moves two or three times faster than a normal asteroid, it is usually as dark as charcoal, and it can come from any direction, including from high above or far below the flat disc where the planets and most asteroids live, or out of the Sun's glare. A telescope can only see it once it is fairly close, and at that speed "fairly close" is only weeks away. In the game, a visitor of a few hundred metres usually gets a few weeks of warning from today's telescopes: enough to evacuate, rarely enough to push it aside. The real chance of one hitting us in a lifetime is tiny; the game's INTERSTELLAR RATE dial lets you meet them more often, and stamps the run EXAGGERATED when you do.
+### INTERMEDIATE
+Warning time is a division: how far away a telescope can see the rock, divided by how fast it is closing. A survey sees an object when its brightness passes the telescope's limit, and brightness falls with distance squared twice over (Sun to rock, rock to us). Worked example with the game's numbers: a 500 m nucleus as dark as soot (albedo 0.04) has absolute magnitude H about 20.6. Rubin's limit in the game is about V = 24.5, so Rubin can reach it while the product of its two distances (in AU) stays below about 10^((24.5 - 20.6) / 5), which is about 6: for example 2.5 AU from both. The phase angle, moonlight and the smear of a fast mover take some of that back, so call it about 2 AU from the Earth. A visitor that left its star at 40 km/s falls in faster still and closes on the Earth at around 50 km/s, which is about 0.03 AU a day, so 2 AU is about 70 days. Then the real world takes its share: the sky has to be clear, the telescope has to point there that night, the rock has to be outside the Sun's glare, and it has to be seen three nights in a row. Measured over 24 sample visitors in REALISTIC mode, rocks of 80 to 300 m get no warning to a few weeks, rocks of 500 to 850 m get about 3 to 15 weeks, and Rubin finds most of them. The known three came in at excess speeds of about 26, 32 and 58 km/s (UNVERIFIED, claim F12-3); 'Oumuamua was only spotted on its way out, after it had passed the Sun (UNVERIFIED, claim F12-5).
+### ADVANCED
+```
+H  = 5 log10( 1329 / (D_km sqrt(p)) )                  p: albedo (game visitors 0.04, REAL_INTERSTELLAR_ALBEDO)
+V  = H + 5 log10(r_au delta_au) + 0.035 alpha_deg       seen if V <= V_lim - moon - trail   (ground, eps >= eps_min)
+trail = 2.5 log10(1 + omega t_exp / seeing),  omega = |v_rel x l| / delta     (sky rate; 30 s, 1.5 arcsec)
+v_helio(1 AU) = sqrt(v_inf^2 + 2 mu_sun / r)          v_inf 40 km/s -> 58 km/s; 42.1 km/s is escape at 1 AU
+warning ~ delta_seen / u_rel                          delta_seen from V(delta) = V_lim; u_rel: speed relative to HOME
+found on night k if detected on nights k-2, k-1, k     (DISCOVERY_NIGHTS = 3), searched over the last 3 years
+```
+What each tech level can do (the game's model, not a forecast). Today (REALISTIC, game year 2026): the gauge's INTERSTELLAR needle sits near 270 m for three weeks of warning, so the score for a visitor comes mostly from seeing it at all and evacuating; a kinetic impactor needs its build time and then about a year for a nudge to grow into a miss. Planned surveys (NEO Surveyor in the infrared, the PROPOSED hive survey HIVE_2 with all-sky coverage) add weeks, and months for the big ones. A nuclear standoff burst from a craft already waiting in space (INTERCEPTOR_ON_STANDBY, no build time) is the only deflection with a chance inside a few months, and it needs a big push for such a short lever arm; reliable deflection of a visitor on weeks of warning needs SCI-FI tech. The real rate of a dangerous visitor is effectively never in a lifetime (UNVERIFIED, claim F12-2): OPTIONS > INTERSTELLAR RATE is REAL (1e-6 per round), ELEVATED (2 percent), FREQUENT (10 percent) or STORM (30 percent), drawn from its own seeded stream so a seed keeps its ordinary rounds, and anything above REAL stamps the debrief, the save and the leaderboard EXAGGERATED.
+
+3-D lite: the game's dynamics are flat (the resolver, the planner and the Python mirror fly every orbit in one plane), but seeing is tilted. A visitor's orbit is rotated by an inclination i, drawn evenly over the sphere (cos i uniform), about the line from the Sun through the impact point. The impact stays exact because the rock meets HOME on that line, while every earlier point rises off the plane. Detection then uses the 3-D view geometry, ground trailing loss for fast movers, and lower revisit rates at high ecliptic latitude. Full 3-D orbits (inclination and node in the physics and the resolver) are milestone M14.
+### EXPERT
+DEMO: LAB_INTERSTELLAR
+NOTES: The visitor is drawn in src/sim/roundGen.ts (generateRealVisitor: D, type, name, shape, impact delay, a hyperbolic colliding orbit at REAL_INTERSTELLAR_VINF_KMS, then cos i, then the discovery's own coverage draws). The tilt and the seeing live in src/sim/sky.ts (tiltAboutNode, viewGeometry3, trailingLoss, coverage, eclipticLatitude) and src/sim/detection.ts (discover with the `tilt` option); the gauge's INTERSTELLAR needle is src/sim/gauge.ts. The lab builds its orbit backwards from impact, tilts it, and runs discover once per network with a fixed seed, so the same sliders always give the same days. Derivation of the warning sum: on the last stretch the path is nearly straight, so the warning is the distance at first sight over the mean closing speed; the lab prints both. Two things the model leaves out: comet activity (a visitor that outgasses, like 2I/Borisov, is far brighter than its bare nucleus) and the Earth's own gravity, which bends and speeds the last day only.
+MORE: Jewitt and Seligman 2023, "The Interstellar Interlopers" (Annual Review of Astronomy and Astrophysics, free on arXiv); Meech et al. 2017 (Nature) on 'Oumuamua; Guzik et al. 2020 (Nature Astronomy) on Borisov; the Minor Planet Center circulars on 3I/ATLAS; Engelhardt et al. 2017 (AJ) on what surveys could catch; ESA's Comet Interceptor mission pages for the wait-in-space idea (UNVERIFIED, claim F12-4).
 
 ---
 
@@ -1420,6 +1447,7 @@ Each lab: sliders on the left, a live vector plot on the right, the formula show
 | LAB_ROCKET_EQ          | Isp, mass fraction, stages; C3                     | dv; payload vs C3 curve for each launcher tier                  | economy tables           |
 | LAB_MAGNITUDE          | D, p, r, delta, alpha; network                     | H, V; detectable or not per network; distance where V = V_lim   | photometry.ts, detection |
 | LAB_SUNWARD            | approach direction, D; sentinel on/off             | when each network first sees it; days of warning                | detection.ts             |
+| LAB_INTERSTELLAR       | D, albedo, v_inf, tilt, side; two planned networks | days of warning per network; side-view track; defences in time   | detection.ts, sky.ts     |
 | LAB_GAUGE              | game year; four planned networks on/off            | the five needles; share found in time vs size for each warning  | gauge.ts                 |
 | LAB_MONTECARLO         | N, sigma_v, beta range                             | histogram of miss distances; P(MISS) with error bar             | monteCarlo.ts            |
 | LAB_RK4                | step size, method (Euler/RK4), thrust on/off       | integrated path vs Kepler; energy error vs step                 | integrate.ts             |

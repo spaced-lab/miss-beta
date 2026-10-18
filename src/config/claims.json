@@ -201,7 +201,8 @@
       "check": "Read the discovery papers and the MPC circular; dates and designations.",
       "usedIn": [
         "src/config/knobs.ts INTERSTELLAR_RATES",
-        "EDUCATION.md T6"
+        "EDUCATION.md T6",
+        "EDUCATION.md F12 BEGINNER"
       ]
     },
     {
@@ -213,7 +214,46 @@
       "source": "",
       "check": "Find a published number density of interstellar objects by size (e.g. from 1I's detection rate) and multiply by the Earth's gravitationally focused cross-section and typical speed.",
       "usedIn": [
-        "src/config/knobs.ts INTERSTELLAR_RATES REAL"
+        "src/config/knobs.ts INTERSTELLAR_RATES REAL",
+        "EDUCATION.md F12 ADVANCED"
+      ]
+    },
+    {
+      "id": "F12-3",
+      "topic": "F12",
+      "claim": "Hyperbolic excess speeds (relative to the Sun) of the three known interstellar visitors",
+      "value": "about 26 km/s (1I), 32 km/s (2I), 58 km/s (3I)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "Read v_inf from the orbit solutions in Meech et al. 2017 (1I), Guzik et al. 2020 (2I) and the 3I/ATLAS discovery paper or the JPL Small-Body Database; v_inf = sqrt(-mu / a) from the osculating a.",
+      "usedIn": [
+        "EDUCATION.md F12 INTERMEDIATE",
+        "src/config/knobs.ts REAL_INTERSTELLAR_VINF_KMS (comment)"
+      ]
+    },
+    {
+      "id": "F12-4",
+      "topic": "F12",
+      "claim": "ESA's Comet Interceptor is planned to wait in space at a Sun-Earth Lagrange point for a fresh comet or an interstellar visitor",
+      "value": "launch about 2029, parked at Sun-Earth L2 (as of 2026)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "ESA Comet Interceptor mission pages and the mission definition study report: launch date, parking point, waiting time, reachable targets.",
+      "usedIn": [
+        "EDUCATION.md F12 EXPERT",
+        "src/config/programs.json INTERCEPTOR_ON_STANDBY (L2)"
+      ]
+    },
+    {
+      "id": "F12-5",
+      "topic": "F12",
+      "claim": "1I/'Oumuamua was discovered after its perihelion, on its way out",
+      "value": "discovered 19 October 2017, about 40 days after perihelion (9 September 2017)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "The MPC discovery circular and Meech et al. 2017: discovery date and perihelion time.",
+      "usedIn": [
+        "EDUCATION.md F12 INTERMEDIATE"
       ]
     }
   ]
