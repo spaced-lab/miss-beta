@@ -10,6 +10,30 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   hyperbolic Kepler branch in TypeScript and Python for interstellar rounds, long-period comets and 5 km
   giants, MULTIVERSE tiles with COLLAPSE and WORMHOLE, the SIMULATION glitch pass, a manual page for all of it.
 
+- PERIMETER v3.2 balance probe: a weapons-using scripted player (seekers, swarms, pulses, laser pauses) runs 600 s
+  god-off on seeds 1..4 and must reach level 12, lose most hull after level 10 and be dead or under 60 hull by
+  level 30; tuned with HP_MULT_PER_LEVEL 0.05 -> 0.15, SPAWN_FLOOR_FACTOR 0.985 -> 0.95 (floor 0.08), a late speed
+  slope (+0.1 per level past 10, cap +0.06 per level past 10), and swarm / pulse charge requirements that grow with
+  level (`swarmKillsNeeded` +30 per level past 6, `pulseKillsNeeded` +2) so drones are a burst, not permanent cover.
+
+- PERIMETER v3.2 sound: rock breakups are a bigger, lower hull thud (45-60 Hz sine, tail and weight scale with
+  size and tier, crunch lowpassed to 480/900 Hz), hits are bass pops with almost no grain, shots have a softer
+  attack and a lower blip, the ambient static gains an 80-120 Hz activity voice above chaos 0.5, a laser MESH
+  pull is a cluster of layered zaps, and the level-up is two gentle 55 Hz sine pulses (no square tone).
+- PERIMETER hull hit is a deep rumble again (`synth.rumble`: 40 Hz sub sliding to 28 Hz over 0.7 s over a 120 Hz
+  lowpassed noise bed, the loudest voice, no mid or high content).
+
+- PERIMETER v3.2 weapons that scale: seeker stock cap, volley (1 -> 4 by level 30, `SEEKER_VOLLEY_LEVELS`) and
+  charge easing (`seekerHitsNeeded`), swarm stock cap and drone cap 16 -> 32, sentry cap 3 -> 6 with easing hits
+  (`turretMax`, `turretHitsNeeded`), laser reach +0.5 radii per 5 levels to 8.6, and LASER MESH: from level 12
+  (5 streams) every launcher fans 3 beams after the same pause, 5 beams from level 20 (`laserStage` 3 and 4,
+  `LASER_FAN_SPREAD`, one `mesh` sound event per pull).
+
+- PERIMETER v3.2 no plateau: the spawn floor shrinks per level from level 9 (`SPAWN_FLOOR_FACTOR`, `SPAWN_FLOOR_ABS`),
+  the speed cap rises past level 15 (`AST_SPEED_CAP_PER_LEVEL`), rock hit points scale from level 10 (`hpMult`,
+  `HP_MULT_PER_LEVEL`), the pressure ceiling and hull damage cap keep rising, hardness tiers 4 (violet, level 14)
+  and 5 (white-hot, level 22); level 45 is tested strictly harder than level 30, levels 1-5 unchanged.
+
 - M6: tech tree (T), autonomy tiers with the rules DSL and presets, split impactor carriers, nuclear
   standoff / surface / subsurface / HAIV / pulse trains, the slow-push family with honest NOT VIABLE numbers,
   PI, tracking tiers with impact probability and the beta reveal delay, debrief timeline scrubber,

@@ -6,13 +6,19 @@
 //       Entities live in plain arrays and are removed with swap-pop to avoid per-frame allocation.
 //       Progression is by level (one per LEVEL_SECONDS) read from the tables in config.ts, then scaled
 //       by an adaptive `pressure` that rises while the player is healthy and falls on every hull hit.
-//       Rocks have a hardness tier 0..3 (hit points, mass, score); bullets carry a damage 1..3 decided by
+//       Nothing plateaus: past the early tables the spawn floor keeps shrinking (spawnFloor), the speed cap
+//       keeps rising (speedCap), rock hit points scale with level (hpMult) and so do the pressure ceiling and
+//       the hull damage cap; all are slow linear or geometric growths with their knobs in config.ts.
+//       Rocks have a hardness tier 0..5 (hit points, mass, score); bullets carry a damage 1..3 decided by
 //       their stream position (centre strongest), and every hit also pushes the rock (impulse / mass),
 //       so passing rocks can be nudged and heavy rocks barely move. A moon orbits the planet from
 //       MOON_LEVEL: rocks inside its influence are bent toward it, anything touching it is absorbed.
 //       Heat: each trigger pull adds heat; at 1.0 fire locks until it cools below HEAT_UNLOCK.
 //       Laser: from 3 streams the first pull after a break fires a beam down the centre stream (sim.fireLaser);
-//       the step emits SimEvents (shots, hits, breaks, ...) that the host turns into sound; the sim never
+//       from LASER_MESH_LEVEL every launcher fans 3 (then 5) beams so they cross into a mesh (laserStage,
+//       laserFanOffsets). Earned weapons scale with level too (seekerMax, seekerVolley, swarmMax, turretMax,
+//       the *HitsNeeded easings, laserRange), so late levels stay winnable.
+//       The step emits SimEvents (shots, hits, breaks, ...) that the host turns into sound; the sim never
 //       imports audio. Sentries (Turret) come in four archetypes (SentryKind) with their own motion,
 //       targeting and fire schedule, all in stepTurret; the kind is drawn from the Rng at deploy.
 //       Earned weapons: pulses (kills), seeker missiles (direct hits, `<`, lead pursuit + area blast in
@@ -47,7 +53,7 @@ export interface Asteroid {
   vx: number;
   vy: number;
   r: number;
-  /** Hardness tier 0..3. */
+  /** Hardness tier 0..MAX_TIER (5). */
   tier: number;
   hp: number;
   maxHp: number;
@@ -159,6 +165,8 @@ export interface Beam {
 export type SimEvent =
   | { type: 'shot'; strength: number }
   | { type: 'laser' }
+  /** A MESH pull: `beams` beams from every launcher at once (stage 3 or 4). */
+  | { type: 'mesh'; beams: number }
   | { type: 'hit'; tier: number }
   | { type: 'break'; tier: number; r: number }
   | { type: 'impact' }
@@ -247,14 +255,40 @@ export interface MinigameState {
 // --- progression ---------------------------------------------------------------------------------------
 
 export const levelAt = (t: number): number => 1 + Math.floor(t / MG.LEVEL_SECONDS);
-export const baseSpawnInterval = (level: number): number => Math.max(MG.SPAWN_MIN, MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, level - 1));
-export const baseSpeed = (level: number): number => Math.min(MG.AST_SPEED_MAX, MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (level - 1));
+/** Levels past `from`, never negative: the argument of every slow late-game growth below. */
+const past = (level: number, from: number): number => Math.max(0, level - from);
+/**
+ * Spawn floor: SPAWN_MIN until SPAWN_FLOOR_FROM_LEVEL, then shrinking SPAWN_FLOOR_FACTOR per level toward
+ * SPAWN_FLOOR_ABS. Defaults: 0.3 s at level 9, 0.22 s at level 15, 0.10 s at level 30, 0.08 s (the floor) from level 35.
+ */
+export const spawnFloor = (level: number): number => Math.max(MG.SPAWN_FLOOR_ABS, MG.SPAWN_MIN * Math.pow(MG.SPAWN_FLOOR_FACTOR, past(level, MG.SPAWN_FLOOR_FROM_LEVEL)));
+/** Seconds between spawns at pressure 1: the geometric curve from SPAWN_0, never below the level's floor. */
+export const baseSpawnInterval = (level: number): number => Math.max(spawnFloor(level), MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, level - 1));
+/** Speed cap: AST_SPEED_MAX, then +AST_SPEED_CAP_PER_LEVEL per level past AST_SPEED_CAP_FROM_LEVEL (2.2 at 10, 2.5 at 15, 3.4 at 30, 4.3 at 45). */
+export const speedCap = (level: number): number => MG.AST_SPEED_MAX + MG.AST_SPEED_CAP_PER_LEVEL * past(level, MG.AST_SPEED_CAP_FROM_LEVEL);
+/**
+ * Rock speed at pressure 1: the linear ramp from AST_SPEED_0 (AST_SPEED_PER_LEVEL), steepening by
+ * AST_SPEED_LATE_PER_LEVEL past AST_SPEED_LATE_FROM_LEVEL, never above the level's cap. Defaults: 0.45 at 1,
+ * 0.93 at 5, 1.53 at 10, then the cap from level 14 on.
+ */
+export const baseSpeed = (level: number): number =>
+  Math.min(speedCap(level), MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (level - 1) + MG.AST_SPEED_LATE_PER_LEVEL * past(level, MG.AST_SPEED_LATE_FROM_LEVEL));
+/** Hit-point multiplier applied on spawn: 1 up to HP_MULT_FROM_LEVEL, then +HP_MULT_PER_LEVEL per level (x1.75 at 15, x4 at 30, x6.25 at 45). */
+export const hpMult = (level: number): number => 1 + MG.HP_MULT_PER_LEVEL * past(level, MG.HP_MULT_FROM_LEVEL);
+/** Pressure ceiling: PRESSURE_MAX, then +PRESSURE_MAX_PER_LEVEL per level past PRESSURE_MAX_FROM_LEVEL (1.6 at 10, 2.0 at 30, 2.3 at 45). */
+export const pressureMax = (level: number): number => MG.PRESSURE_MAX + MG.PRESSURE_MAX_PER_LEVEL * past(level, MG.PRESSURE_MAX_FROM_LEVEL);
+/** Rock budget: MAX_ASTEROIDS + MAX_ASTEROIDS_PER_LEVEL per level, capped at MAX_ASTEROIDS_CAP. */
+export const maxAsteroids = (level: number): number => Math.min(MG.MAX_ASTEROIDS_CAP, MG.MAX_ASTEROIDS + MG.MAX_ASTEROIDS_PER_LEVEL * past(level, 1));
 export const launcherCount = (level: number): number => byLevel(MG.LAUNCHERS_BY_LEVEL, level);
 export const streamCount = (level: number): number => byLevel(MG.STREAMS_BY_LEVEL, level);
 export const maxTier = (level: number): number => byLevel(MG.MAX_TIER_BY_LEVEL, level);
+/** The hardest tier that exists (the tier tables' last index). Hard-core shards never exceed it. */
+export const MAX_TIER = MG.TIER_HP_MULT.length - 1;
+/** Hull damage cap for a level: the table's entry, then +DAMAGE_MAX_PER_LEVEL per level past DAMAGE_MAX_FROM_LEVEL (25 at 10, 33 at 30, 39 at 45). */
+export const damageMax = (level: number): number => byLevel(MG.DAMAGE_MAX_BY_LEVEL, level) + MG.DAMAGE_MAX_PER_LEVEL * past(level, MG.DAMAGE_MAX_FROM_LEVEL);
 /** Hull points one rock removes: DAMAGE_PER_R * r * (1 + 0.5 tier), clamped to the level's cap. */
 export const hullDamage = (level: number, r: number, tier: number): number =>
-  clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, byLevel(MG.DAMAGE_MAX_BY_LEVEL, level));
+  clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, Math.round(damageMax(level)));
 export const moonActive = (level: number): boolean => level >= MG.MOON_LEVEL;
 export const moonAlive = (st: MinigameState): boolean => moonActive(st.level) && st.moonHp > 0;
 /** Sentry tier from level: one step per TURRET_TIER_LEVELS after TURRET_LEVEL, capped at 2. */
@@ -276,14 +310,54 @@ export function streamDamage(streams: number, j: number): number {
   return Math.max(1, strengthLevel(streams) - Math.floor(d));
 }
 
-/** Laser stage: 0 none, 1 player's launcher only (needs LASER_BREAK_1), 2 every launcher (LASER_BREAK_2). */
-export const laserStage = (streams: number): number => (streams >= 5 ? 2 : streams >= 3 ? 1 : 0);
+/**
+ * Laser stage: 0 none, 1 player's launcher only (needs LASER_BREAK_1), 2 every launcher (LASER_BREAK_2),
+ * 3 MESH: every launcher fans 3 beams (5 streams and level >= LASER_MESH_LEVEL), 4: fans of 5 (LASER_MESH2_LEVEL).
+ */
+export function laserStage(streams: number, level = 1): number {
+  if (streams < 3) return 0;
+  if (streams < 5) return 1;
+  if (level >= MG.LASER_MESH2_LEVEL) return 4;
+  if (level >= MG.LASER_MESH_LEVEL) return 3;
+  return 2;
+}
+
+/** Beams per launcher at a laser stage: 1, 1, 1, 3, 5. */
+export const laserBeamCount = (stage: number): number => (stage >= 4 ? 5 : stage === 3 ? 3 : 1);
+
+/** Angular offsets of a launcher's fan at a stage, LASER_FAN_SPREAD apart and centred: [0], [-s, 0, s], [-2s .. 2s]. */
+export function laserFanOffsets(stage: number): number[] {
+  const n = laserBeamCount(stage);
+  return Array.from({ length: n }, (_, k) => (k - (n - 1) / 2) * MG.LASER_FAN_SPREAD);
+}
+
+/** Laser reach in radii: LASER_RANGE + LASER_RANGE_STEP per LASER_RANGE_STEP_LEVELS levels, capped (7.2 at 1-5, 7.7 at 6, 8.2 at 11, 8.6 from 16). */
+export const laserRange = (level: number): number => Math.min(MG.LASER_RANGE_CAP, MG.LASER_RANGE + MG.LASER_RANGE_STEP * Math.floor(past(level, 1) / MG.LASER_RANGE_STEP_LEVELS));
 
 export function laserArmed(st: MinigameState): boolean {
-  const stage = laserStage(st.streamCount);
+  const stage = laserStage(st.streamCount, st.level);
   if (stage === 0) return false;
-  return st.sinceShot >= (stage === 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1);
+  return st.sinceShot >= (stage >= 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1);
 }
+
+// --- earned-weapon scaling (all monotone in level, all capped or floored by a knob) ---------------------------
+
+/** Seeker stock cap: SEEKER_MAX + one per SEEKER_MAX_LEVELS levels, capped at SEEKER_MAX_CAP (3, 4 at level 9, 5 at 17, 6 at 25). */
+export const seekerMax = (level: number): number => Math.min(MG.SEEKER_MAX_CAP, MG.SEEKER_MAX + Math.floor(past(level, 1) / MG.SEEKER_MAX_LEVELS));
+/** Seekers per launch: 1 plus one per level in SEEKER_VOLLEY_LEVELS reached (1 -> 2 at 10 -> 3 at 20 -> 4 at 30). */
+export const seekerVolley = (level: number): number => 1 + MG.SEEKER_VOLLEY_LEVELS.filter((l) => level >= l).length;
+/** Direct hits per seeker: SEEKER_HITS, easing SEEKER_HITS_EASE_PER_LEVEL per level past SEEKER_HITS_EASE_FROM_LEVEL, floored at SEEKER_HITS_MIN (35 -> 22 by level 23). */
+export const seekerHitsNeeded = (level: number): number => Math.max(MG.SEEKER_HITS_MIN, MG.SEEKER_HITS - MG.SEEKER_HITS_EASE_PER_LEVEL * past(level, MG.SEEKER_HITS_EASE_FROM_LEVEL));
+/** Kills per pulse: PULSE_KILLS + PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (14 to level 6, then rising). */
+export const pulseKillsNeeded = (level: number): number => MG.PULSE_KILLS + MG.PULSE_KILLS_PER_LEVEL * past(level, MG.PULSE_KILLS_FROM_LEVEL);
+/** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL (22 to level 6, then rising). */
+export const swarmKillsNeeded = (level: number): number => MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL);
+/** Swarm stock cap: SWARM_MAX + one per SWARM_MAX_LEVELS levels, capped at SWARM_MAX_CAP (2, 3 at level 11, 4 at 21, 5 at 31). */
+export const swarmMax = (level: number): number => Math.min(MG.SWARM_MAX_CAP, MG.SWARM_MAX + Math.floor(past(level, 1) / MG.SWARM_MAX_LEVELS));
+/** Sentry cap: TURRET_MAX + one per TURRET_MAX_LEVELS levels after TURRET_LEVEL, capped at TURRET_MAX_CAP (3 at 6, 4 at 12, 5 at 18, 6 at 24). */
+export const turretMax = (level: number): number => Math.min(MG.TURRET_MAX_CAP, MG.TURRET_MAX + Math.floor(past(level, MG.TURRET_LEVEL) / MG.TURRET_MAX_LEVELS));
+/** Direct hits per sentry: TURRET_HITS easing TURRET_HITS_EASE_PER_LEVEL per level past TURRET_HITS_EASE_FROM_LEVEL, floored at TURRET_HITS_MIN (60 -> 36 by level 22). */
+export const turretHitsNeeded = (level: number): number => Math.max(MG.TURRET_HITS_MIN, MG.TURRET_HITS - MG.TURRET_HITS_EASE_PER_LEVEL * past(level, MG.TURRET_HITS_EASE_FROM_LEVEL));
 
 export function emit(st: MinigameState, e: SimEvent): void {
   if (st.events.length < 256) st.events.push(e);
@@ -402,7 +476,9 @@ export function rockMass(a: Asteroid): number {
 }
 
 function makeAsteroid(st: MinigameState, x: number, y: number, vx: number, vy: number, r: number, tier: number, core: boolean, passing: boolean): Asteroid {
-  const hp = Math.max(1, Math.round(r / MG.AST_HP_UNIT)) * (MG.TIER_HP_MULT[tier] ?? 1);
+  // Hit points: size units times the tier multiplier times the level multiplier (hpMult), whole numbers so the
+  // display-tier ladder steps cleanly.
+  const hp = Math.max(1, Math.round(Math.max(1, Math.round(r / MG.AST_HP_UNIT)) * (MG.TIER_HP_MULT[tier] ?? 1) * hpMult(st.level)));
   return {
     id: st.nextId++,
     x, y, vx, vy, r,
@@ -459,7 +535,8 @@ export function spawnBinary(st: MinigameState, x: number, y: number, vx: number,
 }
 
 function spawnAsteroid(st: MinigameState): void {
-  if (st.asteroids.length >= MG.MAX_ASTEROIDS) return;
+  const budget = maxAsteroids(st.level);
+  if (st.asteroids.length >= budget) return;
   const theta = st.rng.float(0, Math.PI * 2);
   const x = MG.FIELD_R * Math.cos(theta);
   const y = MG.FIELD_R * Math.sin(theta);
@@ -471,7 +548,7 @@ function spawnAsteroid(st: MinigameState): void {
   const d = Math.hypot(dx, dy);
   const v = baseSpeed(st.level) * (0.8 + 0.2 * st.pressure) * st.rng.float(0.8, 1.2);
   const tier = drawTier(st, maxTier(st.level));
-  if (!passing && st.level >= MG.BINARY_LEVEL && st.asteroids.length + 2 <= MG.MAX_ASTEROIDS && st.rng.chance(MG.BINARY_PROB)) {
+  if (!passing && st.level >= MG.BINARY_LEVEL && st.asteroids.length + 2 <= budget && st.rng.chance(MG.BINARY_PROB)) {
     spawnBinary(st, x, y, (dx / d) * v * 0.9, (dy / d) * v * 0.9, tier);
     return;
   }
@@ -546,7 +623,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
   const tierMult = MG.TIER_SCORE_MULT[a.tier] ?? 1;
   st.score += Math.floor(a.r * MG.SCORE_PER_R * tierMult * (a.core ? MG.HARD_CORE_SCORE_MULT : 1) * scoreMult);
   st.kills += 1;
-  st.pulseCharge += 1 / MG.PULSE_KILLS;
+  st.pulseCharge += 1 / pulseKillsNeeded(st.level);
   // NOTE: 14 * (1 / 14) is 0.9999999999999997 in floats; without the epsilon the pulse arrived one kill late.
   if (st.pulseCharge >= 1 - 1e-9) {
     st.pulseCharge -= 1;
@@ -555,9 +632,9 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
       flash(st, 'PULSE READY', 1.2);
     }
   }
-  if (++st.swarmProgress >= MG.SWARM_KILLS) {
+  if (++st.swarmProgress >= swarmKillsNeeded(st.level)) {
     st.swarmProgress = 0;
-    if (st.swarmStock < MG.SWARM_MAX) {
+    if (st.swarmStock < swarmMax(st.level)) {
       st.swarmStock += 1;
       flash(st, 'SWARM READY  >', 1.2);
     }
@@ -566,7 +643,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
   emit(st, { type: 'break', tier: a.tier, r: a.r });
   swapRemove(st.asteroids, i);
 
-  if (allowSplit && !a.core && a.r >= MG.AST_SPLIT_R && st.asteroids.length + 2 <= MG.MAX_ASTEROIDS) {
+  if (allowSplit && !a.core && a.r >= MG.AST_SPLIT_R && st.asteroids.length + 2 <= maxAsteroids(st.level)) {
     const speed = Math.hypot(a.vx, a.vy);
     const hardCoreAt = a.tier >= 1 && st.rng.chance(MG.HARD_CORE_PROB) ? st.rng.int(0, 1) : -1;
     let k = 0;
@@ -574,7 +651,7 @@ function destroyAsteroid(st: MinigameState, i: number, scoreMult: number, allowS
       const ang = Math.atan2(a.vy, a.vx) + side * st.rng.float(0.35, 0.8);
       const isCore = k === hardCoreAt;
       const cr = a.r * (isCore ? MG.HARD_CORE_SCALE : MG.AST_CHILD_SCALE);
-      const tier = isCore ? Math.min(3, a.tier + 1) : Math.max(0, a.tier - 1);
+      const tier = isCore ? Math.min(MAX_TIER, a.tier + 1) : Math.max(0, a.tier - 1);
       st.asteroids.push(
         makeAsteroid(st, a.x + side * cr * 0.6 * -Math.sin(ang), a.y + side * cr * 0.6 * Math.cos(ang), Math.cos(ang) * speed * 1.1, Math.sin(ang) * speed * 1.1, cr, tier, isCore, false),
       );
@@ -591,9 +668,9 @@ function pushBullet(st: MinigameState, x: number, y: number, angle: number, dama
 /** A direct hit by the player (bullet or laser): counts for stats and charges the next seeker. */
 function creditHit(st: MinigameState): void {
   st.hits += 1;
-  if (++st.seekerProgress >= MG.SEEKER_HITS) {
+  if (++st.seekerProgress >= seekerHitsNeeded(st.level)) {
     st.seekerProgress = 0;
-    if (st.seekerStock < MG.SEEKER_MAX) {
+    if (st.seekerStock < seekerMax(st.level)) {
       st.seekerStock += 1;
       flash(st, 'SEEKER READY  <', 1.2);
     }
@@ -620,14 +697,21 @@ function findRock(st: MinigameState, id: number): Asteroid | null {
   return null;
 }
 
-/** Launch a seeker from the player's launcher; `<` key. Returns false when the stock is empty. */
+/**
+ * Launch a volley of seekers from the player's launcher; `<` key. One stock buys seekerVolley(level) missiles
+ * fanned SEEKER_VOLLEY_SPREAD apart (each picks its own target in flight). Returns false when the stock is empty.
+ */
 export function launchSeeker(st: MinigameState): boolean {
   if (st.seekerStock <= 0) return false;
   st.seekerStock -= 1;
-  const a = launcherAngleAt(st, 0);
+  const base = launcherAngleAt(st, 0);
   const muzzle = MG.PLANET_R * 1.3;
-  st.seekers.push({ x: Math.cos(a) * muzzle, y: Math.sin(a) * muzzle, vx: Math.cos(a) * MG.SEEKER_SPEED, vy: Math.sin(a) * MG.SEEKER_SPEED, life: MG.SEEKER_LIFE, targetId: -1, trail: [], trailTick: 0 });
-  flash(st, 'SEEKER', 0.8);
+  const n = seekerVolley(st.level);
+  for (let k = 0; k < n; k++) {
+    const a = base + (k - (n - 1) / 2) * MG.SEEKER_VOLLEY_SPREAD;
+    st.seekers.push({ x: Math.cos(base) * muzzle, y: Math.sin(base) * muzzle, vx: Math.cos(a) * MG.SEEKER_SPEED, vy: Math.sin(a) * MG.SEEKER_SPEED, life: MG.SEEKER_LIFE, targetId: -1, trail: [], trailTick: 0 });
+  }
+  flash(st, n > 1 ? `SEEKER X${n}` : 'SEEKER', 0.8);
   emit(st, { type: 'seeker' });
   return true;
 }
@@ -889,10 +973,11 @@ function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: n
   }
 }
 
-/** Instant beam along `angle` from the muzzle to LASER_RANGE: damages and pushes every rock it crosses. */
+/** Instant beam along `angle` from the muzzle to laserRange(level): damages and pushes every rock it crosses. */
 function fireLaser(st: MinigameState, angle: number): void {
   const damage = strengthLevel(st.streamCount) + MG.LASER_DAMAGE_BONUS;
   const muzzle = MG.PLANET_R * 1.28;
+  const range = laserRange(st.level);
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
   const dead: number[] = [];
@@ -901,7 +986,7 @@ function fireLaser(st: MinigameState, angle: number): void {
     if (!a) continue;
     const along = a.x * ca + a.y * sa;
     const perp = Math.abs(-a.x * sa + a.y * ca);
-    if (along < muzzle || along > MG.LASER_RANGE || perp > a.r) continue;
+    if (along < muzzle || along > range || perp > a.r) continue;
     a.hp -= damage;
     const k = (MG.BULLET_IMPULSE * MG.LASER_IMPULSE_MULT * damage) / rockMass(a);
     a.vx += ca * k;
@@ -914,21 +999,29 @@ function fireLaser(st: MinigameState, angle: number): void {
   dead.sort((p, q) => q - p);
   for (const j of dead) destroyAsteroid(st, j, 1, true);
   st.beams.push({ angle, t: MG.BEAM_FADE });
-  emit(st, { type: 'laser' });
 }
 
+/**
+ * One trigger pull. If the laser is armed, the beaming launchers (the player's at stage 1, all of them from
+ * stage 2) each fire laserFanOffsets(stage) beams (one; a fan of 3 or 5 at the MESH stages, whose beams cross
+ * those of the neighbouring launchers) and skip their centre projectile; the other streams fire as usual.
+ */
 function fire(st: MinigameState): void {
   st.shots += 1;
-  const stage = laserStage(st.streamCount);
+  const stage = laserStage(st.streamCount, st.level);
   const laser = laserArmed(st);
-  const laserLaunchers = laser ? (stage === 2 ? st.launcherCount : 1) : 0;
+  const laserLaunchers = laser ? (stage >= 2 ? st.launcherCount : 1) : 0;
+  const fan = laserFanOffsets(stage);
   st.sinceShot = 0;
   const centre = (st.streamCount - 1) / 2;
   for (let i = 0; i < st.launcherCount; i++) {
     const base = launcherAngleAt(st, i);
     const muzzle = MG.PLANET_R * 1.28;
     const beamHere = i < laserLaunchers;
-    if (beamHere) fireLaser(st, base);
+    if (beamHere) {
+      for (const off of fan) fireLaser(st, base + off);
+      if (stage < 3) emit(st, { type: 'laser' });
+    }
     for (let j = 0; j < st.streamCount; j++) {
       // The laser replaces the centre stream's projectile on that pull (only exact centres: odd counts).
       if (beamHere && j === centre) continue;
@@ -936,6 +1029,7 @@ function fire(st: MinigameState): void {
       pushBullet(st, Math.cos(base) * muzzle, Math.sin(base) * muzzle, a, streamDamage(st.streamCount, j), false);
     }
   }
+  if (laser && stage >= 3) emit(st, { type: 'mesh', beams: laserLaunchers * fan.length });
   if (laser && !st.cheats.noHeat) st.heat += MG.LASER_HEAT;
   emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
 }
@@ -945,7 +1039,7 @@ function fire(st: MinigameState): void {
  * forced, then kind unless forced.
  */
 export function deployTurret(st: MinigameState, forceSuper?: boolean, forceKind?: SentryKind): void {
-  if (st.turrets.length >= MG.TURRET_MAX) return;
+  if (st.turrets.length >= turretMax(st.level)) return;
   const angle = st.rng.float(0, Math.PI * 2);
   const superb = forceSuper ?? st.rng.chance(MG.TURRET_SUPER_PROB);
   const kind = forceKind ?? st.rng.pick(SENTRY_KINDS);
@@ -1158,7 +1252,10 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     emit(st, { type: 'levelup' });
     if (lvl === MG.MOON_LEVEL) flash(st, 'MOON IN ORBIT', 2);
     if (lvl === MG.PASSING_LEVEL) flash(st, 'PASSING ROCKS: NUDGE THEM', 2);
-    if (lvl === MG.TURRET_LEVEL) flash(st, 'SENTRIES EARNED PER 60 HITS', 2);
+    if (lvl === MG.TURRET_LEVEL) flash(st, `SENTRIES EARNED PER ${MG.TURRET_HITS} HITS`, 2);
+    if (lvl === MG.LASER_MESH_LEVEL) flash(st, 'LASER MESH: PAUSE, THEN FIRE', 2);
+    if (lvl === MG.LASER_MESH2_LEVEL) flash(st, 'LASER MESH X5', 2);
+    if (MG.SEEKER_VOLLEY_LEVELS.includes(lvl)) flash(st, `SEEKER VOLLEY X${seekerVolley(lvl)}`, 2);
     // A random SUPER sentry now and then: a breather as the field gets busy.
     if (lvl > MG.TURRET_LEVEL && st.rng.chance(MG.TURRET_GIFT_PROB)) deployTurret(st, true);
   }
@@ -1176,7 +1273,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   // Adaptive pressure: creeps up while healthy and un-hit, eases off when the hull is low.
   if (st.hp / MG.MAX_HP > 0.6 && st.sinceHit > MG.PRESSURE_CALM_SECONDS) st.pressure += MG.PRESSURE_GAIN * dt;
   if (st.hp / MG.MAX_HP < MG.PRESSURE_LOW_HP && st.pressure > MG.PRESSURE_LOW_TARGET) st.pressure -= MG.PRESSURE_LOW_RATE * dt;
-  st.pressure = clamp(st.pressure, MG.PRESSURE_MIN, MG.PRESSURE_MAX);
+  st.pressure = clamp(st.pressure, MG.PRESSURE_MIN, pressureMax(st.level));
 
   // Player: left is counter-clockwise (angle increases), right is clockwise.
   if (input.left) st.launcherAngle = wrapAngle(st.launcherAngle + MG.LAUNCHER_SPEED * dt);
@@ -1294,7 +1391,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
       if (!st.cheats.god) st.hp -= dmg;
       st.shake += dmg * MG.SHAKE_PER_HP;
       st.sinceHit = 0;
-      st.pressure = clamp(st.pressure - MG.PRESSURE_HIT_DROP, MG.PRESSURE_MIN, MG.PRESSURE_MAX);
+      st.pressure = clamp(st.pressure - MG.PRESSURE_HIT_DROP, MG.PRESSURE_MIN, pressureMax(st.level));
       spawnParticles(st, a.x, a.y, MG.PARTICLES_PER_IMPACT, 3, -1);
       emit(st, { type: 'impact' });
       swapRemove(st.asteroids, i);
@@ -1344,7 +1441,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
         creditHit(st);
         if (st.level >= MG.TURRET_LEVEL) {
           st.turretProgress += 1;
-          if (st.turretProgress >= MG.TURRET_HITS) {
+          if (st.turretProgress >= turretHitsNeeded(st.level)) {
             st.turretProgress = 0;
             deployTurret(st);
           }

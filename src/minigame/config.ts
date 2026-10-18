@@ -15,18 +15,29 @@ export const MG = {
   VIEW_R: 6.2,
 
   /** Hull. Each rock hit removes DAMAGE_PER_R * r * (1 + 0.5 * tier), clamped between DAMAGE_MIN and the
-   *  level's entry in DAMAGE_MAX_BY_LEVEL (a gentler cap while the player learns). Game over at 0. */
+   *  level's entry in DAMAGE_MAX_BY_LEVEL (a gentler cap while the player learns). From DAMAGE_MAX_FROM_LEVEL
+   *  the cap keeps rising DAMAGE_MAX_PER_LEVEL per level (sim.damageMax), so late rocks keep their bite.
+   *  Game over at 0. */
   MAX_HP: 100,
   DAMAGE_PER_R: 30,
   DAMAGE_MIN: 3,
   DAMAGE_MAX_BY_LEVEL: [12, 16, 25] as readonly number[],
+  DAMAGE_MAX_FROM_LEVEL: 10,
+  DAMAGE_MAX_PER_LEVEL: 0.4,
 
   /** Levels. */
   LEVEL_SECONDS: 20,
   /** Index = level - 1; the last entry repeats. */
   STREAMS_BY_LEVEL: [1, 1, 2, 2, 3, 3, 4, 4, 5] as readonly number[],
   LAUNCHERS_BY_LEVEL: [1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 8] as readonly number[],
-  MAX_TIER_BY_LEVEL: [0, 0, 1, 1, 1, 2, 2, 2, 3] as readonly number[],
+  /** Tier 3 from level 9, tier 4 from level 14, tier 5 from level 22 (anti-plateau retune, 2026-10-17). */
+  MAX_TIER_BY_LEVEL: [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5] as readonly number[],
+  /** Rock hit points scale with level from HP_MULT_FROM_LEVEL: x(1 + HP_MULT_PER_LEVEL * levels past it), applied
+   *  on spawn (sim.hpMult). Level 10: x1, level 15: x1.75, level 30: x4, level 45: x6.25. The balance probe
+   *  (tests/minigame.test.ts) showed this is the one axis that gets rocks through a full arsenal: faster or
+   *  denser rocks were simply killed at the rate they spawned; tougher ones arrive. */
+  HP_MULT_FROM_LEVEL: 10,
+  HP_MULT_PER_LEVEL: 0.15,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -52,13 +63,26 @@ export const MG = {
 
   /** Spawning: base interval per level decays geometrically to a floor; speed ramps linearly to a cap.
    *  Tuned 2026-10-17: a gentler level 1-2 (longer first interval, slower first rocks) and a steeper ramp
-   *  after (faster interval decay, more speed per level, 20 s levels). */
+   *  after (faster interval decay, more speed per level, 20 s levels).
+   *  No plateau (same day, owner: "it seemed to plateau around 30"): neither cap is hard any more. The spawn
+   *  floor itself shrinks SPAWN_FLOOR_FACTOR per level from SPAWN_FLOOR_FROM_LEVEL (the level where the
+   *  geometric curve first meets SPAWN_MIN) down to SPAWN_FLOOR_ABS; the speed cap rises AST_SPEED_CAP_PER_LEVEL
+   *  per level past AST_SPEED_CAP_FROM_LEVEL (where the linear ramp meets AST_SPEED_MAX). Levels 1-5 are untouched. */
   SPAWN_0: 2.2,
   SPAWN_LEVEL_FACTOR: 0.78,
   SPAWN_MIN: 0.3,
+  SPAWN_FLOOR_FROM_LEVEL: 9,
+  SPAWN_FLOOR_FACTOR: 0.95,
+  SPAWN_FLOOR_ABS: 0.08,
   AST_SPEED_0: 0.45,
   AST_SPEED_PER_LEVEL: 0.12,
+  /** A second slope joins past AST_SPEED_LATE_FROM_LEVEL ("minigame needs to get faster"): the ramp steepens by
+   *  AST_SPEED_LATE_PER_LEVEL per level there, under the cap below. */
+  AST_SPEED_LATE_FROM_LEVEL: 10,
+  AST_SPEED_LATE_PER_LEVEL: 0.1,
   AST_SPEED_MAX: 2.2,
+  AST_SPEED_CAP_FROM_LEVEL: 10,
+  AST_SPEED_CAP_PER_LEVEL: 0.06,
   AST_R_MIN: 0.14,
   AST_R_MAX: 0.42,
   AST_SPLIT_R: 0.26,
@@ -80,10 +104,11 @@ export const MG = {
   BINARY_LEVEL: 4,
   BINARY_PROB: 0.18,
 
-  /** Hardness tiers 0..3: hit-point, mass (for impulse) and score multipliers. */
-  TIER_HP_MULT: [1, 2, 3, 4] as readonly number[],
-  TIER_MASS_MULT: [1, 1.6, 2.5, 4] as readonly number[],
-  TIER_SCORE_MULT: [1, 2, 3, 5] as readonly number[],
+  /** Hardness tiers 0..5: hit-point, mass (for impulse) and score multipliers. Tiers 4 and 5 arrive at the
+   *  levels in MAX_TIER_BY_LEVEL; the three tables must stay the same length (sim.MAX_TIER is derived). */
+  TIER_HP_MULT: [1, 2, 3, 4, 5.5, 7] as readonly number[],
+  TIER_MASS_MULT: [1, 1.6, 2.5, 4, 6, 9] as readonly number[],
+  TIER_SCORE_MULT: [1, 2, 3, 5, 8, 12] as readonly number[],
   /** Spawn weight of a tier relative to the next lower tier (so higher tiers stay rarer). */
   TIER_WEIGHT_DECAY: 0.6,
   /** When a tier >= 1 rock splits, chance that one shard is a small hard core one tier up. */
@@ -91,10 +116,13 @@ export const MG = {
   HARD_CORE_SCALE: 0.42,
   HARD_CORE_SCORE_MULT: 3,
 
-  /** Adaptive pressure multiplies spawn rate and speed. Starts a little below 1 so the opening is calm. */
+  /** Adaptive pressure multiplies spawn rate and speed. Starts a little below 1 so the opening is calm.
+   *  The ceiling rises PRESSURE_MAX_PER_LEVEL per level past PRESSURE_MAX_FROM_LEVEL (sim.pressureMax). */
   PRESSURE_START: 0.85,
   PRESSURE_MIN: 0.6,
   PRESSURE_MAX: 1.6,
+  PRESSURE_MAX_FROM_LEVEL: 10,
+  PRESSURE_MAX_PER_LEVEL: 0.02,
   PRESSURE_GAIN: 0.015,
   PRESSURE_HIT_DROP: 0.08,
   PRESSURE_CALM_SECONDS: 6,
@@ -111,9 +139,17 @@ export const MG = {
   /** The moon is super solid: rocks chip it by their hull damage; bullets do nothing. At 0 it is lost. */
   MOON_HP: 600,
 
-  /** Auto turrets: earned every TURRET_HITS direct hits from TURRET_LEVEL on; orbit and fire on their own. */
+  /** Auto turrets: earned every TURRET_HITS direct hits from TURRET_LEVEL on; orbit and fire on their own.
+   *  Scaling (sim.turretHitsNeeded, sim.turretMax): the hits needed ease TURRET_HITS_EASE_PER_LEVEL per level past
+   *  TURRET_HITS_EASE_FROM_LEVEL down to TURRET_HITS_MIN; the cap grows one per TURRET_MAX_LEVELS levels after
+   *  TURRET_LEVEL up to TURRET_MAX_CAP (3 at level 6, 4 at 12, 5 at 18, 6 from 24). */
   TURRET_HITS: 60,
+  TURRET_HITS_EASE_FROM_LEVEL: 10,
+  TURRET_HITS_EASE_PER_LEVEL: 2,
+  TURRET_HITS_MIN: 36,
   TURRET_MAX: 3,
+  TURRET_MAX_LEVELS: 6,
+  TURRET_MAX_CAP: 6,
   TURRET_LIFE: 12,
   TURRET_ORBIT_R: 2.0,
   TURRET_ANGULAR_SPEED: 0.9,
@@ -148,17 +184,31 @@ export const MG = {
 
   /** Laser pulse: from 3 streams, the first shot after a break fires a beam down the centre stream of the
    *  player's launcher instead of that stream's projectile; from 5 streams every launcher does, and the
-   *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied. */
+   *  break needed is shorter. Damage is the strength level plus LASER_DAMAGE_BONUS; impulse is multiplied.
+   *  Reach grows LASER_RANGE_STEP radii every LASER_RANGE_STEP_LEVELS levels up to LASER_RANGE_CAP (the field
+   *  edge plus margin; sim.laserRange). MESH (stage 3, from LASER_MESH_LEVEL with 5 streams): every launcher
+   *  fires a fan of 3 beams at -LASER_FAN_SPREAD, 0, +LASER_FAN_SPREAD so neighbouring fans cross; stage 4
+   *  (from LASER_MESH2_LEVEL) fans 5 beams. The break needed stays LASER_BREAK_2. */
   LASER_BREAK_1: 1.2,
   LASER_BREAK_2: 0.6,
   LASER_DAMAGE_BONUS: 1,
   LASER_HEAT: 0.1,
   LASER_IMPULSE_MULT: 3,
   LASER_RANGE: 7.2,
+  LASER_RANGE_STEP: 0.5,
+  LASER_RANGE_STEP_LEVELS: 5,
+  LASER_RANGE_CAP: 8.6,
+  LASER_MESH_LEVEL: 12,
+  LASER_MESH2_LEVEL: 20,
+  LASER_FAN_SPREAD: 0.32,
   BEAM_FADE: 0.18,
 
-  /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. */
+  /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. The kills needed grow
+   *  PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (sim.pulseKillsNeeded): kill rates climb with the
+   *  spawn rate, and a field-clear every few seconds would undo the difficulty curve. */
   PULSE_KILLS: 14,
+  PULSE_KILLS_FROM_LEVEL: 6,
+  PULSE_KILLS_PER_LEVEL: 2,
   PULSE_MAX: 3,
   PULSE_SPEED: 9,
   PULSE_SCORE_MULT: 0.5,
@@ -167,9 +217,20 @@ export const MG = {
    *  the player's launcher at SEEKER_SPEED, a seeker turns toward the closest threatening rock (lead pursuit,
    *  turn rate capped at SEEKER_TURN rad/s), detonates on contact with a blast of radius SEEKER_BLAST_R that
    *  deals SEEKER_BLAST_DAMAGE and pushes rocks outward (SEEKER_BLAST_IMPULSE / mass), or fizzles after
-   *  SEEKER_LIFE seconds. */
+   *  SEEKER_LIFE seconds.
+   *  Scaling (sim.seekerHitsNeeded, sim.seekerMax, sim.seekerVolley): the hits needed ease
+   *  SEEKER_HITS_EASE_PER_LEVEL per level past SEEKER_HITS_EASE_FROM_LEVEL down to SEEKER_HITS_MIN; the stock cap
+   *  grows one per SEEKER_MAX_LEVELS levels up to SEEKER_MAX_CAP (3, then 4 at level 9, 5 at 17, 6 at 25); one
+   *  stock launches a volley of 1 + (levels in SEEKER_VOLLEY_LEVELS reached) seekers fanned SEEKER_VOLLEY_SPREAD apart. */
   SEEKER_HITS: 35,
+  SEEKER_HITS_EASE_FROM_LEVEL: 10,
+  SEEKER_HITS_EASE_PER_LEVEL: 1,
+  SEEKER_HITS_MIN: 22,
   SEEKER_MAX: 3,
+  SEEKER_MAX_LEVELS: 8,
+  SEEKER_MAX_CAP: 6,
+  SEEKER_VOLLEY_LEVELS: [10, 20, 30] as readonly number[],
+  SEEKER_VOLLEY_SPREAD: 0.3,
   SEEKER_SPEED: 4.2,
   SEEKER_TURN: 4.5,
   SEEKER_LIFE: 4.5,
@@ -185,7 +246,16 @@ export const MG = {
    *  siblings, fires 1-damage bullets at BULLET_SPEED * SWARM_BULLET_SPEED every SWARM_COOLDOWN when within
    *  SWARM_RANGE, and burns out after SWARM_LIFE seconds. Count and life grow with level (below). */
   SWARM_KILLS: 22,
+  /** Kills per swarm grow SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL (sim.swarmKillsNeeded): 22 to
+   *  level 6, 142 at 10, 292 at 15, 742 at 30. Without this the swarm feeds itself (drones make kills, kills make
+   *  swarms) and the balance probe took no hull damage at all from level 3 to 15 whatever the rocks did. The swarms
+   *  themselves still grow (count, life, stock cap): bigger but rarer, a burst weapon rather than permanent cover. */
+  SWARM_KILLS_FROM_LEVEL: 6,
+  SWARM_KILLS_PER_LEVEL: 30,
+  /** Stock cap grows one per SWARM_MAX_LEVELS levels up to SWARM_MAX_CAP (2, then 3 at level 11, 4 at 21, 5 at 31). */
   SWARM_MAX: 2,
+  SWARM_MAX_LEVELS: 10,
+  SWARM_MAX_CAP: 5,
   SWARM_COUNT_MIN: 5,
   SWARM_COUNT_MAX: 8,
   SWARM_FAN: 2.0,
@@ -201,10 +271,10 @@ export const MG = {
   SWARM_LIFE: 10,
   SWARM_R_MIN: 1.35,
   /** Growth with level: a release at level L adds floor(SWARM_GROWTH_PER_LEVEL * (L - 1)) drones to both ends
-   *  of the count range, capped at SWARM_COUNT_CAP (level 1: 5-8, level 9: 9-12, level 17+: 16 flat); the
-   *  burn-out life grows SWARM_LIFE_PER_LEVEL seconds per level up to SWARM_LIFE_MAX. */
+   *  of the count range, capped at SWARM_COUNT_CAP (level 1: 5-8, level 9: 9-12, level 17: 13-16, level 30: 19-22,
+   *  level 49+: 32 flat); the burn-out life grows SWARM_LIFE_PER_LEVEL seconds per level up to SWARM_LIFE_MAX. */
   SWARM_GROWTH_PER_LEVEL: 0.5,
-  SWARM_COUNT_CAP: 16,
+  SWARM_COUNT_CAP: 32,
   SWARM_LIFE_PER_LEVEL: 0.25,
   SWARM_LIFE_MAX: 14,
   /** The moon's no-fly zone: MOON_R + margin. Drones are steered away from it and never cross it (one that
@@ -225,7 +295,11 @@ export const MG = {
   PARTICLE_LIFE: 0.7,
   MAX_BULLETS: 900,
   MAX_PARTICLES: 1500,
+  /** Rock budget grows MAX_ASTEROIDS_PER_LEVEL per level up to MAX_ASTEROIDS_CAP (sim.maxAsteroids), so the
+   *  shrinking spawn floor is not quietly undone by the budget. */
   MAX_ASTEROIDS: 140,
+  MAX_ASTEROIDS_PER_LEVEL: 2,
+  MAX_ASTEROIDS_CAP: 220,
   SHAKE_PER_HP: 0.004,
 
   /** Fixed simulation step (s) and the cap on steps per rendered frame. */

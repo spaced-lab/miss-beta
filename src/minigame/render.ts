@@ -13,7 +13,7 @@ import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
 import { drawText, measureText } from '../render/vectorFont';
 import { MG } from './config';
-import { displayTier, laserArmed, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, spectrumStage, streamDamage, strengthLevel, turretPosition, type MinigameState, type SentryKind } from './sim';
+import { displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -27,7 +27,8 @@ export interface RenderOpts {
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
 const NEON = {
-  tier: ['#33FF33', '#FFB000', '#00F0FF', '#FF2BD6'],
+  /** Rock hardness 0..5: green, amber, cyan, magenta, then violet and white-hot for tiers 4 and 5. */
+  tier: ['#33FF33', '#FFB000', '#00F0FF', '#FF2BD6', '#9D4DFF', '#FFF6D5'],
   bullet: ['#B6FFB6', '#00F0FF', '#FF2BD6'],
   core: '#FF3B3B',
   moon: '#7DF9FF',
@@ -38,7 +39,8 @@ const NEON = {
 /**
  * Pixel sizes. Everything is deliberately fine (owner's note, 2026-10-17: "all detail gets finer"):
  * sentry bullets are single pixels, player bullets barely bigger, dust is 1 px, outlines are sub-pixel at
- * DPR 1 and crisp at DPR 2. Hardness still reads through colour and the width ladder (ROCK_W + tier * ROCK_W_STEP).
+ * DPR 1 and crisp at DPR 2. Hardness still reads through colour and the width ladder (ROCK_W + tier * ROCK_W_STEP,
+ * six tiers: 0.55 px to 1.45 px).
  */
 const PX = {
   particle: 1,
@@ -47,7 +49,7 @@ const PX = {
   bullet: 1.0,
   bulletStep: 0.3,
   rockW: 0.55,
-  rockWStep: 0.22,
+  rockWStep: 0.18,
   coreRing: 0.5,
   moonW: 0.75,
   moonDetail: 0.5,
@@ -291,13 +293,14 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     if (a.core) s.circle(X(a.x), Y(a.y), a.r * k * 0.45, { color, glow: 0.6, width: PX.coreRing });
   }
 
-  // Laser beams: a bright core line and a wider faint one, fading.
+  // Laser beams: a bright core line and a wider faint one, fading; a MESH pull leaves every fan on screen at once.
+  const reach = laserRange(st.level);
   for (const b of st.beams) {
     const a = b.t / MG.BEAM_FADE;
     const x0 = X(1.28 * Math.cos(b.angle));
     const y0 = Y(1.28 * Math.sin(b.angle));
-    const x1 = X(MG.LASER_RANGE * Math.cos(b.angle));
-    const y1 = Y(MG.LASER_RANGE * Math.sin(b.angle));
+    const x1 = X(reach * Math.cos(b.angle));
+    const y1 = Y(reach * Math.sin(b.angle));
     const lc = stage >= 2 ? NEON.bullet[2] : p.hot;
     s.stroke([x0, y0, x1, y1], { color: lc, width: 6, alpha: a * 0.25, glow: 0 });
     s.stroke([x0, y0, x1, y1], { color: p.hot, width: 1.5, alpha: a, glow: 2 });
@@ -327,18 +330,19 @@ function bar(s: Surface, x: number, y: number, w: number, h: number, frac: numbe
   if (f > 0) s.stroke([x + 3, y + h / 2, x + 3 + (w - 6) * f, y + h / 2], { color, width: h - 6, glow });
 }
 
-/** An earned-weapon row: label, `max` stock diamonds (lit up to `have`), and a 0..1 charge bar after them. */
+/** An earned-weapon row: label, `max` stock diamonds (lit up to `have`; packed tighter once the cap grows past 3), and a 0..1 charge bar after them. */
 function stockRow(s: Surface, bx: number, by: number, bw: number, bh: number, fs: number, label: string, have: number, max: number, charge: number, color: string): void {
   const p = s.palette;
   drawText(s, label, bx, by - fs - 6, fs);
+  const gap = max > 3 ? 15 : 22;
+  const r = max > 3 ? 4.5 : 6;
   for (let i = 0; i < max; i++) {
-    const dx = bx + 10 + i * 22;
+    const dx = bx + 10 + i * gap;
     const dy = by + bh / 2;
-    const r = 6;
     const lit = i < have;
     s.stroke([dx, dy - r, dx + r, dy, dx, dy + r, dx - r, dy], { closed: true, color: lit ? color : p.dim, glow: lit ? 1.5 : 0 });
   }
-  const cbx = bx + 10 + max * 22 + 6;
+  const cbx = bx + 10 + max * gap + 6;
   const cbw = bw - (cbx - bx);
   s.stroke([cbx, by + bh / 2, cbx + cbw, by + bh / 2], { color: p.dim, glow: 0 });
   if (charge > 0) s.stroke([cbx, by + bh / 2, cbx + cbw * Math.min(1, charge), by + bh / 2], { width: 4, glow: 0.8 });
@@ -368,24 +372,27 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   drawText(s, st.overheated ? 'HEAT  OVERHEAT' : 'HEAT', bx, by - fs - 6, fs, { color: st.overheated ? NEON.heat : p.ink, glow: st.overheated ? 1.5 : 1 });
   bar(s, bx, by, bw, bh, st.heat, st.heat > 0.75 || st.overheated ? NEON.heat : p.ink, st.heat > 0.75 ? 1.5 : 0.6);
 
-  if (laserStage(st.streamCount) > 0) {
+  const lstage = laserStage(st.streamCount, st.level);
+  if (lstage > 0) {
     const armed = laserArmed(st);
-    drawText(s, armed ? 'LASER READY' : 'LASER', bx + bw, by - fs - 6, 11, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
+    const name = lstage >= 3 ? 'MESH' : 'LASER';
+    drawText(s, armed ? `${name} READY` : name, bx + bw, by - fs - 6, 11, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
   }
 
   // Earned weapons: stock diamonds plus a charge bar, one row each.
   by += bh + 28;
   stockRow(s, bx, by, bw, bh, fs, 'PULSE', st.pulses, MG.PULSE_MAX, st.pulseCharge, p.hot);
   by += bh + 28;
-  stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, MG.SEEKER_MAX, st.seekerProgress / MG.SEEKER_HITS, stage >= 2 ? NEON.bullet[2] : p.hot);
+  stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, seekerMax(st.level), st.seekerProgress / seekerHitsNeeded(st.level), stage >= 2 ? NEON.bullet[2] : p.hot);
   by += bh + 28;
-  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, MG.SWARM_MAX, st.swarmProgress / MG.SWARM_KILLS, stage >= 3 ? NEON.turret[0] : p.hot);
+  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, swarmMax(st.level), st.swarmProgress / swarmKillsNeeded(st.level), stage >= 3 ? NEON.turret[0] : p.hot);
 
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {
     by += bh + 28;
-    drawText(s, `SENTRY ${st.turretProgress}/${MG.TURRET_HITS}`, bx, by - fs - 6, fs, { color: stage >= 3 ? NEON.turret[0] : p.ink });
-    bar(s, bx, by, bw, bh, st.turretProgress / MG.TURRET_HITS, stage >= 3 ? NEON.turret[0] : p.ink, 0.6);
+    const need = turretHitsNeeded(st.level);
+    drawText(s, `SENTRY ${st.turretProgress}/${need}`, bx, by - fs - 6, fs, { color: stage >= 3 ? NEON.turret[0] : p.ink });
+    bar(s, bx, by, bw, bh, st.turretProgress / need, stage >= 3 ? NEON.turret[0] : p.ink, 0.6);
   }
 
   // Stream strength ladder: one dot per stream coloured by damage.
@@ -446,7 +453,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     ['<LEFT> <RIGHT>  (OR A / D)', 'MOVE THE LAUNCHER'],
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
     ['<SHIFT>', 'PULSE  (CLEARS THE FIELD, EARNED PER 14 KILLS)'],
-    ['<  (COMMA)', 'SEEKER MISSILE  (HOMES AND BLASTS, PER 35 HITS)'],
+    ['<  (COMMA)', 'SEEKER MISSILE  (HOMES AND BLASTS, PER 35 HITS; VOLLEYS FROM LEVEL 10)'],
     ['>  (PERIOD)', 'SWARM OF SENTINELS  (5-8 DRONES, MORE EACH LEVEL, PER 22 KILLS)'],
   ];
   let ly = y + 128;
@@ -459,7 +466,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     'LEVELS RAISE STREAMS, LAUNCHERS AND ROCK HARDNESS.',
     'HARDER ROCKS CHANGE COLOUR AS THEY WEAKEN. SHOTS NUDGE ROCKS.',
     'A MOON ARRIVES AT LEVEL 3. SENTRIES ARE EARNED FROM LEVEL 6.',
-    'FROM 3 STREAMS, THE FIRST SHOT AFTER A BREAK IS A LASER PULSE.',
+    'FROM 3 STREAMS, THE FIRST SHOT AFTER A BREAK IS A LASER PULSE; FROM LEVEL 12 IT FANS INTO A MESH.',
   ];
   for (const n of notes) {
     drawText(s, n, cx, ly + 4, 11, { align: 'center', color: s.palette.dim, glow: 0 });

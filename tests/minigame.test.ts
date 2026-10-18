@@ -9,7 +9,7 @@ import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, densestSector, deployTurret, deserialize, hullDamage, isSavedGame, laserArmed, laserStage, moonAlive, rockMass, SENTRY_KINDS, serialize, snapshot, spawnBinary, spectrumStage, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmLife, toSaved, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserFanOffsets, laserRange, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, pulseKillsNeeded, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmKillsNeeded, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -40,21 +40,72 @@ describe('progression tables', () => {
     expect(levelAt(MG.LEVEL_SECONDS)).toBe(2);
     expect(levelAt(MG.LEVEL_SECONDS * 20)).toBe(21);
     let prev = Infinity;
-    for (let l = 1; l < 40; l++) {
+    for (let l = 1; l < 80; l++) {
       expect(baseSpawnInterval(l)).toBeLessThanOrEqual(prev);
-      expect(baseSpawnInterval(l)).toBeGreaterThanOrEqual(MG.SPAWN_MIN);
+      expect(baseSpawnInterval(l)).toBeGreaterThanOrEqual(MG.SPAWN_FLOOR_ABS);
       prev = baseSpawnInterval(l);
     }
     expect(baseSpeed(1)).toBe(MG.AST_SPEED_0);
-    expect(baseSpeed(1000)).toBe(MG.AST_SPEED_MAX);
+    expect(baseSpeed(MG.AST_SPEED_CAP_FROM_LEVEL)).toBeLessThanOrEqual(MG.AST_SPEED_MAX);
+    expect(baseSpeed(1000)).toBeGreaterThan(MG.AST_SPEED_MAX);
     expect(launcherCount(1)).toBe(1);
     expect(launcherCount(1000)).toBe(8);
     expect(streamCount(1)).toBe(1);
     expect(streamCount(1000)).toBe(5);
     expect(maxTier(1)).toBe(0);
-    expect(maxTier(1000)).toBe(3);
+    expect(maxTier(9)).toBe(3);
+    expect(maxTier(1000)).toBe(MAX_TIER);
+    expect(MAX_TIER).toBe(5);
+    expect(MG.TIER_MASS_MULT.length).toBe(MG.TIER_HP_MULT.length);
+    expect(MG.TIER_SCORE_MULT.length).toBe(MG.TIER_HP_MULT.length);
     expect(spectrumStage(1)).toBe(0);
     expect(spectrumStage(1000)).toBe(3);
+  });
+
+  it('the first five levels are untouched by the late-game growths', () => {
+    for (let l = 1; l <= 5; l++) {
+      expect(baseSpawnInterval(l)).toBeCloseTo(MG.SPAWN_0 * Math.pow(MG.SPAWN_LEVEL_FACTOR, l - 1), 12);
+      expect(baseSpeed(l)).toBeCloseTo(MG.AST_SPEED_0 + MG.AST_SPEED_PER_LEVEL * (l - 1), 12);
+      expect(hpMult(l)).toBe(1);
+      expect(pressureMax(l)).toBe(MG.PRESSURE_MAX);
+      expect(damageMax(l)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, l));
+      expect(maxTier(l)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('no plateau: level 45 is strictly harder than level 30 on every axis', () => {
+    expect(baseSpawnInterval(45)).toBeLessThan(baseSpawnInterval(30));
+    expect(spawnFloor(45)).toBeLessThan(spawnFloor(30));
+    expect(baseSpeed(45)).toBeGreaterThan(baseSpeed(30));
+    expect(speedCap(45)).toBeGreaterThan(speedCap(30));
+    expect(hpMult(45)).toBeGreaterThan(hpMult(30));
+    expect(maxTier(45)).toBeGreaterThanOrEqual(maxTier(30));
+    expect(maxTier(30)).toBeGreaterThan(maxTier(9)); // tiers 4 and 5 are reachable
+    expect(maxTier(45)).toBe(MAX_TIER);
+    expect(pressureMax(45)).toBeGreaterThan(pressureMax(30));
+    expect(damageMax(45)).toBeGreaterThan(damageMax(30));
+    expect(maxAsteroids(45)).toBeGreaterThanOrEqual(maxAsteroids(30));
+    // The growths are slow: 15 levels change each axis by less than a factor of two.
+    expect(baseSpawnInterval(30) / baseSpawnInterval(45)).toBeLessThan(2);
+    expect(baseSpeed(45) / baseSpeed(30)).toBeLessThan(2);
+    expect(hpMult(45) / hpMult(30)).toBeLessThan(2);
+    // Rocks spawned at level 45 carry more hit points than the same rock at level 30.
+    const hpAt = (level: number) => {
+      const st = createState(1);
+      start(st);
+      st.t = (level - 1) * MG.LEVEL_SECONDS + 0.5;
+      st.spawnTimer = 1e9;
+      step(st, NO_INPUT, MG.DT);
+      expect(st.level).toBe(level);
+      st.asteroids.length = 0;
+      st.spawnTimer = 0;
+      step(st, NO_INPUT, MG.DT);
+      const a = st.asteroids[0];
+      if (!a) throw new Error('no spawn');
+      return a.maxHp / Math.max(1, Math.round(a.r / MG.AST_HP_UNIT)) / (MG.TIER_HP_MULT[a.tier] ?? 1);
+    };
+    expect(hpAt(45)).toBeGreaterThan(hpAt(30));
+    expect(hpAt(5)).toBe(1);
   });
 
   it('stream strength follows the centre-strongest rule', () => {
@@ -77,6 +128,14 @@ describe('progression tables', () => {
     expect(displayTier(a)).toBe(2);
     a.hp = 1;
     expect(displayTier(a)).toBe(1);
+    // A tier-5 rock walks the whole ladder 5, 4, 3, 2, 1.
+    const h = rock(st, 3, 0, 0, 0, 0.42, 5);
+    const seen = new Set<number>();
+    for (let hp = h.maxHp; hp >= 1; hp--) {
+      h.hp = hp;
+      seen.add(displayTier(h));
+    }
+    expect([...seen].sort()).toEqual([1, 2, 3, 4, 5]);
     const z = rock(st, 3, 0, 0, 0, 0.42, 0);
     z.hp = 1;
     expect(displayTier(z)).toBe(0);
@@ -142,7 +201,7 @@ describe('simulation', () => {
       step(st, FIRE, MG.DT);
       expect(st.bullets.length).toBeLessThanOrEqual(MG.MAX_BULLETS);
       expect(st.particles.length).toBeLessThanOrEqual(MG.MAX_PARTICLES);
-      expect(st.asteroids.length).toBeLessThanOrEqual(MG.MAX_ASTEROIDS);
+      expect(st.asteroids.length).toBeLessThanOrEqual(maxAsteroids(st.level));
     }
   });
 });
@@ -625,6 +684,138 @@ describe('laser pulse', () => {
   });
 });
 
+describe('weapons that scale with level', () => {
+  /** Every value of f over levels 1..80 is >= (or <= when `down`) the one before, and the far end sits on the cap. */
+  const monotone = (f: (l: number) => number, down = false) => {
+    for (let l = 2; l <= 80; l++) {
+      if (down) expect(f(l), `level ${l}`).toBeLessThanOrEqual(f(l - 1));
+      else expect(f(l), `level ${l}`).toBeGreaterThanOrEqual(f(l - 1));
+    }
+  };
+  it('seeker stock cap, volley and charge requirement', () => {
+    monotone(seekerMax);
+    expect(seekerMax(1)).toBe(MG.SEEKER_MAX);
+    expect(seekerMax(9)).toBe(MG.SEEKER_MAX + 1);
+    expect(seekerMax(1000)).toBe(MG.SEEKER_MAX_CAP);
+    monotone(seekerVolley);
+    expect([1, 9, 10, 19, 20, 29, 30, 99].map(seekerVolley)).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
+    monotone(seekerHitsNeeded, true);
+    expect(seekerHitsNeeded(1)).toBe(MG.SEEKER_HITS);
+    expect(seekerHitsNeeded(MG.SEEKER_HITS_EASE_FROM_LEVEL + 1)).toBe(MG.SEEKER_HITS - MG.SEEKER_HITS_EASE_PER_LEVEL);
+    expect(seekerHitsNeeded(1000)).toBe(MG.SEEKER_HITS_MIN);
+    // One stock at level 30 launches four, fanned around the launcher's radial, all flying outward.
+    const st = createState(121);
+    start(st);
+    st.cheats.god = true;
+    st.spawnTimer = 1e9;
+    st.t = 29 * MG.LEVEL_SECONDS + 1;
+    step(st, NO_INPUT, MG.DT);
+    expect(st.level).toBe(30);
+    st.seekerStock = 1;
+    step(st, { ...NO_INPUT, seeker: true }, MG.DT);
+    expect(st.seekers.length).toBe(4);
+    expect(st.seekerStock).toBe(0);
+    const headings = st.seekers.map((k) => Math.atan2(k.vy, k.vx) - st.launcherAngle).sort((p, q) => p - q);
+    expect(headings[3] ?? 0).toBeCloseTo(1.5 * MG.SEEKER_VOLLEY_SPREAD, 6);
+    expect(headings[0] ?? 0).toBeCloseTo(-1.5 * MG.SEEKER_VOLLEY_SPREAD, 6);
+  });
+  it('swarm and pulse charge requirements grow with level so neither becomes permanent cover', () => {
+    monotone(swarmKillsNeeded);
+    expect(swarmKillsNeeded(1)).toBe(MG.SWARM_KILLS);
+    expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL)).toBe(MG.SWARM_KILLS);
+    expect(swarmKillsNeeded(MG.SWARM_KILLS_FROM_LEVEL + 1)).toBe(MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL);
+    monotone(pulseKillsNeeded);
+    expect(pulseKillsNeeded(1)).toBe(MG.PULSE_KILLS);
+    expect(pulseKillsNeeded(MG.PULSE_KILLS_FROM_LEVEL + 5)).toBe(MG.PULSE_KILLS + 5 * MG.PULSE_KILLS_PER_LEVEL);
+  });
+  it('swarm stock cap and drone count keep growing, then cap', () => {
+    monotone(swarmMax);
+    expect(swarmMax(1)).toBe(MG.SWARM_MAX);
+    expect(swarmMax(11)).toBe(MG.SWARM_MAX + 1);
+    expect(swarmMax(1000)).toBe(MG.SWARM_MAX_CAP);
+    monotone((l) => swarmCountRange(l).max);
+    expect(swarmCountRange(30).max).toBeGreaterThan(16); // past the old cap
+    expect(swarmCountRange(1000).max).toBe(MG.SWARM_COUNT_CAP);
+  });
+  it('sentry cap grows and the hits needed ease', () => {
+    monotone(turretMax);
+    expect(turretMax(MG.TURRET_LEVEL)).toBe(MG.TURRET_MAX);
+    expect(turretMax(MG.TURRET_LEVEL + MG.TURRET_MAX_LEVELS)).toBe(MG.TURRET_MAX + 1);
+    expect(turretMax(1000)).toBe(MG.TURRET_MAX_CAP);
+    monotone(turretHitsNeeded, true);
+    expect(turretHitsNeeded(1)).toBe(MG.TURRET_HITS);
+    expect(turretHitsNeeded(1000)).toBe(MG.TURRET_HITS_MIN);
+    // More than TURRET_MAX sentries can stand at a high level.
+    const st = createState(122);
+    start(st);
+    st.spawnTimer = 1e9;
+    st.t = 30 * MG.LEVEL_SECONDS + 1;
+    step(st, NO_INPUT, MG.DT);
+    st.turrets.length = 0;
+    for (let i = 0; i < 10; i++) deployTurret(st, false, 'orbiter');
+    expect(st.turrets.length).toBe(MG.TURRET_MAX_CAP);
+  });
+  it('laser reach grows in steps to the cap; stages and fan sizes follow streams and level', () => {
+    monotone(laserRange);
+    expect(laserRange(1)).toBe(MG.LASER_RANGE);
+    expect(laserRange(5)).toBe(MG.LASER_RANGE);
+    expect(laserRange(6)).toBeCloseTo(MG.LASER_RANGE + MG.LASER_RANGE_STEP, 9);
+    expect(laserRange(1000)).toBe(MG.LASER_RANGE_CAP);
+    expect(MG.LASER_RANGE_CAP).toBeGreaterThan(MG.FIELD_R);
+    expect([1, 2].map((n) => laserStage(n, 50))).toEqual([0, 0]);
+    expect([3, 4].map((n) => laserStage(n, 50))).toEqual([1, 1]);
+    expect(laserStage(5, 1)).toBe(2);
+    expect(laserStage(5, MG.LASER_MESH_LEVEL - 1)).toBe(2);
+    expect(laserStage(5, MG.LASER_MESH_LEVEL)).toBe(3);
+    expect(laserStage(5, MG.LASER_MESH2_LEVEL)).toBe(4);
+    expect([0, 1, 2, 3, 4].map(laserBeamCount)).toEqual([1, 1, 1, 3, 5]);
+    expect(laserFanOffsets(2)).toEqual([0]);
+    expect(laserFanOffsets(3).map((o) => +o.toFixed(6))).toEqual([-MG.LASER_FAN_SPREAD, 0, MG.LASER_FAN_SPREAD].map((o) => +o.toFixed(6)));
+    expect(laserFanOffsets(4).length).toBe(5);
+    expect(laserFanOffsets(4).reduce((a, b) => a + b, 0)).toBeCloseTo(0, 9); // centred
+  });
+  it('a MESH pull fans beams from every launcher that cross their neighbours, with one mesh event', () => {
+    const mesh = (level: number, launchers: number) => {
+      const st = createState(123);
+      start(st);
+      st.cheats.god = true;
+      st.cheats.noHeat = true;
+      st.cheats.launchers = launchers;
+      st.spawnTimer = 1e9;
+      st.t = (level - 1) * MG.LEVEL_SECONDS + 1;
+      step(st, NO_INPUT, MG.DT);
+      expect(st.streamCount).toBe(5);
+      st.sinceShot = MG.LASER_BREAK_2 + 0.01; // the break needed stays the stage-2 one
+      st.fireCooldown = 0;
+      st.events.length = 0;
+      step(st, FIRE, MG.DT);
+      return st;
+    };
+    const a = mesh(MG.LASER_MESH_LEVEL, 4);
+    expect(a.beams.length).toBe(4 * 3);
+    expect(a.events.filter((e) => e.type === 'mesh').length).toBe(1);
+    expect(a.events.filter((e) => e.type === 'laser').length).toBe(0);
+    expect(a.events.find((e) => e.type === 'mesh')).toEqual({ type: 'mesh', beams: 12 });
+    // Neighbouring fans cross: launcher 0's +spread beam and launcher 1's -spread beam meet inside the reach.
+    const b0 = a.beams.find((b) => Math.abs(wrapAngle(b.angle - (a.launcherAngle + MG.LASER_FAN_SPREAD))) < 1e-6);
+    const b1 = a.beams.find((b) => Math.abs(wrapAngle(b.angle - (a.launcherAngle + Math.PI / 2 - MG.LASER_FAN_SPREAD))) < 1e-6);
+    expect(b0 && b1).toBeTruthy();
+    const b = mesh(MG.LASER_MESH2_LEVEL, 8);
+    expect(b.beams.length).toBe(8 * 5);
+    expect(b.events.find((e) => e.type === 'mesh')).toEqual({ type: 'mesh', beams: 40 });
+    // Below the mesh level 5 streams still beam one per launcher with a plain laser event each.
+    const c = mesh(MG.LASER_MESH_LEVEL - 1, 4);
+    expect(c.beams.length).toBe(4);
+    expect(c.events.filter((e) => e.type === 'laser').length).toBe(4);
+    // Not armed: no beams at all.
+    c.sinceShot = 0.1;
+    c.fireCooldown = 0;
+    c.beams.length = 0;
+    step(c, FIRE, MG.DT);
+    expect(c.beams.length).toBe(0);
+  });
+});
+
 describe('rock-on-rock dynamics', () => {
   const quiet = (st: MinigameState) => {
     st.spawnTimer = 1e9;
@@ -1053,6 +1244,61 @@ describe('balance probe', () => {
       expect(st.t, `seed ${seed} survival`).toBeGreaterThanOrEqual(60);
       expect(st.hp, `seed ${seed} hull at 150 s`).toBeLessThan(MG.MAX_HP);
     }
+  });
+  /**
+   * A weapons-using scripted player, still naive where a human is naive (no lead, overheats): fires and turns toward
+   * the nearest non-passing rock, pauses fire for the laser break every 3 s so the beam (or the mesh) arms, presses
+   * `<` and `>` whenever stock exists, and pulses when three threats are close or one is about to land.
+   */
+  function armed(st: MinigameState): Input {
+    let best: Asteroid | null = null;
+    let bestD = Infinity;
+    let close = 0;
+    for (const a of st.asteroids) {
+      if (a.passing) continue;
+      const d = Math.hypot(a.x, a.y);
+      if (d < 2.2) close++;
+      if (d < bestD) {
+        bestD = d;
+        best = a;
+      }
+    }
+    const stage = laserStage(st.streamCount, st.level);
+    const pause = (stage >= 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1) + 0.05;
+    const fire = !(stage > 0 && st.t % 3 < pause) && !st.overheated;
+    const pulse = st.pulses > 0 && st.pulseR < 0 && (close >= 3 || bestD < 1.6);
+    const seeker = st.seekerStock > 0 && best !== null;
+    const swarm = st.swarmStock > 0 && st.asteroids.length >= 5;
+    if (!best) return { ...NO_INPUT, fire, pulse, seeker, swarm };
+    const diff = wrapAngle(Math.atan2(best.y, best.x) - st.launcherAngle);
+    const sd = diff > Math.PI ? diff - 2 * Math.PI : diff;
+    return { left: sd > 0.02, right: sd < -0.02, fire, pulse, seeker, swarm };
+  }
+  it.each([1, 2, 3, 4])('with every weapon in use the ramp still bites, after level 10 (seed %i, 600 s, god off)', { timeout: 120000 }, (seed) => {
+    // Measured 2026-10-17 with the knobs of that day (HP_MULT_PER_LEVEL 0.15, SPAWN_FLOOR_FACTOR 0.95,
+    // SWARM_KILLS_PER_LEVEL 30): seeds 1..4 reach levels 27, 30, 30, 30; hull lost before / after level 10:
+    // 0/100, 45/55, 8/45, 0/91; two seeds die (530 s, 582 s), two end at 47 and 9 hull. Levels 10-15 are a
+    // fortress for any weapons-using player (no knob set produced more than one impact there), so the window
+    // runs to level 30, where the growths in config.ts (hit points, speed cap, spawn floor, pressure) take over.
+    const st = createState(seed);
+    start(st);
+    const n = Math.round(600 / MG.DT);
+    let lostBefore10 = 0;
+    let lostAfter10 = 0;
+    let hp = st.hp;
+    for (let i = 0; i < n && st.status === 'playing'; i++) {
+      step(st, armed(st), MG.DT);
+      st.events.length = 0;
+      if (st.hp < hp) {
+        if (st.level < 10) lostBefore10 += hp - st.hp;
+        else lostAfter10 += hp - st.hp;
+      }
+      hp = st.hp;
+    }
+    expect(st.level, 'reaches level 12 with every weapon in use').toBeGreaterThanOrEqual(12);
+    expect(lostAfter10, 'hull loss comes mostly after level 10').toBeGreaterThan(lostBefore10);
+    expect(lostBefore10, 'the opening is survivable').toBeLessThan(MG.MAX_HP / 2);
+    expect(st.status === 'over' || st.hp < 60, 'no plateau: by level 30 the ramp has cost most of the hull').toBe(true);
   });
   it('the hull damage cap is gentler in the first levels', () => {
     expect(hullDamage(1, 0.42, 0)).toBe(byLevel(MG.DAMAGE_MAX_BY_LEVEL, 1));

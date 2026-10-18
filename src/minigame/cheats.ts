@@ -7,7 +7,7 @@
 
 import type { Cheat } from '../game/cheats';
 import { MG } from './config';
-import { deployTurret, flash, type MinigameState } from './sim';
+import { deployTurret, flash, seekerMax, swarmMax, type MinigameState } from './sim';
 
 function assisted(st: MinigameState, text: string): void {
   st.cheats.assisted = true;
@@ -19,8 +19,8 @@ export const MINIGAME_CHEATS: readonly Cheat<MinigameState>[] = [
   { code: 'OCTO', message: 'eight launchers now', apply: (st) => { st.cheats.launchers = 8; assisted(st, 'OCTO'); } },
   { code: 'HYDRA', message: 'five streams now', apply: (st) => { st.cheats.streams = 5; assisted(st, 'HYDRA'); } },
   { code: 'PULSE', message: 'full pulse stock', apply: (st) => { st.pulses = MG.PULSE_MAX; assisted(st, 'PULSES FULL'); } },
-  { code: 'SEEKER', message: 'full seeker missile stock', apply: (st) => { st.seekerStock = MG.SEEKER_MAX; assisted(st, 'SEEKERS FULL'); } },
-  { code: 'SWARM', message: 'full swarm stock', apply: (st) => { st.swarmStock = MG.SWARM_MAX; assisted(st, 'SWARMS FULL'); } },
+  { code: 'SEEKER', message: 'full seeker missile stock', apply: (st) => { st.seekerStock = seekerMax(st.level); assisted(st, 'SEEKERS FULL'); } },
+  { code: 'SWARM', message: 'full swarm stock', apply: (st) => { st.swarmStock = swarmMax(st.level); assisted(st, 'SWARMS FULL'); } },
   { code: 'SLOWMO', message: 'half speed toggle', apply: (st) => { st.cheats.timeScale = st.cheats.timeScale === 1 ? 0.5 : 1; assisted(st, st.cheats.timeScale === 1 ? 'NORMAL SPEED' : 'SLOW MOTION'); } },
   { code: 'WARP', message: 'skip ahead two minutes of levels', apply: (st) => { st.t += 120; assisted(st, 'TIME WARP'); } },
   { code: 'SKIP', message: 'next level now', apply: (st) => { st.t = st.level * MG.LEVEL_SECONDS; assisted(st, 'LEVEL SKIP'); } },
@@ -32,5 +32,5 @@ export const MINIGAME_CHEATS: readonly Cheat<MinigameState>[] = [
   { code: 'SWEEPER', message: 'deploy a SWEEPER sentry', apply: (st) => { deployTurret(st, false, 'sweeper'); assisted(st, 'SWEEPER'); } },
   { code: 'PICKET', message: 'deploy a PICKET sentry', apply: (st) => { deployTurret(st, false, 'picket'); assisted(st, 'PICKET'); } },
   { code: 'CHASER', message: 'deploy a CHASER sentry', apply: (st) => { deployTurret(st, false, 'chaser'); assisted(st, 'CHASER'); } },
-  { code: 'KARDASHEV', message: 'everything maxed', apply: (st) => { st.cheats.launchers = 8; st.cheats.streams = 5; st.pulses = MG.PULSE_MAX; st.seekerStock = MG.SEEKER_MAX; st.swarmStock = MG.SWARM_MAX; st.cheats.god = true; st.cheats.noHeat = true; assisted(st, 'KARDASHEV'); } },
+  { code: 'KARDASHEV', message: 'everything maxed', apply: (st) => { st.cheats.launchers = 8; st.cheats.streams = 5; st.pulses = MG.PULSE_MAX; st.seekerStock = seekerMax(st.level); st.swarmStock = swarmMax(st.level); st.cheats.god = true; st.cheats.noHeat = true; assisted(st, 'KARDASHEV'); } },
 ];

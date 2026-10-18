@@ -8,7 +8,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | Milestone | State | Notes |
 |---|---|---|
 | Pre-M0 scaffold | done | Vite 8 / TS 5.9 / vitest 5, render foundation, RNG, font, title screen |
-| PERIMETER minigame (side mode) | v2.4 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts`; 2026-10-17 retune: easier open, steeper ramp, guarded by the balance probe in `tests/minigame.test.ts`; sessionStorage autosave + RESUME across dev reloads (`serialize`/`deserialize` in sim.ts, `Rng.fromState`); v2.4 sound: master compressor + sub layer under hits (not audible in tests: by ear only); v2.4 sentry archetypes ORBITER / SWEEPER / PICKET / CHASER (`SENTRY_*` knobs); seekers (`<`, `SEEKER_*`) and swarms (`>`, `SWARM_*`), save v3; ready panel: Space/R RESUME, Backspace NEW GAME; swarm grows with level (`SWARM_GROWTH_PER_LEVEL`, `SWARM_COUNT_CAP`), drones and seekers avoid the moon (`*_MOON_MARGIN`) |
+| PERIMETER minigame (side mode) | v3.2 done, tuning | levels, adaptive pressure, hardness tiers, stream strength, heat, moon, impulse, turrets; knobs in `src/minigame/config.ts`; 2026-10-17 retune: easier open, steeper ramp, guarded by the balance probe in `tests/minigame.test.ts`; sessionStorage autosave + RESUME across dev reloads (`serialize`/`deserialize` in sim.ts, `Rng.fromState`); v2.4 sound: master compressor + sub layer under hits (not audible in tests: by ear only); v2.4 sentry archetypes ORBITER / SWEEPER / PICKET / CHASER (`SENTRY_*` knobs); seekers (`<`, `SEEKER_*`) and swarms (`>`, `SWARM_*`), save v3; ready panel: Space/R RESUME, Backspace NEW GAME; swarm grows with level (`SWARM_GROWTH_PER_LEVEL`, `SWARM_COUNT_CAP`), drones and seekers avoid the moon (`*_MOON_MARGIN`); v3.2 no plateau: `spawnFloor`, `speedCap`, `hpMult`, `pressureMax`, `damageMax`, `maxAsteroids` grow slowly past levels 9-15, tiers 4-5; weapons scale (`seekerMax`/`seekerVolley`/`seekerHitsNeeded`, `swarmMax`, `turretMax`/`turretHitsNeeded`, `laserRange`, MESH laser stages 3-4); v3.2 sound: hull hit = deep rumble (`synth.rumble`), breakups on the thud voice, bass-pop hits, activity layer, mesh cluster, soft level-up pulse (by ear only); v3.2 balance probe: weapons-using bot, 600 s, seeds 1..4 |
 | M0 Skeleton and orbits | done | constants/kepler/elements (TS + pymiss, shared vectors), world with seeded phases and variety knobs, system view with warp ladder, LINEAR/COMPRESSED scale, pan/zoom. Hershey font deferred to M8 by decision |
 | M1 A threat, and losing | done | closeApproach.ts (+ pymiss mirror, vectors), roundGen.ts with guaranteed collision (1000 seeds sane, 200 seeds impact), threat orbit + ghost + brief in the system view, RESOLVE NOW, RUN OVER with Mt and category |
 | M2 First playable: direct kinetic | done | Lambert (+ mirror, vectors, Hohmann check), kinetic (DART), launcher tables, porkchop grid in a worker, KINETIC candidates ranked and resolved, resolver v1 with per-mission beta and terminal guidance, economy per year, Section 12 scoring, validated leaderboard, PLANNER overlay, craft in flight, play-by-play, DEBRIEF, next round |
@@ -26,7 +26,15 @@ are the values in `src/minigame/config.ts` and the 2026-10-17 tuning (FIELD_R 5.
 reads larger on wide screens). Balance retune the same day (owner: "a tiny bit too hard, accelerate more
 quickly"): SPAWN_0 1.8 -> 2.2, SPAWN_LEVEL_FACTOR 0.84 -> 0.78, AST_SPEED_0 0.55 -> 0.45, AST_SPEED_PER_LEVEL
 0.08 -> 0.12, LEVEL_SECONDS 24 -> 20, PRESSURE_GAIN 0.012 -> 0.015, new PRESSURE_START 0.85, DAMAGE_MAX 25 ->
-DAMAGE_MAX_BY_LEVEL [12, 16, 25].
+DAMAGE_MAX_BY_LEVEL [12, 16, 25]. Anti-plateau retune (same day, owner: "it seemed to plateau around 30"), all
+levels 1-5 untouched: SPAWN_MIN is now a floor that shrinks 5 % per level from level 9 to 0.08 (`SPAWN_FLOOR_*`),
+AST_SPEED_MAX becomes a cap rising 0.06 per level past 10 with a second speed slope of 0.1 per level past 10
+(`AST_SPEED_LATE_*`, `AST_SPEED_CAP_*`), rock hit points x(1 + 0.15 per level past 10) (`HP_MULT_*`), pressure
+ceiling +0.02 and hull damage cap +0.4 per level past 10, rock budget 140 -> 220 by level; tiers 4-5. Weapons
+scale up (seeker cap 3 -> 6 and volleys to 4, swarm cap 2 -> 5 and drones to 32, sentries 3 -> 6, laser reach to
+8.6 and the MESH stages) while swarm and pulse charges grow with level (SWARM_KILLS +30 per level past 6,
+PULSE_KILLS +2): the probe showed permanent drone cover made the planet untouchable from level 3 on. Hit points
+were the only rock axis that produced impacts against a full arsenal; speed and density were killed as spawned.
 
 ## Decisions where the plan was silent
 
