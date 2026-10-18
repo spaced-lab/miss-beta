@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- PERIMETER v3.2 sound: rock breakups are a bigger, lower hull thud (45-60 Hz sine, tail and weight scale with
+  size and tier, crunch lowpassed to 480/900 Hz), hits are bass pops with almost no grain, shots have a softer
+  attack and a lower blip, the ambient static gains an 80-120 Hz activity voice above chaos 0.5, a laser MESH
+  pull is a cluster of layered zaps, and the level-up is two gentle 55 Hz sine pulses (no square tone).
+
 - PERIMETER v3.2 weapons that scale: seeker stock cap, volley (1 -> 4 by level 30, `SEEKER_VOLLEY_LEVELS`) and
   charge easing (`seekerHitsNeeded`), swarm stock cap and drone cap 16 -> 32, sentry cap 3 -> 6 with easing hits
   (`turretMax`, `turretHitsNeeded`), laser reach +0.5 radii per 5 levels to 8.6, and LASER MESH: from level 12

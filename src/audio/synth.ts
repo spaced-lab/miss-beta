@@ -7,7 +7,9 @@
 //       lets the nodes garbage-collect after `stop`. The master bus is a gain into a DynamicsCompressor
 //       (threshold -16 dB, ratio 6, fast attack): forty bullets landing in one frame get squashed rather
 //       than clipped, so the kit can lean bassy without a hard ceiling. `bass()` carries a second, lower
-//       sub layer (30 to 45 Hz, longer tail) under the main pop; that is where "bassier" comes from.
+//       sub layer (30 to 45 Hz, longer tail) under the main pop; that is where "bassier" comes from. `thud()`
+//       is the hull-impact voice and, with a lower crunch cutoff and a longer tail, the rock-breakup voice;
+//       `tick` takes a soft attack and `sweep` a start delay so clusters (the laser mesh) schedule in one call.
 //       Everything is guarded so the module is inert in node (tests) and when audio is unavailable.
 // LORE: G8 (the look, and the sound)
 
@@ -34,6 +36,8 @@ export interface SweepOpts {
   dur?: number;
   wave?: OscillatorType;
   gain?: number;
+  /** Seconds from now to start; lets a caller stack a cluster of zaps in one go. */
+  delay?: number;
 }
 
 export interface LfoToneOpts {
@@ -143,7 +147,7 @@ export class Synth {
     const io = this.out();
     if (!io) return;
     const { ctx, master } = io;
-    const t = ctx.currentTime;
+    const t = ctx.currentTime + (o.delay ?? 0);
     const dur = o.dur ?? 0.18;
     const osc = ctx.createOscillator();
     osc.type = o.wave ?? 'sawtooth';
@@ -296,6 +300,27 @@ export class Synth {
     o2.stop(t + subDur + 0.01);
   }
 
+  /**
+   * Soft pulse: a plain sine with a slow attack (default 40 ms) and a long exponential tail, no pitch drop, no
+   * noise. The gentlest voice here: the level-up cue. `delay` schedules a second pulse a beat later.
+   */
+  softPulse(freq = 55, dur = 0.3, gain = 0.14, attack = 0.04, delay = 0): void {
+    const io = this.out();
+    if (!io) return;
+    const { ctx, master } = io;
+    const t = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + attack + dur);
+    osc.connect(g).connect(master);
+    osc.start(t);
+    osc.stop(t + attack + dur + 0.02);
+  }
+
   /** Bass static: a discrete low rumble pop, noise through a very low lowpass plus a sub sine. */
   bassStatic(gain = 0.1, dur = 0.06): void {
     const io = this.out();
@@ -320,8 +345,12 @@ export class Synth {
     this.bass(36 + Math.random() * 18, dur * 1.3, gain, 0.9, 2.2);
   }
 
-  /** Low thud: a sine dropping in pitch plus a short noise layer. Hull impacts. */
-  thud(freq = 90, dur = 0.25, gain = 0.35): void {
+  /**
+   * Low thud: a sine dropping in pitch (to 0.4 x freq over `dur`) plus a short noise layer and the sub pop under
+   * it. Hull impacts, and (bigger, lower) rock breakups. `crunchCutoff` / `crunchDur` shape the noise layer:
+   * lower and longer reads as a heavier body breaking rather than a surface hit.
+   */
+  thud(freq = 90, dur = 0.25, gain = 0.35, crunchCutoff = 700, crunchDur = 0.12): void {
     const io = this.out();
     if (!io) return;
     const { ctx, master } = io;
@@ -336,7 +365,7 @@ export class Synth {
     osc.connect(g).connect(master);
     osc.start(t);
     osc.stop(t + dur + 0.02);
-    this.crunch({ rate: 3000, bits: 3, dur: 0.12, cutoff: 700, gain: gain * 0.5 });
+    this.crunch({ rate: 3000, bits: 3, dur: crunchDur, cutoff: crunchCutoff, gain: gain * 0.5 });
     this.bass(freq * 0.5, dur * 0.8, gain * 0.8, 0.8, 1.6);
   }
 }
