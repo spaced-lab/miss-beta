@@ -49,3 +49,13 @@ describe('SKY coverage', () => {
     expect(eclipticLatitude({ x: 1, y: 0, z: 1 }, { x: 0, y: 0 })).toBeCloseTo(45, 9);
   });
 });
+
+describe('SKY view geometry', () => {
+  it('elongation and unit vectors match the doc examples', async () => {
+    const { elongationOf, skyVector } = await import('../src/render/views/sky');
+    expect(elongationOf(90, 0)).toBeCloseTo(90, 9);
+    expect(elongationOf(0, 60)).toBeCloseTo(60, 9);
+    const v = skyVector(30, 40);
+    expect(Math.hypot(...v)).toBeCloseTo(1, 12);
+  });
+});

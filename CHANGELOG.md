@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- SKY view (K): the sky from HOME as a turning wireframe sphere, every direction marked by how often the active
+  networks look there (dot, ring, diamond for blind), the Sun and its glare cap, and the threat's track over the
+  last 400 days. Fixed: Esc inside PROGRAMS, TECH, the lore panel or the planet view now closes it instead of
+  leaving for the title.
+
 - VISITORS FROM OTHER STARS in REALISTIC runs: OPTIONS > INTERSTELLAR RATE (REAL, ELEVATED 2 %, FREQUENT 10 %,
   STORM 30 %; above REAL stamps the run EXAGGERATED on the debrief, the save and the leaderboard). A visitor is
   fast, dark and tilted out of the plane (3-D lite: tilt the camera with I to see its track rise), found only by

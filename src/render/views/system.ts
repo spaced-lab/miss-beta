@@ -11,6 +11,7 @@
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
+import { SkyOverlay } from './sky';
 import { nodeLine, tiltAboutNode } from '../../sim/sky';
 import { advanceStudies, studyById } from '../../sim/studies';
 import { yearOf } from '../../sim/detection';
@@ -107,6 +108,8 @@ export class SystemScreen implements Screen {
   private readonly planner: PlannerOverlay;
   private readonly planet: PlanetOverlay;
   private readonly programs: ProgramsOverlay;
+  /** SKY view (K): coverage by direction and the threat's track across the sky. */
+  private readonly sky: SkyOverlay;
   private readonly tech: TechOverlay;
   private planetOpen = false;
   private noteText = '';
@@ -186,6 +189,7 @@ export class SystemScreen implements Screen {
     this.planner = new PlannerOverlay(s, keys, this.client);
     this.planet = new PlanetOverlay(s);
     this.programs = new ProgramsOverlay(s, keys);
+    this.sky = new SkyOverlay(s, keys);
     this.tech = new TechOverlay(s, keys);
     this.console = new ConsoleOverlay(s, keys);
     this.tele = new Teletype(s);
@@ -680,8 +684,13 @@ export class SystemScreen implements Screen {
       this.console.update(this.gameContext());
       return;
     }
-    if (k.pressed('Escape')) {
+    // Esc closes the open overlay first (each overlay handles its own Esc); only the bare map leaves for the title.
+    if (k.pressed('Escape') && !this.lore.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.sky.isOpen && !this.planetOpen) {
       this.router.go('title');
+      return;
+    }
+    if (k.pressed('Escape') && this.planetOpen && !this.lore.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.sky.isOpen) {
+      this.planetOpen = false;
       return;
     }
     if (this.lore.isOpen) {
@@ -742,6 +751,10 @@ export class SystemScreen implements Screen {
       if (this.run.programs.filter((p) => p.funding > 0).length > funded) this.sfx?.voice.say('PROGRAM_FUNDED');
       return;
     }
+    if (this.sky.isOpen) {
+      this.sky.update();
+      return;
+    }
     if (this.tech.isOpen) {
       const research = this.run.research;
       this.tech.update(this.run);
@@ -786,6 +799,11 @@ export class SystemScreen implements Screen {
       return;
     }
     if (k.pressed('KeyV')) this.planetOpen = !this.planetOpen;
+    if (k.pressed('KeyK')) {
+      setWarp(w, 0);
+      this.sky.show();
+      return;
+    }
     if (k.pressed('KeyG')) {
       setWarp(w, 0);
       syncPrograms(this.run.programs, modeIndex(this.run.mode) >= 1 ? 'SCIFI' : 'REALISTIC');
@@ -953,7 +971,7 @@ export class SystemScreen implements Screen {
       budget: budgetAt(this.run.economy, w.t),
       warp: w.warp,
       planner: this.planner.autoView(),
-      overlayOpen: this.programs.isOpen || this.tech.isOpen || this.planetOpen || this.lore.isOpen,
+      overlayOpen: this.programs.isOpen || this.tech.isOpen || this.planetOpen || this.lore.isOpen || this.sky.isOpen,
       teleModal: this.tele.isOpen && this.tele.isModal,
       teleComplete: this.tele.complete,
       cine: this.cine.isOpen,
@@ -1085,10 +1103,11 @@ export class SystemScreen implements Screen {
       this.drawThreat();
       this.drawFictionProps();
     }
-    if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawHud();
+    if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen && !this.sky.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge, this.experimental());
     this.tech.render(this.run);
+    this.sky.render(this.world, performance.now() / 1000, this.settings.reduceMotion);
     if (!this.panelHidden && !this.tele.isModal) {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
@@ -1646,7 +1665,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawTextFit(s, `<${keyName('PLANNER')}> PLANNER   <${keyName('TECH')}> TECH   <${keyName('PROGRAMS')}> PROGRAMS   <${keyName('PLANET')}> PLANET   <${keyName('EVACUATE')}> EVACUATE   <${keyName('PAUSE')}> PAUSE   ${keyName('WARP_DOWN')} ${keyName('WARP_UP')} WARP   ${keyName('RESOLVE')} RESOLVE   ${keyName('SCALE')} SCALE   ${keyName('TILT')} TILT   Z RESET   X EXPORT   ${keyName('LORE')} LORE   ${keyName('LEARN')} LEARN   ${keyName('MANUAL')} MANUAL   ${keyName('AUTOPLAY')} WATCH   ESC TITLE`, s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `<${keyName('PLANNER')}> PLANNER   <${keyName('TECH')}> TECH   <${keyName('PROGRAMS')}> PROGRAMS   <${keyName('PLANET')}> PLANET   <${keyName('EVACUATE')}> EVACUATE   <${keyName('PAUSE')}> PAUSE   ${keyName('WARP_DOWN')} ${keyName('WARP_UP')} WARP   ${keyName('RESOLVE')} RESOLVE   ${keyName('SCALE')} SCALE   ${keyName('TILT')} TILT   K SKY   Z RESET   X EXPORT   ${keyName('LORE')} LORE   ${keyName('LEARN')} LEARN   ${keyName('MANUAL')} MANUAL   ${keyName('AUTOPLAY')} WATCH   ESC TITLE`, s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
