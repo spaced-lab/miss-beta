@@ -109,6 +109,8 @@ export interface Scene {
   shards: Shard[];
   launch: { tier: number; stages: number[] } | null;
   approach: { homeR: number; ringR: number; d: number; impact: boolean; angle: number; sHit: number } | null;
+  /** Other bodies passing in the same frame (a fragment cloud): their offsets from the main path, px. */
+  crowd: { d: number; lag: number; hit: boolean }[];
 }
 
 /** Screen radius of a body from its diameter: 10 m -> 60 px, 100 m -> 90, 1 km -> 120, 10 km -> 150. */
@@ -243,13 +245,23 @@ function base(kind: CineKind, e: SimEventRecord, ctx: CineContext): Scene {
     shards: [],
     launch: null,
     approach: null,
+    crowd: [],
   };
 }
 
 /** Which events get a scene, and which later event in the same frame joins it (IMPACT + FRAGMENTATION). */
-export function groupEvents(events: readonly SimEventRecord[]): { main: SimEventRecord; companion: SimEventRecord | null }[] {
-  const out: { main: SimEventRecord; companion: SimEventRecord | null }[] = [];
+export function groupEvents(events: readonly SimEventRecord[]): { main: SimEventRecord; companion: SimEventRecord | null; crowd?: SimEventRecord[] }[] {
+  const out: { main: SimEventRecord; companion: SimEventRecord | null; crowd?: SimEventRecord[] }[] = [];
   const used = new Set<SimEventRecord>();
+  // All close approaches in one frame (a fragment cloud passing) are one scene: the most dangerous body leads.
+  const cas = events.filter((e): e is Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }> => e.kind === 'CLOSE_APPROACH');
+  if (cas.length > 1) {
+    const lead = [...cas].sort((a, b) => Number(b.impact) - Number(a.impact) || a.marginRadii - b.marginRadii)[0];
+    if (lead) {
+      for (const e of cas) used.add(e);
+      out.push({ main: lead, companion: null, crowd: cas.filter((e) => e !== lead) });
+    }
+  }
   for (const e of events) {
     if (used.has(e)) continue;
     if (e.kind === 'FRAGMENTATION') {
@@ -283,7 +295,7 @@ function kms(v: number): string {
   return `${(v / 1000).toFixed(1)} KM/S`;
 }
 
-export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, ctx: CineContext): Scene | null {
+export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, ctx: CineContext, crowd: readonly SimEventRecord[] = []): Scene | null {
   if (!(CINE_KINDS as readonly string[]).includes(e.kind)) return null;
   const sc = base(e.kind as CineKind, e, ctx);
   const rng = new Rng(sc.seed);
@@ -449,6 +461,19 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
         sc.hitAt = 1.8;
         sc.title = `${e.bodyId ?? ctx.name} CLOSE APPROACH: MISS`;
         sc.subtitle = `MISS BY ${e.marginRadii.toFixed(2)} R   D ${(e.dMin / 1000).toFixed(0)} KM   B-CRIT ${(e.bCrit / 1000).toFixed(0)} KM`;
+      }
+      if (crowd.length > 0) {
+        // The rest of the cloud: each piece on a parallel path at its own miss distance, strung out in time.
+        let hits = e.impact ? 1 : 0;
+        for (const c of crowd) {
+          if (c.kind !== 'CLOSE_APPROACH') continue;
+          if (c.impact) hits++;
+          const r = c.bCrit > 0 ? c.dMin / c.bCrit : 2;
+          sc.crowd.push({ d: Math.min(320, homeR * 1.35 * Math.max(0.2, r)) * (rng.chance(0.5) ? 1 : -1), lag: rng.float(-0.8, 0.8), hit: c.impact });
+        }
+        const n = crowd.length + 1;
+        sc.title = `${n} BODIES PASS: ${hits === 0 ? 'ALL MISS' : `${hits} HIT${hits > 1 ? '' : 'S'}`}`;
+        sc.titleRole = hits > 0 ? 'danger' : 'planet';
       }
       break;
     }

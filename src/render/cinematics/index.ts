@@ -43,7 +43,7 @@ export class Cinematics {
   enqueue(events: readonly SimEventRecord[], ctx: CineContext): number {
     let n = 0;
     for (const g of groupEvents(events)) {
-      const sc = buildScene(g.main, g.companion, ctx);
+      const sc = buildScene(g.main, g.companion, ctx, g.crowd ?? []);
       if (!sc) continue;
       this.queue.push(sc);
       n++;

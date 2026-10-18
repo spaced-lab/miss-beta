@@ -77,6 +77,15 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
     }
   }
 
+  // A passing cloud: small markers on parallel paths, each at its own miss distance.
+  if (sc.approach && sc.crowd.length > 0) {
+    for (const c of sc.crowd) {
+      const [px, py] = approachPos({ ...sc.approach, d: c.d, impact: false }, t + c.lag);
+      if (c.hit && Math.hypot(px, py) < sc.approach.homeR) continue;
+      s.dot(X(px), Y(py), 3, s.role(c.hit ? 'danger' : 'fragment'), 0.9);
+    }
+  }
+
   // The body.
   if (sc.body.length > 0) {
     let bx = 0;

@@ -124,3 +124,17 @@ describe('cinematic scenes (GAME_PLAN 29)', () => {
     expect(reduced.isOpen).toBe(false);
   });
 });
+
+describe('fragment clouds (playtest 2026-10-18)', () => {
+  it('many close approaches in one frame are one scene led by the most dangerous body', () => {
+    const cas = Array.from({ length: 32 }, (_, i) => ({ t, kind: 'CLOSE_APPROACH' as const, dMin: 2e7 + i * 1e6, bCrit: 8.4e6, marginRadii: 2 + i * 0.1, impact: i === 7, bodyId: `F${i}` }));
+    const g = groupEvents(cas);
+    expect(g.length).toBe(1);
+    expect((g[0]!.main as { bodyId?: string }).bodyId).toBe('F7');
+    const sc = buildScene(g[0]!.main, null, ctx(), g[0]!.crowd ?? [])!;
+    expect(sc.crowd.length).toBe(31);
+    expect(sc.title).toContain('32 BODIES');
+    const cine = new Cinematics({} as Surface, () => false);
+    expect(cine.enqueue(cas, ctx())).toBe(1);
+  });
+});

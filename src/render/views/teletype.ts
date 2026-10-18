@@ -44,7 +44,14 @@ export class Teletype {
 
   push(n: Narrative, modal = false): void {
     this.queue.push({ n, modal });
-    if (!this.cur) this.next();
+    // At high warp events outrun reading: keep at most two non-modal briefs waiting (the newest).
+    while (this.queue.filter((q) => !q.modal).length > 2) {
+      const i = this.queue.findIndex((q) => !q.modal);
+      if (i < 0) break;
+      this.queue.splice(i, 1);
+    }
+    // A finished non-modal brief gives way to the new one at once.
+    if (!this.cur || (!this.cur.modal && this.complete)) this.next();
   }
 
   clear(): void {

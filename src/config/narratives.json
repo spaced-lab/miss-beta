@@ -80,19 +80,27 @@
   },
   "IMPACT_MISS": {
     "header": "@danger {missionId} MISSED {target}",
-    "lines": ["@text {reason}"]
+    "lines": [
+      "@text {reason}"
+    ]
   },
   "RETARGET": {
     "header": "@craft {missionId} RETARGET",
-    "lines": ["@text AUTONOMY RULE FIRED: NEW TARGET {target}, DSM {dv} M/S, {remaining} M/S LEFT."]
+    "lines": [
+      "@text AUTONOMY RULE FIRED: NEW TARGET {target}, DSM {dv} M/S, {remaining} M/S LEFT."
+    ]
   },
   "SPLIT": {
     "header": "@craft {missionId} DEPLOYS",
-    "lines": ["@text {count} SUB-IMPACTORS RELEASED TOWARD {targets}."]
+    "lines": [
+      "@text {count} SUB-IMPACTORS RELEASED TOWARD {targets}."
+    ]
   },
   "BETA_ASSESSED": {
     "header": "@craft {missionId} BETA ASSESSED",
-    "lines": ["@text BETA {beta}. PREDICTED MARGIN {margin} R."]
+    "lines": [
+      "@text BETA {beta}. PREDICTED MARGIN {margin} R."
+    ]
   },
   "FRAGMENTATION": {
     "header": "@fragment {target} {verb}",
@@ -104,59 +112,93 @@
   "NUKE": {
     "FUZED": {
       "header": "@nuclear {missionId} {mode} BURST ON {target}",
-      "lines": ["@nuclear {yield} MT{pulses}. DELTA-V {dv} MM/S. Q/Q* {q}: {intact}."]
+      "lines": [
+        "@nuclear {yield} MT{pulses}. DELTA-V {dv} MM/S. Q/Q* {q}: {intact}."
+      ]
     },
     "FAILED": {
       "header": "@danger {missionId} FUZE FAILED",
-      "lines": ["@text CLOSING SPEED TOO HIGH FOR THE FUZE. THE DEVICE PASSED {target} UNFIRED."]
+      "lines": [
+        "@text CLOSING SPEED TOO HIGH FOR THE FUZE. THE DEVICE PASSED {target} UNFIRED."
+      ]
     }
   },
   "PI": {
     "OK": {
       "header": "@fragment {missionId} PI ARRAY ON {target}",
-      "lines": ["@text {D} M SHREDDED INTO PIECES THAT AIRBURST HIGH. {damage} MT OF DAMAGE CREDITED."]
+      "lines": [
+        "@text {D} M SHREDDED INTO PIECES THAT AIRBURST HIGH. {damage} MT OF DAMAGE CREDITED."
+      ]
     },
     "FAILED": {
       "header": "@danger {missionId} PI FAILED ON {target}",
-      "lines": ["@text {reason}"]
+      "lines": [
+        "@text {reason}"
+      ]
     }
   },
   "PUSH": {
     "VIABLE": {
       "header": "@sail {missionId} {method} ON {target}",
-      "lines": ["@text FORCE {force}, {days} D OF PUSHING, DELTA-V {dv} MM/S."]
+      "lines": [
+        "@text FORCE {force}, {days} D OF PUSHING, DELTA-V {dv} MM/S."
+      ]
     },
     "NOT_VIABLE": {
       "header": "@danger {missionId} {method}: NOT VIABLE",
-      "lines": ["@text {note}"]
+      "lines": [
+        "@text {note}"
+      ]
     }
   },
   "CLOSE_APPROACH": {
     "MISS": {
       "header": "@planet {body} CLOSE APPROACH: MISS",
-      "lines": ["@text CLOSEST {dMin} KM. FOCUSING RADIUS {bCrit} KM. MARGIN {margin} R."]
+      "lines": [
+        "@text CLOSEST {dMin} KM. FOCUSING RADIUS {bCrit} KM. MARGIN {margin} R."
+      ]
     },
     "IMPACT": {
       "header": "@danger {body} IMPACT",
-      "lines": ["@text {dMin} KM, INSIDE THE FOCUSING RADIUS OF {bCrit} KM."]
+      "lines": [
+        "@text {dMin} KM, INSIDE THE FOCUSING RADIUS OF {bCrit} KM."
+      ]
+    },
+    "CLOUD": {
+      "header": "@fragment {n} BODIES PASS HOME",
+      "lines": [
+        "@text {hits} HIT, {misses} MISS. CLOSEST: {body} AT {dMin} KM ({margin} R).",
+        "@text {hitLine}"
+      ]
     }
   },
   "EVACUATE": {
     "header": "@program EVACUATION ORDERED",
-    "lines": ["@text {countdown} BEFORE IMPACT. CREDIT NEEDS {minDays} D OR MORE OF WARNING."]
+    "lines": [
+      "@text {countdown} BEFORE IMPACT. CREDIT NEEDS {minDays} D OR MORE OF WARNING."
+    ]
   },
   "DEBRIEF": {
     "MISS": {
       "header": "@planet ROUND {round}: MISS BY {margin} R",
-      "lines": ["@text PLAN {plan}. {nEvents} EVENTS. {lesson}", "@text SCORE {score}. RESEARCH {research}."]
+      "lines": [
+        "@text PLAN {plan}. {nEvents} EVENTS. {lesson}",
+        "@text SCORE {score}. RESEARCH {research}."
+      ]
     },
     "PARTIAL": {
       "header": "@danger ROUND {round}: PARTIAL",
-      "lines": ["@text {through} MT GOT THROUGH. PLAN {plan}. {lesson}", "@text SCORE {score}. RESEARCH {research}."]
+      "lines": [
+        "@text {through} MT GOT THROUGH. PLAN {plan}. {lesson}",
+        "@text SCORE {score}. RESEARCH {research}."
+      ]
     },
     "HIT": {
       "header": "@danger ROUND {round}: IMPACT",
-      "lines": ["@text {energy} MT, {category} CLASS. PLAN {plan}. {lesson}", "@text THE RUN ENDS HERE."]
+      "lines": [
+        "@text {energy} MT, {category} CLASS. PLAN {plan}. {lesson}",
+        "@text THE RUN ENDS HERE."
+      ]
     }
   }
 }

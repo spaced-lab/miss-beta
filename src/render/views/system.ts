@@ -66,7 +66,7 @@ import { exportSave, saveRun } from '../../game/savegame';
 import { Teletype } from './teletype';
 import { Cinematics } from '../cinematics/index';
 import type { CineContext } from '../cinematics/scene';
-import { debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
+import { cloudNarrative, debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
 import { craftRemaining, WarpDown } from '../../game/warpDown';
 import { pickTip, TIP_SECONDS } from '../../game/tips';
 import type { SimEventRecord } from '../../sim/eventLog';
@@ -369,8 +369,14 @@ export class SystemScreen implements Screen {
       }
       return;
     }
+    const cas = passed.filter((e): e is Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }> => e.kind === 'CLOSE_APPROACH');
     for (const e of passed) {
+      if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
       const n = eventNarrative(e, { threat: th, now: this.run.reveal ? undefined : this.world.t });
+      if (n) this.tele.push(n);
+    }
+    if (cas.length > 1) {
+      const n = cloudNarrative(cas, th);
       if (n) this.tele.push(n);
     }
     const ctx = this.cineContext(passed);

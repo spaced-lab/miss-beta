@@ -51,7 +51,7 @@ const T = narrativesJson as unknown as {
   NUKE: Record<'FUZED' | 'FAILED', Template>;
   PI: Record<'OK' | 'FAILED', Template>;
   PUSH: Record<'VIABLE' | 'NOT_VIABLE', Template>;
-  CLOSE_APPROACH: Record<'MISS' | 'IMPACT', Template>;
+  CLOSE_APPROACH: Record<'MISS' | 'IMPACT' | 'CLOUD', Template>;
   EVACUATE: Template;
   DEBRIEF: Record<'MISS' | 'PARTIAL' | 'HIT', Template>;
 };
@@ -220,6 +220,23 @@ export function eventNarrative(e: SimEventRecord, ctx: EventNarrativeContext): N
     default:
       return null;
   }
+}
+
+/** One brief for several close approaches in one frame (a fragment cloud). */
+export function cloudNarrative(cas: readonly Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }>[], th: Threat): Narrative | null {
+  if (cas.length === 0) return null;
+  const hits = cas.filter((c) => c.impact).length;
+  const closest = [...cas].sort((a, b) => a.dMin - b.dMin)[0];
+  if (!closest) return null;
+  return render(T.CLOSE_APPROACH.CLOUD, {
+    n: cas.length,
+    hits,
+    misses: cas.length - hits,
+    body: closest.bodyId ?? th.name,
+    dMin: (closest.dMin / 1000).toFixed(0),
+    margin: `${closest.marginRadii >= 0 ? '+' : ''}${closest.marginRadii.toFixed(2)}`,
+    hitLine: hits === 0 ? 'THE WHOLE CLOUD MISSED.' : 'PIECES BELOW THE AIRBURST SIZE BURN UP HIGH; THE REST COUNT AS DAMAGE.',
+  });
 }
 
 export function evacuateNarrative(remainingSeconds: number, minDays: number): Narrative {
