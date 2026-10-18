@@ -630,8 +630,9 @@ export class SystemScreen implements Screen {
       return;
     }
     // Click-to-learn (IDEAS 8): a click on a body, a craft or a HUD readout opens its lore topic.
-    const click = k.takeClick();
-    if (click && !this.planetOpen) {
+    // Overlays (programs, tech, planet view) take their own clicks; only the bare map is clickable here.
+    const click = !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen ? k.takeClick() : null;
+    if (click) {
       const h = this.hitAt(click.x, click.y);
       if (h) {
         setWarp(w, 0);
