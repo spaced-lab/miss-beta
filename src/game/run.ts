@@ -5,6 +5,7 @@
 
 import { createPrograms, defaultEffects, type ProgramState, type RunEffects } from '../sim/programs';
 import { createEconomy, type Economy } from './economy';
+import { reapplyTech, TECH } from './tech';
 
 export interface RunState {
   seed: string;
@@ -45,10 +46,12 @@ export interface RunState {
   /** One line per finished round for SAVE.md. */
   history: { round: number; threat: string; type: string; D: number; lead: number; by: string; plan: string; outcome: string; score: number }[];
   cheatsUsed: string[];
+  /** Learning mode: unlimited budget and research, every REALISTIC tech, full tracking; never recorded. */
+  sandbox: boolean;
 }
 
-export function createRun(seed: string): RunState {
-  return {
+export function createRun(seed: string, opts: { sandbox?: boolean } = {}): RunState {
+  const run: RunState = {
     seed,
     round: 1,
     economy: createEconomy(),
@@ -79,7 +82,18 @@ export function createRun(seed: string): RunState {
     evacuatedAt: null,
     history: [],
     cheatsUsed: [],
+    sandbox: opts.sandbox ?? false,
   };
+  if (run.sandbox) {
+    // SANDBOX: a run to experiment in. Everything that money or research would buy is already bought.
+    run.economy = createEconomy(1e6, 1e4);
+    run.research = 9999;
+    run.tech = TECH.filter((n) => n.mode !== 'SCIFI').map((n) => n.id);
+    reapplyTech(run);
+    run.cheatsUsed = ['SANDBOX'];
+    run.assisted = true;
+  }
+  return run;
 }
 
 /** Advance to the next round: budget balance carries over as the new starting balance. */

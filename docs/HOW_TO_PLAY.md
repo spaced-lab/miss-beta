@@ -5,6 +5,21 @@ object is found on a collision course. You have a budget, launchers and a growin
 enough that it misses, or lose the planet. The title equation says how: miss ≈ 3 · β · (m/M) · U · T. Early and
 fast beats late and big.
 
+## Your first round in six steps
+
+1. Read the top line: how big the rock is and how many years you have.
+2. Press `P`. Plan 1 is usually the best. Its RESULT line says MISS (good) or HIT (not enough).
+3. Enter commits plan 1. Commit again if the result still says HIT and the budget allows.
+4. Close the planner, press `]` a few times to speed up the clock.
+5. Watch the craft fly and the log; `R` jumps to the end.
+6. A miss opens the debrief; Space starts the next round. Between rounds `T` spends research, `G` funds programs.
+
+Stuck? Wait a year or two: budget grows on the clock. Or press `E` to evacuate a small rock.
+
+**Want to experiment first?** Start a SANDBOX RUN from the title: unlimited budget and research, every tech
+unlocked, full tracking. Nothing from a sandbox is recorded on the leaderboard. The in-game manual (`?`) has
+BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
+
 ## The round loop
 
 1. **Threat brief** (top of the screen): name, type, size, energy in megatons, class, closing speed, who found it

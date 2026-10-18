@@ -70,6 +70,7 @@ export function runFromSave(sf: SaveFile): RunState {
   run.roundsSurvived = sf.rounds_survived;
   run.cheatsUsed = [...sf.cheats_used];
   run.assisted = sf.cheats_used.length > 0;
+  run.sandbox = sf.cheats_used.includes('SANDBOX');
   run.tech = [...sf.tech];
   reapplyTech(run);
   run.programs = createPrograms();

@@ -29,6 +29,15 @@ export class TitleScreen implements Screen {
     this.items = [
       { label: 'NEW RUN', hotkey: 'KeyN', action: () => router.go('system') },
       {
+        label: 'SANDBOX RUN  (LEARN: UNLIMITED BUDGET, ALL TECH)',
+        hotkey: 'KeyS',
+        action: () => {
+          const sys = this.getSystem();
+          if (sys) sys.sandboxNext = true;
+          router.go('system');
+        },
+      },
+      {
         label: 'CONTINUE',
         hotkey: 'KeyC',
         action: () => {

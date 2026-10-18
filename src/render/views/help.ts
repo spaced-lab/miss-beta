@@ -9,8 +9,35 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawText } from '../vectorFont';
 
-export const HELP_PAGES: readonly { title: string; lines: readonly string[] }[] = [
+export interface HelpPage {
+  section: 'BASIC' | 'STRATEGY' | 'ADVANCED';
+  title: string;
+  lines: readonly string[];
+}
+
+export const HELP_PAGES: readonly HelpPage[] = [
   {
+    section: 'BASIC',
+    title: 'YOUR FIRST ROUND IN SIX STEPS',
+    lines: [
+      '1. READ THE TOP LINE: HOW BIG THE ROCK IS AND HOW MANY YEARS YOU HAVE (LEAD).',
+      '2. PRESS P. THE PLANNER LISTS PLANS. PLAN 1 IS USUALLY THE BEST. READ ITS RESULT LINE:',
+      '   MISS = GOOD.   HIT = NOT ENOUGH, YOU WILL NEED MORE THAN ONE.',
+      '3. PRESS ENTER TO COMMIT PLAN 1. COMMIT AGAIN IF THE RESULT STILL SAYS HIT (BUDGET ALLOWING).',
+      '4. PRESS P (OR ESC) TO CLOSE THE PLANNER. PRESS ] A FEW TIMES TO SPEED UP THE CLOCK.',
+      '5. WATCH THE CRAFT FLY AND THE LOG AT THE BOTTOM LEFT. PRESS R TO JUMP TO THE END.',
+      '6. A MISS OPENS THE DEBRIEF. PRESS SPACE FOR THE NEXT ROUND. BETWEEN ROUNDS: T SPENDS RESEARCH ON TECH,',
+      '   G FUNDS LONG-TERM PROGRAMS. A HIT ENDS THE RUN.',
+      '',
+      'STUCK? WAIT A YEAR OR TWO WITH ] : BUDGET GROWS ON THE CLOCK. OR PRESS E TO EVACUATE A SMALL ROCK.',
+      'WANT TO EXPERIMENT FIRST? START A SANDBOX RUN FROM THE TITLE: UNLIMITED BUDGET, EVERY TECH.',
+      '',
+      'KEYS:  P PLANNER   T TECH   G PROGRAMS   V PLANET VIEW   E EVACUATE   R RESOLVE   X EXPORT SAVE',
+      '       SPACE PAUSE   [ ] WARP   S SCALE   Z RESET CAMERA   WHEEL ZOOM   DRAG PAN   ? THIS MANUAL',
+    ],
+  },
+  {
+    section: 'BASIC',
     title: 'THE ROUND LOOP',
     lines: [
       'YOU RUN BETA, THE PLANETARY DEFENSE OFFICE OF A PLANET CALLED HOME.',
@@ -30,6 +57,7 @@ export const HELP_PAGES: readonly { title: string; lines: readonly string[] }[] 
     ],
   },
   {
+    section: 'STRATEGY',
     title: 'READING A PLAN',
     lines: [
       'PLAN 1  DEFLECT (Q/Q* 0.11)  KINETIC   SCORE 0.96',
@@ -51,6 +79,7 @@ export const HELP_PAGES: readonly { title: string; lines: readonly string[] }[] 
     ],
   },
   {
+    section: 'STRATEGY',
     title: 'PLAN TYPES (THE TECH TREE UNLOCKS THEM)',
     lines: [
       'KINETIC          ONE IMPACTOR ON A DIRECT INTERCEPT. ALWAYS AVAILABLE.',
@@ -69,6 +98,7 @@ export const HELP_PAGES: readonly { title: string; lines: readonly string[] }[] 
     ],
   },
   {
+    section: 'ADVANCED',
     title: 'PROGRAMS, CIVIL DEFENSE, SCORE, SAVING',
     lines: [
       'PROGRAMS (G): YEARS-LONG PROJECTS THAT DRAIN BUDGET PER YEAR: MORE BUDGET, CIVIL-DEFENSE READINESS,',
@@ -91,9 +121,14 @@ export const HELP_PAGES: readonly { title: string; lines: readonly string[] }[] 
   },
 ];
 
+const SECTIONS = ['BASIC', 'STRATEGY', 'ADVANCED'] as const;
+
 export class HelpScreen implements Screen {
   private page = 0;
   private scroll = 0;
+  private get section(): (typeof SECTIONS)[number] {
+    return HELP_PAGES[this.page]?.section ?? 'BASIC';
+  }
   /** Where Esc returns to. */
   returnTo: ScreenId = 'title';
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {}
@@ -115,6 +150,11 @@ export class HelpScreen implements Screen {
       this.page = (this.page + HELP_PAGES.length - 1) % HELP_PAGES.length;
       this.scroll = 0;
     }
+    if (k.pressed('Tab')) {
+      const next = SECTIONS[(SECTIONS.indexOf(this.section) + 1) % SECTIONS.length];
+      this.page = Math.max(0, HELP_PAGES.findIndex((pg) => pg.section === next));
+      this.scroll = 0;
+    }
     if (k.pressed('ArrowDown')) this.scroll = Math.min(this.scroll + 1, Math.max(0, (HELP_PAGES[this.page]?.lines.length ?? 0) - 5));
     if (k.pressed('ArrowUp')) this.scroll = Math.max(0, this.scroll - 1);
   }
@@ -125,7 +165,12 @@ export class HelpScreen implements Screen {
     const m = 16;
     const page = HELP_PAGES[this.page];
     if (!page) return;
-    drawText(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, m, m, 14, { color: p.hot, glow: 1.2 });
+    let tx = m;
+    for (const sec of SECTIONS) {
+      drawText(s, sec, tx, m, 12, { color: sec === page.section ? p.hot : p.dim, glow: sec === page.section ? 1.2 : 0 });
+      tx += 110;
+    }
+    drawText(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, { color: p.ink, glow: 0.5 });
     const size = Math.max(9, Math.min(12, (s.width - 2 * m) / 105 / (5.5 / 6)));
     const lineH = size * 1.7;
     let y = m + 36;
@@ -135,6 +180,6 @@ export class HelpScreen implements Screen {
       drawText(s, line, m, y, size, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
       y += lineH;
     }
-    drawText(s, 'LEFT / RIGHT PAGE    UP / DOWN SCROLL    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 }

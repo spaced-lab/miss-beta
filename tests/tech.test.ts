@@ -50,3 +50,22 @@ describe('tech tree (GAME_PLAN 9)', () => {
     expect(r2.propulsionTier).toBe(2);
   });
 });
+
+describe('sandbox run (learning mode)', () => {
+  it('has unlimited means, every REALISTIC tech, and is flagged so it is never recorded', () => {
+    const run = createRun('SB', { sandbox: true });
+    expect(run.sandbox).toBe(true);
+    expect(run.assisted).toBe(true);
+    expect(run.cheatsUsed).toContain('SANDBOX');
+    expect(run.research).toBeGreaterThan(1000);
+    expect(run.economy.start).toBeGreaterThan(1e5);
+    expect(run.launcherTier).toBe(3);
+    expect(run.warheadTier).toBe(3);
+    expect(run.autonomyTier).toBe(3);
+    expect(run.sailTier).toBe(3); // SL4 is SCI-FI
+    expect(run.tech).not.toContain('SL4');
+    const back = runFromSave(toSaveFile(run, null));
+    expect(back.sandbox).toBe(true);
+    expect(createRun('N').sandbox).toBe(false);
+  });
+});

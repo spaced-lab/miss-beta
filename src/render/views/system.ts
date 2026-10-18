@@ -90,7 +90,7 @@ export class SystemScreen implements Screen {
 
   /** Tracking tier: the best of researched tracking, radar programs, and a radar network within range (6.14). */
   private trackingTier(): number {
-    return Math.max(this.run.trackingTier, this.run.effects.trackingTier);
+    return this.run.sandbox ? 2 : Math.max(this.run.trackingTier, this.run.effects.trackingTier);
   }
 
   private note(text: string, seconds = 3): void {
@@ -119,9 +119,13 @@ export class SystemScreen implements Screen {
   }
 
   private newRun(): void {
-    this.run = createRun(Date.now().toString(36).toUpperCase());
+    this.run = createRun(Date.now().toString(36).toUpperCase(), { sandbox: this.sandboxNext });
+    this.sandboxNext = false;
     this.startRound();
   }
+
+  /** The next NEW RUN is a sandbox (set by the title before routing here). */
+  sandboxNext = false;
 
   private startRound(): void {
     const { seed, round } = this.run;
@@ -217,7 +221,7 @@ export class SystemScreen implements Screen {
       saveRun(this.run, this.world, null);
     } else {
       this.phase = 'over';
-      this.rank = recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted });
+      this.rank = this.run.sandbox ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted });
     }
   }
 
@@ -544,7 +548,7 @@ export class SystemScreen implements Screen {
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
     drawText(s, `WARP ${warpLabel(w)}`, m, m + 24, 14, { color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     drawText(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, m, m + 48, 12);
-    drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}`, m, m + 68, 12, { color: p.dim, glow: 0 });
+    drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX (NOT RECORDED)' : ''}`, m, m + 68, 12, { color: this.run.sandbox ? p.hot : p.dim, glow: 0 });
     if (this.noteT > 0) drawText(s, this.noteText, s.width / 2, m + 40, 12, { align: 'center', color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
     if (th.noWarning) drawText(s, 'NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY (<E> EVACUATE).', s.width / 2, m + 58, 12, { align: 'center', color: p.hot, glow: 1.2 });
 
@@ -622,7 +626,7 @@ export class SystemScreen implements Screen {
     drawText(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M`, cx, y + 80, 14, { align: 'center' });
     drawText(s, `${res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0)} MT   ${res.category}   V-IMPACT ${(res.ca.vImpact / 1000).toFixed(1)} KM/S`, cx, y + 106, 14, { align: 'center' });
     drawText(s, `CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM   MARGIN ${res.ca.marginRadii.toFixed(2)} R`, cx, y + 132, 12, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : ''}`, cx, y + 170, 12, { align: 'center' });
+    drawText(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 170, 12, { align: 'center' });
     drawText(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 214, 13, { align: 'center', color: p.hot, glow: 1.5 });
   }
 }
