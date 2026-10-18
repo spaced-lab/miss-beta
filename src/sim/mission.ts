@@ -4,6 +4,7 @@
 // HOW:  M2 flattens the leg list to one Lambert coast. Later archetypes add legs; the common fields stay.
 // LORE: G3 (the planner), D3 (kinetic and beta)
 
+import type { Rule } from '../planner/rules';
 import type { Elements } from '../physics/kepler';
 import type { Vec2 } from '../util/vec';
 
@@ -65,4 +66,14 @@ export interface Mission {
   warhead?: WarheadSpec;
   /** Present for SLOW_PUSH missions: rendezvous, then push. */
   push?: PushSpecRef;
+  /** Autonomy (GAME_PLAN 8): tier 0 fixed, 1 rules, 2 onboard retargeting, 3 swarm assignment. */
+  autonomyTier?: number;
+  /** Onboard dv available for retargeting after launch, m/s (propulsion tier). */
+  dvBudget?: number;
+  /** Tier 1 rules. */
+  rules?: Rule[];
+  /** A carrier bus with sub-impactors (swarm tiers 2 and 3). */
+  split?: { count: number; dvEach: number; deployed: boolean };
+  /** Set on missions created by the resolver (sub-impactors, retargets) for the renderer. */
+  parentId?: string;
 }

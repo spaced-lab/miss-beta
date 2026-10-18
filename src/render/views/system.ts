@@ -67,6 +67,7 @@ export class SystemScreen implements Screen {
   private planetOpen = false;
   private noteText = '';
   private noteT = 0;
+  rulesPreset = 'DEFAULT';
   private mc: MonteCarloResult | null = null;
   private mcToken = 0;
 
@@ -159,6 +160,9 @@ export class SystemScreen implements Screen {
       sailTier: this.run.sailTier,
       warheadTier: this.run.warheadTier,
       slowPushTier: this.run.slowPushTier,
+      swarmTier: this.run.swarmTier,
+      autonomyTier: this.run.autonomyTier,
+      rulesPreset: this.rulesPreset,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       buildTime: this.run.effects.buildTimeYears * YEAR,
       budget: budgetAt(this.run.economy, this.world.t),
@@ -367,7 +371,7 @@ export class SystemScreen implements Screen {
     const p = s.palette;
     const w = this.world;
     const home = planetById(w, 'HOME');
-    for (const m of this.missions) {
+    for (const m of this.result?.missionsResolved ?? this.missions) {
       if (m.legs) {
         this.drawLegs(m);
         continue;

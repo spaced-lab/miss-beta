@@ -175,6 +175,13 @@ export const KNOBS = {
   SIGMA_V_INITIAL: 0.02,
   SIGMA_V_ARC_REF_DAYS: 30,
 
+  /** 8: autonomy. A retarget needs at least this long before arrival; sub-impactor dv by swarm tier (m/s); default
+   *  deploy lead before arrival when nothing triggered a deployment. */
+  AUTONOMY_MIN_LEAD: 10 * DAY,
+  SPLIT_DV: [0, 0, 150, 600] as readonly number[],
+  SPLIT_COUNT: [1, 1, 3, 8] as readonly number[],
+  SPLIT_DEFAULT_LEAD: 30 * DAY,
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 

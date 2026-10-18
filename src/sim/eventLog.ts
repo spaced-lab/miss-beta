@@ -11,6 +11,9 @@ export type SimEventRecord =
   | { t: number; kind: 'LAUNCH'; missionId: string; c3: number; massKg: number; tier: number }
   | { t: number; kind: 'IMPACT'; missionId: string; U: number; beta: number; dvAlong: number; dvTotal: number; massKg: number; targetId?: string; qRatio?: number; betaKnownAt?: number }
   | { t: number; kind: 'IMPACT_MISS'; missionId: string; offset: number }
+  | { t: number; kind: 'RETARGET'; missionId: string; targetId: string; dv: number; remaining: number }
+  | { t: number; kind: 'SPLIT'; missionId: string; count: number; targets: string[] }
+  | { t: number; kind: 'BETA_ASSESSED'; missionId: string; beta: number; marginRadii: number }
   | { t: number; kind: 'PUSH'; missionId: string; targetId: string; method: string; force: number; dv: number; duration: number; viable: boolean; note: string }
   | { t: number; kind: 'NUKE'; missionId: string; targetId: string; mode: string; yieldMt: number; dv: number; qRatio: number; fuzed: boolean; pulses: number }
   | { t: number; kind: 'FRAGMENTATION'; missionId: string; targetId: string; qRatio: number; count: number; largestD: number; vEj: number; escaped: number }
@@ -40,6 +43,12 @@ export function formatEvent(e: SimEventRecord, tImpact: number, now?: number): s
     }
     case 'IMPACT_MISS':
       return `${stamp}  ${e.missionId} MISSED THE TARGET${Number.isFinite(e.offset) ? `  OFF BY ${(e.offset / 1000).toFixed(0)} KM` : '  (TARGET GONE)'}`;
+    case 'RETARGET':
+      return `${stamp}  ${e.missionId} RETARGET -> ${e.targetId}  DSM ${(e.dv).toFixed(0)} M/S  (${e.remaining.toFixed(0)} M/S LEFT)`;
+    case 'SPLIT':
+      return `${stamp}  ${e.missionId} DEPLOYS ${e.count} SUB-IMPACTORS -> ${[...new Set(e.targets)].join(' ')}`;
+    case 'BETA_ASSESSED':
+      return `${stamp}  ${e.missionId} BETA ASSESSED ${e.beta.toFixed(2)}  PREDICTED MARGIN ${e.marginRadii >= 0 ? '+' : ''}${e.marginRadii.toFixed(2)} R`;
     case 'PUSH':
       return `${stamp}  ${e.missionId} ${e.method} ON ${e.targetId}  ${e.viable ? `F ${e.force < 1 ? (e.force * 1000).toFixed(2) + ' MN' : e.force.toFixed(1) + ' N'}  ${(e.duration / 86400).toFixed(0)} D  dV ${(e.dv * 1000).toFixed(3)} MM/S` : 'NOT VIABLE: ' + e.note}`;
     case 'NUKE':

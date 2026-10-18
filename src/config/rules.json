@@ -1,0 +1,18 @@
+{
+  "_comment": "GAME_PLAN 8 rules DSL presets for autonomy tier 1. Validated by planner/rules.ts (no eval). Keys allowed in `if`: fragments.count, predicted.miss_radii, beta, remaining_dv. do: RETARGET | DEPLOY_SUBIMPACTORS | HOLD.",
+  "presets": {
+    "DEFAULT": [
+      { "when": "FRAGMENTATION", "if": { "fragments.count": { ">": 1 } }, "do": "RETARGET", "target": "MAX(P_HIT * MASS)", "budget": "REMAINING_DV" },
+      { "when": "BETA_ASSESSED", "if": { "predicted.miss_radii": { "<": 1.5 } }, "do": "DEPLOY_SUBIMPACTORS", "count": 3 }
+    ],
+    "AGGRESSIVE": [
+      { "when": "FRAGMENTATION", "do": "DEPLOY_SUBIMPACTORS", "count": 8 },
+      { "when": "FRAGMENTATION", "do": "RETARGET", "target": "MAX(P_HIT * MASS)", "budget": "REMAINING_DV" },
+      { "when": "MISS_PREDICTED", "if": { "predicted.miss_radii": { "<": 1.0 } }, "do": "RETARGET", "target": "MAX(MASS)" }
+    ],
+    "CONSERVATIVE": [
+      { "when": "FRAGMENTATION", "if": { "fragments.count": { ">": 3 } }, "do": "RETARGET", "target": "MAX(MASS)", "budget": "REMAINING_DV" },
+      { "when": "BETA_ASSESSED", "do": "HOLD" }
+    ]
+  }
+}

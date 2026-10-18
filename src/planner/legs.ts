@@ -87,6 +87,25 @@ export function missionFromSail(c: SailCell, ctx: LegContext, id: string, sailTi
   };
 }
 
+/** Full state (r, v) of a craft at time t from its legs, or null when not in flight. */
+export function craftState(m: Mission, mu: number, t: number): { r: Vec2; v: Vec2 } | null {
+  if (!m.legs) return null;
+  for (const leg of m.legs) {
+    if (leg.kind === 'COAST' && t >= leg.tFrom && t < leg.tTo) {
+      const s = propagate(leg.elements, mu, t);
+      return { r: s.r, v: s.v };
+    }
+    if (leg.kind === 'SAIL' && t >= leg.tFrom && t < leg.tTo) {
+      const p0 = craftPosition(m, mu, t);
+      const dt = Math.min(3600, leg.tTo - t);
+      const p1 = craftPosition(m, mu, t + dt);
+      if (!p0 || !p1 || dt <= 0) return null;
+      return { r: p0, v: { x: (p1.x - p0.x) / dt, y: (p1.y - p0.y) / dt } };
+    }
+  }
+  return null;
+}
+
 /** Position of a craft with legs at time t, or null when not in flight. */
 export function craftPosition(m: Mission, mu: number, t: number): Vec2 | null {
   if (!m.legs) return null;

@@ -50,10 +50,15 @@ export interface CandidateContext {
   resolve: (ms: Mission[]) => ResolveVerdict;
   /** Allow SWARM bundles (k = 2, 3). */
   swarm?: boolean;
+  /** Swarm tier (2: split bus x3, 3: x8) adds SPLIT carrier candidates. */
+  swarmTier?: number;
+  /** Fields the commit stamps on every mission: autonomy tier, dv budget, rules. */
+  autonomyTier?: number;
+  dvBudget?: number;
 }
 
 export interface Candidate {
-  archetype: 'KINETIC' | 'SWARM' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH';
+  archetype: 'KINETIC' | 'SWARM' | 'SPLIT' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH';
   missions: Mission[];
   iL: number;
   iA: number;
@@ -270,6 +275,19 @@ export function rankCandidates(g: PorkchopGrid, ctx: CandidateContext): Candidat
   all.sort((a, b) => b.missEstRadii - a.missEstRadii);
   const top = all.slice(0, KNOBS.PLANNER_RESOLVE_TOP);
 
+  // SPLIT carriers (swarm tiers 2, 3): the best cell's payload split into k sub-impactors with their own dv.
+  if ((ctx.swarmTier ?? 1) >= 2) {
+    const tierIdx = Math.min(3, ctx.swarmTier ?? 2);
+    for (const base of top.slice(0, 2)) {
+      const m = missionFromCell(g, base.iL, base.iA, ctx, 'CAND');
+      if (!m) continue;
+      const count = KNOBS.SPLIT_COUNT[tierIdx] ?? 3;
+      const dvEach = KNOBS.SPLIT_DV[tierIdx] ?? 150;
+      const cost = m.cost + 1; // the carrier bus
+      top.push({ archetype: 'SPLIT', missions: [{ ...m, cost, split: { count, dvEach, deployed: false } }], iL: base.iL, iA: base.iA, missEstRadii: base.missEstRadii, verdict: null, pMiss: 0, score: 0, betaRange: range, qRatio: base.qRatio, cost });
+    }
+  }
+
   // SWARM bundles from the best single cells: k launches on consecutive grid steps.
   if (ctx.swarm !== false) {
     for (const base of top.slice(0, 2)) {
@@ -289,7 +307,9 @@ export function rankCandidates(g: PorkchopGrid, ctx: CandidateContext): Candidat
   let n = 0;
   for (const c of top) {
     c.missions.forEach((m, j) => {
-      m.id = `${c.archetype === 'SWARM' ? 'SWARM' : 'IMPACTOR'}-${n + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`;
+      m.id = `${c.archetype === 'SWARM' ? 'SWARM' : c.archetype === 'SPLIT' ? 'CARRIER' : 'IMPACTOR'}-${n + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`;
+      m.autonomyTier = ctx.autonomyTier ?? 0;
+      m.dvBudget = ctx.dvBudget ?? 0;
     });
     n++;
     const v = ctx.resolve(c.missions);

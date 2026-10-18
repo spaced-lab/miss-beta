@@ -13,6 +13,7 @@ import { KNOBS } from '../../config/knobs';
 import { YEAR } from '../../physics/constants';
 import { propagate } from '../../physics/kepler';
 import { rankCandidates, rankMissions, rankNukes, rankSlowPush, type Candidate, type CandidateContext } from '../../planner/candidates';
+import { RULE_PRESETS } from '../../planner/rules';
 import type { FlybyResult } from '../../planner/flybySearch';
 import { missionFromFlyby, missionFromSail } from '../../planner/legs';
 import type { SailResult } from '../../planner/sailSearch';
@@ -38,6 +39,9 @@ export interface PlannerSession {
   sailTier: number;
   warheadTier: number;
   slowPushTier: number;
+  swarmTier: number;
+  autonomyTier: number;
+  rulesPreset: string;
   dsmBudget: number;
   /** Build time for a new mission, s (programs can shorten it). */
   buildTime: number;
@@ -167,6 +171,9 @@ export class PlannerOverlay {
         const r = resolveRound(w, [...s.missions, ...ms], { betaOverride: betaMid });
         return { outcome: r.outcome, marginRadii: r.ca.marginRadii, hitEnergyMt: r.hitEnergyMt, producedFragments: r.producedFragments };
       },
+      swarmTier: s.swarmTier,
+      autonomyTier: s.autonomyTier,
+      dvBudget: s.dsmBudget,
     };
   }
 
@@ -215,7 +222,7 @@ export class PlannerOverlay {
     const all = [...this.cands.filter((c) => c.archetype !== 'KINETIC_FLYBY' && c.archetype !== 'SAIL_KINETIC'), ...this.extra];
     all.sort((a, b) => b.score - a.score);
     const shown = all.slice(0, KNOBS.PLANNER_SHOW_TOP);
-    shown.forEach((c, i) => c.missions.forEach((m, j) => (m.id = `${c.archetype === 'SWARM' ? 'SWARM' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype === 'NUKE_STANDOFF' || c.archetype === 'NUKE_DISRUPT' ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : 'IMPACTOR'}-${i + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`)));
+    shown.forEach((c, i) => c.missions.forEach((m, j) => (m.id = `${c.archetype === 'SWARM' ? 'SWARM' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype === 'NUKE_STANDOFF' || c.archetype === 'NUKE_DISRUPT' ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : c.archetype === 'SPLIT' ? 'CARRIER' : 'IMPACTOR'}-${i + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`)));
     this.cands = shown;
     this.sel = Math.min(this.sel, Math.max(0, shown.length - 1));
     this.scheduleMc();
@@ -275,6 +282,12 @@ export class PlannerOverlay {
       this.hide();
       return;
     }
+    if (k.pressed('KeyR') && this.session) {
+      const names = Object.keys(RULE_PRESETS);
+      const i = names.indexOf(this.session.rulesPreset);
+      this.session.rulesPreset = names[(i + 1) % names.length] ?? 'DEFAULT';
+      this.status = `RULES PRESET ${this.session.rulesPreset}: ${(RULE_PRESETS[this.session.rulesPreset] ?? []).map((r) => `${r.when}->${r.do}`).join('  ')}`;
+    }
     if (k.pressed('Tab') && this.targets.length > 1) {
       this.targetIdx = (this.targetIdx + 1) % this.targets.length;
       this.requestGrid();
@@ -290,10 +303,12 @@ export class PlannerOverlay {
     }
     if (k.pressed('Enter')) {
       const c = this.cands[this.sel];
-      if (c && this.session) {
-        const base = this.session.missions.length + 1;
-        const ms = c.missions.map((m, j) => ({ ...m, id: c.missions.length > 1 ? `SWARM-${base}${String.fromCharCode(65 + j)}` : `IMPACTOR-${base}` }));
-        const ok = this.session.onCommit(ms);
+      const session = this.session;
+      if (c && session) {
+        const base = session.missions.length + 1;
+        const rules = RULE_PRESETS[session.rulesPreset] ?? RULE_PRESETS['DEFAULT'] ?? [];
+        const ms = c.missions.map((m, j) => ({ ...m, id: c.missions.length > 1 ? `SWARM-${base}${String.fromCharCode(65 + j)}` : `${c.archetype === 'SPLIT' ? 'CARRIER' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype.startsWith('NUKE') ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : 'IMPACTOR'}-${base}`, autonomyTier: session.autonomyTier, dvBudget: Math.max(m.dvBudget ?? 0, session.dsmBudget - (m.dsmUsed ?? 0)), rules }));
+        const ok = session.onCommit(ms);
         this.status = ok ? `${ms.map((m) => m.id).join(' ')} COMMITTED` : 'CANNOT AFFORD THIS PLAN';
       }
     }
@@ -314,7 +329,7 @@ export class PlannerOverlay {
     const top = m + 40;
     const bottom = H - m - 40;
     const leftW = Math.min(W * 0.46, 600);
-    drawText(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 ? '  <TAB> NEXT TARGET' : ''}`, m, m, 14, { color: p.hot, glow: 1.2 });
+    drawText(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 ? '  <TAB> NEXT TARGET' : ''}`, m, m, 14, { color: p.hot, glow: 1.2 });
     drawText(s, this.status, m, m + 20, 11, { color: p.dim, glow: 0 });
 
     const px0 = m;
@@ -397,7 +412,7 @@ export class PlannerOverlay {
       const v = c.verdict;
       const target = this.target;
       const dvMid = target ? (((range[0] + range[1]) / 2) * first.impactorKg * first.U) / target.mass : 0;
-      const label = c.archetype === 'SWARM' ? `SWARM X${c.missions.length}` : c.archetype === 'KINETIC_FLYBY' ? 'KINETIC-FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL-KINETIC' : c.archetype === 'NUKE_STANDOFF' ? `NUKE STANDOFF ${first.warhead?.yieldMt} MT` : c.archetype === 'NUKE_DISRUPT' ? `NUKE SUBSURFACE ${first.warhead?.yieldMt} MT` : c.archetype === 'SLOW_PUSH' ? `SLOW PUSH ${first.push?.method}` : 'KINETIC';
+      const label = c.archetype === 'SPLIT' ? `SPLIT BUS X${first.split?.count}` : c.archetype === 'SWARM' ? `SWARM X${c.missions.length}` : c.archetype === 'KINETIC_FLYBY' ? 'KINETIC-FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL-KINETIC' : c.archetype === 'NUKE_STANDOFF' ? `NUKE STANDOFF ${first.warhead?.yieldMt} MT` : c.archetype === 'NUKE_DISRUPT' ? `NUKE SUBSURFACE ${first.warhead?.yieldMt} MT` : c.archetype === 'SLOW_PUSH' ? `SLOW PUSH ${first.push?.method}` : 'KINETIC';
       const fly = first.legs?.find((l) => l.kind === 'FLYBY');
       const sail = first.legs?.find((l) => l.kind === 'SAIL');
       const legLine = fly && fly.kind === 'FLYBY' ? ` FLYBY   ${fly.planetId} ${formatCountdown(th.tImpact - fly.t)}   TURN ${((fly.delta * 180) / Math.PI).toFixed(0)} DEG   dV +${(fly.dvHelio / 1000).toFixed(1)} KM/S   DSM ${(fly.dsm / 1000).toFixed(2)} KM/S` : sail && sail.kind === 'SAIL' ? ` SAIL    ${sail.law}  ARC ${((sail.tTo - sail.tFrom) / 86400).toFixed(0)} D   BUILT ${(sail.dvEquiv / 1000).toFixed(1)} KM/S   DROP ${formatCountdown(th.tImpact - sail.tTo)}   DSM ${((first.dsmUsed ?? 0) / 1000).toFixed(2)} KM/S` : null;
@@ -420,7 +435,7 @@ export class PlannerOverlay {
       }
       ly += 6;
     });
-    drawText(s, 'UP / DOWN SELECT     <ENTER> COMMIT     <TAB> TARGET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'UP / DOWN SELECT     <ENTER> COMMIT     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, { align: 'center', color: p.dim, glow: 0 });
     void this.mcTimer;
   }
 }

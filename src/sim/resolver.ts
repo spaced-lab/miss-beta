@@ -22,6 +22,9 @@ import { alongTrack, kineticImpact } from '../physics/kinetic';
 import { fuzeOk, nuclearBurst } from '../physics/nuclear';
 import { integratePush, pushForce, type PushMethod } from '../physics/slowPush';
 import { betaAssessDelay } from '../physics/uncertainty';
+import { lambert } from '../physics/lambert';
+import { craftState } from '../planner/legs';
+import { matchingRules, RULE_PRESETS, type Facts, type RuleEvent } from '../planner/rules';
 import type { EventLog } from './eventLog';
 import type { Mission } from './mission';
 import { hashSeed, Rng } from './rng';
@@ -80,6 +83,8 @@ export interface RoundResult {
   tLastAction: number;
   producedFragments: boolean;
   usedWarhead: boolean;
+  /** The missions as actually flown: retargets and deployed sub-impactors included (for drawing and the log). */
+  missionsResolved: Mission[];
 }
 
 export interface ResolveOpts {
@@ -169,9 +174,231 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     events.push({ t, kind: 'FRAGMENTATION', missionId: m.id, targetId: target.id, qRatio: Q / Qs, count: pieces.length, largestD: pieces[0]?.D ?? 0, vEj: meanEj, escaped });
   };
 
-  const sorted = [...missions].sort((a, b) => a.arrivalTime - b.arrivalTime);
-  for (const m of sorted) {
-    events.push({ t: m.launchTime, kind: 'LAUNCH', missionId: m.id, c3: m.c3, massKg: m.impactorKg, tier: m.launcherTier });
+  // Working copies: autonomy rewrites targets and legs, and deploys sub-impactors.
+  const queue: Mission[] = missions.map((m) => ({ ...m, legs: m.legs ? [...m.legs] : undefined, split: m.split ? { ...m.split } : undefined }) as Mission);
+  queue.sort((a, b) => a.arrivalTime - b.arrivalTime);
+  const flown: Mission[] = [...queue];
+  /** Pending beta assessments: (time, impact details) processed in time order with the missions. */
+  const assessments: { t: number; missionId: string; beta: number; targetId: string }[] = [];
+  const transferCache = new Map<string, Elements>();
+
+  /** Craft state at time t: legs when present, else the single Lambert coast from HOME. */
+  const stateOf = (m: Mission, t: number): { r: { x: number; y: number }; v: { x: number; y: number } } | null => {
+    if (m.legs) return craftState(m, mu, t);
+    let el = transferCache.get(m.id);
+    if (!el) {
+      const hs = propagate(home.elements, mu, m.launchTime);
+      try {
+        el = stateToElements(hs.r, m.departureV, mu, m.launchTime);
+      } catch {
+        return null;
+      }
+      transferCache.set(m.id, el);
+    }
+    const st = propagate(el, mu, t);
+    return { r: st.r, v: st.v };
+  };
+
+  /** Live, damaging bodies at time t, with a quick verdict on whether each would hit if left alone. */
+  const liveBodies = (t: number): { body: Body; hits: boolean }[] =>
+    bodies
+      .filter((b) => bodyAlive(b, t) && !b.harmless)
+      .map((b) => {
+        const el = elementsAt(b.segments, t);
+        const ca = closeApproach(el, home.elements, mu, home.mu, home.radius, threat.tImpact, b.role === 'THREAT' ? {} : { window: KNOBS.FRAG_CA_WINDOW });
+        return { body: b, hits: ca.impact };
+      });
+
+  /** Re-aim mission m at body b from its state at time t, keeping the arrival time. Returns the dv or null. */
+  const retarget = (m: Mission, b: Body, t: number): number | null => {
+    const st = stateOf(m, t);
+    if (!st) return null;
+    const bEl = elementsAt(b.segments, m.arrivalTime);
+    const target = propagate(bEl, mu, m.arrivalTime);
+    const sol = lambert(st.r, target.r, m.arrivalTime - t, mu);
+    if (!sol) return null;
+    const dv = Math.hypot(sol.v1.x - st.v.x, sol.v1.y - st.v.y);
+    if (dv > (m.dvBudget ?? 0) - (m.dsmUsed ?? 0) + 1e-9) return null;
+    let coastEl: Elements;
+    try {
+      coastEl = stateToElements(st.r, sol.v1, mu, t);
+    } catch {
+      return null;
+    }
+    const kept = (m.legs ?? []).filter((l) => (l.kind === 'COAST' || l.kind === 'SAIL' ? l.tFrom < t : l.t < t)).map((l) => (l.kind === 'COAST' && l.tTo > t ? { ...l, tTo: t } : l.kind === 'SAIL' && l.tTo > t ? { ...l, tTo: t } : l));
+    if (!m.legs) {
+      const el0 = transferCache.get(m.id);
+      if (el0) kept.push({ kind: 'COAST', tFrom: m.launchTime, tTo: t, elements: el0 });
+    }
+    m.legs = [...kept, { kind: 'DSM', t, dv }, { kind: 'COAST', tFrom: t, tTo: m.arrivalTime, elements: coastEl }];
+    m.targetId = b.id;
+    m.interceptR = target.r;
+    m.arrivalV = sol.v2;
+    m.U = Math.hypot(sol.v2.x - target.v.x, sol.v2.y - target.v.y);
+    m.dsmUsed = (m.dsmUsed ?? 0) + dv;
+    return dv;
+  };
+
+  /** Desirability of a body for an impactor: hitting bodies first, then mass. */
+  const desirability = (x: { body: Body; hits: boolean }): number => (x.hits ? 1 : 0.2) * x.body.mass;
+
+  /** Deploy m's sub-impactors at time t: k new missions of mass m/k, assigned to bodies (distinct when possible). */
+  const deploySubs = (m: Mission, t: number, live: { body: Body; hits: boolean }[]): void => {
+    if (!m.split || m.split.deployed) return;
+    m.split.deployed = true;
+    const k = m.split.count;
+    const ranked = [...live].sort((a, b) => desirability(b) - desirability(a));
+    const subs: Mission[] = [];
+    for (let i = 0; i < k; i++) {
+      const sub: Mission = { ...m, id: `${m.id}-${String.fromCharCode(65 + i)}`, impactorKg: m.impactorKg / k, dvBudget: m.split.dvEach, dsmUsed: 0, parentId: m.id, autonomyTier: 0 };
+      delete sub.split;
+      if (m.legs) sub.legs = [...m.legs];
+      else delete sub.legs;
+      // Distinct targets first, then wrap around; a sub that cannot reach its pick keeps the carrier's aim.
+      const pick = ranked.length > 0 ? ranked[i % ranked.length] : null;
+      if (pick && pick.body.id !== sub.targetId) {
+        const dv = retarget(sub, pick.body, t);
+        if (dv === null) {
+          const cur = ranked.find((x) => x.body.id === (m.targetId ?? 'THREAT'));
+          if (cur) retarget(sub, cur.body, t);
+        }
+      } else if (!sub.legs) {
+        const el0 = transferCache.get(m.id);
+        if (el0) sub.legs = [{ kind: 'COAST', tFrom: m.launchTime, tTo: m.arrivalTime, elements: el0 }];
+      }
+      subs.push(sub);
+    }
+    // The carrier is spent; its subs join the queue in arrival order.
+    const idx = queue.indexOf(m);
+    if (idx >= 0) queue.splice(idx, 1);
+    const fi = flown.indexOf(m);
+    if (fi >= 0) flown.splice(fi, 1);
+    for (const sub of subs) {
+      queue.push(sub);
+      flown.push(sub);
+    }
+    queue.sort((a, b) => a.arrivalTime - b.arrivalTime);
+    events.push({ t, kind: 'SPLIT', missionId: m.id, count: k, targets: subs.map((x) => x.targetId ?? 'THREAT') });
+  };
+
+  /** Run autonomy for every in-flight mission after an event at time t. */
+  const autonomy = (t: number, when: RuleEvent, facts: Facts): void => {
+    const live = liveBodies(t);
+    if (live.length === 0) return;
+    const inFlight = queue.filter((m) => m.launchTime <= t && m.arrivalTime - t >= KNOBS.AUTONOMY_MIN_LEAD && !m.warhead && !m.push);
+    // Tier 3: joint greedy assignment, one body per craft while bodies last, by desirability.
+    const tier3 = inFlight.filter((m) => (m.autonomyTier ?? 0) >= 3);
+    if (tier3.length > 0) {
+      const ranked = [...live].sort((a, b) => desirability(b) - desirability(a));
+      const free = new Set(tier3);
+      for (const x of ranked) {
+        if (free.size === 0) break;
+        let best: Mission | null = null;
+        let bestDv = Infinity;
+        for (const m of free) {
+          if (m.targetId === x.body.id) {
+            best = m;
+            bestDv = 0;
+            break;
+          }
+          const st = stateOf(m, t);
+          if (!st) continue;
+          const tgt = propagate(elementsAt(x.body.segments, m.arrivalTime), mu, m.arrivalTime);
+          const sol = lambert(st.r, tgt.r, m.arrivalTime - t, mu);
+          if (!sol) continue;
+          const dv = Math.hypot(sol.v1.x - st.v.x, sol.v1.y - st.v.y);
+          if (dv <= (m.dvBudget ?? 0) - (m.dsmUsed ?? 0) && dv < bestDv) {
+            best = m;
+            bestDv = dv;
+          }
+        }
+        if (best) {
+          if (bestDv > 0) {
+            const dv = retarget(best, x.body, t);
+            if (dv !== null) events.push({ t, kind: 'RETARGET', missionId: best.id, targetId: x.body.id, dv, remaining: (best.dvBudget ?? 0) - (best.dsmUsed ?? 0) });
+          }
+          free.delete(best);
+        }
+      }
+    }
+    for (const m of inFlight) {
+      const tier = m.autonomyTier ?? 0;
+      if (tier >= 3) {
+        if (m.split && !m.split.deployed && when === 'FRAGMENTATION') deploySubs(m, t, live);
+        continue;
+      }
+      const targetAlive = live.some((x) => x.body.id === (m.targetId ?? 'THREAT'));
+      let wantRetarget = false;
+      let wantDeploy = false;
+      let targetMode: 'MAX(P_HIT * MASS)' | 'MAX(MASS)' | 'PRIMARY' = 'MAX(P_HIT * MASS)';
+      let deployCount = m.split?.count ?? 0;
+      if (tier >= 2) {
+        wantRetarget = !targetAlive || when === 'FRAGMENTATION';
+        wantDeploy = when === 'FRAGMENTATION';
+      } else if (tier === 1) {
+        for (const r of matchingRules(m.rules ?? RULE_PRESETS['DEFAULT'] ?? [], when, { ...facts, remaining_dv: (m.dvBudget ?? 0) - (m.dsmUsed ?? 0) })) {
+          if (r.do === 'RETARGET') {
+            wantRetarget = true;
+            targetMode = r.target ?? 'MAX(P_HIT * MASS)';
+          }
+          if (r.do === 'DEPLOY_SUBIMPACTORS') {
+            wantDeploy = true;
+            deployCount = Math.min(m.split?.count ?? 0, r.count ?? 3);
+          }
+          if (r.do === 'HOLD') {
+            wantRetarget = false;
+            wantDeploy = false;
+            break;
+          }
+        }
+      }
+      if (wantDeploy && m.split && !m.split.deployed && deployCount > 0) {
+        m.split.count = deployCount;
+        deploySubs(m, t, live);
+        continue;
+      }
+      if (!wantRetarget) continue;
+      const ranked = [...live].sort((a, b) => (targetMode === 'MAX(MASS)' ? b.body.mass - a.body.mass : desirability(b) - desirability(a)));
+      const pick = targetMode === 'PRIMARY' ? live.find((x) => x.body.role !== 'FRAGMENT') ?? ranked[0] : ranked[0];
+      if (!pick || pick.body.id === (m.targetId ?? 'THREAT')) continue;
+      const dv = retarget(m, pick.body, t);
+      if (dv !== null) events.push({ t, kind: 'RETARGET', missionId: m.id, targetId: pick.body.id, dv, remaining: (m.dvBudget ?? 0) - (m.dsmUsed ?? 0) });
+    }
+  };
+
+  /** Predicted miss of the primary at time t, planet radii (for rule facts). */
+  const predictedMargin = (t: number): number => {
+    const primary = bodies.find((b) => (b.role === 'THREAT' || b.role === 'REMNANT') && bodyAlive(b, t));
+    if (!primary) return 0;
+    return closeApproach(elementsAt(primary.segments, t), home.elements, mu, home.mu, home.radius, threat.tImpact).marginRadii;
+  };
+
+  /** Process pending assessments and default sub-impactor deployments up to time t. */
+  const settleBefore = (t: number): void => {
+    assessments.sort((a, b) => a.t - b.t);
+    while (assessments.length > 0 && (assessments[0] as { t: number }).t <= t) {
+      const a = assessments.shift()!;
+      const margin = predictedMargin(a.t);
+      events.push({ t: a.t, kind: 'BETA_ASSESSED', missionId: a.missionId, beta: a.beta, marginRadii: margin });
+      autonomy(a.t, 'BETA_ASSESSED', { beta: a.beta, 'predicted.miss_radii': margin, 'fragments.count': liveBodies(a.t).length });
+      autonomy(a.t, 'MISS_PREDICTED', { beta: a.beta, 'predicted.miss_radii': margin, 'fragments.count': liveBodies(a.t).length });
+    }
+    // Carriers that never deployed split at the default lead so their subs can spread over fragments.
+    for (const m of [...queue]) {
+      if (m.split && !m.split.deployed && (m.autonomyTier ?? 0) >= 2 && m.arrivalTime - KNOBS.SPLIT_DEFAULT_LEAD <= t && m.launchTime <= t) deploySubs(m, m.arrivalTime - KNOBS.SPLIT_DEFAULT_LEAD, liveBodies(m.arrivalTime - KNOBS.SPLIT_DEFAULT_LEAD));
+    }
+  };
+
+  for (let qi = 0; qi < queue.length; qi++) {
+    const m = queue[qi] as Mission;
+    settleBefore(m.arrivalTime);
+    // settleBefore may have re-ordered or replaced the queue (sub-impactors): re-fetch.
+    const cur = queue[qi];
+    if (cur !== m) {
+      qi--;
+      continue;
+    }
+    if (!m.parentId) events.push({ t: m.launchTime, kind: 'LAUNCH', missionId: m.id, c3: m.c3, massKg: m.impactorKg, tier: m.launcherTier });
     const targetId = m.targetId ?? 'THREAT';
     const target = bodies.find((b) => b.id === targetId && bodyAlive(b, m.arrivalTime));
     if (!target) {
@@ -247,6 +474,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       if (disrupted) {
         // The burst's momentum enters through the ejecta; the fragments carry the standoff push too.
         disruptBody(target, current, { r: st.r, v }, m, qSum, Qs, { x: ux * dvSum * 1, y: uy * dvSum * 1 }, 0, m.arrivalTime);
+        autonomy(m.arrivalTime, 'FRAGMENTATION', { 'fragments.count': liveBodies(m.arrivalTime).length, 'predicted.miss_radii': predictedMargin(m.arrivalTime) });
         continue;
       }
       let next: Elements;
@@ -283,13 +511,17 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       if (last) last.tTo = m.arrivalTime;
       target.segments.push({ tFrom: m.arrivalTime, tTo: Infinity, elements: next });
       tLast = m.arrivalTime;
-      events.push({ t: m.arrivalTime, kind: 'IMPACT', missionId: m.id, U: k.U, beta, dvAlong: alongTrack(k.dv, st.v), dvTotal: Math.hypot(k.dv.x, k.dv.y), massKg: m.impactorKg, targetId: target.id, qRatio: Q / Qs, betaKnownAt: m.arrivalTime + betaAssessDelay(opts.trackingTier ?? 0) });
+      const knownAt = m.arrivalTime + betaAssessDelay(opts.trackingTier ?? 0);
+      events.push({ t: m.arrivalTime, kind: 'IMPACT', missionId: m.id, U: k.U, beta, dvAlong: alongTrack(k.dv, st.v), dvTotal: Math.hypot(k.dv.x, k.dv.y), massKg: m.impactorKg, targetId: target.id, qRatio: Q / Qs, betaKnownAt: knownAt });
+      assessments.push({ t: knownAt, missionId: m.id, beta, targetId: target.id });
       continue;
     }
 
-    // Disruption: the body dies; a remnant and fragments are born.
+    // Disruption: the body dies; a remnant and fragments are born; in-flight autonomy reacts.
     disruptBody(target, current, st, m, Q, Qs, { x: m.arrivalV.x - st.v.x, y: m.arrivalV.y - st.v.y }, m.impactorKg, m.arrivalTime);
+    autonomy(m.arrivalTime, 'FRAGMENTATION', { 'fragments.count': liveBodies(m.arrivalTime).length, 'predicted.miss_radii': predictedMargin(m.arrivalTime) });
   }
+  settleBefore(Infinity);
 
   // Close approach of every live body.
   const outcomes: BodyOutcome[] = [];
@@ -331,6 +563,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     tLastAction: tLast,
     producedFragments,
     usedWarhead,
+    missionsResolved: flown,
   };
 }
 
