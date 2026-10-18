@@ -11,8 +11,10 @@ import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
 import { drawText } from '../vectorFont';
 import { wireSphere } from '../wire';
-import { approachPos, launchArc, launchProgress, type Scene } from './scene';
-import { drawSprite, fireColor, hash01, pixelPalette, ROCKETS, SPENT_STAGE, towerSprite } from './pixel';
+import { KNOBS } from '../../config/knobs';
+import { drawLaunchStage, drawLaunchVehicle, launchCell } from './launch';
+import { approachPos, type Scene } from './scene';
+import { falseColor, fireColor, hash01 } from './pixel';
 import type { Role } from '../palettes';
 
 /** Debris roles cycle like the minigame's hardness colours, so a breakup is not one flat colour under NEON. */
@@ -42,27 +44,7 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
   const hit = t >= sc.hitAt;
 
   // Static stage.
-  if (sc.kind === 'LAUNCH') {
-    const pal = pixelPalette(s);
-    const cell = Math.max(2, Math.round(3 * k));
-    // Pixel stars, twinkling.
-    for (let i = 0; i < 90; i++) {
-      const sx = hash01(i, 1, sc.seed) * s.width;
-      const sy = hash01(i, 2, sc.seed) * s.height * 0.7;
-      const tw = 0.4 + 0.6 * Math.abs(Math.sin(elapsed * (1 + hash01(i, 3)) * 2 + i));
-      s.dot(sx, sy, hash01(i, 4) > 0.9 ? 2 : 1, pal.w ?? p.ink, tw * 0.8);
-    }
-    // HOME's limb as a vector arc with a pixel atmosphere band, and blocky terrain under the pad.
-    const limbR = 900 * k;
-    s.circle(ox, oy + limbR, limbR, { color: s.role('planet'), glow: 1, width: 1.5 });
-    for (let i = 1; i <= 3; i++) s.circle(ox, oy + limbR, limbR + i * 9 * k, { color: s.spectrum ? s.role('orbit') : p.dim, glow: 0, alpha: 0.35 - i * 0.08 });
-    for (let gx = -40; gx <= 40; gx++) {
-      const hgt = 1 + Math.floor(hash01(gx + 99, 7, sc.seed) * 3);
-      for (let gy = 0; gy < hgt; gy++) s.dot(ox + gx * cell * 2, oy + 2 + gy * cell, cell, pal.G ?? p.ink, 0.35 + 0.15 * gy);
-    }
-    drawSprite(s, towerSprite(14), X(-12), Y(-21), cell, 0, 0.9);
-    s.stroke([X(-14), Y(0), X(14), Y(0)], { color: p.ink, glow: 0.4, width: 2 });
-  }
+  if (sc.kind === 'LAUNCH') drawLaunchStage(s, sc, elapsed, ox, oy, k);
   if (sc.kind === 'CLOSE_APPROACH' && sc.approach) {
     const a = sc.approach;
     wireSphere(s, ox, oy, a.homeR * k, elapsed * 0.25, 5, 8, s.role('planet'));
@@ -131,54 +113,7 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
   if (sc.push && !reduceMotion) drawPushScene(s, sc, t, X, Y, k);
 
   // Launch vehicle.
-  if (sc.launch && !reduceMotion) {
-    const u = launchProgress(t, sc.duration);
-    const [x, y, tx, ty] = launchArc(u, sc.launch.tier);
-    const tier = sc.launch.tier;
-    const sprite = ROCKETS[tier] ?? ROCKETS[1] ?? [];
-    const cell = Math.max(2, Math.round((2 + 0.5 * tier) * k));
-    const heading = Math.atan2(tx, -ty);
-    const spriteH = sprite.length * cell;
-    // Pad smoke: grey pixel puffs billowing out for the first second and a half.
-    if (t < 2) {
-      for (let i = 0; i < 60; i++) {
-        const a = (hash01(i, 11, sc.seed) - 0.5) * Math.PI;
-        const sp = 20 + 60 * hash01(i, 12, sc.seed);
-        const r = sp * Math.min(t, 1.5);
-        const px = X(Math.sin(a) * r * 1.6);
-        const py = Y(-2 - Math.abs(Math.cos(a)) * r * 0.3);
-        s.dot(px, py, cell * (1 + Math.floor(hash01(i, 13) * 3)), fireColor(s, 0.1), Math.max(0, 0.8 - t * 0.4));
-      }
-    }
-    // Plume: chunky fire pixels streaming back from the engines, hottest at the nozzle, flickering per frame.
-    const fx = X(x) - Math.sin(heading) * (spriteH / 2);
-    const fy = Y(y) + Math.cos(heading) * (spriteH / 2);
-    const frame = Math.floor(t * 30);
-    const n = 26 + 10 * tier;
-    for (let i = 0; i < n; i++) {
-      const d = (i / n) * (30 + 14 * tier) * k * (0.8 + 0.4 * hash01(i, frame));
-      const spread = (hash01(i, frame, 3) - 0.5) * (2 + d * 0.35);
-      const px = fx - Math.sin(heading) * d + Math.cos(heading) * spread;
-      const py = fy + Math.cos(heading) * d + Math.sin(heading) * spread;
-      s.dot(px, py, cell * (i < n * 0.3 ? 1.4 : 1), fireColor(s, 1 - i / n), 0.95 - (0.6 * i) / n);
-    }
-    drawSprite(s, sprite, X(x), Y(y), cell, heading);
-    // Spent stages fall away and tumble after each separation.
-    for (const su of sc.launch.stages) {
-      const ts = Math.pow(su, 1 / 1.5) * sc.duration * 0.92;
-      if (t < ts) continue;
-      const dt = t - ts;
-      const [sx0, sy0, stx, sty] = launchArc(su, tier);
-      drawSprite(s, SPENT_STAGE, X(sx0 + stx * 20 * dt), Y(sy0 + sty * 20 * dt + 45 * dt * dt), cell, Math.atan2(stx, -sty) + dt * 3, Math.max(0, 1 - dt / 1.6));
-    }
-    // The arc flown so far.
-    const buf: number[] = [];
-    for (let i = 0; i <= 24; i++) {
-      const [ax, ay] = launchArc((u * i) / 24, sc.launch.tier);
-      buf.push(X(ax), Y(ay));
-    }
-    if (buf.length >= 4) s.stroke(buf, { color: s.role('craft'), glow: 0.3, dash: [2, 4], alpha: 0.6 });
-  }
+  if (sc.launch && !reduceMotion) drawLaunchVehicle(s, sc, t, X, Y, k);
 
   if (!reduceMotion) {
     for (const c of sc.cracks) {
@@ -194,10 +129,13 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
       const f = (t - r.t0) / r.dur;
       // A ring of pixels rides each shock front.
       const rr = (r.r0 + (r.r1 - r.r0) * f) * k;
-      const np = Math.min(64, Math.max(12, Math.round(rr / 3)));
+      // Finer front (owner 2026-10-18): more, smaller pixels, a few riding just behind the front.
+      const np = Math.min(120, Math.max(16, Math.round(rr / 2)));
+      const ringPx = Math.max(1, 2 * KNOBS.CINE_DEBRIS_PX_SCALE * k);
       for (let j = 0; j < np; j++) {
         const a = (j / np) * Math.PI * 2 + f;
-        s.dot(X(r.x) + Math.cos(a) * rr, Y(r.y) + Math.sin(a) * rr, 2, s.role(r.role), (1 - f) * 0.8);
+        const lag = j % 3 === 0 ? 1 - 0.06 * hash01(j, 21, sc.seed) : 1;
+        s.dot(Math.round(X(r.x) + Math.cos(a) * rr * lag), Math.round(Y(r.y) + Math.sin(a) * rr * lag), ringPx, s.role(r.role), (1 - f) * 0.85);
       }
       s.circle(X(r.x), Y(r.y), (r.r0 + (r.r1 - r.r0) * f) * k, { color: s.role(r.role), glow: 1.5 * (1 - f), alpha: 1 - f * 0.9, ...(r.dash ? { dash: r.dash } : {}), width: 1 + (1 - f) });
     }
@@ -212,12 +150,25 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
       if (t < q.t0 || t > q.t0 + q.life) continue;
       const dt = t - q.t0;
       const a = 1 - dt / q.life;
-      // Chunky pixels: sizes vary per particle; debris cycles the minigame's hardness colours under NEON.
+      // Fine pixels (CINE_DEBRIS_PX_SCALE): sizes vary per particle; debris cycles the minigame's hardness
+      // colours under NEON; a fresh particle is hot ejecta in false colour; a one-pixel tail marks its motion.
       const hi = hash01(i, sc.seed);
       const role = (q.role === 'threat' || q.role === 'fragment') && sc.kind !== 'LAUNCH' ? (DEBRIS_ROLES[Math.floor(hi * DEBRIS_ROLES.length)] ?? q.role) : q.role;
+      const hot = KNOBS.CINE_FALSE_COLOUR && dt < KNOBS.CINE_HOT_EJECTA_S;
+      const col = hot ? falseColor(s, 1 - dt / KNOBS.CINE_HOT_EJECTA_S) : s.role(role);
       const px = Math.round(X(q.x + q.vx * dt));
-      const py = Math.round(Y(q.y + q.vy * dt + 0.5 * q.ay * dt * dt));
-      s.dot(px, py, Math.max(1.5, q.size * k * (1.2 + 1.8 * hi)), s.role(role), a);
+      const sy = q.y + q.vy * dt + 0.5 * q.ay * dt * dt;
+      // Launch exhaust shed near the pad must not sink through the ground.
+      if (sc.kind === 'LAUNCH' && sy > 0) continue;
+      const py = Math.round(Y(sy));
+      const size0 = Math.max(1, q.size * k * (1.2 + 1.8 * hi) * KNOBS.CINE_DEBRIS_PX_SCALE);
+      // The launch trail stays on the launch art's fine grid: at most two cells.
+      const size = sc.kind === 'LAUNCH' ? Math.min(size0, 2 * launchCell(k)) : size0;
+      s.dot(px, py, size, col, a);
+      const tdt = Math.max(0, dt - 0.03);
+      const qx = Math.round(X(q.x + q.vx * tdt));
+      const qy = Math.round(Y(q.y + q.vy * tdt + 0.5 * q.ay * tdt * tdt));
+      if (qx !== px || qy !== py) s.dot(qx, qy, Math.max(1, size * 0.6), col, a * 0.45);
     }
   }
 
@@ -255,7 +206,7 @@ function drawPushScene(s: Surface, sc: Scene, t: number, X: (x: number) => numbe
     const frame = Math.floor(t * 30);
     for (let i = 0; i < 10; i++) {
       const d = (i / 10) * len * (0.8 + 0.4 * hash01(i, frame, seed));
-      s.dot(X(x + Math.cos(ang) * d), Y(y + Math.sin(ang) * d), Math.max(1.5, 2.5 * k * (1 - i / 12)), fireColor(s, 1 - i / 10), 0.9 - i * 0.07);
+      s.dot(X(x + Math.cos(ang) * d), Y(y + Math.sin(ang) * d), Math.max(1.5, 2.5 * k * (1 - i / 12)), KNOBS.CINE_FALSE_COLOUR && i < 4 ? falseColor(s, 1 - i / 4) : fireColor(s, 1 - i / 10), 0.9 - i * 0.07);
     }
   };
   switch (push.method) {
