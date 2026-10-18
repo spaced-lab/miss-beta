@@ -360,9 +360,17 @@ export const KNOBS = {
    *  also 2-3 or 10). Speed = START x (END / START)^(elapsed / length), capped at DEMO_SPEED_MAX, then the
    *  montage. NOTE: a game-count rule (100 games at 2 x 1.15^n) was dropped after a measurement: one game takes
    *  10-12 minutes of real time at speed 1, so the counted MEDIUM run was heading for 15 minutes, not 5. */
-  DEMO_LENGTHS: { SHORT: { seconds: 150 }, MEDIUM: { seconds: 300 }, LONG: { seconds: 600 } },
-  DEMO_SPEED_START: 4,
-  DEMO_SPEED_END: 120,
+  // NOTE: owner 2026-10-18 (after shipping): "reduce the super-duper-demo by 50 % time" and "look fast and faster":
+  // lengths halved from 150 / 300 / 600 and the ramp starts and ends higher (was 4 to 120).
+  DEMO_LENGTHS: { SHORT: { seconds: 75 }, MEDIUM: { seconds: 150 }, LONG: { seconds: 300 } },
+  DEMO_SPEED_START: 8,
+  DEMO_SPEED_END: 200,
+  /** Real seconds a launch or strike cinematic plays in the demo before it is cut (was 3 demo seconds, under 0.3 s
+   *  of real time once the demo sped up, so the animations were barely seen). */
+  DEMO_CINE_S: 1.4,
+  /** Demo cutaways (render/views/demoCut.ts): real seconds between cuts and per cut, start -> finale, and the
+   *  chance a cut speaks a line. A cut never lasts under DEMO_MONTAGE.SAFE_MIN_S (photosensitive safety). */
+  DEMO_CUT: { GAP0_S: 4.5, GAP1_S: 1.1, LEN0_S: 0.9, LEN1_S: 0.4, VOICE_P: 0.5 },
   /** AUTOPLAY pace multipliers on panes, step waits and the sim clock (owner 2026-10-18: old pace = SLOW). */
   AUTO_SPEEDS: { SLOW: 1, NORMAL: 1.5, FAST: 2.25 },
   // NOTE: moved here from autoplay.ts, attract.ts, tips.ts and demo.ts so every tunable is in one file and the

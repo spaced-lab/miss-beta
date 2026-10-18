@@ -44,6 +44,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import { Autopilot, chooseProgram, chooseTech, demoSpeed, type AutoView, type Pane } from '../../game/autoplay';
+import { DemoCutaways } from './demoCut';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
@@ -205,6 +206,7 @@ export class SystemScreen implements Screen {
     this.planner.openLore = toCenter;
     for (const o of [this.planner, this.programs, this.tech, this.sky]) o.still = () => this.settings.reduceMotion;
     this.cine = new Cinematics(s, () => this.settings.reduceMotion);
+    this.demoCut = new DemoCutaways(sfx, () => this.settings.reduceMotion);
     this.cine.onHit = (sc) => {
       if (!this.sfx) return;
       if (sc.kind === 'LAUNCH') this.sfx.launch();
@@ -312,6 +314,7 @@ export class SystemScreen implements Screen {
     // AUTOPLAY from the title watches a fresh run that never touches the save or the leaderboard.
     this.auto = this.autoplayNext || this.demoNext ? new Autopilot() : null;
     this.demoT = 0;
+    this.demoCut.reset();
     if (this.auto) {
       this.auto.demo = this.demoNext;
       this.sfx?.voice.say('AUTOPLAY', true);
@@ -939,6 +942,8 @@ export class SystemScreen implements Screen {
 
   /** SUPER-DUPER-DEMO real seconds watched (the demo is timed by the clock). */
   private demoT = 0;
+  /** SUPER-DUPER-DEMO cutaways to animated summaries between the games' own frames. */
+  private readonly demoCut: DemoCutaways;
 
   /** Ask the worker for a fresh gauge when the networks or the whole calendar year changed (cheap to test per frame). */
   private refreshGauge(): void {
@@ -991,6 +996,7 @@ export class SystemScreen implements Screen {
     if (this.auto.demo) {
       this.demoT += dtMs / 1000;
       this.auto.speed = pace * demoSpeed(this.demoT, demoLen);
+      this.demoCut.update(dtMs / 1000, this.demoT / demoLen, this.cine.isOpen);
       if (this.demoT >= demoLen) {
         this.auto = null;
         this.autoPane = null;
@@ -1106,6 +1112,11 @@ export class SystemScreen implements Screen {
     const s = this.s;
     const p = s.palette;
     const w = this.world;
+    if (this.auto?.demo && this.demoCut.isOn && !this.cine.isOpen) {
+      const left = Math.max(0, KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].seconds - this.demoT);
+      this.demoCut.render(s, `SUPER-DUPER-DEMO  GAME ${this.auto.rounds + 1}  SPEED X${this.auto.speed.toFixed(0)}  FINALE IN ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`);
+      return;
+    }
     if (this.cine.isOpen) {
       this.cine.render(formatCountdown((w.threat?.tImpact ?? 0) - w.t));
       this.drawAutoPane();

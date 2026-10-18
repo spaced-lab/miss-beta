@@ -18,7 +18,7 @@ export type Units = 'SI' | 'IMPERIAL';
 export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE' | 'TERMINAL' | 'COMPUTER' | 'MAINFRAME' | 'TOY';
 /** AUTOPLAY pace (owner 2026-10-18): SLOW is the first pace, NORMAL 1.5x, FAST 2.25x (knobs AUTO_SPEEDS). */
 export type AutoSpeed = 'SLOW' | 'NORMAL' | 'FAST';
-/** SUPER-DUPER-DEMO length before the finale: about 2-3, 5 or 10 minutes (knobs DEMO_LENGTHS). */
+/** SUPER-DUPER-DEMO length before the finale: about 1, 2.5 or 5 minutes (knobs DEMO_LENGTHS). */
 export type DemoLength = 'SHORT' | 'MEDIUM' | 'LONG';
 /** Visitors from other stars per REALISTIC round (KNOBS.INTERSTELLAR_RATES); above REAL marks the run EXAGGERATED. */
 export type InterstellarRate = 'REAL' | 'ELEVATED' | 'FREQUENT' | 'STORM';
@@ -45,7 +45,7 @@ export interface Settings {
   soundStyle?: SoundStyle;
   /** AUTOPLAY pace; optional for old records, missing means NORMAL. */
   autoSpeed?: AutoSpeed;
-  /** SUPER-DUPER-DEMO length; optional for old records, missing means MEDIUM (5 minutes). */
+  /** SUPER-DUPER-DEMO length; optional for old records, missing means MEDIUM (2.5 minutes). */
   demoLength?: DemoLength;
   /** True once the photosensitivity notice on the title screen was acknowledged (optional for old records). */
   photoAck?: boolean;

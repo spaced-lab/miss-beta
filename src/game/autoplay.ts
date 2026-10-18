@@ -167,8 +167,9 @@ export class Autopilot {
     this.wait = Math.max(0, this.wait - dt);
     // Cinematics play out on their own (the demo cuts them short); modal briefs are read, then dismissed.
     if (v.cine) {
-      this.cineT += dt;
-      if (this.demo && this.cineT > 3) {
+      // NOTE: real seconds in the demo, so launches and strikes stay on screen however fast the games run.
+      this.cineT += this.demo ? dtS : dt;
+      if (this.demo && this.cineT > KNOBS.DEMO_CINE_S) {
         out.keys.push('Space');
         this.cineT = 0;
       }

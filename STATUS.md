@@ -66,6 +66,10 @@ scale up (seeker cap 3 -> 6 and volleys to 4, swarm cap 2 -> 5 and drones to 32,
 PULSE_KILLS +2): the probe showed permanent drone cover made the planet untouchable from level 3 on. Hit points
 were the only rock axis that produced impacts against a full arsenal; speed and density were killed as spawned.
 
+SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster"): DEMO_LENGTHS 150/300/600 ->
+75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
+cuts 0.9 -> 0.4 s, voice 50 %).
+
 ## Decisions
 
 - 3-D lite (2026-10-18): visitors from other stars carry an inclination about their impact node; only detection
@@ -288,6 +292,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
      PUSH until the owner reviews. Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
      then all 31 findings in `ideas/CODE_REVIEW_2026-10-18.md`, verify then fix, one commit each (both gitignored).
      Done: P1 part 1, planner ranking in the worker (D11: the demo's freeze).
+     Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,
