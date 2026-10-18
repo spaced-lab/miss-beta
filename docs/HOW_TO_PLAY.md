@@ -45,8 +45,12 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 | `R` | Resolve now |
 | `S`, `Z`, wheel, drag | Scale toggle, reset camera, zoom, pan |
 | `X` | Export SAVE.md |
-| `?` | This manual |
-| `Esc` | Title |
+| `I` | Tilt the camera (3-D view; a faint grid marks the plane of the planets) |
+| `K` | SKY view: how often each direction of the sky is watched, and where the rock is |
+| `A` | AUTOPLAY on / off; `-` and `=` change its pace (SLOW / NORMAL / FAST) |
+| `L`, `?` | Learning Center, lore panel for what is on screen (click `[?]` marks and rows to learn too) |
+| `M` | This manual |
+| `Esc` | Close the open overlay; from the bare map, back to the title |
 
 ## Events, cinematics and briefs
 
@@ -115,6 +119,16 @@ Long-term projects that take years and drain budget per year: more budget, civil
 networks (a space infrared surveyor, a sunward sentinel), radar, pre-built interceptors, launch cadence, an
 orbital depot. Networks change how early later threats are found. Lead time is the strongest multiplier in
 the game.
+
+The DETECTION GAUGE beside the networks shows, on a size bar from 1 m to 10 km, the smallest rock your networks
+would find in time to deflect (a year), to evacuate (three weeks), from the Sun's side, or as a visitor from
+another star. Funding surveys moves its bars left; the debrief places each round's rock on it.
+
+`Tab` switches to STUDIES: research into technology nobody has built yet (a CubeSat hive survey, deep-space
+fission power, fusion lines with OPTIONS > EXPERIMENTAL TECH). A study climbs readiness levels, can take longer
+than planned or fail at a milestone, and shows human years beside game years. MOON_BASE (and in SCI-FI, cities on
+OUTER and outposts on a moon of GIANT) adds a world to defend: some rocks then aim at it, and losing it costs score
+but not the run.
 
 ## Civil defense (E)
 

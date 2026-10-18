@@ -4,6 +4,11 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Usability: OPTIONS grouped into LOOK, SOUND, PLAY, RUNS and AUTOPLAY with headings; COLOUR is now COLOUR
+  ACCENTS (it sat next to COLOR MODE); long option notes wrap. The in-game manual and docs/HOW_TO_PLAY.md list
+  the new keys (K sky, I tilt, A autoplay with - and =, L / ? learning, M manual, Esc closes overlays) and explain
+  the detection gauge, STUDIES and the protected sites.
+
 - PLANNER, PROGRAMS, TECH and SKY open with the materialize frame drawing itself in (instant with REDUCE MOTION);
   under the 3-D tilt (I) a faint grid of rings and spokes marks the plane of the planets.
 

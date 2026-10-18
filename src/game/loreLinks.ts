@@ -19,7 +19,7 @@ export const PROGRAM_TOPIC: Readonly<Record<string, string>> = {
 };
 
 export const OPTION_TOPIC: Readonly<Record<string, string>> = {
-  'COLOR MODE': 'G8', COLOUR: 'G8', 'CRT EFFECTS': 'G8', GLOW: 'G8', SOUND: 'G8', UNITS: 'O1', 'REDUCE MOTION': 'G8',
+  'COLOR MODE': 'G8', COLOUR: 'G8', 'COLOUR ACCENTS': 'G8', 'SOUND STYLE': 'G8', VOICE: 'G8', 'VOICE TEST': 'G8', KEYS: 'G2', 'CRT EFFECTS': 'G8', GLOW: 'G8', SOUND: 'G8', UNITS: 'O1', 'REDUCE MOTION': 'G8',
   'TEXT SIZE': 'G8', 'LEARNING LEVEL': 'G1', TIPS: 'G1', 'INTERSTELLAR RATE': 'T6', 'EXPERIMENTAL TECH': 'D14',
   'AUTOPLAY SPEED': 'G1', 'DEMO LENGTH': 'G1',
 };
