@@ -86,7 +86,11 @@ export default defineConfig({
   plugins: [csp(), devShot()],
   build: {
     target: 'es2022',
-    sourcemap: true,
+    // NOTE: source maps stay ON (docs/DECISIONS.md D2): a browser fetches a .map only when devtools are open,
+    // so players download zero extra bytes, and a learner who opens devtools reads the real TypeScript with its
+    // comments (the code is a course). The cost is deploy size only: about 2.4 of 3.9 MB in dist/.
+    // MISS_SOURCEMAP=0 builds without them for a size-constrained host.
+    sourcemap: process.env['MISS_SOURCEMAP'] !== '0',
   },
   test: {
     include: bench ? ['bench/**/*.bench.ts'] : ['tests/**/*.test.ts'],

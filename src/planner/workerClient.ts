@@ -6,7 +6,8 @@
 
 import type { Mission } from '../sim/mission';
 import type { World } from '../sim/world';
-import { runJob, type FlybyJob, type GaugeJob, type MonteCarloJob, type PorkchopJob, type SailJob, type WorkerReply } from '../worker/planner.worker';
+import { runJob, type AttractJob, type FlybyJob, type GaugeJob, type MonteCarloJob, type PorkchopJob, type SailJob, type WorkerJob, type WorkerReply } from '../worker/planner.worker';
+import type { AttractRound } from '../game/attract';
 import type { FlybyResult } from './flybySearch';
 import type { MonteCarloResult } from './monteCarlo';
 import type { PorkchopGrid } from './porkchop';
@@ -43,7 +44,7 @@ export class PlannerClient {
     }
   }
 
-  private submit<T>(full: PorkchopJob | MonteCarloJob | FlybyJob | SailJob | GaugeJob, unwrap: (r: WorkerReply) => T): Promise<T> {
+  private submit<T>(full: WorkerJob, unwrap: (r: WorkerReply) => T): Promise<T> {
     if (!this.worker) return Promise.resolve(unwrap(runJob(full)));
     return new Promise((resolve, reject) => {
       this.pending.set(full.id, (r) => {
@@ -89,6 +90,15 @@ export class PlannerClient {
     });
   }
 
+  /** A title-screen attract round for a seed (game/attract.ts), planned off the UI thread. */
+  attract(seed: string): Promise<AttractRound> {
+    const full: AttractJob = { id: this.nextId++, type: 'attract', seed };
+    return this.submit(full, (r) => {
+      if (r.type !== 'attract') throw new Error(r.type === 'error' ? r.message : 'wrong reply');
+      return r.round;
+    });
+  }
+
   /** The detection gauge for a network set in a calendar year (the first job builds the tables, about 2 s). */
   gauge(active: readonly string[], since: Readonly<Record<string, number>>, year: number): Promise<GaugeReading> {
     const full: GaugeJob = { id: this.nextId++, type: 'gauge', active: [...active], since: { ...since }, year };
@@ -97,4 +107,12 @@ export class PlannerClient {
       return r.reading;
     });
   }
+}
+
+let shared: PlannerClient | null = null;
+/** The one planner worker for the page (D5 in docs/DECISIONS.md): the title, the system view and the gauge lab
+ *  share it, so the page runs one worker thread and the gauge's night tables are built once, not per screen. */
+export function sharedPlanner(): PlannerClient {
+  shared ??= new PlannerClient();
+  return shared;
 }

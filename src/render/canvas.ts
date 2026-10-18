@@ -50,6 +50,9 @@ export interface Surface {
   dot(x: number, y: number, size?: number, color?: string, alpha?: number): void;
 }
 
+/** setLineDash copies its argument, so one shared empty array replaces a fresh `[]` per stroke (D6). */
+const NO_DASH: number[] = [];
+
 export function createSurface(canvas: HTMLCanvasElement, palette: Palette, glowMode: GlowMode = 'understroke'): Surface {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Canvas 2D context unavailable');
@@ -99,7 +102,7 @@ export function createSurface(canvas: HTMLCanvasElement, palette: Palette, glowM
       ctx.moveTo(points[0] as number, points[1] as number);
       for (let i = 2; i < n; i += 2) ctx.lineTo(points[i] as number, points[i + 1] as number);
       if (style.closed) ctx.closePath();
-      ctx.setLineDash(style.dash ? (style.dash as number[]) : []);
+      ctx.setLineDash(style.dash ? (style.dash as number[]) : NO_DASH);
 
       // HOLO (24.1): iridescent strokes, hue cycling along the path's extent, plus a 1 px chromatic offset.
       let paint: string | CanvasGradient = color;

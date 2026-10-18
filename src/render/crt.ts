@@ -18,6 +18,8 @@ export interface CrtOpts {
 }
 
 let pattern: CanvasPattern | null = null;
+/** The vignette depends only on the canvas size: rebuilt on resize, not every frame (docs/DECISIONS.md D6). */
+let vignette: { ctx: CanvasRenderingContext2D; W: number; H: number; g: CanvasGradient } | null = null;
 let patternFor: CanvasRenderingContext2D | null = null;
 
 function scanPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
@@ -47,11 +49,14 @@ export function crtPass(s: Surface, o: CrtOpts, tSeconds: number): void {
     }
   }
   if (o.vignette) {
-    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.6);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, 'rgba(0,0,0,0.45)');
+    if (!vignette || vignette.ctx !== ctx || vignette.W !== W || vignette.H !== H) {
+      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.6);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,0.45)');
+      vignette = { ctx, W, H, g };
+    }
     ctx.globalAlpha = 1;
-    ctx.fillStyle = g;
+    ctx.fillStyle = vignette.g;
     ctx.fillRect(0, 0, W, H);
   }
   if (o.flicker) {
