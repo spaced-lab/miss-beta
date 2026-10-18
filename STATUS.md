@@ -259,7 +259,9 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 **ON OR SOON AFTER 2026-10-19: re-run CI** (`gh workflow run ci -R spaced-lab/miss-beta`) and confirm it is green on the
 Ubuntu 26 `ubuntu-latest` runner; then tick it in docs/RELEASING.md "After the first publish".
 
-**NEXT: code review, then the first public publish as v26.4.0 (owner 2026-10-18).** The tree is committed and
+**PUBLISHED 2026-10-18: v26.4.0 is live at https://spaced-lab.github.io/miss-beta/** (release
+https://github.com/spaced-lab/miss-beta/releases/tag/v26.4.0, immutable, attested). Open: macOS arm64 CI runner and the
+Node 20 action upgrades (docs/RELEASING.md); the Fable code review was dropped by the owner. Earlier note: The tree is committed and
 the gate is green. The owner runs the code review (planned in Fable) and the full security review
 (docs/SAFETY.md checklist) before publishing; after the review: fix findings, follow docs/RELEASING.md, push from
 the organization `spaced-lab` (created 2026-10-18; repository spaced-lab/miss-beta pushed PRIVATE for the

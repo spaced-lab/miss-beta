@@ -33,15 +33,16 @@ git tag `vYY.Q.N`.
 
 ## First public publish only (v26.4.0)
 
-- [ ] Make the repository public, then enable Pages (Settings > Pages > Source: GitHub Actions; keep "Enforce
+- [x] Make the repository public, then enable Pages (Settings > Pages > Source: GitHub Actions; keep "Enforce
       HTTPS" on). The deploy job skips itself while the repository is private.
-- [ ] Enable immutable releases (Settings > General > Releases): once published, a release's tag and assets
+- [x] Enable immutable releases (Settings > General > Releases): once published, a release's tag and assets
       cannot be moved or replaced, and GitHub adds its own signed release attestation. This stands in for a
       signed tag without a personal signing key. Confirm the setting's current name and behaviour when enabling.
-- [ ] Allow the release deploy: Settings > Environments > github-pages > deployment branches and tags: keep
+- [x] Allow the release deploy: Settings > Environments > github-pages > deployment branches and tags: keep
       `main`, add the tag rule `v*`. Without it the release workflow's deploy job is refused.
-- [ ] The first `release.yml` run is the v26.4.0 tag (artifact attestations need a public repository on GitHub's
-      free plans). Afterwards run step 6 and confirm `gh attestation verify` passes.
+- [x] The first `release.yml` run is the v26.4.0 tag (artifact attestations need a public repository on GitHub's
+      free plans). Afterwards run step 6 and confirm `gh attestation verify` passes. (Done 2026-10-18: run 39166020556 green, release
+      https://github.com/spaced-lab/miss-beta/releases/tag/v26.4.0 immutable, checksum and attestation verified.)
 - [ ] Add a macOS arm64 runner to the CI matrix next to ubuntu-latest (free on a public repository, 10x minutes on a
       private one). On it `tests/planarReplay.test.ts` runs bit for bit, because the fixture was captured on
       darwin arm64 Node 26 (`tests/fixtures/planarReplay.env.json`); linux x64 keeps the 1e-8 tolerance path. Keep

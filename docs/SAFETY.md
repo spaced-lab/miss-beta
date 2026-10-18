@@ -67,8 +67,10 @@ Findings from the assessment, each closed (fixed, decided by the owner, or check
       attempt without build_lore shipped no Learning Center; the command here and RELEASING step 4 now include it)
 - [x] `grep -r "__dev\|localhost" dist` finds nothing that matters (2026-10-18: nothing outside source maps; the
       production page has no `window.__miss`)
-- [ ] Open the Pages URL: HTTPS only, "Enforce HTTPS" on, no mixed content (devtools console clean)
-- [ ] Devtools Network tab during play: every request is to the Pages origin
+- [x] Open the Pages URL: HTTPS only, "Enforce HTTPS" on, no mixed content (devtools console clean) (2026-10-18,
+      v26.4.0: https 200, http 301 to https, https_enforced true, 0 http requests, console empty, CSP present)
+- [x] Devtools Network tab during play: every request is to the Pages origin (2026-10-18: 15 resources plus the
+      lore index, one origin, https://spaced-lab.github.io)
 - [x] Import a hand-edited and an oversized SAVE.md: rejected cleanly, nothing breaks (2026-10-18, synthetic drops:
       hand-edited with `round: -9e999`, an `<img onerror>` research value and a `<script>` tail: rejected, nothing
       stored, nothing executed; 280 KB: rejected by the parser cap; 400 KB: ignored by the drop cap; a `__proto__` /
@@ -79,15 +81,17 @@ Findings from the assessment, each closed (fixed, decided by the owner, or check
       (code: draw.ts:221, system.ts:1231/1242, main.ts:166, demo.ts:71), PERIMETER shake 0 (unit test))
 - [x] Review findings 1-10 above (2026-10-18: all closed; 1 and 5 by the owner's recorded answers) and record the decision for each
 - [x] Review docs/WARNINGS.md end to end (owner, 2026-10-18)
-- [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain (owner 2026-10-18: GitHub's certificate on
+- [x] X.509 / certificate items (IDEAS 23) decided for the chosen domain (owner 2026-10-18: GitHub's certificate on
       spaced-lab.github.io accepted as normal. Owner 2026-10-18: no personal signing key; instead release.yml
       publishes SHA256SUMS and a keyless Sigstore build-provenance attestation per tag, and immutable releases
-      lock tag and assets. Tick after the first release verifies, docs/RELEASING.md step 6)
-- [ ] Record the result below with the commit hash
+      lock tag and assets. Verified 2026-10-18 on v26.4.0: SHA256SUMS OK, `gh attestation verify` OK (tag v26.4.0,
+      commit ea9b951, release.yml), release immutable)
+- [x] Record the result below with the commit hash
 
 ## Assessment log
 
 | Date | Who | Commit | Result | Notes |
 |---|---|---|---|---|
 | 2026-10-18 | Claude (automated baseline) | see git log | baseline above | manual assessment pending |
+| 2026-10-18 | Claude (browser, CI, fuzz; owner decisions recorded) | ea9b951 (v26.4.0) | checklist complete | clean checkout, dist grep, SAVE.md drops, notice and REDUCE MOTION, SAVE.md fuzz, live HTTPS and origin checks, release attestation; findings 1-10 closed |
 | 2026-10-18 | Claude (/security-review: one agent, ~1 min, a pattern sweep of 515 tracked files plus a trace of the entry points; not a line-by-line audit) | b64dc32 | no HIGH or MEDIUM findings from the sweep | checked DOM and code sinks, SAVE.md import and drag-drop, storage guards, lore and voice fetches, URL hash, worker and console, CSP and dev hooks in dist, CI triggers and tokens, Python scripts, secrets; one hardening applied (finding 7) |
