@@ -34,6 +34,9 @@ from pymiss.physics.lambert import lambert  # noqa: E402
 from pymiss.physics.stumpff import stumpff_c, stumpff_s  # noqa: E402
 from pymiss.physics.elements import OrbitError, state_to_elements  # noqa: E402
 from pymiss.physics.kepler import Elements, propagate, solve_kepler, solve_kepler_hyperbolic  # noqa: E402
+from pymiss.physics.kepler3 import Elements3, lift_elements, propagate3  # noqa: E402
+from pymiss.physics.elements3 import state_to_elements3  # noqa: E402
+from pymiss.physics.close_approach3 import close_approach3  # noqa: E402
 from pymiss.physics.risk import palermo, torino  # noqa: E402
 from pymiss.physics.rocket import mass_ratio_for, rocket_dv, staged_dv  # noqa: E402
 from pymiss.sim.rng import Rng, hash_seed  # noqa: E402
@@ -238,6 +241,75 @@ def m4_vectors() -> dict:
     return {"rk4": rk4, "sail": sail, "flyby": fly}
 
 
+def _el3_dict(el: Elements3) -> dict:
+    return {"a": el.a, "e": el.e, "w": el.w, "M0": el.M0, "t0": el.t0, "i": el.i, "raan": el.raan}
+
+
+def kepler3_vectors() -> dict:
+    """M14 phase 1: propagate3 over random tilted ellipses and hyperbolae (i in [0, pi], so retrograde too)."""
+    rng = Rng(hash_seed("vectors:kepler3"))
+    prop = []
+    for _ in range(40):
+        el = Elements3(a=rng.float(0.3, 6) * AU, e=rng.float(0, 0.95), w=rng.float(0, 2 * math.pi), M0=rng.float(0, 2 * math.pi),
+                       t0=rng.float(0, 1e9), i=rng.float(0, math.pi), raan=rng.float(0, 2 * math.pi))
+        t = el.t0 + rng.float(0, 1e9)
+        x, y, z, vx, vy, vz = propagate3(el, MU_SUN, t)
+        prop.append({**_el3_dict(el), "mu": MU_SUN, "t": t, "x": x, "y": y, "z": z, "vx": vx, "vy": vy, "vz": vz})
+    hyp = []
+    for _ in range(30):
+        el = Elements3(a=-rng.float(0.2, 4) * AU, e=rng.float(1.05, 6), w=rng.float(0, 2 * math.pi), M0=rng.float(-3, 3),
+                       t0=rng.float(0, 1e9), i=rng.float(0, math.pi), raan=rng.float(0, 2 * math.pi))
+        t = el.t0 + rng.float(-3e7, 3e7)
+        x, y, z, vx, vy, vz = propagate3(el, MU_SUN, t)
+        hyp.append({**_el3_dict(el), "mu": MU_SUN, "t": t, "x": x, "y": y, "z": z, "vx": vx, "vy": vy, "vz": vz})
+    return {"propagate3": prop, "hyperbolic3": hyp}
+
+
+def elements3_vectors() -> dict:
+    """state_to_elements3 on random 3-D states (bound and unbound), plus the equatorial i = 0 and i = pi cases."""
+    rng = Rng(hash_seed("vectors:elements3"))
+    cases = []
+    for k in range(50):
+        r = rng.float(0.4, 5) * AU
+        lon = rng.float(0, 2 * math.pi)
+        lat = rng.float(-1.2, 1.2)
+        vc = math.sqrt(MU_SUN / r)
+        f = rng.float(0.5, 1.6) if k % 5 else rng.float(1.45, 2.2)  # every fifth case may be unbound
+        theta = rng.float(0, 2 * math.pi)
+        phi = rng.float(-1.4, 1.4)
+        x, y, z = r * math.cos(lat) * math.cos(lon), r * math.cos(lat) * math.sin(lon), r * math.sin(lat)
+        vx, vy, vz = f * vc * math.cos(phi) * math.cos(theta), f * vc * math.cos(phi) * math.sin(theta), f * vc * math.sin(phi)
+        if k % 7 == 3:
+            z, vz = 0.0, 0.0  # equatorial, prograde or retrograde depending on theta
+        el = state_to_elements3(x, y, z, vx, vy, vz, MU_SUN, 0.0, allow_unbound=True)
+        cases.append({"x": x, "y": y, "z": z, "vx": vx, "vy": vy, "vz": vz, "mu": MU_SUN, "t": 0.0, **{"out_" + k2: v for k2, v in _el3_dict(el).items()}})
+    return {"stateToElements3": cases}
+
+
+def close_approach3_vectors() -> dict:
+    """Tilted colliding threats built from HOME's state at t_i plus an out-of-plane relative velocity, nudged in raan."""
+    rng = Rng(hash_seed("vectors:closeApproach3"))
+    home = lift_elements(Elements(a=AU, e=0.017, w=0.3, M0=1.1, t0=0.0))
+    cases = []
+    for _ in range(12):
+        t_i = rng.float(2, 8) * YEAR
+        hx, hy, hz, hvx, hvy, hvz = propagate3(home, MU_SUN, t_i)
+        u = rng.float(8e3, 25e3)
+        az = rng.float(0, 2 * math.pi)
+        el_ang = rng.float(-0.8, 0.8)
+        try:
+            el = state_to_elements3(hx, hy, hz, hvx + u * math.cos(el_ang) * math.cos(az), hvy + u * math.cos(el_ang) * math.sin(az),
+                                    hvz + u * math.sin(el_ang), MU_SUN, t_i)
+        except OrbitError:
+            continue
+        if el.e >= 0.98 or el.a * (1 - el.e) < 0.25 * AU:
+            continue
+        nudged = Elements3(el.a, el.e, el.w, el.M0, el.t0, el.i, el.raan + rng.float(-2e-6, 2e-6))
+        ca = close_approach3(nudged, home, MU_SUN, MU_HOME, R_HOME, t_i)
+        cases.append({"threat": _el3_dict(nudged), "home": _el3_dict(home), "tNominal": t_i, "tCa": ca.t_ca, "dMin": ca.d_min, "vInf": ca.v_inf, "bCrit": ca.b_crit, "impact": ca.impact})
+    return {"closeApproach3": cases}
+
+
 if __name__ == "__main__":
     write("kepler.json", kepler_vectors())
     write("closeApproach.json", close_approach_vectors())
@@ -250,3 +322,6 @@ if __name__ == "__main__":
     write("uncertainty.json", uncertainty_vectors())
     write("rng.json", rng_vectors())
     write("risk.json", risk_vectors())
+    write("kepler3.json", kepler3_vectors())
+    write("elements3.json", elements3_vectors())
+    write("closeApproach3.json", close_approach3_vectors())

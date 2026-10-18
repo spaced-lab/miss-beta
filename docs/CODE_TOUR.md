@@ -23,6 +23,9 @@ simplification and the test that pins it.
 - `src/physics/kepler.ts`: Kepler's equation by Newton, position and velocity from elements, the hyperbolic
   branch. Test: `tests/kepler.test.ts`. Mirror: `pymiss/physics/kepler.py`.
 - `src/physics/elements.ts`: a state vector back to elements, with the guards that make the resolver safe.
+- `src/physics/kepler3.ts`, `elements3.ts`, `closeApproach3.ts` (M14 phase 1, not yet used by the game): the same
+  orbits tilted by inclination and node; with i = 0 they return the planar answers exactly. Test:
+  `tests/kepler3.test.ts`. Mirrors: `pymiss/physics/kepler3.py`, `elements3.py`, `close_approach3.py`.
 
 ## Stop 3: does it hit (O12)
 

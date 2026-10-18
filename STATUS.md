@@ -26,6 +26,7 @@ and any formula tagged `[unverified]`. Detailed checklists live in `docs/BUILD_P
 | Performance pass (2026-10-18) | done | docs/DECISIONS.md D1-D7: PERIMETER, Learning Center, demo finale and lore pictures load on first use (LazyScreen); boot JS 546.5 -> 387.6 KiB (198.8 -> 140.4 KiB gzip); attract round planned in the shared planner worker, first frame median 251 -> 48 ms; one planner worker per page; source maps kept (MISS_SOURCEMAP=0 drops them); `window.__miss.screens` is now `{ get }` and unwraps lazy screens |
 | Cinematics: finer launch pixels (2026-10-18) | done | `render/cinematics/launch.ts`: procedural rocket sprites at about 2x resolution (porthole, livery, interstage bands, roll marks, fins, L3 boosters with their own plumes), 5-cell lattice tower, plated pad with flame trench; plume head in a thermal false-colour ramp (`CINE_FALSE_RAMP` under NEON, hot/ink/alt/dim in mono) with a dithered hand-off to fire, shock diamonds, false-colour ember pixels; impact/breakup debris at `CINE_DEBRIS_PX_SCALE` 0.6 with hot false-colour ejecta and one-pixel motion tails. New `CINE_*` knobs at the end of KNOBS. Cost: launch L3 about 2.6k dots and 0.9 ms/frame in Chrome at DPR 2 (bench/cinematics.bench.ts: 0.19 ms JS) |
 | F12 visitors from other stars + LAB_INTERSTELLAR (2026-10-18) | done | topic F12 (the warning sum, tech levels, rate dial and EXAGGERATED, 3-D lite), `lore/labs/interstellar.ts` (orbit built backwards from impact, tilted about the node, discover() per network with `tilt`, about 12 ms per recompute, memoised), `pic-interstellar`; claims F12-3..5 added UNVERIFIED; defence thresholds in the lab (KINETIC 548 d, NUKE STANDBY 90 d, EVACUATE 21 d) are rules of thumb, not claims |
+| M14 phase 1: 3-D Kepler (2026-10-18) | done | physics only, game untouched: `physics/kepler3.ts` (Elements3 = Elements + i, raan; `propagate3`, `planeToEcliptic`, `angularMomentum3`, `orbitPoints3`, `liftElements`), `elements3.ts` (`stateToElements3`, equatorial and circular conventions), `closeApproach3.ts`; pymiss mirrors `kepler3.py`, `elements3.py`, `close_approach3.py`; vectors `kepler3.json`, `elements3.json`, `closeApproach3.json`; i = 0 gives the planar r, v and elements bit for bit (tests/kepler3.test.ts, pymiss/tests/test_kepler3.py). Phase 2 plan under Decisions |
 
 ## M12 walk (2026-10-17): plan versus code
 
@@ -183,6 +184,30 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   (sigmaB, impactProbability) agrees with the propagated histogram (0.946 vs 0.945 at the defaults). LAB_SUNWARD
   evaluates `detects` night by night with one fixed-seed Rng per network, like `discover`. Lab scenario constants
   live at the top of each lab file (they teach, they do not balance the game).
+
+- M14 phase 1 (2026-10-18): stateToElements3 rotates the state into the node frame and calls the planar
+  stateToElements, instead of a second copy of the eccentricity-vector method. One code path for both, and the
+  i = 0 case is the planar function itself (exact unit vectors in the equatorial branch, so a z = 0 state reaches
+  it with x and y untouched). propagate3 likewise wraps propagate. Conventions: equatorial when |h_xy| <= 1e-12 |h|
+  (raan = 0, i = 0 or pi exactly; at i = pi, w runs clockwise in the ecliptic); circular keeps the planar w = 0, so
+  M0 is the argument of latitude; radial throws OrbitError RETROGRADE (the planar kind for h <= 0). Retrograde is
+  i > 90 deg, not an error. No measured choice, so nothing in docs/DECISIONS.md.
+
+- M14 phase 2 (to wire, not started): (1) round generation: build threats with stateToElements3 from HOME's state
+  plus a v_inf with an out-of-plane part (the impact stays exact at the node), store Elements3 in the round and in
+  SAVE.md (persistence type guard and the SAVE.md parser need i and raan, with 0 defaults for old saves);
+  (2) resolver and planner close approach on closeApproach3, per-body for fragments, then drop the f3D cloud
+  correction in fragment.ts for a real 3-D ejection cone (A8); (3) Lambert in 3-D: lambert.ts is planar
+  (dtheta from the 2-D cross product); the universal-variable form generalises with the transfer-plane normal
+  r1 x r2 and a prograde/retrograde choice, and kinetic.ts / flyby.ts need Vec3 dv; (4) rendering: orbitPoints3
+  through camera3d (already a tilt camera), the planet view and SKY using the true z instead of sky.ts
+  tiltAboutNode (retire 3-D lite, A15). Risks: (a) the near-equatorial node is ill-conditioned: a tiny dv near
+  i = 0 can swing raan and w by large amounts while the orbit barely moves, so anything that compares or animates
+  elements (debrief scrubber, autoplay heuristics, the brief's orbit card) must compare states, not angles;
+  (b) every planar round must replay identically: lift with liftElements and keep the bit-for-bit tests as the
+  gate; (c) the porkchop worker cost grows if Lambert gains a plane search; (d) the 2-D code treats h <= 0 as an
+  error and some callers may rely on that rejection (retrograde comets would become possible); (e) Python mirrors
+  of lambert/fragment/flyby must grow in step, with new vectors.
 
 ## Unverified
 

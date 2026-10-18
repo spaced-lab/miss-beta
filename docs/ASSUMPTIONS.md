@@ -21,4 +21,5 @@ milestone; GAME_PLAN Section 5 and EDUCATION.md G7 are the narrative versions.
 | A14 | Interstellar rounds (SCI-FI) are hyperbolic two-body orbits; long-period comets are prograde only | physics/kepler.ts, sim/roundGen.ts (M7) | HYPERBOLIC vectors; SCIFI flavors | retrograde comets, non-gravitational forces |
 | A15 | SPECTRUM colours and the 3-D tilt are camera-side only; the sim is always z = 0 | render/camera3d.ts (M10) | camera3d identity at pitch 0 | nothing in the sim |
 | A16 | Lore pictures rasterise an SVG with the browser's monospace font for labels (the one raster font) | render/pictureCache.ts (M9) | pictures deterministic | a stroke-font label generator |
+| A17 | Full 3-D two-body orbits (i, raan, argument of periapsis) exist in the physics layer only; the sim still flies z = 0. Equatorial orbits (sin i <= 1e-12) take raan = 0, i = 0 or pi; circular ones take w = 0 | physics/kepler3.ts, elements3.ts, closeApproach3.ts (M14 phase 1) | kepler3 i = 0 bit-for-bit equivalence; ROUNDTRIP 3-D; shared kepler3/elements3/closeApproach3 vectors | A1 and A15 go away once phase 2 wires them in; equinoctial elements would remove the singular conventions |
 

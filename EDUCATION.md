@@ -651,7 +651,7 @@ state -> elements (game, GAME_PLAN.md 6.3):
 Every impulse in the game (impact, flyby, warhead) is: take the state vector, add dv, convert back to elements, carry on analytically.
 ### EXPERT
 DEMO: LAB_ELLIPSE
-NOTES: Osculating elements are the elements of the ellipse the body would follow if all perturbations stopped now; they drift slowly under planetary perturbations, which the game ignores except at flybys. For e → 0 the periapsis direction is undefined; the code guards this by setting w = 0.
+NOTES: Osculating elements are the elements of the ellipse the body would follow if all perturbations stopped now; they drift slowly under planetary perturbations, which the game ignores except at flybys. For e → 0 the periapsis direction is undefined; the code guards this by setting w = 0. The full 3-D set (M14) lives in physics/kepler3.ts and elements3.ts: inclination i = atan2(|h_xy|, h_z) from the angular momentum h = r × v, the ascending node from n = z × h, and w becomes the argument of periapsis measured from that node; the position is the flat solution turned by R3(Ω) R1(i) R3(w). When the orbit lies in the reference plane the node is undefined, so the code sets Ω = 0 and i = 0 (or 180 degrees for a backwards orbit), and then w is again the flat game's longitude of periapsis.
 MORE: Curtis ch. 4; Vallado, "Fundamentals of Astrodynamics and Applications", ch. 2.
 
 ## O8 Vis-viva: how fast at any point
