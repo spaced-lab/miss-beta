@@ -10,6 +10,7 @@ import type { World } from '../sim/world';
 import { budgetAt, createEconomy } from './economy';
 import { loadJson, saveJson } from './persistence';
 import { createRun, type RunState } from './run';
+import { reapplyTech } from './tech';
 import { parseSave, writeSave, type SaveFile } from './saveMd';
 
 const KEY = 'save.current';
@@ -29,7 +30,7 @@ export function toSaveFile(run: RunState, world: World | null): SaveFile {
     budget: budgetAt(run.economy, t),
     budget_per_year: run.economy.perYear,
     research: run.research,
-    tech: [`L${run.launcherTier}`, `I${run.impactorTier}`, `N${run.navTier}`, `SL${run.sailTier}`, `P${run.propulsionTier}`],
+    tech: [...run.tech],
     programs: run.programs.map((p) => ({ id: p.id, progress: p.progress, funding: p.funding })),
     networks_active: [...run.networks.active],
     run_score: run.score,
@@ -69,16 +70,8 @@ export function runFromSave(sf: SaveFile): RunState {
   run.roundsSurvived = sf.rounds_survived;
   run.cheatsUsed = [...sf.cheats_used];
   run.assisted = sf.cheats_used.length > 0;
-  for (const t of sf.tech) {
-    const m = /^(L|I|N|SL|P)(\d)$/.exec(t);
-    if (!m) continue;
-    const v = Number(m[2]);
-    if (m[1] === 'L') run.launcherTier = v;
-    if (m[1] === 'I') run.impactorTier = v;
-    if (m[1] === 'N') run.navTier = v;
-    if (m[1] === 'SL') run.sailTier = v;
-    if (m[1] === 'P') run.propulsionTier = v;
-  }
+  run.tech = [...sf.tech];
+  reapplyTech(run);
   run.programs = createPrograms();
   run.effects = defaultEffects();
   run.networks = { active: [...sf.networks_active], since: {} };

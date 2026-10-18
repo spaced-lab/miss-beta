@@ -20,8 +20,20 @@ export interface RunState {
   navTier: number;
   /** 0 none, 1..4 sail tiers (SL1..SL4). */
   sailTier: number;
-  /** 1..3 propulsion tiers (P1 chemical kick .. P3 NEP); sets the onboard dv budget. */
+  /** 0 none, 1..3 propulsion tiers (P1 chemical kick .. P3 NEP); sets the onboard dv budget. */
   propulsionTier: number;
+  /** Owned tech node ids (config/tech.json). */
+  tech: string[];
+  softImpactor: boolean;
+  hammer: boolean;
+  /** 1 separate launches (k <= 3), 2 split bus x3, 3 split bus x8. */
+  swarmTier: number;
+  trackingTier: number;
+  autonomyTier: number;
+  warheadTier: number;
+  slowPushTier: number;
+  pi: boolean;
+  netTier: number;
   assisted: boolean;
   startedAt: string;
   programs: ProgramState[];
@@ -45,11 +57,20 @@ export function createRun(seed: string): RunState {
     roundsSurvived: 0,
     launcherTier: 1,
     impactorTier: 1,
-    // NOTE: until the tech tree lands (M6), flyby navigation, a Tier 1 sail and a chemical kick stage are
-    // available from the start so every M4 plan type can be played. STATUS.md records this.
-    navTier: 1,
-    sailTier: 1,
-    propulsionTier: 1,
+    // NOTE: the tech tree (game/tech.ts) raises these; a run starts with the basics of GAME_PLAN 9.
+    navTier: 0,
+    sailTier: 0,
+    propulsionTier: 0,
+    tech: [],
+    softImpactor: false,
+    hammer: false,
+    swarmTier: 1,
+    trackingTier: 0,
+    autonomyTier: 0,
+    warheadTier: 0,
+    slowPushTier: 0,
+    pi: false,
+    netTier: 0,
     assisted: false,
     startedAt: new Date().toISOString().slice(0, 10),
     programs: createPrograms(),

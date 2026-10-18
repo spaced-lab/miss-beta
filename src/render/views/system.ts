@@ -35,6 +35,7 @@ import { drawText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
 import { ProgramsOverlay } from './programs';
+import { TechOverlay } from './tech';
 import { advancePrograms } from '../../sim/programs';
 import { exportSave, saveRun } from '../../game/savegame';
 
@@ -61,6 +62,7 @@ export class SystemScreen implements Screen {
   private readonly planner: PlannerOverlay;
   private readonly planet: PlanetOverlay;
   private readonly programs: ProgramsOverlay;
+  private readonly tech: TechOverlay;
   private planetOpen = false;
   private noteText = '';
   private noteT = 0;
@@ -73,6 +75,7 @@ export class SystemScreen implements Screen {
     this.planner = new PlannerOverlay(s, keys, this.client);
     this.planet = new PlanetOverlay(s);
     this.programs = new ProgramsOverlay(s, keys);
+    this.tech = new TechOverlay(s, keys);
   }
 
   /** Begin a run from a loaded run state (CONTINUE). */
@@ -216,8 +219,13 @@ export class SystemScreen implements Screen {
       this.programs.update(this.run);
       return;
     }
+    if (this.tech.isOpen) {
+      this.tech.update(this.run);
+      return;
+    }
     if (this.phase === 'debrief') {
       if (k.pressed('KeyG')) this.programs.show();
+      if (k.pressed('KeyT')) this.tech.show();
       if (k.pressed('Space') || k.pressed('Enter')) {
         nextRound(this.run, budgetAt(this.run.economy, w.t));
         this.startRound();
@@ -232,6 +240,11 @@ export class SystemScreen implements Screen {
     if (k.pressed('KeyG')) {
       setWarp(w, 0);
       this.programs.show();
+      return;
+    }
+    if (k.pressed('KeyT')) {
+      setWarp(w, 0);
+      this.tech.show();
       return;
     }
     if (k.pressed('KeyE') && this.run.evacuatedAt === null && w.threat) {
@@ -331,9 +344,10 @@ export class SystemScreen implements Screen {
 
     this.drawCraft();
     this.drawThreat();
-    if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen) this.drawHud();
+    if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t);
+    this.tech.render(this.run);
     if (this.phase === 'debrief') this.drawDebrief();
     if (this.phase === 'over') this.drawOver();
     this.planner.render();
@@ -512,7 +526,7 @@ export class SystemScreen implements Screen {
       ly += 15;
     }
     drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawText(s, '<P> PLANNER   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, '<P> PLANNER   <T> TECH   <G> PROGRAMS   <V> PLANET   <E> EVACUATE   <SPACE> PAUSE   [ ] WARP   R RESOLVE   S SCALE   Z RESET   X EXPORT SAVE   ESC TITLE', s.width / 2, s.height - m - 12, 11, { align: 'center', color: p.dim, glow: 0 });
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
@@ -546,7 +560,7 @@ export class SystemScreen implements Screen {
     drawText(s, `BASE ${sc.base.toFixed(0)}  X OUTCOME ${sc.outcome.toFixed(2)}  X (1 + EFF ${sc.efficiency.toFixed(2)} + TIMING ${sc.timing.toFixed(2)} + STYLE ${sc.style.toFixed(2)})  =  ${sc.roundScore}   RESEARCH +${sc.research}`, cx, ly, 11, { align: 'center' });
     drawText(s, `RUN SCORE ${this.run.score}   ROUNDS SURVIVED ${this.run.roundsSurvived + 1}`, cx, ly + 20, 12, { align: 'center', color: p.hot, glow: 1 });
     drawText(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, '<SPACE> NEXT ROUND     <G> PROGRAMS     <ESC> TITLE', cx, ly + 56, 14, { align: 'center', color: p.hot, glow: 1.5 });
+    drawText(s, '<SPACE> NEXT ROUND     <T> TECH     <G> PROGRAMS     <ESC> TITLE', cx, ly + 56, 14, { align: 'center', color: p.hot, glow: 1.5 });
   }
 
   private drawOver(): void {
