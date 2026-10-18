@@ -4,6 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Readable columns (2026-10-18, owner screenshots): the Learning Center is three panes at every level with prose
+  capped at 72 characters and re-wrapped whenever the pane changes (the lab arriving no longer leaves text running
+  under it), titles cut on whole words, lab plots clipped to their frame, code and tables fitted; the PERIMETER
+  ready panel lays out from its content with live charge numbers; manual lines fit the window; a preview rebuilt
+  under an open page now says RELOAD THE PAGE instead of a fetch error.
+
 - Text fits its boxes (2026-10-18, owner screenshots): `drawTextFit` shrinks a line to its box and `wrapText`
   wraps prose to a panel's width at draw time. Applied to the tutorial box, the debrief and RUN OVER panels, every
   bottom key row, the two top HUD readouts (now right of the clock column) and the PERIMETER key row; the

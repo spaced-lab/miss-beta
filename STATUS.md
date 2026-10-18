@@ -129,6 +129,12 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
   MULTIVERSE tiles keep the old cue-only behaviour. Body radius on screen is logarithmic in D (10 m -> 60 px,
   10 km -> 150 px): the scene is about shape and type, not scale.
 
+- Text layout rule (owner, 2026-10-18): prose is never wider than a reading column (`CenterScreen.READ_COLS`, 72
+  characters) and is word-wrapped at draw time to the column's current width; panels lay themselves out from their
+  content; a line that cannot wrap (key tables, code, readouts) shrinks to its box with `drawTextFit`; columns cut
+  titles at a word boundary with `..`. The Learning Center is three panes at every level: tree, reading column,
+  right pane for the lab (max 460 px) or blank, which SIMPLE pictures and wide code may use.
+
 ## Unverified
 
 - `[verify]` Detection network parameters (V_lim, p_cover, D_ref, since years) are the plan's approximations.

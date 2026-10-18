@@ -11,9 +11,9 @@
 
 import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
-import { drawText, drawTextFit, measureText } from '../render/vectorFont';
+import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../render/vectorFont';
 import { MG } from './config';
-import { arrayOn, displayTier, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
+import { arrayOn, displayTier, pulseKillsNeeded, swarmCountRange, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -455,43 +455,62 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
 }
 
 function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
-  const { y } = drawPanel(s, Math.min(820, s.width - 32), 400);
-  const cx = s.width / 2;
-  drawText(s, 'PERIMETER', cx, y + 26, 34, { align: 'center', glow: 2, color: s.palette.hot });
-  drawText(s, 'BETA ARCADE MODE', cx, y + 74, 13, { align: 'center', color: s.palette.dim, glow: 0 });
-  drawText(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + 100, 12, { align: 'center' });
+  // Laid out from its content: the key column is as wide as its widest label, descriptions wrap in the column
+  // beside it, the notes wrap to the panel, and the panel grows to fit (owner screenshot, 2026-10-18).
+  const p = s.palette;
+  const pw = Math.min(860, s.width - 32);
+  const inner = pw - 56;
+  const sw = swarmCountRange(1);
   const rows: Array<[string, string]> = [
-    ['<LEFT> <RIGHT>  (OR A / D)', 'MOVE THE LAUNCHER'],
+    ['<LEFT> <RIGHT>  OR  A / D', 'MOVE THE LAUNCHER'],
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
-    ['<SHIFT>', 'PULSE  (CLEARS THE FIELD, EARNED PER 14 KILLS)'],
-    ['<  (COMMA)', 'SEEKER MISSILE  (HOMES AND BLASTS, PER 35 HITS; VOLLEYS FROM LEVEL 10)'],
-    ['>  (PERIOD)', 'SWARM OF SENTINELS  (5-8 DRONES, MORE EACH LEVEL, PER 22 KILLS)'],
+    ['<SHIFT>', `PULSE  (CLEARS THE FIELD, EARNED PER ${pulseKillsNeeded(1)} KILLS)`],
+    ['<  (COMMA)', `SEEKER MISSILE  (HOMES AND BLASTS, PER ${seekerHitsNeeded(1)} HITS; VOLLEYS FROM LEVEL ${MG.SEEKER_VOLLEY_LEVELS[0] ?? 10})`],
+    ['>  (PERIOD)', `SWARM OF SENTINELS  (${sw.min}-${sw.max} DRONES, MORE EACH LEVEL, PER ${swarmKillsNeeded(1)} KILLS)`],
   ];
-  let ly = y + 128;
-  for (const [key, what] of rows) {
-    drawText(s, key, cx - 350, ly, 12, { color: s.palette.hot, glow: 1 });
-    drawText(s, what, cx - 90, ly, 12);
-    ly += 22;
-  }
   const notes = [
-    'LEVELS RAISE STREAMS, LAUNCHERS AND ROCK HARDNESS.',
-    'HARDER ROCKS CHANGE COLOUR AS THEY WEAKEN. SHOTS NUDGE ROCKS.',
-    'A MOON ARRIVES AT LEVEL 3. SENTRIES ARE EARNED FROM LEVEL 6.',
-    'FROM 3 STREAMS, THE FIRST SHOT AFTER A BREAK IS A LASER PULSE; FROM LEVEL 12 IT FANS INTO A MESH.',
+    'LEVELS RAISE STREAMS, LAUNCHERS AND ROCK HARDNESS. HARDER ROCKS CHANGE COLOUR AS THEY WEAKEN. SHOTS NUDGE ROCKS.',
+    `A MOON ARRIVES AT LEVEL ${MG.MOON_LEVEL}. SENTRIES ARE EARNED FROM LEVEL ${MG.TURRET_LEVEL} AND FIRE LASERS FROM LEVEL ${MG.SENTRY_LASER_LEVEL}; FROM LEVEL ${MG.SENTRY_ARRAY_LEVEL} THREE OR MORE FIRE A BEAM ARRAY.`,
+    `FROM 3 STREAMS THE FIRST SHOT AFTER A BREAK IS A LASER PULSE; FROM LEVEL ${MG.LASER_MESH_LEVEL} IT FANS INTO A MESH.`,
   ];
-  for (const n of notes) {
-    drawText(s, n, cx, ly + 4, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-    ly += 18;
+  const ks = 12;
+  const keyW = Math.max(...rows.map(([k]) => measureText(k, ks))) * getTextScale() + 24;
+  const descW = Math.max(160, inner - keyW);
+  const rowLines = rows.map(([, what]) => wrapText(what, descW, ks));
+  const noteLines = notes.flatMap((n) => wrapText(n, inner, 11));
+  const lh = (sz: number): number => sz * 1.6 * getTextScale();
+  const rowsH = rowLines.reduce((a, ls) => a + ls.length * lh(ks) + 4, 0);
+  const h = 128 + rowsH + 8 + noteLines.length * lh(11) + 110;
+  const { x, y } = drawPanel(s, pw, h);
+  const cx = s.width / 2;
+  const x0 = x + 28;
+  drawTextFit(s, 'PERIMETER', cx, y + 26, 34, inner, { align: 'center', glow: 2, color: p.hot });
+  drawTextFit(s, 'BETA ARCADE MODE', cx, y + 74, 13, inner, { align: 'center', color: p.dim, glow: 0 });
+  drawTextFit(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + 100, 12, inner, { align: 'center' });
+  let ly = y + 128;
+  rows.forEach(([key], i) => {
+    drawTextFit(s, key, x0, ly, ks, keyW - 16, { color: p.hot, glow: 1 });
+    for (const l of rowLines[i] ?? []) {
+      drawText(s, l, x0 + keyW, ly, ks);
+      ly += lh(ks);
+    }
+    ly += 4;
+  });
+  ly += 8;
+  for (const n of noteLines) {
+    drawText(s, n, cx, ly, 11, { align: 'center', color: p.dim, glow: 0 });
+    ly += lh(11);
   }
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
   const r = opts.resume;
+  const by = y + h - 80;
   if (r) {
-    drawText(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, y + 320, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-    if (blink) drawText(s, '<SPACE> RESUME     <BACKSPACE> NEW GAME', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    drawTextFit(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}   ${clock(r.t)}`, cx, by, 11, inner, { align: 'center', color: p.dim, glow: 0 });
+    if (blink) drawTextFit(s, '<SPACE> RESUME     <BACKSPACE> NEW GAME', cx, by + 20, 16, inner, { align: 'center', color: p.hot, glow: 1.5 });
   } else if (blink) {
-    drawText(s, 'PRESS SPACE TO START', cx, y + 340, 16, { align: 'center', color: s.palette.hot, glow: 1.5 });
+    drawTextFit(s, 'PRESS SPACE TO START', cx, by + 20, 16, inner, { align: 'center', color: p.hot, glow: 1.5 });
   }
-  drawText(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  L SOUND LAB  SEED ${st.seed}`, cx, y + 374, 10, { align: 'center', color: s.palette.dim, glow: 0 });
+  drawTextFit(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  L SOUND LAB  SEED ${st.seed}`, cx, y + h - 26, 10, inner, { align: 'center', color: p.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {

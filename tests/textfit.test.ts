@@ -27,3 +27,17 @@ describe('text that fits its box', () => {
     setTextScale(1);
   });
 });
+
+describe('Learning Center columns', () => {
+  it('cutWords cuts at a word boundary and never exceeds the column', async () => {
+    const { cutWords } = await import('../src/render/views/center');
+    expect(cutWords('SHORT', 20)).toBe('SHORT');
+    const t = ' E T6   COMETS AND VISITORS FROM OTHER STARS';
+    for (const cols of [12, 20, 31, 40]) {
+      const out = cutWords(t, cols);
+      expect(out.length).toBeLessThanOrEqual(cols);
+      if (out !== t) expect(out.endsWith('..')).toBe(true);
+    }
+    expect(cutWords(t, 31)).toBe(' E T6   COMETS AND VISITORS..');
+  });
+});

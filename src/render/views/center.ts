@@ -15,7 +15,7 @@ import { bookmarks, lore, progress, recordRead, toggleBookmark } from '../../lor
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawPicture } from '../pictureCache';
-import { charsPerLine, drawText, substitute } from '../vectorFont';
+import { ADVANCE, charsPerLine, drawText, drawTextFit, GLYPH_H, getTextScale, substitute } from '../vectorFont';
 
 type Focus = 'TREE' | 'CONTENT' | 'LAB';
 type View = 'TOPICS' | 'LABS' | 'BOOKMARKS';
@@ -28,6 +28,7 @@ export class CenterScreen implements Screen {
   level: Level = 'BEGINNER';
   private chunk: Chunk | null = null;
   private lines: LoreLine[] = [];
+  private linesCols = 0;
   private scroll = 0;
   private focus: Focus = 'TREE';
   private view: View = 'TOPICS';
@@ -106,7 +107,7 @@ export class CenterScreen implements Screen {
       .then((c) => {
         if (token !== this.token) return;
         this.chunk = c;
-        this.lines = markdownToLines(c.markdown, this.contentCols());
+        this.linesCols = 0; // re-wrapped in render() at the pane's current width
         recordRead(t.id, c.level);
         if (c.level === 'EXPERT' && t.demoId && labStatus(t.demoId) === 'BUILT') return loadLab(t.demoId).then((l) => {
           if (token === this.token) this.lab = l;
@@ -114,21 +115,56 @@ export class CenterScreen implements Screen {
         return undefined;
       })
       .catch((e: unknown) => {
-        if (token === this.token) this.status = `CHUNK FAILED: ${String(e).slice(0, 50)}`;
+        if (token !== this.token) return;
+        // A preview rebuilt while the page is open serves new chunk names; the old page cannot fetch them.
+        this.status = /dynamically imported|Failed to fetch|Importing a module/i.test(String(e)) ? 'THE GAME WAS REBUILT: RELOAD THE PAGE (CMD-R / CTRL-R)' : `CHUNK FAILED: ${String(e).slice(0, 60)}`;
       });
   }
 
-  private contentCols(): number {
-    return charsPerLine(this.contentWidth(), 9);
-  }
+  /**
+   * Three panes at every level (owner, 2026-10-18): the topic tree, a reading column capped at
+   * READ_COLS characters (page-width proportions), and a right pane for the lab or left blank. The SIMPLE
+   * picture may use the reading column plus the empty right pane; prose never gets wider than READ_COLS.
+   */
+  static readonly READ_COLS = 72;
+  static readonly LAB_MIN = 360;
+  static readonly LAB_MAX = 460;
   private treeW(): number {
     return Math.min(300, Math.max(200, this.s.width * 0.22));
   }
-  private labW(): number {
-    return this.lab || (this.chunk?.level === 'EXPERT' && this.index?.topics.find((t) => t.id === this.topicId)?.demoId) ? Math.min(460, this.s.width * 0.36) : 0;
+  private wantsLab(): boolean {
+    return this.lab !== null || (this.chunk?.level === 'EXPERT' && !!this.index?.topics.find((t) => t.id === this.topicId)?.demoId);
   }
-  private contentWidth(): number {
-    return this.s.width - this.treeW() - this.labW() - 48;
+  /** Px for `cols` characters at cap height `size`, TEXT SIZE included. */
+  private colsPx(cols: number, size: number): number {
+    return (cols * ADVANCE * size * getTextScale()) / GLYPH_H;
+  }
+  private layout(): { tw: number; cx0: number; cw: number; rx: number; rw: number } {
+    const m = 16;
+    const tw = this.treeW();
+    const cx0 = m + tw + 16;
+    const avail = this.s.width - m - cx0;
+    const read = this.colsPx(CenterScreen.READ_COLS, 9) + 8;
+    let cw: number;
+    if (this.wantsLab()) {
+      // The lab gets what the reading column leaves, within its bounds; the column shrinks only if it must.
+      const lw = Math.max(CenterScreen.LAB_MIN, Math.min(CenterScreen.LAB_MAX, avail - read - 24));
+      cw = Math.max(this.colsPx(36, 9), Math.min(read, avail - lw - 24));
+    } else cw = Math.min(read, avail);
+    const rx = cx0 + cw + 24;
+    return { tw, cx0, cw, rx, rw: Math.max(0, this.s.width - m - rx) };
+  }
+  private contentCols(): number {
+    return charsPerLine(this.layout().cw, 9);
+  }
+  /** Re-wrap the chunk when the reading column's width changed (lab arrived, resize, TEXT SIZE). */
+  private ensureLines(): void {
+    const cols = this.contentCols();
+    if (this.chunk && cols !== this.linesCols) {
+      this.lines = markdownToLines(this.chunk.markdown, cols);
+      this.linesCols = cols;
+      this.scroll = Math.min(this.scroll, Math.max(0, this.lines.length - 1));
+    }
   }
 
   update(): void {
@@ -201,10 +237,9 @@ export class CenterScreen implements Screen {
     const p = s.palette;
     s.clear();
     const m = 16;
-    const tw = this.treeW();
-    const lw = this.labW();
-    const cx0 = m + tw + 16;
-    const cw = this.contentWidth();
+    this.ensureLines();
+    const { tw, cx0, cw, rx, rw } = this.layout();
+    const lw = this.wantsLab() ? Math.min(rw, CenterScreen.LAB_MAX) : 0;
     const readCount = this.index ? this.index.topics.filter((t) => progress[t.id]).length : 0;
     drawText(s, 'LEARNING CENTER', m, m, 16, { color: p.hot, glow: 1.5 });
     drawText(s, `${readCount} OF ${this.index?.topics.length ?? 0} TOPICS READ   LEVEL ${this.level}   VIEW ${this.view}${this.search ? `   SEARCH "${this.search.toUpperCase()}"` : ''}`, m + 270, m + 3, 10, { color: p.dim, glow: 0 });
@@ -214,7 +249,7 @@ export class CenterScreen implements Screen {
       drawText(s, LEVEL_TABS[lv], tx, m + 2, 12, { color: on ? p.hot : p.ink, glow: on ? 1.2 : 0.3 });
       tx += 22;
     }
-    if (this.status) drawText(s, this.status, m, m + 24, 10, { color: p.hot, glow: 0.5 });
+    if (this.status) drawTextFit(s, this.status, m, m + 24, 10, s.width - 2 * m, { color: p.hot, glow: 0.5 });
     // Tree.
     const top = m + 40;
     const list = this.list();
@@ -227,15 +262,16 @@ export class CenterScreen implements Screen {
     for (let i = start; i < Math.min(list.length, start + rows); i++) {
       const t = list[i] as TopicMeta;
       if (t.group !== lastGroup && this.view === 'TOPICS' && !this.search) {
-        drawText(s, `${t.group}  ${groups[t.group] ?? ''}`, m, y, 9, { color: p.dim, glow: 0 });
+        drawText(s, cutWords(`${t.group}  ${groups[t.group] ?? ''}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: p.dim, glow: 0 });
         lastGroup = t.group;
         y += lineH;
         if (y > s.height - 60) break;
       }
+      if (y > s.height - 60) break; // group headers take rows too: stop above the footer
       const on = i === this.sel;
       const read = progress[t.id];
       const mark = bookmarks.includes(t.id) ? '*' : read ? (LEVEL_TABS[read as Level] ?? '.') : ' ';
-      drawText(s, `${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`.slice(0, charsPerLine(tw - 8, 9)), m, y, 9, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.2 });
+      drawText(s, cutWords(`${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`, charsPerLine(tw - 8, 9)), m, y, 9, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.2 });
       y += lineH;
     }
     // Content.
@@ -243,32 +279,34 @@ export class CenterScreen implements Screen {
     const c = this.chunk;
     let cy = top;
     if (c) {
-      drawText(s, `${c.id}  ${substitute(c.title).toUpperCase()}`.slice(0, charsPerLine(cw, 12)), cx0, cy, 12, { color: this.focus === 'CONTENT' ? p.hot : p.ink, glow: 1 });
+      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + (lw > 0 ? 0 : rw),  { color: this.focus === 'CONTENT' ? p.hot : p.ink, glow: 1 });
       cy += 22;
       if (c.pictureId && c.level === 'SIMPLE') {
-        const pw = Math.min(cw, 480);
+        // The picture may spill into the empty right pane; the prose below stays at reading width.
+        const pw = Math.min(lw > 0 ? cw : cw + rw, 560);
         drawPicture(s, c.pictureId, cx0, cy, pw, (pw * 320) / 480);
         cy += (pw * 320) / 480 + 12;
         if (c.pictureCaption) {
-          drawText(s, substitute(c.pictureCaption), cx0, cy, 8, { color: p.dim, glow: 0, lower: true });
+          drawTextFit(s, substitute(c.pictureCaption), cx0, cy, 8, pw, { color: p.dim, glow: 0, lower: true });
           cy += 16;
         }
       }
       const maxLines = Math.floor((s.height - 50 - cy) / 13);
       for (const l of this.lines.slice(this.scroll, this.scroll + maxLines)) {
         const txt = substitute(l.text);
-        if (l.kind === 'head') drawText(s, txt.toUpperCase(), cx0, cy, 10, { color: p.hot, glow: 0.8 });
-        else if (l.kind === 'code' || l.kind === 'table') drawText(s, txt.slice(0, charsPerLine(cw - 6, 8)), cx0 + 6, cy, 8, { color: p.ink, glow: 0.2, lower: true });
+        if (l.kind === 'head') drawTextFit(s, txt.toUpperCase(), cx0, cy, 10, cw, { color: p.hot, glow: 0.8 });
+        // Code and tables are never re-wrapped (columns would break): they may use the empty right pane, else shrink.
+        else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, cx0 + 6, cy, 8, (lw > 0 ? cw : cw + rw) - 6, { color: p.ink, glow: 0.2, lower: true });
         else drawText(s, txt, cx0, cy, 9, { color: p.ink, glow: 0.3, lower: true });
         cy += 13;
       }
-      if (this.lines.length > this.scroll + maxLines) drawText(s, `... ${this.lines.length - this.scroll - maxLines} MORE (TAB TO CONTENT, DOWN)`, cx0, cy, 9, { color: p.dim, glow: 0 });
+      if (this.lines.length > this.scroll + maxLines) drawTextFit(s, `... ${this.lines.length - this.scroll - maxLines} MORE (TAB TO CONTENT, DOWN)`, cx0, cy, 9, cw, { color: p.dim, glow: 0 });
       const meta = this.index?.topics.find((t) => t.id === c.id);
-      if (meta && meta.related.length > 0) drawText(s, `RELATED ${meta.related.join(' ')}   IN GAME: ${meta.game.join(', ').toUpperCase()}`.slice(0, charsPerLine(cw, 8)), cx0, s.height - 52, 8, { color: p.dim, glow: 0 });
+      if (meta && meta.related.length > 0) drawText(s, cutWords(`RELATED ${meta.related.join(' ')}   IN GAME: ${meta.game.join(', ').toUpperCase()}`, charsPerLine(cw, 8)), cx0, s.height - 52, 8, { color: p.dim, glow: 0 });
     } else if (!this.status) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
     // Lab.
     if (lw > 0) {
-      const lx = s.width - m - lw;
+      const lx = rx;
       s.stroke([lx - 8, top - 6, lx - 8, s.height - 40], { color: p.dim, glow: 0 });
       const meta = this.index?.topics.find((t) => t.id === this.topicId);
       const lab = this.lab;
@@ -281,29 +319,43 @@ export class CenterScreen implements Screen {
           const on = this.focus === 'LAB' && i === this.labSel;
           const frac = sl.log ? Math.log(sl.value / sl.min) / Math.log(sl.max / sl.min) : (sl.value - sl.min) / (sl.max - sl.min);
           drawText(s, `${on ? '>' : ' '} ${sl.label}`, lx, ly, 8, { color: on ? p.hot : p.ink, glow: on ? 0.8 : 0.2 });
-          const bx = lx + 150;
-          const bw = lw - 230;
+          const bx = lx + Math.min(150, lw * 0.4);
+          const bw = Math.max(40, lw - (bx - lx) - 80);
           s.stroke([bx, ly + 4, bx + bw, ly + 4], { color: p.dim, glow: 0 });
           s.circle(bx + frac * bw, ly + 4, 3, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.3 });
           drawText(s, `${sl.value >= 1e5 || sl.value < 0.01 ? sl.value.toExponential(2) : Number(sl.value.toPrecision(4))}`, bx + bw + 8, ly, 8, { color: p.dim, glow: 0, align: 'left' });
           ly += 16;
         });
         const plotH = Math.min(260, s.height - ly - 140);
+        // Clip the plot to its frame: a curve that leaves the axes must not draw over the sliders or the text.
+        s.ctx.save();
+        s.ctx.beginPath();
+        s.ctx.rect(lx - 2, ly + 4, lw + 4, plotH + 4);
+        s.ctx.clip();
         lab.draw(s, v, { x: lx, y: ly + 6, w: lw, h: plotH });
+        s.ctx.restore();
         ly += plotH + 14;
         for (const line of lab.lines(v)) {
-          drawText(s, substitute(line).slice(0, charsPerLine(lw, 8)), lx, ly, 8, { color: p.ink, glow: 0.3, lower: true });
+          drawText(s, cutWords(substitute(line), charsPerLine(lw, 8)), lx, ly, 8, { color: p.ink, glow: 0.3, lower: true });
           ly += 12;
         }
         ly += 4;
         drawText(s, 'SHOW CODE:', lx, ly, 8, { color: p.hot, glow: 0.5 });
         ly += 12;
         for (const cpath of lab.code) {
-          drawText(s, cpath, lx, ly, 8, { color: p.dim, glow: 0, lower: true });
+          drawTextFit(s, cpath, lx, ly, 8, lw, { color: p.dim, glow: 0, lower: true });
           ly += 11;
         }
       }
     }
     drawText(s, `UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK   LABS ${BUILT_LABS.length} OF 20`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, { align: 'center', color: p.dim, glow: 0 });
   }
+}
+
+/** Cut `text` to `cols` characters at a word boundary, marking the cut with "..": no half words in a column. */
+export function cutWords(text: string, cols: number): string {
+  if (text.length <= cols) return text;
+  const room = Math.max(1, cols - 2);
+  const cut = text.lastIndexOf(' ', room);
+  return (cut > cols * 0.5 ? text.slice(0, cut) : text.slice(0, room)).trimEnd() + '..';
 }

@@ -195,14 +195,15 @@ export class HelpScreen implements Screen {
       drawText(s, sec, tx, m, 12, { color: sec === page.section ? p.hot : p.dim, glow: sec === page.section ? 1.2 : 0 });
       tx += 110;
     }
-    drawText(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, { color: p.ink, glow: 0.5 });
+    drawTextFit(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, s.width - m - tx - 20, { color: p.ink, glow: 0.5 });
     const size = Math.max(9, Math.min(12, (s.width - 2 * m) / 105 / (5.5 / 6)));
     const lineH = size * 1.7;
     let y = m + 36;
     for (let i = this.scroll; i < page.lines.length; i++) {
       if (y > s.height - 60) break;
       const line = page.lines[i] as string;
-      drawText(s, line, m, y, size, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
+      // Hand-aligned lines (key tables): never re-wrapped, shrunk to the window instead.
+      drawTextFit(s, line, m, y, size, s.width - 2 * m, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
       y += lineH;
     }
     drawTextFit(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
