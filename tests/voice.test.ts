@@ -7,13 +7,14 @@ import { cycle, DEFAULT_SETTINGS, isSettings, VOICES } from '../src/game/setting
 import type { SimEventRecord } from '../src/sim/eventLog';
 
 describe('VOICE manifest (src/config/voice.json)', () => {
-  it('every line has non-empty text and a small clip for both voices', () => {
+  it('every line has non-empty text and a small clip for every voice', () => {
     expect(VOICE_IDS.length).toBeGreaterThanOrEqual(22);
     let total = 0;
     for (const id of VOICE_IDS) {
       expect(id).toMatch(/^[A-Z_]+$/);
       expect(voiceText(id).trim().length).toBeGreaterThan(0);
-      for (const mode of ['FEMALE', 'MALE'] as const) {
+      for (const mode of VOICES) {
+        if (mode === 'OFF') continue;
         const f = `public/${voiceUrl(mode, id)}`;
         expect((existsSync as (p: string) => boolean)(f), f).toBe(true);
         const size = (statSync as (p: string) => { size: number })(f).size;
@@ -21,26 +22,31 @@ describe('VOICE manifest (src/config/voice.json)', () => {
         total += size;
       }
     }
-    // Both voices together stay under the 400 KB budget of IDEAS 21.
-    expect(total).toBeLessThan(400 * 1024);
+    // All voices together stay under 1 MB (IDEAS 21 budgeted 400 KB for two; six voices measured 612 KB).
+    expect(total).toBeLessThan(1024 * 1024);
   });
 
   it('the lines the game hooks exist', () => {
-    for (const id of ['LAUNCHING', 'PLAN_COMMITTED', 'MISS', 'HIT', 'GAME_OVER', 'IMPACT_IMMINENT', 'WELCOME', 'FINALE']) {
+    for (const id of ['LAUNCHING', 'PLAN_COMMITTED', 'MISS', 'HIT', 'GAME_OVER', 'IMPACT_IMMINENT', 'WELCOME', 'FINALE', 'PLAY_A_GAME']) {
       expect(VOICE_IDS).toContain(id);
     }
   });
 });
 
 describe('VOICE setting', () => {
-  it('defaults to FEMALE, accepts the three modes, keeps older records valid, rejects junk', () => {
+  it('defaults to FEMALE, accepts every mode, keeps older records valid, rejects junk', () => {
     expect(DEFAULT_SETTINGS.voice).toBe('FEMALE');
     for (const v of VOICES) expect(isSettings({ ...DEFAULT_SETTINGS, voice: v })).toBe(true);
     const { voice: _drop, ...older } = DEFAULT_SETTINGS;
     expect(isSettings(older)).toBe(true);
     expect(isSettings({ ...DEFAULT_SETTINGS, voice: 'ROBOT' })).toBe(false);
     expect(isSettings({ ...DEFAULT_SETTINGS, voice: 1 })).toBe(false);
-    expect(cycle(VOICES, 'MALE', 1)).toBe('OFF');
+    expect(VOICES.length).toBe(7);
+    expect(isSettings({ ...DEFAULT_SETTINGS, voice: 'MALE' })).toBe(true);
+    expect(cycle(VOICES, 'TOY', 1)).toBe('OFF');
+    expect(voiceUrl('FEMALE', 'LAUNCHING')).toBe('audio/voice/female/LAUNCHING.ogg');
+    expect(voiceUrl('MAINFRAME', 'PLAY_A_GAME')).toBe('audio/voice/mainframe/PLAY_A_GAME.ogg');
+    expect(voiceText('PLAY_A_GAME')).toBe('Would you like to play a game?');
   });
 });
 

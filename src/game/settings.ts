@@ -14,7 +14,8 @@ import type { SoundStyle } from '../audio/ui';
 
 export type TextSize = 'SMALL' | 'NORMAL' | 'LARGE';
 export type Units = 'SI' | 'IMPERIAL';
-export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE';
+/** Robot voices: each is one baked clip folder, public/audio/voice/<lower case name>/ (scripts/gen_voice.py). */
+export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE' | 'TERMINAL' | 'COMPUTER' | 'MAINFRAME' | 'TOY';
 export type LearningLevel = 'SIMPLE' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
 
 export interface Settings {
@@ -43,7 +44,7 @@ export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'V
 export const GLOW_MODES: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 export const TEXT_SIZES: readonly TextSize[] = ['SMALL', 'NORMAL', 'LARGE'];
 export const UNITS: readonly Units[] = ['SI', 'IMPERIAL'];
-export const VOICES: readonly VoiceSetting[] = ['OFF', 'FEMALE', 'MALE'];
+export const VOICES: readonly VoiceSetting[] = ['OFF', 'FEMALE', 'MALE', 'TERMINAL', 'COMPUTER', 'MAINFRAME', 'TOY'];
 export const LEARNING_LEVELS: readonly LearningLevel[] = ['SIMPLE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 const TEXT_SCALE: Record<TextSize, number> = { SMALL: 0.9, NORMAL: 1, LARGE: 1.15 };
 

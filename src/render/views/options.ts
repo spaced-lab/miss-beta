@@ -7,7 +7,7 @@
 import type { Router, Screen } from '../../game/screen';
 import { topicForOption } from '../../game/loreLinks';
 import { applySettings, COLOR_MODES, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, SOUND_STYLES, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
-import type { VoiceId } from '../../audio/voice';
+import { voiceText, type VoiceId } from '../../audio/voice';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors } from '../palettes';
@@ -46,7 +46,8 @@ export class OptionsScreen implements Screen {
       { label: 'GLOW', value: () => st.glow.toUpperCase(), change: (d) => (st.glow = cycle(GLOW_MODES, st.glow, d)), note: 'UNDERSTROKE IS A WIDE FAINT LINE UNDER EVERY STROKE (CHEAP). SHADOW USES CANVAS BLUR (SOFTER, SLOWER).' },
       { label: 'SOUND', value: () => (st.sound ? 'ON' : 'OFF'), change: () => (st.sound = !st.sound), note: 'INTERFACE BLEEPS AND EVENT SOUNDS IN THE MAIN GAME. THE ARCADE MODE HAS ITS OWN SWITCH (KEY 4).' },
       { label: 'SOUND STYLE', value: () => st.soundStyle ?? 'ARCADE', change: (d) => (st.soundStyle = cycle(SOUND_STYLES, st.soundStyle ?? 'ARCADE', d)), note: 'ARCADE: THE LOW LO-FI VOICES BORROWED FROM PERIMETER FOR MENUS, LAUNCHES AND IMPACTS. CLASSIC: THE ORIGINAL SOFT BLEEPS.' },
-      { label: 'VOICE', value: () => st.voice ?? 'FEMALE', change: (d) => { st.voice = cycle(VOICES, st.voice ?? 'FEMALE', d); this.sayVoice?.('LAUNCHING'); }, note: 'A LO-FI ROBOT MISSION VOICE FOR BIG MOMENTS. BRITISH KOKORO TTS VOICES (APACHE-2.0) THROUGH A VOCODER.' },
+      { label: 'VOICE', value: () => st.voice ?? 'FEMALE', change: (d) => { st.voice = cycle(VOICES, st.voice ?? 'FEMALE', d); this.sayVoice?.('PLAY_A_GAME'); }, note: 'A LO-FI ROBOT MISSION VOICE FOR BIG MOMENTS: FEMALE, MALE, TERMINAL (HEAVY VOCODER), COMPUTER (CLEAN), MAINFRAME (DEEP, SLOW), TOY (8-BIT). KOKORO TTS (APACHE-2.0) THROUGH A VOCODER.' },
+      { label: 'VOICE TEST', value: () => 'PLAY', change: () => this.sayVoice?.('PLAY_A_GAME'), note: `ENTER TO HEAR THE VOICE SAY: "${voiceText('PLAY_A_GAME').toUpperCase()}"  (SILENT WHEN VOICE IS OFF)` },
       { label: 'UNITS', value: () => st.units, change: (d) => (st.units = cycle(UNITS, st.units, d)), note: 'DISPLAY ONLY. THE SIMULATION IS SI INSIDE. IMPERIAL SHOWS MILES AND MPH WHERE A READOUT SUPPORTS IT.' },
       { label: 'REDUCE MOTION', value: () => (st.reduceMotion ? 'ON' : 'OFF'), change: () => (st.reduceMotion = !st.reduceMotion), note: 'NO FLICKER, NO GLITCH TEARS, NO SWEEPS.' },
       { label: 'TEXT SIZE', value: () => st.textSize, change: (d) => (st.textSize = cycle(TEXT_SIZES, st.textSize, d)), note: 'SCALES EVERY LABEL. LARGE MAY WRAP LONG READOUTS OFF SCREEN ON NARROW WINDOWS.' },

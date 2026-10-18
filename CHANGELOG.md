@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- More robot voices: OPTIONS > VOICE adds TERMINAL, COMPUTER, MAINFRAME and TOY to FEMALE and MALE, and a VOICE
+  TEST row; changing the voice or pressing Enter on VOICE TEST says "Would you like to play a game?" (612 KB for
+  all six voices). Older saved settings keep their voice.
+
 - OPTIONS > SOUND STYLE: ARCADE (default) plays PERIMETER's low lo-fi voices for menus, commits, launches and
   impacts; CLASSIC keeps the original bleeps. Every menu now ticks on cursor moves and selects.
 
