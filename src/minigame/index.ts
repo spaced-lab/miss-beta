@@ -27,7 +27,8 @@ import type { Input as Keys } from '../ui/input';
 import { botInput } from './bot';
 import { MINIGAME_CHEATS } from './cheats';
 import { MG, type Difficulty } from './config';
-import { DEFAULT_SETTINGS, isMinigameSettings, isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSettings } from './modes';
+import { isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSettings } from './modes';
+import { loadMinigameSettings, saveMinigameSettings } from './prefs';
 import { renderMinigame } from './render';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
@@ -38,7 +39,7 @@ const BEST_KEY = 'minigame.best';
 /** Best score per difficulty: NORMAL keeps the original key so existing bests stay where they were. */
 export const bestKey = (d: Difficulty): string => (d === 'normal' ? BEST_KEY : `${BEST_KEY}.${d}`);
 /** Difficulty and start level (modes.ts), one guarded localStorage key. */
-export const SETTINGS_KEY = 'minigame.settings';
+export { SETTINGS_KEY } from './prefs';
 /** View toggles that do not end the SUPER DEMO (debug HUD, glow, sound). */
 const DEMO_KEEP_KEYS = ['Digit1', 'Digit2', 'Digit4'] as const;
 const SOUND_KEY = 'minigame.sound';
@@ -67,7 +68,7 @@ export class MinigameScreen implements Screen {
   private st: MinigameState;
   private acc = 0;
   private debug = false;
-  private settings: MinigameSettings = loadJson(SETTINGS_KEY, isMinigameSettings, { ...DEFAULT_SETTINGS });
+  private settings: MinigameSettings = loadMinigameSettings();
   private best = loadNumber(bestKey(this.settings.difficulty), 0);
   /** SUPER DEMO running: the bot drives, nothing is saved. */
   private demo = false;
@@ -115,6 +116,7 @@ export class MinigameScreen implements Screen {
   /** A fresh game with the panel's options; the recorder runs only for a run that can be ranked and replayed. */
   private begin(seed: number): void {
     this.st = newGame(seed, this.st.collision, this.settings);
+    this.best = loadNumber(bestKey(this.settings.difficulty), 0);
     this.rec = isRanked(this.st) ? new Recorder() : null;
     this.player = null;
   }
@@ -138,6 +140,9 @@ export class MinigameScreen implements Screen {
 
   private stopDemo(): void {
     this.demo = false;
+    // OPTIONS > PERIMETER writes the same key, so pick up a change made there.
+    this.settings = loadMinigameSettings();
+    this.best = loadNumber(bestKey(this.settings.difficulty), 0);
     this.st = createState(this.newSeed(), this.st.collision, this.settings.difficulty);
     // A real game was waiting before the demo: offer it again.
     const saved = loadSessionJson(SAVE_KEY, isSavedGame, null);
@@ -173,6 +178,9 @@ export class MinigameScreen implements Screen {
   enter(): void {
     this.keys.takeMultiTap?.(); // a two-finger pinch on another screen must not fire a pulse here
     this.demo = false;
+    // OPTIONS > PERIMETER writes the same key, so pick up a change made there.
+    this.settings = loadMinigameSettings();
+    this.best = loadNumber(bestKey(this.settings.difficulty), 0);
     this.st = createState(this.newSeed(), this.st.collision, this.settings.difficulty);
     // NOTE: the save is validated by isSavedGame before anything is read from it; only a game still in
     // progress is worth offering.
@@ -231,13 +239,17 @@ export class MinigameScreen implements Screen {
       k.clearTyped();
       return;
     }
-    if (st.status === 'ready' && k.anyPressed('Digit9', 'Digit0')) {
-      // NOTE: options apply to the next new game; a saved game keeps the options it was started with.
+    if ((st.status === 'ready' || (st.status === 'over' && !this.player)) && k.anyPressed('Digit9', 'Digit0')) {
+      // NOTE: options apply to the next new game; a saved game keeps the options it was started with. On the
+      // game-over panel they set up the retry (owner 2026-10-18: the level skip was hard to find).
       if (k.pressed('Digit9')) this.settings = { ...this.settings, difficulty: nextDifficulty(this.settings.difficulty) };
       if (k.pressed('Digit0')) this.settings = { ...this.settings, startLevel: nextStartLevel(this.settings.startLevel) };
-      saveJson(SETTINGS_KEY, this.settings);
-      this.best = loadNumber(bestKey(this.settings.difficulty), 0);
-      this.st = createState(st.seed, st.collision, this.settings.difficulty);
+      saveMinigameSettings(this.settings);
+      // The game-over panel keeps comparing the finished game with its own difficulty's best.
+      if (st.status === 'ready') {
+        this.best = loadNumber(bestKey(this.settings.difficulty), 0);
+        this.st = createState(st.seed, st.collision, this.settings.difficulty);
+      }
       return;
     }
     if (st.status === 'ready' && k.pressed('Digit7')) {
@@ -431,7 +443,7 @@ export class MinigameScreen implements Screen {
       resume: sv ? { level: sv.level, score: sv.score, t: sv.t } : null,
       daily: this.daily ? { date: today(), best: this.dailyBest } : null,
       demo: this.demo ? { speed: MG.DEMO_SPEED, restartIn: this.st.status === 'over' ? Math.max(0, MG.DEMO_RESTART_SECONDS - this.demoRestart) : null } : null,
-      options: this.settings,
+      ...(this.player || this.demo ? {} : { options: this.settings }),
       reduceMotion: this.reduceMotion(),
     });
     if (this.labState.open) renderLab(this.s, this.labState, this.sfx);

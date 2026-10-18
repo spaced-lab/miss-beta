@@ -18,6 +18,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   and calendars adjusted over and over, and hit after hit on a planet with a bass rumble per hit that grows heavier;
   data-centre scenes blip; the time portal is shorter and spins faster. The ending is unchanged: the same blur
   (BLUR_CUTS 12, the old two passes of six), the same 2.4 s pause and typing speed.
+- PERIMETER: the difficulty and skip-to-level options are easy to find. The start panel has a framed GAME SETUP box
+  (9 DIFFICULTY, 0 START LEVEL 1/10/20/30/40, 8 SUPER DEMO, each choice spelled out), the game-over panel sets up
+  the retry with the same keys, and OPTIONS has a PERIMETER group with both settings (`minigame/prefs.ts`).
 
 ## 26.4.0 (2026-10-18)
 

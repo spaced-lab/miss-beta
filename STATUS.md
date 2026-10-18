@@ -294,6 +294,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
      Done: P1 part 1, planner ranking in the worker (D11: the demo's freeze).
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).
      Done: P1 part 3, finale montage (SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 -> BLUR_CUTS 12, ending unchanged).
+     Done: P2, PERIMETER GAME SETUP box, retry setup on game over, OPTIONS > PERIMETER. Next: review finding 1.
    - DONE research backlog + claim registry (docs/RESEARCH.md, src/config/claims.json, G9). Keep adding: every
      new real-world number enters the registry as UNVERIFIED before game text uses it.
    - DONE title screen: "MISS:" before the acronym's spelled-out line and "BETA:" before the other, labels purple,

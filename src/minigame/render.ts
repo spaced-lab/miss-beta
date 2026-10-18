@@ -507,7 +507,11 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const noteLines = notes.flatMap((n) => wrapText(n, inner, 11));
   const lh = (sz: number): number => sz * 1.6 * getTextScale();
   const rowsH = rowLines.reduce((a, ls) => a + ls.length * lh(ks) + 4, 0);
-  const h = 128 + rowsH + 8 + noteLines.length * lh(11) + 136;
+  const o = opts.options;
+  // GAME SETUP box (owner 2026-10-18: the skip-to-level menu was hard to find): three framed rows, keys in the left
+  // column, every choice spelled out with the current one in brackets.
+  const setupH = o ? 3 * lh(12) + 50 : 0;
+  const h = 128 + rowsH + 8 + noteLines.length * lh(11) + 110 + setupH;
   const { x, y } = drawPanel(s, pw, h);
   const cx = s.width / 2;
   const x0 = x + 28;
@@ -528,6 +532,26 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     drawText(s, n, cx, ly, 11, { align: 'center', color: p.dim, glow: 0 });
     ly += lh(11);
   }
+  if (o) {
+    const bx = x0;
+    const bw = inner;
+    const bt = ly + 6;
+    s.stroke([bx, bt, bx + bw, bt, bx + bw, bt + setupH - 12, bx, bt + setupH - 12], { closed: true, color: p.hot, glow: 0.8 });
+    drawText(s, 'GAME SETUP', bx + 12, bt + 8, 12, { color: p.hot, glow: 1.2 });
+    const pick = (list: readonly (string | number)[], cur: string | number): string => list.map((v) => (v === cur ? `[${String(v).toUpperCase()}]` : String(v).toUpperCase())).join('  ');
+    const setup: [string, string, string][] = [
+      ['9', 'DIFFICULTY', pick(MG.DIFFICULTY_ORDER, o.difficulty)],
+      ['0', 'START LEVEL', `${pick(MG.START_LEVELS, o.startLevel)}${o.startLevel > 1 ? '   NOT RANKED' : ''}`],
+      ['8', 'SUPER DEMO', 'WATCH IT PLAY ITSELF'],
+    ];
+    let sy = bt + 8 + lh(12) + 4;
+    for (const [key, label, val] of setup) {
+      drawText(s, key, bx + 12, sy, 12, { color: p.hot, glow: 1 });
+      drawText(s, label, bx + 40, sy, 12, { color: p.ink, glow: 0.5 });
+      drawTextFit(s, val, bx + 40 + measureText('START LEVEL', 12) * getTextScale() + 24, sy, 12, bw - 200, { color: p.ink, glow: 0.8 });
+      sy += lh(12);
+    }
+  }
   const blink = Math.floor(performance.now() / 500) % 2 === 0;
   const r = opts.resume;
   const by = y + h - 80;
@@ -537,16 +561,11 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   } else if (blink) {
     drawTextFit(s, 'PRESS SPACE TO START', cx, by + 20, 16, inner, { align: 'center', color: p.hot, glow: 1.5 });
   }
-  const o = opts.options;
-  if (o) {
-    const from = o.startLevel > 1 ? `LEVEL ${o.startLevel} (NOT RANKED)` : 'LEVEL 1';
-    drawTextFit(s, `9 DIFFICULTY ${o.difficulty.toUpperCase()}    0 START AT ${from}    8 SUPER DEMO`, cx, by - 26, 12, inner, { align: 'center', color: p.ink, glow: 0.6 });
-  }
   drawTextFit(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  6 DAILY${opts.daily ? ' (ON)' : ''}  7 WATCH BEST  L SOUND LAB  SEED ${st.seed}`, cx, y + h - 26, 10, inner, { align: 'center', color: p.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
-  const { y } = drawPanel(s, Math.min(480, s.width - 32), 250);
+  const { y } = drawPanel(s, Math.min(580, s.width - 32), opts.options ? 272 : 250);
   const cx = s.width / 2;
   drawText(s, 'HOME LOST', cx, y + 28, 34, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, `SCORE ${st.score}`, cx, y + 86, 18, { align: 'center' });
@@ -557,4 +576,6 @@ function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
   else if (st.startLevel > 1) drawText(s, `STARTED AT LEVEL ${st.startLevel}: NOT RANKED`, cx, y + 172, 11, { align: 'center', color: s.palette.dim, glow: 0 });
   if (st.difficulty !== 'normal') drawText(s, `${st.difficulty.toUpperCase()}`, cx, y + 188, 11, { align: 'center', color: s.palette.dim, glow: 0 });
   drawText(s, 'SPACE RETRY    L SOUND LAB    ESC TITLE', cx, y + 212, 14, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  const o = opts.options;
+  if (o) drawTextFit(s, `RETRY AS:  9 ${o.difficulty.toUpperCase()}   0 START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, y + 240, 11, Math.min(580, s.width - 32) - 32, { align: 'center', color: s.palette.ink, glow: 0.6 });
 }

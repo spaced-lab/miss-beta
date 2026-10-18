@@ -11,29 +11,8 @@ import type { CollisionStrategy } from './collision';
 import { MG, type Difficulty } from './config';
 import { createState, deployTurret, flash, launcherCount, seekerMax, start, streamCount, swarmMax, turretMax, type MinigameState } from './sim';
 
-/** What the ready panel remembers between sessions. */
-export interface MinigameSettings {
-  difficulty: Difficulty;
-  startLevel: number;
-}
-
-export const DEFAULT_SETTINGS: Readonly<MinigameSettings> = Object.freeze({ difficulty: MG.DIFFICULTY_DEFAULT, startLevel: 1 });
-
-/** Type guard for the stored settings: a known difficulty and a start level from MG.START_LEVELS, nothing else trusted. */
-export const isMinigameSettings = (v: unknown): v is MinigameSettings => {
-  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
-  const o = v as Record<string, unknown>;
-  return (MG.DIFFICULTY_ORDER as readonly unknown[]).includes(o.difficulty) && typeof o.startLevel === 'number' && MG.START_LEVELS.includes(o.startLevel);
-};
-
-/** The next entry of a list after `cur`, wrapping; the first entry when `cur` is not in it. */
-function nextOf<T>(list: readonly T[], cur: T): T {
-  const i = list.indexOf(cur);
-  return list[(i + 1) % list.length] ?? cur;
-}
-
-export const nextDifficulty = (d: Difficulty): Difficulty => nextOf(MG.DIFFICULTY_ORDER, d);
-export const nextStartLevel = (level: number): number => nextOf(MG.START_LEVELS, level);
+export { DEFAULT_SETTINGS, isMinigameSettings, nextDifficulty, nextStartLevel, type MinigameSettings } from './prefs';
+import type { MinigameSettings } from './prefs';
 
 /**
  * Put a fresh 'playing' state at the start of `level` with a typical run's kit. Example: level 20 gives t = 323 s

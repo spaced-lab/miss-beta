@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { botInput } from '../src/minigame/bot';
 import { MG, type Difficulty } from '../src/minigame/config';
 import { bestKey, MinigameScreen, SETTINGS_KEY } from '../src/minigame/index';
+import { loadMinigameSettings, saveMinigameSettings, stepDifficulty, stepStartLevel } from '../src/minigame/prefs';
 import { DEFAULT_SETTINGS, isMinigameSettings, isRanked, newGame, nextDifficulty, nextStartLevel, setupStart } from '../src/minigame/modes';
 import { shakePx } from '../src/minigame/render';
 import { isSavedReplay } from '../src/minigame/replay';
@@ -254,6 +255,39 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
       delete g.localStorage;
       delete g.sessionStorage;
     }
+  });
+
+  it('the game-over panel sets up the retry, and OPTIONS changes are picked up on entry', () => {
+    const local = fakeStorage();
+    g.localStorage = local;
+    g.sessionStorage = fakeStorage();
+    try {
+      const keys = new FakeKeys();
+      const screen = new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} });
+      screen.enter();
+      tap(keys, screen, 'Space');
+      (screen.state as { status: string }).status = 'over';
+      tap(keys, screen, 'Digit0'); // 1 -> 10, for the retry
+      expect(screen.state.status).toBe('over');
+      tap(keys, screen, 'Space');
+      expect(screen.state.status).toBe('playing');
+      expect(screen.state.level).toBe(10);
+      // OPTIONS > PERIMETER writes the same key; the screen reads it again when it is entered.
+      saveMinigameSettings({ difficulty: 'easy', startLevel: 20 });
+      screen.enter();
+      expect(screen.options).toEqual({ difficulty: 'easy', startLevel: 20 });
+      expect(loadMinigameSettings()).toEqual({ difficulty: 'easy', startLevel: 20 });
+    } finally {
+      delete g.localStorage;
+      delete g.sessionStorage;
+    }
+  });
+
+  it('OPTIONS steps wrap both ways', () => {
+    expect(stepStartLevel(1, -1)).toBe(40);
+    expect(stepStartLevel(40, 1)).toBe(1);
+    expect(stepDifficulty('easy', -1)).toBe('hard');
+    expect(stepDifficulty('normal', 1)).toBe('hard');
   });
 
   it('8 starts the demo at DEMO_SPEED on NORMAL from level 1; it is not autosaved; any key ends it', () => {

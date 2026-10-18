@@ -219,6 +219,11 @@ of sentinels. Levels raise streams, launchers and rock hardness; the moon arrive
 earned from level 6. Keys 1 to 5: debug, glow, collision, sound, sound kit. Cheat codes are listed in
 `src/minigame/cheats.ts`; they flag the run ASSISTED.
 
+**GAME SETUP** (the box on the start panel): `9` steps the difficulty EASY / NORMAL / HARD (each keeps its own best
+score), `0` skips ahead to start level 1, 10, 20, 30 or 40 with the kit a run usually has by then (a later start is
+not ranked), `8` starts the SUPER DEMO. The same `9` and `0` work on the game-over panel and set up the retry; the
+main OPTIONS screen has both settings under PERIMETER.
+
 **SOUND LAB** (`L` on the ready or game-over panel): every sound in the game has three or four synthesized
 voices plus OFF, and you choose by ear. Up/Down picks a row (shot, hit, breakup, hull impact, laser, mesh,
 pulse, seeker, swarm, sentry, moon hit, level-up, the ambient layer, then master volume and ambient level),
