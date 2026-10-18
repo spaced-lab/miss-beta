@@ -156,7 +156,25 @@ export class TitleScreen implements Screen {
       }
     }
     if (k.pressed('Enter') || k.pressed('Space')) this.activate();
+    // Mouse: hovering moves the cursor, a click chooses.
+    const mp = k.mouse;
+    const hovered = mp ? this.itemRows.findIndex((r) => mp.x > r.x0 && mp.x < r.x1 && mp.y >= r.y - 4 && mp.y < r.y + 22) : -1;
+    if (hovered >= 0 && hovered !== this.sel && (mp?.x !== this.lastHover.x || mp?.y !== this.lastHover.y)) {
+      this.sel = hovered;
+      this.sfx?.move();
+    }
+    if (mp) this.lastHover = { x: mp.x, y: mp.y };
+    const click = k.takeClick();
+    if (click) {
+      const i = this.itemRows.findIndex((r) => click.x > r.x0 && click.x < r.x1 && click.y >= r.y - 4 && click.y < r.y + 22);
+      if (i >= 0) {
+        this.sel = i;
+        this.activate();
+      }
+    }
   }
+  private itemRows: { x0: number; x1: number; y: number }[] = [];
+  private lastHover = { x: -1, y: -1 };
 
   private activate(): void {
     const it = this.items[this.sel];
@@ -197,19 +215,21 @@ export class TitleScreen implements Screen {
     drawText(s, 'BALLISTIC ENGAGEMENT OF THREATENING ASTEROIDS', cx, cy - big * 0.55 + 20, 12, { align: 'center' });
 
     let y = cy + 4;
+    this.itemRows.length = 0;
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
       if (!it) continue;
       const selected = i === this.sel;
       const label = it.label + (it.action ? '' : '   [BUILDING]') + (it.label === 'CONTINUE' ? (hasSavedRun() ? '   (SAVED RUN FOUND)' : '   (NO SAVE)') : '');
       if (selected) drawText(s, '>', cx - 190, y, 16, { color: p.hot, glow: 1.5 });
-      drawText(s, label, cx - 160, y, 15, { color: selected ? p.hot : it.action ? p.ink : p.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
+      const wdt = drawText(s, label, cx - 160, y, 15, { color: selected ? p.hot : it.action ? p.ink : p.dim, glow: selected ? 1.5 : it.action ? 1 : 0 });
+      this.itemRows.push({ x0: cx - 200, x1: cx - 160 + wdt + 10, y });
       y += 26;
     }
 
     if (this.noteT > 0) drawText(s, this.note, cx, s.height - 90, 12, { align: 'center', color: p.hot, alpha: Math.min(1, this.noteT) });
     if (this.pendingRun && this.pendingRun.cheatsUsed.length > 0) drawText(s, `CODES FOR THE NEXT RUN: ${this.pendingRun.cheatsUsed.join(' ')}   MODE ${this.pendingRun.mode}`, cx, s.height - 64, 11, { align: 'center', color: p.hot, glow: 0.8 });
-    drawText(s, 'MISS β v0.1   ARROWS SELECT   ENTER START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, 'MISS β v0.1   ARROWS OR MOUSE SELECT   ENTER OR CLICK START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)', cx, s.height - 40, 11, { align: 'center', color: p.dim, glow: 0 });
     this.console.render({ run: this.pendingRun ?? createRun('PENDING'), round: null });
   }
 }
