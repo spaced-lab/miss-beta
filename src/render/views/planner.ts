@@ -521,7 +521,7 @@ export class PlannerOverlay {
     const judged = this.cands.filter((c) => c.verdict);
     if (judged.length > 0 && judged.every((c) => c.verdict?.outcome !== 'MISS')) {
       const ui = uiColors(p, s.spectrum);
-      drawTextFit(s, 'NO SINGLE PLAN MAKES IT MISS. PUSHES ADD UP: COMMIT THE BEST ONE, CLOSE AND REOPEN THE PLANNER (P): THE NEW PLANS COUNT IT.', lx, ly + 8, 11, W - lx - m, { color: ui.title, glow: 0.8 });
+      drawTextFit(s, 'NO SINGLE PLAN MAKES IT MISS. PUSHES ADD UP: COMMIT THE BEST ONE AND THE LIST RE-RANKS WITH IT; THEN COMMIT ANOTHER.', lx, ly + 8, 11, W - lx - m, { color: ui.title, glow: 0.8 });
       drawTextFit(s, 'OR WAIT: BUDGET GROWS ON THE CLOCK, AND RESEARCH BUYS BIGGER IMPACTORS (T).', lx, ly + 24, 10, W - lx - m, { color: ui.sub, glow: 0.3 });
     }
     drawTextFit(s, 'UP / DOWN OR CLICK SELECT     <ENTER> OR CLICK AGAIN COMMIT     CLICK [?] LEARN     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
