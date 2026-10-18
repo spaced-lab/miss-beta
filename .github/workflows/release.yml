@@ -22,8 +22,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      deploy: ${{ steps.newest.outputs.deploy }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      # NOTE: deploy only a tag that contains all of main. An older tag (a re-run of an old release, or a hotfix tag
+      # behind main) still gets its release, but Pages keeps main's newer build instead of rolling back.
+      - id: newest
+        name: Is this tag at or ahead of main?
+        run: |
+          git fetch --quiet origin main
+          if git merge-base --is-ancestor origin/main HEAD; then echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else echo "deploy=false" >> "$GITHUB_OUTPUT"; echo "::notice::tag is behind main: release only, no Pages deploy"; fi
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
@@ -90,6 +101,7 @@ jobs:
             --notes-file release/NOTES.md "release/miss-beta-${v}.zip" release/SHA256SUMS
   deploy:
     needs: [build, release]
+    if: needs.build.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     # NOTE: shared with ci.yml's deploy job so a main deploy and a release deploy never overlap. The github-pages
     # environment must allow tags v* (Settings > Environments), or this deploy is refused (docs/RELEASING.md).

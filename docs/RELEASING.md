@@ -25,8 +25,10 @@ git tag `vYY.Q.N`.
 5. Commit `release: vYY.Q.N`, push, then `git tag vYY.Q.N && git push origin vYY.Q.N`. The tag runs
    `.github/workflows/release.yml`: the full check, the build, `miss-beta-YY.Q.N.zip` with `SHA256SUMS`, a keyless
    build-provenance attestation (Sigstore, this run's OIDC identity; no personal key), a GitHub Release with the
-   CHANGELOG section as notes, and a Pages deploy of that same build. The tag must equal `package.json`'s version
-   and CHANGELOG must have the `## YY.Q.N (date)` heading, or the run stops before anything is published.
+   CHANGELOG section as notes, and a Pages deploy of that same build when the tag contains all of main (an older
+   tag, or a re-run of an old release, publishes its release but leaves Pages on main's newer build). The tag must
+   equal `package.json`'s version and CHANGELOG must have the `## YY.Q.N (date)` heading, or the run stops before
+   anything is published.
 6. Check the run is green and verify the download once:
    `gh release download vYY.Q.N -R spaced-lab/miss-beta && gh attestation verify miss-beta-YY.Q.N.zip -R spaced-lab/miss-beta`
    and `shasum -a 256 -c SHA256SUMS`.
@@ -52,6 +54,7 @@ git tag `vYY.Q.N`.
 
 - [ ] Node 20 actions are deprecated (GitHub forces them onto Node 24 today): move `actions/checkout`,
       `actions/setup-node`, `actions/setup-python`, `actions/upload-pages-artifact` and `actions/deploy-pages` to
-      their current majors; confirm one green run.
+      their current majors; confirm one green run. Actions are pinned by commit SHA (major in a comment): update
+      each with `gh api repos/actions/<name>/commits/<tag> --jq .sha`.
 - [ ] `ubuntu-latest` migrates to Ubuntu 26 from 2026-10-19: confirm CI stays green on it (the cross-platform
       tolerances should absorb libm changes); pin `ubuntu-24.04` only if a run breaks and the fix is not quick.

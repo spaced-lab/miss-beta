@@ -30,6 +30,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   plain YY.Q.N version passes the first step (template injection, finding 8).
 - CI and release run `scripts/check.sh`, the same gate as `npm run check`: they used to skip its static security
   greps and audit only production dependencies at high severity (finding 3).
+- Release: a tag deploys to Pages only when it contains all of main, so re-running an old release or tagging a
+  hotfix behind main no longer rolls the live site back (finding 4).
 
 ## 26.4.0 (2026-10-18)
 
