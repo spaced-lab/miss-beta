@@ -1,6 +1,9 @@
 # WHAT: CI for every push and pull request (GAME_PLAN 26.3): typecheck, vitest, pytest, lore validation,
 #       the production build, a smoke test against the built site, and a Pages deploy from main.
 # WHY:  The repo is a course: a red main teaches the wrong thing.
+# HOW:  check (the full gate, scripts/check.sh, then the build and smoke test) -> deploy (main only, public
+#       repository only, the one job with pages: write).
+# LORE: C1 (how the game is built)
 # NOTE: actions are pinned by commit SHA, as in release.yml (the deploy job holds pages: write and id-token).
 name: ci
 on:

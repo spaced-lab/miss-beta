@@ -34,6 +34,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   hotfix behind main no longer rolls the live site back (finding 4).
 - Release notes come only from a dated `## YY.Q.N (YYYY-MM-DD)` heading with real content; an `(unreleased: ...)`
   heading or a blank section stops the run before the immutable release is created (finding 9).
+- The workflow files carry the full WHAT / WHY / HOW / LORE header (finding 16).
 
 ## 26.4.0 (2026-10-18)
 

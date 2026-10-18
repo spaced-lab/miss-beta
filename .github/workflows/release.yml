@@ -8,6 +8,7 @@
 # HOW:  build (read-only) -> release (contents, id-token, attestations) -> deploy (pages, id-token). Artifact
 #       attestations need a public repository on GitHub's free plans, so the first run is the v26.4.0 tag after
 #       the repository goes public.
+# LORE: C1 (how the game is built)
 # NOTE: every action is pinned by commit SHA (the tag in the comment is the major it came from): a retagged or
 #       compromised action cannot run inside jobs that create releases and mint provenance (code review
 #       2026-10-18). To update, resolve the new tag with `gh api repos/<owner>/<action>/commits/<tag> --jq .sha`.
