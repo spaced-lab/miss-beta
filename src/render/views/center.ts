@@ -18,7 +18,7 @@ import { drawPicture } from '../pictureCache';
 import { modelForTopic } from '../../lore/models/catalog';
 import { drawModel } from '../../lore/models/viewer';
 import { drawPanel, panelForTopic } from '../../lore/data/panels';
-import { ADVANCE, charsPerLine, drawText, drawTextFit, GLYPH_H, getTextScale, substitute } from '../vectorFont';
+import { ADVANCE, charsPerLine, drawText, drawTextFit, GLYPH_H, getTextScale, substitute, wrapText } from '../vectorFont';
 
 type Focus = 'TREE' | 'CONTENT' | 'LAB';
 type View = 'TOPICS' | 'LABS' | 'BOOKMARKS';
@@ -339,10 +339,11 @@ export class CenterScreen implements Screen {
           const bw = Math.max(40, lw - (bx - lx) - 80);
           s.stroke([bx, ly + 4, bx + bw, ly + 4], { color: p.dim, glow: 0 });
           s.circle(bx + frac * bw, ly + 4, 3, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.3 });
-          drawText(s, `${sl.value >= 1e5 || sl.value < 0.01 ? sl.value.toExponential(2) : Number(sl.value.toPrecision(4))}`, bx + bw + 8, ly, 8, { color: p.dim, glow: 0, align: 'left' });
+          drawText(s, `${sl.value === 0 ? '0' : Math.abs(sl.value) >= 1e5 || Math.abs(sl.value) < 0.01 ? sl.value.toExponential(2) : Number(sl.value.toPrecision(4))}`, bx + bw + 8, ly, 8, { color: p.dim, glow: 0, align: 'left' });
           ly += 16;
         });
-        const plotH = Math.min(260, s.height - ly - 140);
+        // The plot takes the pane's height minus room for the formula lines and SHOW CODE.
+        const plotH = Math.max(160, Math.min(lw * 0.9, s.height - ly - 170));
         // Clip the plot to its frame: a curve that leaves the axes must not draw over the sliders or the text.
         s.ctx.save();
         s.ctx.beginPath();
@@ -352,8 +353,11 @@ export class CenterScreen implements Screen {
         s.ctx.restore();
         ly += plotH + 14;
         for (const line of lab.lines(v)) {
-          drawText(s, cutWords(substitute(line), charsPerLine(lw, 8)), lx, ly, 8, { color: p.ink, glow: 0.3, lower: true });
-          ly += 12;
+          for (const w of wrapText(substitute(line), lw, 8)) {
+            drawText(s, w, lx, ly, 8, { color: p.ink, glow: 0.3, lower: true });
+            ly += 11;
+          }
+          ly += 2;
         }
         ly += 4;
         drawText(s, 'SHOW CODE:', lx, ly, 8, { color: p.hot, glow: 0.5 });
