@@ -8,6 +8,7 @@
 // LORE: G1 (how to play), G3 (reading the planner), D1 (impulse)
 
 import { KNOBS } from '../config/knobs';
+import { YEAR } from '../physics/constants';
 
 export interface AutoCand {
   readonly label: string;
@@ -215,7 +216,7 @@ export class Autopilot {
         }
         this.state = 'openPlanner';
         if (!th) return out;
-        const years = th.leadS / 31557600;
+        const years = th.leadS / YEAR;
         const lead = years >= 1 ? `${years.toFixed(1)} years` : `${Math.round(years * 365)} days`;
         return show(pane(`ROUND ${v.round}: ${th.name}`, `A ${th.kind} about ${th.D.toFixed(0)} m across is on a collision course: ${th.energyMt.toFixed(0)} megatons if it hits, in ${lead}. First we open the planner.`));
       }

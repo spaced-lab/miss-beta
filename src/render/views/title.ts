@@ -22,6 +22,7 @@ import type { Surface } from '../canvas';
 import { uiColors } from '../palettes';
 import { drawText, measureText, wrapText } from '../vectorFont';
 import { saveSettings, type Settings } from '../../game/settings';
+import { YEAR } from '../../physics/constants';
 
 interface Item {
   label: string;
@@ -287,7 +288,7 @@ export class TitleScreen implements Screen {
       const th = a.world.threat;
       if (th) {
         const left = th.tImpact - a.world.t;
-        const line = left > 0 ? `ATTRACT  ${th.name}  D ${th.D.toFixed(0)} M  T-${(left / 31557600).toFixed(1)} Y  ${a.missions.length} MISSION${a.missions.length === 1 ? '' : 'S'}  PREDICTED ${a.result.outcome}` : `ATTRACT  ${th.name}  ${a.result.outcome === 'MISS' ? `MISSED BY ${a.result.ca.marginRadii.toFixed(1)} R` : a.result.outcome}`;
+        const line = left > 0 ? `ATTRACT  ${th.name}  D ${th.D.toFixed(0)} M  T-${(left / YEAR).toFixed(1)} Y  ${a.missions.length} MISSION${a.missions.length === 1 ? '' : 'S'}  PREDICTED ${a.result.outcome}` : `ATTRACT  ${th.name}  ${a.result.outcome === 'MISS' ? `MISSED BY ${a.result.ca.marginRadii.toFixed(1)} R` : a.result.outcome}`;
         drawText(s, line, cx, 14, 10, { align: 'center', color: p.dim, glow: 0 });
       }
     } else {

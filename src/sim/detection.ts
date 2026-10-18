@@ -18,6 +18,7 @@ import type { Vec2 } from '../util/vec';
 import type { Rng } from './rng';
 import { is3D } from './orbit3';
 import { coverage, eclipticLatitude, nodeLine, tiltAboutNode, trailingLoss, viewGeometry3, type Vec3 } from './sky';
+import { YEAR } from '../physics/constants';
 
 export type NetworkKind = 'GROUND_OPTICAL' | 'SPACE_IR' | 'RADAR' | 'COORDINATION' | 'AIRBURST';
 export type Tag = 'REAL' | 'PROPOSED' | 'SPECULATIVE' | 'FICTION';
@@ -179,7 +180,7 @@ function tiltedSeen(inp: DiscoveryInput, t: number, home: Vec2, inner: Vec2): (n
 }
 
 /** Calendar year of round time t (t = 0 is EPOCH_YEAR). */
-export const yearOf = (t: number): number => KNOBS.EPOCH_YEAR + t / 3.15576e7;
+export const yearOf = (t: number): number => KNOBS.EPOCH_YEAR + t / YEAR;
 
 /**
  * Discovery search (18.2). Steps one day from tImpact - DISCOVERY_YEARS to tImpact; each active discovering
@@ -189,7 +190,7 @@ export function discover(inp: DiscoveryInput, rng: Rng): DiscoveryResult {
   const nets = inp.activeIds.map(networkById).filter((n) => n.kind === 'GROUND_OPTICAL' || n.kind === 'SPACE_IR');
   const sinceOf = (n: Network): number => inp.sinceOverride?.[n.id] ?? n.since;
   const streak = new Map<string, number>();
-  const t0 = inp.tImpact - (inp.windowYears ?? KNOBS.DISCOVERY_YEARS) * 3.15576e7;
+  const t0 = inp.tImpact - (inp.windowYears ?? KNOBS.DISCOVERY_YEARS) * YEAR;
   const three = is3D(inp.threat);
   for (let t = t0; t < inp.tImpact; t += KNOBS.DISCOVERY_STEP) {
     const year = yearOf(t);

@@ -6,6 +6,7 @@
 // LORE: G2 (screens and HUD), G7 (under the hood)
 
 import { formatCountdown } from '../ui/hud';
+import { YEAR } from '../physics/constants';
 
 export type SimEventRecord =
   | { t: number; kind: 'LAUNCH'; missionId: string; c3: number; massKg: number; tier: number }
@@ -33,7 +34,7 @@ export function formatEvent(e: SimEventRecord, tImpact: number, now?: number): s
   const stamp = formatCountdown(tImpact - e.t);
   switch (e.kind) {
     case 'ROUND_START':
-      return `${stamp}  ${e.name} ACQUIRED  LEAD ${(e.lead / 3.15576e7).toFixed(1)} Y`;
+      return `${stamp}  ${e.name} ACQUIRED  LEAD ${(e.lead / YEAR).toFixed(1)} Y`;
     case 'LAUNCH':
       return `${stamp}  ${e.missionId} LAUNCH  L${e.tier}  C3 ${e.c3.toFixed(1)}  ${e.massKg.toFixed(0)} KG`;
     case 'IMPACT': {

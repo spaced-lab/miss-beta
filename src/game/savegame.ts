@@ -16,11 +16,13 @@ import { mergeProgress, progress } from '../lore/store';
 import { reapplyTech } from './tech';
 import { parseSave, writeSave, type SaveFile } from './saveMd';
 import { is3D } from '../sim/orbit3';
+import { YEAR } from '../physics/constants';
 
 const KEY = 'save.current';
 
 export function toSaveFile(run: RunState, world: World | null): SaveFile {
   const t = world?.t ?? 0;
+  const settings = loadSettings();
   const th = world?.threat ?? null;
   return {
     version: 1,
@@ -41,10 +43,10 @@ export function toSaveFile(run: RunState, world: World | null): SaveFile {
     networks_active: [...run.networks.active],
     run_score: run.score,
     rounds_survived: run.roundsSurvived,
-    current_threat: th ? { name: th.name, type: th.type.id, D_m: Math.round(th.D), t_impact_years: (th.tImpact - t) / 3.15576e7, p_impact: 1, ...(is3D(th.elements) ? { i_rad: th.elements.i, raan_rad: th.elements.raan } : {}) } : null,
-    learning_level: loadSettings().learningLevel,
+    current_threat: th ? { name: th.name, type: th.type.id, D_m: Math.round(th.D), t_impact_years: (th.tImpact - t) / YEAR, p_impact: 1, ...(is3D(th.elements) ? { i_rad: th.elements.i, raan_rad: th.elements.raan } : {}) } : null,
+    learning_level: settings.learningLevel,
     lore_read: { ...progress },
-    color_mode: loadSettings().colorMode,
+    color_mode: settings.colorMode,
   };
 }
 

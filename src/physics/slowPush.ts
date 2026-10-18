@@ -12,7 +12,7 @@
 
 import { KNOBS } from '../config/knobs';
 import type { Vec2 } from '../util/vec';
-import { AU, G, G0, P_RAD_1AU, SOLAR_CONST_1AU } from './constants';
+import { AU, G, G0, P_RAD_1AU, SOLAR_CONST_1AU, YEAR } from './constants';
 import { stateToElements } from './elements';
 import { integrate, type State4 } from './integrate';
 import { propagate, type Elements } from './kepler';
@@ -107,7 +107,7 @@ export function pushForce(spec: PushSpec, M: number, R: number, r: number, iron 
 
 /** Yarkovsky drift of a ~1 km body, m, over `seconds`: ~2e-4 AU/Myr. Always shown as NOT VIABLE. */
 export function yarkovskyDrift(seconds: number): number {
-  return (2e-4 * AU * seconds) / (1e6 * 3.15576e7);
+  return (2e-4 * AU * seconds) / (1e6 * YEAR);
 }
 
 /** Propellant for a gravity tractor hovering for tau seconds: F = 1.3 m_sc G M / d^2, rocket equation. */

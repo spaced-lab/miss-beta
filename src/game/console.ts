@@ -8,7 +8,7 @@
 // LORE: G6 (modes, civilization levels and cheat codes), G7 (under the hood)
 
 import { KNOBS } from '../config/knobs';
-import { G } from '../physics/constants';
+import { G, YEAR } from '../physics/constants';
 import { SCENARIOS, scenarioById } from '../sim/scenarios';
 import { allowsTag, enterMode, type Mode } from './modes';
 import type { RunState } from './run';
@@ -100,7 +100,7 @@ export const COMMANDS: readonly Command[] = [
   { verb: 'DELETE', tag: 'FICTION', usage: 'DELETE', help: 'remove the threat entity', mode: 'SIMULATION', handler: (_a, ctx) => ['MASS-ENERGY CONSERVATION VIOLATED BY 9E27 J.', ctx.round?.deleteThreat() ?? 'NO THREAT.'] },
   { verb: 'NOCLIP', tag: 'FICTION', usage: 'NOCLIP', help: 'HOME becomes non-colliding this round', mode: 'SIMULATION', handler: (_a, ctx) => { ctx.run.noclip = true; return ['PAULI EXCLUSION STILL APPLIES TO PLANETS.', 'HOME IS NON-COLLIDING THIS ROUND.']; } },
   { verb: 'TRACTORBEAM', tag: 'FICTION', usage: 'TRACTORBEAM', help: '1e6 N on the threat at any range, no reaction mass', mode: 'SIMULATION', handler: (_a, ctx) => ['MOMENTUM CONSERVATION: WHO IS PUSHING BACK?', ctx.round?.tractorBeam() ?? 'NO THREAT.'] },
-  { verb: 'SINGULARITY', tag: 'FICTION', usage: 'SINGULARITY', help: 'a pocket black hole near the threat; it evaporates', mode: 'SIMULATION', handler: (_a, ctx) => [SINGULARITY_LINE, `T_EVAP(1E4 KG) = ${hawkingLifetime(1e4).toExponential(2)} S.  T_EVAP(1E9 KG) = ${(hawkingLifetime(1e9) / 3.15576e7).toExponential(2)} YR.`, ctx.round?.singularity() ?? 'NO ROUND.'] },
+  { verb: 'SINGULARITY', tag: 'FICTION', usage: 'SINGULARITY', help: 'a pocket black hole near the threat; it evaporates', mode: 'SIMULATION', handler: (_a, ctx) => [SINGULARITY_LINE, `T_EVAP(1E4 KG) = ${hawkingLifetime(1e4).toExponential(2)} S.  T_EVAP(1E9 KG) = ${(hawkingLifetime(1e9) / YEAR).toExponential(2)} YR.`, ctx.round?.singularity() ?? 'NO ROUND.'] },
   { verb: 'WORMHOLE', tag: 'FICTION', usage: 'WORMHOLE', help: 'route the threat into another MULTIVERSE branch', mode: 'MULTIVERSE', handler: (_a, ctx) => ['EXOTIC MATTER WITH NEGATIVE ENERGY DENSITY: 0 KG ON HAND.', ctx.round?.wormhole() ?? 'NO BRANCHES.'] },
   { verb: 'DIPLOMACY', tag: 'FICTION', usage: 'DIPLOMACY', help: 'send a message; the threat replies', mode: 'SIMULATION', handler: () => ['MESSAGE SENT.', "RESPONSE RECEIVED: 'NO.'"] },
   { verb: 'DRILLCREW', tag: 'FICTION', usage: 'DRILLCREW', help: 'launch a human crew with a drill at T-18 d', mode: 'SIMULATION', handler: () => ['TEXAS-SIZED BODY (1.4E21 KG) NEEDS DV 6.5 M/S IN 18 D: >= 3E22 J, ABOUT 7 MILLION MEGATONS. YOU BROUGHT ONE.', 'THE CREW REFUSES.'] },
