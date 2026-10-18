@@ -118,21 +118,81 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
 ];
 
 export interface TutorialState {
+  /** Which script: the basic first round, or the DART replay (IDEAS 15). */
+  script?: 'BASIC' | 'DART';
   step: number;
   /** Seconds the current step has been showing (for the fade-in). */
   shownFor: number;
 }
 
-export function createTutorial(): TutorialState {
-  return { step: 0, shownFor: 0 };
+/** IDEAS 15: the DART replay as a guided round, with the real numbers. Steps advance on the same facts. */
+export const DART_STEPS: readonly TutorialStep[] = [
+  {
+    title: 'DART: THE REAL TARGET',
+    lines: [
+      'DIMORPHOS IS A 160 M MOONLET OF THE ASTEROID DIDYMOS. IT WAS NEVER A THREAT: NASA PICKED IT BECAUSE ITS 11.9',
+      'HOUR ORBIT AROUND DIDYMOS LET TELESCOPES ON EARTH MEASURE ANY CHANGE. HERE IT FLIES ALONE TOWARD HOME WITH THE',
+      'REAL SIZE AND TYPE (A RUBBLE PILE). PRESS SPACE TO START THE CLOCK.',
+    ],
+    lore: ['T4', 'D3'],
+    done: (f) => f.warp > 0 || f.plannerOpened,
+  },
+  {
+    title: 'DART: THE SPACECRAFT',
+    lines: [
+      'DART WEIGHED 580 KG AT IMPACT. IT LAUNCHED ON 24 NOVEMBER 2021 ON A FALCON 9 AND FLEW FOR TEN MONTHS, STEERING',
+      'ITSELF FOR THE LAST HOURS WITH ITS DRACO CAMERA (SMART NAV). PRESS P AND COMMIT A KINETIC PLAN; THE REAL ONE',
+      'HIT AT 6.14 KM/S.',
+    ],
+    lore: ['D3', 'D12'],
+    done: (f) => f.missions >= 1,
+  },
+  {
+    title: 'DART: THE LONG COAST',
+    lines: [
+      'RUN THE CLOCK (] ). A KINETIC IMPACTOR SPENDS ITS LIFE COASTING ON A TRANSFER ORBIT; ALL THE ENGINEERING IS IN',
+      'ARRIVING AT THE RIGHT PLACE AT THE RIGHT SECOND. DART SAW DIMORPHOS AS A SINGLE PIXEL ONLY AN HOUR BEFORE IMPACT.',
+    ],
+    lore: ['O10', 'D12'],
+    done: (f) => f.launched,
+  },
+  {
+    title: 'DART: 26 SEPTEMBER 2022',
+    lines: [
+      'IMPACT AT 6.14 KM/S. THE ORBIT OF DIMORPHOS SHORTENED BY 33 MINUTES, FAR MORE THAN THE SPACECRAFT ALONE COULD',
+      'DO: THE CRATER EJECTA FLEW BACK AND PUSHED TOO. THAT MULTIPLIER IS BETA, MEASURED AT ABOUT 3.6. THIS ROUND USES',
+      'THE MEASURED BETA.',
+    ],
+    lore: ['D3', 'O5'],
+    done: (f) => f.impacted,
+  },
+  {
+    title: 'DART: WHAT IT PROVED',
+    lines: [
+      'A SPACECRAFT CAN MOVE AN ASTEROID, AND A RUBBLE PILE PUSHES BACK HARDER THAN A SOLID ROCK. ESA\'S HERA MISSION',
+      'REACHES DIDYMOS IN 2026 TO MEASURE THE CRATER AND THE MASS, PINNING BETA DOWN. SPACE CONTINUES TO A NORMAL ROUND.',
+    ],
+    lore: ['D3', 'D11'],
+    done: () => false,
+  },
+];
+
+/** The steps of a tutorial script. */
+export function stepsOf(st: TutorialState): readonly TutorialStep[] {
+  return st.script === 'DART' ? DART_STEPS : TUTORIAL_STEPS;
+}
+
+export function createTutorial(script: 'BASIC' | 'DART' = 'BASIC'): TutorialState {
+  return { script, step: 0, shownFor: 0 };
 }
 
 /** Advance when the current step's predicate holds; returns true when the step changed. */
 export function advanceTutorial(st: TutorialState, facts: TutorialFacts, dtSeconds = 0): boolean {
   st.shownFor += dtSeconds;
-  const step = TUTORIAL_STEPS[st.step];
+  const steps = stepsOf(st);
+  const step = steps[st.step];
   if (!step || !step.done(facts)) return false;
-  if (st.step >= TUTORIAL_STEPS.length - 1) return false;
+  if (st.step >= steps.length - 1) return false;
   st.step++;
   st.shownFor = 0;
   return true;

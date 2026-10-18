@@ -60,3 +60,20 @@ describe('TUTORIAL (GAME_PLAN 25)', () => {
     expect(createRun('X').tutorial).toBe(false);
   });
 });
+
+describe('DART replay script (IDEAS 15)', () => {
+  it('has five steps that advance on the shared facts and never auto-finish', async () => {
+    const { createTutorial, advanceTutorial, stepsOf, DART_STEPS } = await import('../src/game/tutorial');
+    const t = createTutorial('DART');
+    expect(stepsOf(t)).toBe(DART_STEPS);
+    expect(DART_STEPS.length).toBe(5);
+    const f = { warp: 0, maxWarp: 0, plannerOpen: false, plannerOpened: false, missions: 0, launched: false, impacted: false, planetOpened: false, debrief: false, programsOpened: false };
+    expect(advanceTutorial(t, f)).toBe(false);
+    expect(advanceTutorial(t, { ...f, warp: 1 })).toBe(true);
+    expect(advanceTutorial(t, { ...f, missions: 1 })).toBe(true);
+    expect(advanceTutorial(t, { ...f, launched: true })).toBe(true);
+    expect(advanceTutorial(t, { ...f, impacted: true })).toBe(true);
+    expect(advanceTutorial(t, { ...f, debrief: true })).toBe(false);
+    expect(t.step).toBe(4);
+  });
+});

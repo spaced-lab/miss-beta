@@ -50,7 +50,7 @@ import { CAMERA_PITCHES, polyhedron, tilt, type Camera } from '../camera3d';
 import { Materialize, StarField } from '../wire';
 import { ROLE_STYLE } from '../palettes';
 import type { UiSfx } from '../../audio/ui';
-import { advanceTutorial, createTutorial, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, TUTORIAL_STEPS, type TutorialFacts, type TutorialState } from '../../game/tutorial';
+import { advanceTutorial, createTutorial, stepsOf, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, type TutorialFacts, type TutorialState } from '../../game/tutorial';
 import { saveJson } from '../../game/persistence';
 import { DEFAULT_SETTINGS, type Settings } from '../../game/settings';
 import { scenarioById, spawnScenario } from '../../sim/scenarios';
@@ -197,25 +197,30 @@ export class SystemScreen implements Screen {
   /** Resolver options for this run: tracking tier plus the SCI-FI standing capabilities (20.3). */
   private resolveOpts(): ResolveOpts {
     const tier = this.trackingTier();
-    if (this.run.mode === 'REALISTIC') return { trackingTier: tier };
     const done = (id: string): number | null => this.run.programs.find((p) => p.id === id)?.completedAt ?? null;
+    // The DART replay uses the beta DART measured (3.6), so the push matches the real one.
+    const beta = this.tut?.script === 'DART' ? { betaOverride: 3.6 } : {};
+    const scifiMode = this.run.mode !== 'REALISTIC';
+    // REALISTIC programs with standing effects (GROUND_LASER) act in every mode; the SPECULATIVE ones only
+    // outside REALISTIC (a run that entered SCI-FI keeps them; GAME_PLAN 21 nesting).
     return {
+      ...beta,
       trackingTier: tier,
       scifi: {
-        orbitalLaserW: this.run.effects.orbitalLaserW,
-        laserSince: done('ORBITAL_LASER_ARRAY'),
-        disassemblerTauYears: this.run.effects.disassemblerTauYears,
-        disassemblerSince: done('DISASSEMBLER_SWARM'),
-        netTier: this.run.netTier,
-        nanoforgeSince: done('NANOFORGE_SEEDS'),
-        thrusterSwarmSince: done('THRUSTER_SWARM'),
-        shepherdSince: done('SHEPHERD_NETWORK'),
-        fusionTugN: this.run.effects.fusionTugN,
-        fusionTugSince: done('FUSION_TUG_FLEET'),
+        orbitalLaserW: scifiMode ? this.run.effects.orbitalLaserW : 0,
+        laserSince: scifiMode ? done('ORBITAL_LASER_ARRAY') : null,
+        disassemblerTauYears: scifiMode ? this.run.effects.disassemblerTauYears : 0,
+        disassemblerSince: scifiMode ? done('DISASSEMBLER_SWARM') : null,
+        netTier: scifiMode ? this.run.netTier : 0,
+        nanoforgeSince: scifiMode ? done('NANOFORGE_SEEDS') : null,
+        thrusterSwarmSince: scifiMode ? done('THRUSTER_SWARM') : null,
+        shepherdSince: scifiMode ? done('SHEPHERD_NETWORK') : null,
+        fusionTugN: scifiMode ? this.run.effects.fusionTugN : 0,
+        fusionTugSince: scifiMode ? done('FUSION_TUG_FLEET') : null,
         groundLaserSince: this.run.effects.groundLaser ? done('GROUND_LASER') : null,
-        sailDepot: this.run.effects.sailDepot,
-        sailDepotSince: done('SAIL_SWARM_DEPOT'),
-        seedFleetSince: done('SEED_FLEET'),
+        sailDepot: scifiMode ? this.run.effects.sailDepot : 0,
+        sailDepotSince: scifiMode ? done('SAIL_SWARM_DEPOT') : null,
+        seedFleetSince: scifiMode ? done('SEED_FLEET') : null,
       },
     };
   }
@@ -300,7 +305,8 @@ export class SystemScreen implements Screen {
   private drawTutorial(): void {
     const t = this.tut;
     if (!t) return;
-    const step = TUTORIAL_STEPS[t.step];
+    const steps = stepsOf(t);
+    const step = steps[t.step];
     if (!step) return;
     const s = this.s;
     const p = s.palette;
@@ -316,7 +322,7 @@ export class SystemScreen implements Screen {
     if (this.phase !== 'planning' && !this.panelHidden && y + h > this.panelTop - 8) return;
     const alpha = Math.min(1, t.shownFor * 2);
     s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: p.hot, glow: 0.8, alpha });
-    drawTextFit(s, `TUTORIAL ${t.step + 1} / ${TUTORIAL_STEPS.length}   ${step.title}`, x + 12, y + 10, 12, inner, { color: p.hot, glow: 1, alpha });
+    drawTextFit(s, `${t.script === 'DART' ? 'DART REPLAY' : 'TUTORIAL'} ${t.step + 1} / ${steps.length}   ${step.title}`, x + 12, y + 10, 12, inner, { color: p.hot, glow: 1, alpha });
     let ly = y + 32;
     for (const line of body) {
       drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
@@ -340,7 +346,11 @@ export class SystemScreen implements Screen {
     const fictionMode = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
     this.anomaly = fictionMode ? anomalyFor(seed, round) : null;
     const rng = roundRng(seed, this.anomaly === 'LOOPED' ? round - 1 : round);
+    // A DART replay lasts one round.
+    if (this.tut?.script === 'DART') this.tut = null;
     if (this.run.spawnNext) {
+      // The DART code's round is the guided DART replay (IDEAS 15).
+      if (this.run.spawnNext === 'DIDYMOS' && this.run.cheatsUsed.includes('DART')) this.tut = createTutorial('DART');
       const sc = scenarioById(this.run.spawnNext);
       this.world.threat = sc ? spawnScenario(sc, this.world, rng) : generateThreat(rng, this.world, round);
       this.run.spawnNext = null;
@@ -395,8 +405,10 @@ export class SystemScreen implements Screen {
     this.nibiru = false;
     this.ticketFiled = false;
     // The tutorial round starts paused (step 1 asks for SPACE) and its first step already explains the brief.
-    if (this.run.tutorial) setWarp(this.world, 0);
-    else if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
+    if (this.tut) setWarp(this.world, 0);
+    if (this.run.tutorial || this.tut?.script === 'DART') {
+      // guided rounds explain the brief in their first step
+    } else if (this.result) this.tele.push(roundStartNarrative(this.world.threat, this.result, this.world, this.sunwardActive()));
     if (this.anomaly) this.tele.push({ header: { text: `ANOMALY: ${this.anomaly.replace('_', ' ')}`, role: 'program' }, lines: [{ text: ANOMALY_LINES[this.anomaly], role: 'text' }] });
   }
 

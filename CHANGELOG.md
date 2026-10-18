@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- DART guided replay (the DART console code), gamepad support, PERIMETER touch controls, SIMULATION round
+  anomalies, debrief counterfactual. Fixed: in REALISTIC mode the ground laser program never acted.
+
 - PERIMETER: DAILY field (6) and replays: the best unassisted game is saved as seed + run-length inputs and 7 plays
   it back exactly. Main game: click anything to learn about it, mouse on the title and in the Learning Center.
 

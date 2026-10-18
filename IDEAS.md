@@ -79,6 +79,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 15. **DART as a full second tutorial (M).** The DART code prints the real mission numbers; the plan wants a
     guided replay round with the Didymos geometry and the measured beta.
     Recommendation: LATER. The TUTORIAL round covers onboarding; this is a history lesson for the Learning Center.
+    Status 2026-10-18: DONE (the DART code starts a five-step guided replay on DIMORPHOS with the measured beta 3.6).
 16. **IMPERIAL units in readouts (S).** The OPTIONS setting is stored and round-trips; every readout still prints SI.
     Recommendation: SKIP until a player asks; the lore and the code are SI by rule.
 17. **Multiverse branch variants beyond beta and fragment draws (M).** Branches differ only by the seeded
