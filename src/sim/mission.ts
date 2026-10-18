@@ -7,7 +7,25 @@
 import type { Elements } from '../physics/kepler';
 import type { Vec2 } from '../util/vec';
 
-export type Archetype = 'KINETIC' | 'KINETIC_FLYBY' | 'SAIL_KINETIC';
+export type Archetype = 'KINETIC' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH';
+
+export interface PushSpecRef {
+  method: string;
+  tier: number;
+  /** +1 speeds the body up (raises the orbit), -1 slows it. */
+  sign: 1 | -1;
+  /** Maximum push duration, s (ends earlier at PUSH_END_MARGIN before impact). */
+  tauMax: number;
+}
+
+export interface WarheadSpec {
+  yieldMt: number;
+  mode: 'STANDOFF' | 'SURFACE' | 'SUBSURFACE' | 'HAIV';
+  /** Warhead tier at commit (fuze limits). */
+  tier: number;
+  /** Bursts in a pulse train (W3), else 1. */
+  pulses: number;
+}
 
 /** A leg of a mission's flight, for drawing and the log. The resolver only needs the arrival state. */
 export type Leg =
@@ -43,4 +61,8 @@ export interface Mission {
   legs?: Leg[];
   /** Onboard dv spent on this mission, m/s (DSM, powered flyby, sail-end match). */
   dsmUsed?: number;
+  /** Present for NUKE_* missions: the payload is a warhead, not an impactor. */
+  warhead?: WarheadSpec;
+  /** Present for SLOW_PUSH missions: rendezvous, then push. */
+  push?: PushSpecRef;
 }

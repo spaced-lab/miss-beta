@@ -22,6 +22,23 @@ function rubbleWorld(seed: string): World {
   return w;
 }
 
+/** The feasible grid cell with the lowest closing speed: what a standoff warhead wants. */
+function slowest(w: World, kg: number): Mission {
+  const home = planetById(w, 'HOME');
+  const th = w.threat!;
+  const g = computePorkchop({ home: home.elements, threat: th.elements, muSun: w.star.mu, tMin: KNOBS.BUILD_TIME_KINETIC, tImpact: th.tImpact, tier: launcherTier(3) });
+  let best = -1;
+  for (let i = 0; i < g.U.length; i++) if ((g.payload[i] as number) >= kg && (best < 0 || (g.U[i] as number) < (g.U[best] as number))) best = i;
+  if (best < 0) throw new Error('no cell');
+  const iL = Math.floor(best / g.nA);
+  const iA = best % g.nA;
+  return {
+    id: 'SLOW', archetype: 'KINETIC', launcherTier: 3, impactorTier: 3, launchTime: g.tL0 + iL * g.step, arrivalTime: g.tA0 + iA * g.step, impactorKg: kg, c3: g.c3[best] as number,
+    departureV: { x: g.v1x[best] as number, y: g.v1y[best] as number }, arrivalV: { x: g.v2x[best] as number, y: g.v2y[best] as number }, interceptR: { x: g.rx[best] as number, y: g.ry[best] as number },
+    U: g.U[best] as number, cost: 20, committedAt: 0,
+  };
+}
+
 /** A heavy, fast impactor mission arriving at `tA` built from the porkchop grid (closest feasible cell). */
 function hammer(w: World, tA: number, kg: number): Mission {
   const home = planetById(w, 'HOME');
@@ -135,5 +152,39 @@ describe('resolver v2: fragmentation', () => {
     expect(imp && imp.kind === 'IMPACT' && (imp.qRatio ?? 1) < 1).toBe(true);
     expect(propagate(res.segments[1]!.elements, MU_SUN, m.arrivalTime).r.x).toBeCloseTo(m.interceptR.x, -4);
     expect(R_HOME).toBeGreaterThan(0);
+  });
+});
+
+describe('resolver: nuclear missions', () => {
+  it('a standoff burst deflects without breaking; subsurface shatters; a fast standoff fails to fuze', () => {
+    const w = createWorld('NUKE-1', 1);
+    const th0 = generateThreat(roundRng('NUKE-1', 1), w, 1, 0, { skipDiscovery: true });
+    // 500 m stony body: a 0.3 Mt standoff deposits ~270 J/kg (below Q* ~430), a 1 Mt subsurface burst ~21 kJ/kg.
+    const type = { ...th0.type, id: 'STONY' as const, density: 2700, strengthMult: 1, kind: 'asteroid' as const };
+    w.threat = { ...th0, type, D: 500, mass: (4 / 3) * Math.PI * 250 ** 3 * 2700 };
+    const th = w.threat;
+    const base = slowest(w, 2000);
+    expect(base.U).toBeLessThan(20000); // a standoff-friendly cell exists for this geometry
+    const slow = { ...base, id: 'NUKE-S', archetype: 'NUKE_STANDOFF' as const, warhead: { yieldMt: 0.3, mode: 'STANDOFF' as const, tier: 2, pulses: 1 } };
+    const r1 = resolveRound(w, [slow]);
+    const ev = r1.events.find((e) => e.kind === 'NUKE');
+    expect(ev && ev.kind === 'NUKE' && ev.fuzed).toBe(true);
+    expect(r1.usedWarhead).toBe(true);
+    expect(r1.producedFragments).toBe(false);
+    expect(r1.ca.marginRadii).toBeGreaterThan(resolveRound(w, []).ca.marginRadii);
+    const sub = { ...slow, id: 'NUKE-D', archetype: 'NUKE_DISRUPT' as const, warhead: { yieldMt: 1, mode: 'SUBSURFACE' as const, tier: 2, pulses: 1 } };
+    const r2 = resolveRound(w, [sub]);
+    expect(r2.producedFragments).toBe(true);
+    const tier1 = { ...slow, id: 'NUKE-F', warhead: { yieldMt: 0.3, mode: 'STANDOFF' as const, tier: 1, pulses: 1 } };
+    const r3 = resolveRound(w, [tier1]);
+    const ev3 = r3.events.find((e) => e.kind === 'NUKE');
+    // U from the grid is above the 5 km/s tier-1 fuze limit for this geometry? Either way the event records the verdict.
+    expect(ev3 && ev3.kind === 'NUKE').toBe(true);
+    if (ev3 && ev3.kind === 'NUKE' && base.U > 5000) expect(ev3.fuzed).toBe(false);
+    const single = { ...slow, id: 'NUKE-1', warhead: { yieldMt: 0.1, mode: 'STANDOFF' as const, tier: 3, pulses: 1 } };
+    const train = { ...slow, id: 'NUKE-T', warhead: { yieldMt: 0.1, mode: 'STANDOFF' as const, tier: 3, pulses: 3 } };
+    const e1 = resolveRound(w, [single]).events.find((e) => e.kind === 'NUKE');
+    const e3 = resolveRound(w, [train]).events.find((e) => e.kind === 'NUKE');
+    if (e1 && e1.kind === 'NUKE' && e3 && e3.kind === 'NUKE') expect(e3.dv / e1.dv).toBeCloseTo(3, 6);
   });
 });

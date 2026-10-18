@@ -117,6 +117,58 @@ export const KNOBS = {
   DAMAGE_MULT: { AIRBURST: 0.3, CITY: 0.4, REGIONAL: 0.7, GLOBAL: 1.0 } as Readonly<Record<string, number>>,
   EVACUATED_HIT_SCORE_MULT: 0.25,
 
+  /** 6.11: nuclear. Coupling eps and momentum coupling C_m (N s/J) by burst mode; yields and masses; fuze limits. */
+  NUKE_EPS: { STANDOFF: 0.3, SURFACE: 0.5, SUBSURFACE: 0.9, HAIV: 0.9 } as Readonly<Record<string, number>>,
+  NUKE_CM: 3e-4,
+  NUKE_YIELDS_MT: [0.1, 0.3, 1, 5] as readonly number[],
+  /** Which yields each warhead tier unlocks (indices into NUKE_YIELDS_MT). */
+  NUKE_YIELDS_BY_TIER: [[], [0, 1], [0, 1, 2], [0, 1, 2, 3]] as readonly (readonly number[])[],
+  NUKE_MASS_BASE_KG: 1500,
+  NUKE_MASS_PER_MT_KG: 500,
+  /** Standoff fuzing needs a closing speed at or below this, m/s, by warhead tier (tier 1: 5 km/s; tier 2+: 20 km/s). */
+  NUKE_FUZE_U: [0, 5000, 20000, 20000] as readonly number[],
+  /** Standoff height as a fraction of the body radius [knob]. */
+  NUKE_STANDOFF_H_FRAC: 0.5,
+  /** HAIV accuracy factor (leader crater, follower warhead). */
+  HAIV_ACCURACY: 0.7,
+  /** Pulse train: bursts per train and spacing, s. */
+  NUKE_PULSE_COUNT: 3,
+  NUKE_PULSE_SPACING: 600,
+  /** Costs: warhead by tier index (100/300 kt share tier 1), plus the launcher. */
+  COST_WARHEAD: [6, 12, 25] as readonly number[],
+
+  /** 6.12 and 20.2: slow push. Hover distance factor, beam/laser tiers, coupling, propellant Isp. */
+  TRACTOR_HOVER_FACTOR: 1.5,
+  TRACTOR_THRUST_FACTOR: 1.3,
+  TRACTOR_SC_MASS_KG: [1000, 5000, 20000] as readonly number[],
+  ION_BEAM_N: [0.1, 0.5, 2] as readonly number[],
+  LASER_CM_N_PER_W: 3e-5,
+  LASER_POWER_W: [5e4, 2e5, 1e6] as readonly number[],
+  ION_ISP_S: 3000,
+  /** Other 20.2 pushers (honest numbers, mostly tiny). */
+  MIRROR_AREA_M2: [1e3, 1e4, 1e5] as readonly number[],
+  MIRROR_CM_N_PER_W: 1e-4,
+  MIRROR_FOULING_PER_MONTH: 0.1,
+  MASS_DRIVER_MDOT: [0.1, 1, 10] as readonly number[],
+  MASS_DRIVER_VE: 500,
+  TUGBOAT_F_CHEM_N: 2000,
+  TUGBOAT_F_ION_N: 5,
+  TUGBOAT_ETA_SPIN: 0.3,
+  MAGNETIC_ETA_SPIN: 0.5,
+  TETHER_L_M: 1e6,
+  TETHER_MASS_KG: 2e4,
+  ESAIL_N_PER_KM: 5e-4,
+  ESAIL_TETHER_KM: 100,
+  GROUND_LASER_ATM_EFF: 0.3,
+  GROUND_LASER_RANGE_AU: 0.05,
+  GROUND_LASER_POWER_W: 1e6,
+  /** Cost of a slow-push package by tier. */
+  COST_SLOW_PUSH: [4, 6, 12] as readonly number[],
+  /** Push arcs end this long before impact so the debrief can see the result, s. */
+  PUSH_END_MARGIN: 30 * DAY,
+  /** RK4 step for push arcs, s. */
+  PUSH_DT: 6 * 3600,
+
   /** Resolver: an impactor still finds a threat that has drifted this far from its planned intercept point, m. */
   TERMINAL_GUIDANCE_RANGE: 5e7,
 

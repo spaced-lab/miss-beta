@@ -151,6 +151,8 @@ export class SystemScreen implements Screen {
       impactorTier: this.run.impactorTier,
       navTier: this.run.navTier,
       sailTier: this.run.sailTier,
+      warheadTier: this.run.warheadTier,
+      slowPushTier: this.run.slowPushTier,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       buildTime: this.run.effects.buildTimeYears * YEAR,
       budget: budgetAt(this.run.economy, this.world.t),
@@ -185,7 +187,7 @@ export class SystemScreen implements Screen {
       budgetAvailable: available,
       marginSeconds: th.tImpact - (res.tLastAction || 0),
       leadSeconds: th.tImpact,
-      usedWarhead: false,
+      usedWarhead: res.usedWarhead,
       producedFragments: res.producedFragments,
       netCapture: false,
     });

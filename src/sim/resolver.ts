@@ -19,6 +19,8 @@ import { OrbitError, stateToElements } from '../physics/elements';
 import { disrupt, f3D, harmlessDiameter, qStar, specificEnergy } from '../physics/fragment';
 import { propagate, type Elements } from '../physics/kepler';
 import { alongTrack, kineticImpact } from '../physics/kinetic';
+import { fuzeOk, nuclearBurst } from '../physics/nuclear';
+import { integratePush, pushForce, type PushMethod } from '../physics/slowPush';
 import type { EventLog } from './eventLog';
 import type { Mission } from './mission';
 import { hashSeed, Rng } from './rng';
@@ -76,6 +78,7 @@ export interface RoundResult {
   segments: ElementSegment[];
   tLastAction: number;
   producedFragments: boolean;
+  usedWarhead: boolean;
 }
 
 export interface ResolveOpts {
@@ -119,7 +122,49 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
   ];
   let tLast = 0;
   let producedFragments = false;
+  let usedWarhead = false;
   let fragCounter = 0;
+
+  /** Replace `target` by a remnant and fragments at time t given the delivered Q and impactor momentum. */
+  const disruptBody = (target: Body, current: Elements, st: { r: { x: number; y: number }; v: { x: number; y: number } }, m: Mission, Q: number, Qs: number, Uvec: { x: number; y: number }, mImp: number, t: number): void => {
+    const rng = streamFor(world, `frag#${m.id}`, sample);
+    const nFrag = rng.int(KNOBS.FRAG_N_MIN, KNOBS.FRAG_N_MAX);
+    const R = target.D / 2;
+    const pieces = disrupt(rng, { M: target.mass, R, rho: threat.type.density, Q, Qstar: Qs, m: mImp, Uvec, vThreat: st.v, nFrag });
+    target.tDeath = t;
+    const last = target.segments[target.segments.length - 1];
+    if (last) last.tTo = t;
+    producedFragments = true;
+    tLast = t;
+    let escaped = 0;
+    let meanEj = 0;
+    for (const f of pieces) meanEj += Math.hypot(f.v.x - st.v.x, f.v.y - st.v.y);
+    meanEj /= Math.max(1, pieces.length);
+    for (const f of pieces) {
+      const id = f.largestRemnant ? `${target.id === 'THREAT' ? 'REMNANT' : target.id + 'R'}` : `F${++fragCounter}`;
+      let el: Elements | null = null;
+      try {
+        el = stateToElements(st.r, f.v, mu, t);
+      } catch (e) {
+        if (!(e instanceof OrbitError)) throw e;
+      }
+      const body: Body = {
+        id,
+        role: f.largestRemnant ? 'REMNANT' : 'FRAGMENT',
+        mass: f.mass,
+        D: f.D,
+        tBirth: t,
+        tDeath: Infinity,
+        segments: [{ tFrom: t, tTo: Infinity, elements: el ?? current }],
+        harmless: f.D < harmlessDiameter(iron),
+        escaped: el === null,
+        vEj: Math.hypot(f.v.x - st.v.x, f.v.y - st.v.y),
+      };
+      if (body.escaped) escaped++;
+      bodies.push(body);
+    }
+    events.push({ t, kind: 'FRAGMENTATION', missionId: m.id, targetId: target.id, qRatio: Q / Qs, count: pieces.length, largestD: pieces[0]?.D ?? 0, vEj: meanEj, escaped });
+  };
 
   const sorted = [...missions].sort((a, b) => a.arrivalTime - b.arrivalTime);
   for (const m of sorted) {
@@ -137,10 +182,87 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       events.push({ t: m.arrivalTime, kind: 'IMPACT_MISS', missionId: m.id, offset });
       continue;
     }
-    const beta = opts.betaOverride ?? drawBeta(world, m.id, threat.type.id, sample);
-    const k = kineticImpact(m.impactorKg, target.mass, m.arrivalV, st.v, beta);
     const R = target.D / 2;
     const Qs = qStar(R, threat.type.density, threat.type.strengthMult, material);
+
+    if (m.push) {
+      // Slow push (6.12): the craft has rendezvoused (the planner paid the mismatch); push along track for tau.
+      const tEnd = Math.min(m.arrivalTime + m.push.tauMax, threat.tImpact - KNOBS.PUSH_END_MARGIN);
+      const rNow = Math.hypot(st.r.x, st.r.y);
+      const pf = pushForce({ method: m.push.method as PushMethod, tier: m.push.tier }, target.mass, target.D / 2, rNow, iron);
+      if (!pf.viable || pf.force <= 0 || tEnd <= m.arrivalTime) {
+        events.push({ t: m.arrivalTime, kind: 'PUSH', missionId: m.id, targetId: target.id, method: m.push.method, force: pf.force, dv: 0, duration: 0, viable: false, note: pf.note });
+        continue;
+      }
+      const a = (m.push.sign * pf.force) / target.mass;
+      let arc;
+      try {
+        arc = integratePush(current, mu, m.arrivalTime, tEnd, a);
+      } catch (e) {
+        if (!(e instanceof OrbitError)) throw e;
+        events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+        continue;
+      }
+      const lastSeg = target.segments[target.segments.length - 1];
+      if (lastSeg) lastSeg.tTo = m.arrivalTime;
+      // NOTE: during the arc the body is drawn on its pre-push orbit; the arc's end state becomes the new
+      // segment from tEnd. A sampled table for the arc is a BUILD_PLAN polish item.
+      target.segments.push({ tFrom: m.arrivalTime, tTo: tEnd, elements: current });
+      target.segments.push({ tFrom: tEnd, tTo: Infinity, elements: arc.elements });
+      tLast = tEnd;
+      events.push({ t: m.arrivalTime, kind: 'PUSH', missionId: m.id, targetId: target.id, method: m.push.method, force: pf.force, dv: arc.dv, duration: tEnd - m.arrivalTime, viable: true, note: pf.note });
+      continue;
+    }
+
+    if (m.warhead) {
+      // Nuclear (6.11): standoff pushes along the burst-to-centre line (the approach direction); surface and
+      // subsurface disrupt when Q_nuc >= Q*. A pulse train sums bursts with a disruption check after each.
+      usedWarhead = true;
+      const U = Math.hypot(m.arrivalV.x - st.v.x, m.arrivalV.y - st.v.y);
+      const fuzed = m.warhead.mode !== 'STANDOFF' || fuzeOk(U, m.warhead.tier);
+      if (!fuzed) {
+        events.push({ t: m.arrivalTime, kind: 'NUKE', missionId: m.id, targetId: target.id, mode: m.warhead.mode, yieldMt: m.warhead.yieldMt, dv: 0, qRatio: 0, fuzed: false, pulses: m.warhead.pulses });
+        continue;
+      }
+      const ux = (m.arrivalV.x - st.v.x) / (U || 1);
+      const uy = (m.arrivalV.y - st.v.y) / (U || 1);
+      let v = { x: st.v.x, y: st.v.y };
+      let dvSum = 0;
+      let qSum = 0;
+      let disrupted = false;
+      for (let pulse = 0; pulse < Math.max(1, m.warhead.pulses); pulse++) {
+        const nb = nuclearBurst(m.warhead.yieldMt, m.warhead.mode, target.mass, R, KNOBS.NUKE_STANDOFF_H_FRAC * R);
+        dvSum += nb.dv;
+        qSum += nb.Q;
+        v = { x: v.x + nb.dv * ux, y: v.y + nb.dv * uy };
+        if (qSum >= Qs) {
+          disrupted = true;
+          break;
+        }
+      }
+      events.push({ t: m.arrivalTime, kind: 'NUKE', missionId: m.id, targetId: target.id, mode: m.warhead.mode, yieldMt: m.warhead.yieldMt, dv: dvSum, qRatio: qSum / Qs, fuzed: true, pulses: m.warhead.pulses });
+      if (disrupted) {
+        // The burst's momentum enters through the ejecta; the fragments carry the standoff push too.
+        disruptBody(target, current, { r: st.r, v }, m, qSum, Qs, { x: ux * dvSum * 1, y: uy * dvSum * 1 }, 0, m.arrivalTime);
+        continue;
+      }
+      let next: Elements;
+      try {
+        next = stateToElements(st.r, v, mu, m.arrivalTime);
+      } catch (e) {
+        if (!(e instanceof OrbitError)) throw e;
+        events.push({ t: m.arrivalTime, kind: 'NOTE', text: `${m.id} PUSHED ${target.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+        continue;
+      }
+      const lastSeg = target.segments[target.segments.length - 1];
+      if (lastSeg) lastSeg.tTo = m.arrivalTime;
+      target.segments.push({ tFrom: m.arrivalTime, tTo: Infinity, elements: next });
+      tLast = m.arrivalTime;
+      continue;
+    }
+
+    const beta = opts.betaOverride ?? drawBeta(world, m.id, threat.type.id, sample);
+    const k = kineticImpact(m.impactorKg, target.mass, m.arrivalV, st.v, beta);
     const Q = specificEnergy(m.impactorKg, target.mass, k.U);
 
     if (Q < Qs) {
@@ -163,45 +285,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     }
 
     // Disruption: the body dies; a remnant and fragments are born.
-    const rng = streamFor(world, `frag#${m.id}`, sample);
-    const nFrag = rng.int(KNOBS.FRAG_N_MIN, KNOBS.FRAG_N_MAX);
-    const pieces = disrupt(rng, { M: target.mass, R, rho: threat.type.density, Q, Qstar: Qs, m: m.impactorKg, Uvec: { x: m.arrivalV.x - st.v.x, y: m.arrivalV.y - st.v.y }, vThreat: st.v, nFrag });
-    target.tDeath = m.arrivalTime;
-    const last = target.segments[target.segments.length - 1];
-    if (last) last.tTo = m.arrivalTime;
-    producedFragments = true;
-    tLast = m.arrivalTime;
-    let born = 0;
-    let escaped = 0;
-    let meanEj = 0;
-    for (const f of pieces) meanEj += Math.hypot(f.v.x - st.v.x, f.v.y - st.v.y);
-    meanEj /= Math.max(1, pieces.length);
-    for (const f of pieces) {
-      const id = f.largestRemnant ? `${target.id === 'THREAT' ? 'REMNANT' : target.id + 'R'}` : `F${++fragCounter}`;
-      let el: Elements | null = null;
-      try {
-        el = stateToElements(st.r, f.v, mu, m.arrivalTime);
-      } catch (e) {
-        if (!(e instanceof OrbitError)) throw e;
-      }
-      const body: Body = {
-        id,
-        role: f.largestRemnant ? 'REMNANT' : 'FRAGMENT',
-        mass: f.mass,
-        D: f.D,
-        tBirth: m.arrivalTime,
-        tDeath: Infinity,
-        segments: [{ tFrom: m.arrivalTime, tTo: Infinity, elements: el ?? current }],
-        harmless: f.D < harmlessDiameter(iron),
-        escaped: el === null,
-        vEj: Math.hypot(f.v.x - st.v.x, f.v.y - st.v.y),
-      };
-      if (body.escaped) escaped++;
-      else born++;
-      bodies.push(body);
-    }
-    events.push({ t: m.arrivalTime, kind: 'FRAGMENTATION', missionId: m.id, targetId: target.id, qRatio: Q / Qs, count: pieces.length, largestD: pieces[0]?.D ?? 0, vEj: meanEj, escaped });
-    void born;
+    disruptBody(target, current, st, m, Q, Qs, { x: m.arrivalV.x - st.v.x, y: m.arrivalV.y - st.v.y }, m.impactorKg, m.arrivalTime);
   }
 
   // Close approach of every live body.
@@ -243,6 +327,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     segments: (bodies[0] as Body).segments,
     tLastAction: tLast,
     producedFragments,
+    usedWarhead,
   };
 }
 

@@ -13,6 +13,9 @@
 import { KNOBS } from '../config/knobs';
 import { missFromImpulse } from '../physics/estimates';
 import { qStar, specificEnergy } from '../physics/fragment';
+import { fuzeOk, nuclearBurst, warheadMass, yieldsForTier } from '../physics/nuclear';
+import { pushForce, type PushMethod } from '../physics/slowPush';
+import { missFromPush } from '../physics/estimates';
 import type { Mission } from '../sim/mission';
 import type { Vec2 } from '../util/vec';
 import { cellTimes, type PorkchopGrid } from './porkchop';
@@ -50,7 +53,7 @@ export interface CandidateContext {
 }
 
 export interface Candidate {
-  archetype: 'KINETIC' | 'SWARM' | 'KINETIC_FLYBY' | 'SAIL_KINETIC';
+  archetype: 'KINETIC' | 'SWARM' | 'KINETIC_FLYBY' | 'SAIL_KINETIC' | 'NUKE_STANDOFF' | 'NUKE_DISRUPT' | 'SLOW_PUSH';
   missions: Mission[];
   iL: number;
   iA: number;
@@ -87,6 +90,56 @@ export function rankMissions(list: { archetype: Candidate['archetype'] | 'KINETI
     c.score = sc.score;
   }
   return top;
+}
+
+/** Methods a slow-push tier unlocks (GAME_PLAN 9 and 20.2). NOT VIABLE ones are listed so their numbers show. */
+export function pushMethodsForTier(tier: number, iron: boolean, sailTier: number): PushMethod[] {
+  const out: PushMethod[] = [];
+  if (tier >= 1) out.push('GRAVITY_TRACTOR', 'TETHER', 'ELECTROSTATIC');
+  if (tier >= 2) out.push('ION_BEAM', 'MIRRORS', 'TUGBOAT');
+  if (tier >= 2 && iron) out.push('MAGNETIC');
+  if (tier >= 3) out.push('LASER', 'MASS_DRIVER');
+  if (sailTier >= 2 && tier >= 1) out.push('ESAIL');
+  return out;
+}
+
+/**
+ * Slow-push candidates: the cells with the lowest closing speed (rendezvous mismatch paid by onboard dv),
+ * one mission per unlocked method, pushed along track in the sign the planner finds best (both tried).
+ */
+export function rankSlowPush(g: PorkchopGrid, ctx: CandidateContext, pushTier: number, sailTier: number, dsmBudget: number, iron: boolean): Candidate[] {
+  if (pushTier <= 0) return [];
+  const cells: { iL: number; iA: number; U: number }[] = [];
+  for (let iL = 0; iL < g.nL; iL++) for (let iA = 0; iA < g.nA; iA++) {
+    const i = iL * g.nA + iA;
+    if ((g.payload[i] ?? 0) > 0 && (g.U[i] ?? Infinity) <= dsmBudget) cells.push({ iL, iA, U: g.U[i] ?? Infinity });
+  }
+  cells.sort((a, b) => a.U - b.U);
+  const out: Candidate[] = [];
+  const methods = pushMethodsForTier(pushTier, iron, sailTier);
+  for (const c of cells.slice(0, 2)) {
+    for (const method of methods) {
+      const base = missionFromCell(g, c.iL, c.iA, ctx, 'PUSH');
+      if (!base) continue;
+      const tier = Math.max(0, pushTier - 1);
+      const pf = pushForce({ method, tier }, ctx.targetMass, ctx.targetD / 2, 1.495978707e11, iron);
+      const tau = Math.max(0, ctx.tImpact - KNOBS.PUSH_END_MARGIN - base.arrivalTime);
+      const accel = pf.force / ctx.targetMass;
+      const est = Math.abs(missFromPush(accel, tau, 0)) / ctx.rHome;
+      const cost = (KNOBS.COST_LAUNCHER[ctx.launcherTier - 1] ?? 0) + (KNOBS.COST_SLOW_PUSH[tier] ?? 4);
+      let best: Candidate | null = null;
+      for (const sign of [1, -1] as const) {
+        const mission: Mission = { ...base, archetype: 'SLOW_PUSH', cost, dsmUsed: c.U, push: { method, tier, sign, tauMax: tau } };
+        const v = ctx.resolve([mission]);
+        const sc = scoreOf(v, cost, ctx);
+        const cand: Candidate = { archetype: 'SLOW_PUSH', missions: [mission], iL: c.iL, iA: c.iA, missEstRadii: est, verdict: v, pMiss: sc.pMiss, score: pf.viable ? sc.score : sc.score - 5, betaRange: [1, 1], qRatio: 0, cost };
+        if (!best || cand.score > best.score) best = cand;
+      }
+      if (best) out.push(best);
+    }
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, 5);
 }
 
 export function missionCost(launcherTier: number, impactorTier: number): number {
@@ -134,7 +187,7 @@ export function qRatioFor(m: Mission, ctx: CandidateContext): number {
   return specificEnergy(m.impactorKg, ctx.targetMass, m.U) / Qs;
 }
 
-function scoreOf(v: ResolveVerdict, cost: number, ctx: CandidateContext): { pMiss: number; score: number } {
+function scoreOf(v: ResolveVerdict, cost: number, ctx: CandidateContext, nuke = false): { pMiss: number; score: number } {
   const pMiss = v.outcome === 'MISS' ? 1 : v.outcome === 'PARTIAL' ? 0.35 : 0;
   const affordable = cost <= ctx.budget + 1e-9;
   const score =
@@ -142,8 +195,63 @@ function scoreOf(v: ResolveVerdict, cost: number, ctx: CandidateContext): { pMis
     KNOBS.W_RES * (ctx.threatEnergyMt > 0 ? v.hitEnergyMt / ctx.threatEnergyMt : 0) -
     KNOBS.W_COST * (cost / Math.max(1, ctx.budget)) +
     KNOBS.W_MARGIN * Math.max(0, Math.min(1, v.marginRadii / 3)) -
+    (nuke ? KNOBS.W_NUKE : 0) -
     (affordable ? 0 : 10);
   return { pMiss, score };
+}
+
+/**
+ * Nuclear candidates from the grid (GAME_PLAN 6.11): STANDOFF wants a slow approach (fuze limit), DISRUPT
+ * (subsurface) takes any cell. The warhead is the payload: the cell must lift its mass. Returns up to a
+ * handful per mode, resolved and scored with the W_NUKE penalty.
+ */
+export function rankNukes(g: PorkchopGrid, ctx: CandidateContext, warheadTier: number): Candidate[] {
+  if (warheadTier <= 0) return [];
+  const yields = yieldsForTier(warheadTier);
+  const out: Candidate[] = [];
+  const Qs = qStar(ctx.targetD / 2, ctx.threatDensity, ctx.threatStrength, ctx.threatMaterial);
+  const make = (iL: number, iA: number, yieldMt: number, mode: 'STANDOFF' | 'SUBSURFACE'): Candidate | null => {
+    const m = missionFromCell(g, iL, iA, ctx, 'NUKE');
+    if (!m) return null;
+    const mass = warheadMass(yieldMt);
+    const i = iL * g.nA + iA;
+    if ((g.payload[i] ?? 0) < mass) return null;
+    if (mode === 'STANDOFF' && !fuzeOk(m.U, warheadTier)) return null;
+    const nb = nuclearBurst(yieldMt, mode, ctx.targetMass, ctx.targetD / 2, KNOBS.NUKE_STANDOFF_H_FRAC * ctx.targetD / 2);
+    const cost = (KNOBS.COST_LAUNCHER[ctx.launcherTier - 1] ?? 0) + (KNOBS.COST_WARHEAD[Math.min(2, warheadTier - 1)] ?? 6);
+    const mission: Mission = { ...m, archetype: mode === 'STANDOFF' ? 'NUKE_STANDOFF' : 'NUKE_DISRUPT', impactorKg: mass, cost, warhead: { yieldMt, mode, tier: warheadTier, pulses: 1 } };
+    const missEst = Math.abs(missFromImpulse(nb.dv, ctx.tImpact - m.arrivalTime)) / ctx.rHome;
+    return { archetype: mission.archetype as Candidate['archetype'], missions: [mission], iL, iA, missEstRadii: missEst, verdict: null, pMiss: 0, score: 0, betaRange: [1, 1], qRatio: nb.Q / Qs, cost };
+  };
+  // Standoff: the slowest feasible cells (low U) with the biggest yield; disrupt: the cells with the most payload.
+  const cells: { iL: number; iA: number; U: number; payload: number }[] = [];
+  for (let iL = 0; iL < g.nL; iL++) for (let iA = 0; iA < g.nA; iA++) {
+    const i = iL * g.nA + iA;
+    const pay = g.payload[i] ?? 0;
+    if (pay > 0) cells.push({ iL, iA, U: g.U[i] ?? Infinity, payload: pay });
+  }
+  const biggest = yields[yields.length - 1] ?? 0.1;
+  const slow = [...cells].sort((a, b) => a.U - b.U).slice(0, 6);
+  for (const c of slow) {
+    const cand = make(c.iL, c.iA, biggest, 'STANDOFF');
+    if (cand) out.push(cand);
+  }
+  if (warheadTier >= 2) {
+    const heavy = [...cells].sort((a, b) => b.payload - a.payload).slice(0, 4);
+    for (const c of heavy) {
+      const cand = make(c.iL, c.iA, biggest, 'SUBSURFACE');
+      if (cand) out.push(cand);
+    }
+  }
+  for (const c of out) {
+    const v = ctx.resolve(c.missions);
+    c.verdict = v;
+    const sc = scoreOf(v, c.cost, ctx, true);
+    c.pMiss = sc.pMiss;
+    c.score = sc.score;
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, 4);
 }
 
 export function rankCandidates(g: PorkchopGrid, ctx: CandidateContext): Candidate[] {

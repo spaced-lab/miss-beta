@@ -23,6 +23,8 @@ from pymiss.physics.constants import AU, DAY, MU_HOME, MU_SUN, R_HOME, YEAR  # n
 from pymiss.physics.flyby import flyby, soi_radius, turn_angle  # noqa: E402
 from pymiss.physics.integrate import gravity_deriv, integrate  # noqa: E402
 from pymiss.physics.sail import characteristic_accel, integrate_sail, sail_accel  # noqa: E402
+from pymiss.physics.slow_push import gravity_tractor_force, integrate_push, tractor_propellant, yarkovsky_drift  # noqa: E402
+from pymiss.physics.nuclear import intercepted_fraction, nuclear_burst, warhead_mass  # noqa: E402
 from pymiss.physics.photometry import absolute_magnitude, apparent_magnitude, view_geometry  # noqa: E402
 from pymiss.physics.fragment import disrupt, f_3d, fragment_masses, largest_remnant_fraction, q_star, specific_energy  # noqa: E402
 from pymiss.physics.estimates import LAUNCHERS, miss_from_impulse, miss_from_push, payload_for_c3  # noqa: E402
@@ -161,6 +163,23 @@ def photometry_vectors() -> dict:
     return {"H": H, "V": V, "geometry": G}
 
 
+def nuclear_vectors() -> dict:
+    cases = []
+    for y, mode, M, R, H in ((1.0, "STANDOFF", 1.41e12, 500.0, 250.0), (0.3, "STANDOFF", 3.8e10, 150.0, 75.0), (1.0, "SURFACE", 1.41e12, 500.0, 0.0), (5.0, "SUBSURFACE", 1.4e13, 1000.0, 0.0), (1.0, "HAIV", 1.41e12, 500.0, 0.0)):
+        e, dp, dv, Q, f = nuclear_burst(y, mode, M, R, H)
+        cases.append({"yieldMt": y, "mode": mode, "M": M, "R": R, "H": H, "eAbs": e, "dp": dp, "dv": dv, "Q": Q, "fOmega": f})
+    fo = [{"R": R, "H": H, "f": intercepted_fraction(R, H)} for R, H in ((500, 250), (500, 0.0), (500, 5000), (100, 50))]
+    return {"burst": cases, "fOmega": fo, "mass": [{"Mt": y, "kg": warhead_mass(y)} for y in (0.1, 0.3, 1, 5)]}
+
+
+def slow_push_vectors() -> dict:
+    el = Elements(1.2 * AU, 0.3, 0.7, 2.0, 0.0)
+    out_el, dv = integrate_push(el, MU_SUN, 0.0, YEAR, 1e-7)
+    return {"push": {"a": 1.2 * AU, "e": 0.3, "w": 0.7, "M0": 2.0, "accel": 1e-7, "t1": YEAR, "outA": out_el.a, "outE": out_el.e, "outW": out_el.w, "outM0": out_el.M0, "dv": dv},
+            "tractor": [{"mSc": m, "M": M, "R": R, "F": gravity_tractor_force(m, M, R), "prop1y": tractor_propellant(m, M, R, YEAR)} for m, M, R in ((1000, 1.4e9, 50), (20000, 3.8e10, 150))],
+            "yarkovsky10y": yarkovsky_drift(10 * YEAR)}
+
+
 def m4_vectors() -> dict:
     # RK4 two-body: one quarter orbit at 1 AU with 6 h steps, compare against Kepler in the TS test.
     from pymiss.physics.kepler import vis_viva
@@ -189,4 +208,6 @@ if __name__ == "__main__":
     write("fragment.json", fragment_vectors())
     write("m4.json", m4_vectors())
     write("photometry.json", photometry_vectors())
+    write("nuclear.json", nuclear_vectors())
+    write("slowPush.json", slow_push_vectors())
     write("rng.json", rng_vectors())
