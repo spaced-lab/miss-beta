@@ -17,7 +17,7 @@ function ctx(mode: 'REALISTIC' | 'SCIFI' | 'SIMULATION' | 'MULTIVERSE' = 'REALIS
   if (mode === 'SIMULATION' || mode === 'MULTIVERSE') enterMode(run, 'SIMULATION');
   if (mode === 'MULTIVERSE') enterMode(run, 'MULTIVERSE');
   const say = (s: string) => () => s;
-  return { run, round: { hasThreat: true, teleport: say('TP'), observe: say('OB'), rewind: () => 'RW', editG: () => 'EG', deleteThreat: say('DL'), tractorBeam: say('TB'), singularity: say('SG'), planetThrusters: () => 'PT', shrink: say('SH'), multiverse: (n) => `MV${n}`, wormhole: say('WH'), revealNow: say('RV'), impulse: () => 'IMPULSE', timefold: () => 'FOLD', detour: () => 'DETOUR', hollow: () => 'HOLLOW', ticket: () => 'TICKET', nibiru: () => 'X', mandela: () => 'M', peel: () => 'P', completeAllPrograms: () => 'CP' } };
+  return { run, round: { hasThreat: true, teleport: say('TP'), observe: say('OB'), rewind: () => 'RW', editG: () => 'EG', deleteThreat: say('DL'), tractorBeam: say('TB'), singularity: say('SG'), planetThrusters: () => 'PT', shrink: say('SH'), multiverse: (n) => `MV${n}`, wormhole: say('WH'), revealNow: say('RV'), impulse: () => 'IMPULSE', timefold: () => 'FOLD', detour: () => 'DETOUR', hollow: () => 'HOLLOW', ticket: () => 'TICKET', nibiru: () => 'X', mandela: () => 'M', peel: () => 'P', bootstrap: () => 'B', retrocausal: () => 'R', borrow: () => 'W', completeAllPrograms: () => 'CP' } };
 }
 
 describe('MODES (GAME_PLAN 21)', () => {
@@ -170,7 +170,7 @@ describe('GAME_PLAN 30 fiction', () => {
   it('every new command runs in SIMULATION, stays in character, and is gated in REALISTIC', async () => {
     const { flybyDeflection, DEADPAN } = await import('../src/game/fiction');
     expect(flybyDeflection(1e15, 100, 20000)).toBeCloseTo(0.0667, 3);
-    for (const verb of ['MICROHOLE', 'TIMEFOLD 2', 'DETOUR', 'LUNA', 'HOLLOW', 'TICKET', 'NIBIRU', 'MANDELA']) {
+    for (const verb of ['MICROHOLE', 'TIMEFOLD 2', 'DETOUR', 'LUNA', 'HOLLOW', 'TICKET', 'NIBIRU', 'MANDELA', 'BOOTSTRAP', 'RETROCAUSAL']) {
       const v = verb.split(' ')[0]!;
       expect(runCommand(verb, ctx('REALISTIC'))[0]).toMatch(/SIMULATION MODE ONLY/);
       const out = runCommand(verb, ctx('SIMULATION'));

@@ -43,6 +43,9 @@ export interface GameContext {
     nibiru(): string;
     mandela(): string;
     peel(): string;
+    bootstrap(): string;
+    retrocausal(): string;
+    borrow(n: number): string;
   } | null;
 }
 

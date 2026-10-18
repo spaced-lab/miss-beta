@@ -42,6 +42,9 @@ export const DEADPAN: Readonly<Record<string, readonly string[]>> = {
   TICKET: ['TICKET SUBMITTED TO THE SIMULATION OPERATORS.'],
   NIBIRU: ['PLANET X CONFIRMED. ARRIVAL: NEXT YEAR. ARRIVAL HAS BEEN NEXT YEAR FOR SOME TIME.'],
   PEEL: ['THE WALLPAPER HAS COME AWAY. PLEASE DO NOT LOOK DIRECTLY AT THE NUMBERS.', 'MAINTENANCE PANEL OPENED. MIND THE VARIABLES.'],
+  BOOTSTRAP: ['THE IMPACTOR WAS ALWAYS HERE. NOBODY BUILT IT. DO NOT ASK WHO DID.', 'A SPARE IMPACTOR HAS BEEN FOUND IN THE STOREROOM. ITS SERIAL NUMBER IS ITS OWN.'],
+  RETROCAUSAL: ['LAUNCH WINDOW: YESTERDAY. THE IMPACT HAS ALREADY HAPPENED; THE LAUNCH WILL CATCH UP.', 'EFFECT FILED BEFORE CAUSE. THE CAUSE HAS BEEN NOTIFIED.'],
+  BORROW: ['PLAGIARISM ACROSS TIMELINES IS NOT AN OFFENCE IN THIS JURISDICTION.', 'THE OTHER TIMELINE WAS NOT USING ITS PLAN ANYWAY.'],
   MANDELA: ['HISTORY HAS BEEN AMENDED. IT WAS ALWAYS THIS WAY. YOU REMEMBER IT THIS WAY.'],
 };
 
@@ -136,6 +139,27 @@ export const EXTRA_FICTION: readonly Command[] = [
     handler: (_a, ctx) => {
       flag(ctx, 'PEEL');
       return ['THE SCREEN IS A PICTURE OF NUMBERS THE PROGRAM KEEPS. THESE ARE THEM: ORBITAL ELEMENTS, MASS, TIME.', ctx.round?.peel() ?? 'NOTHING TO PEEL.'];
+    },
+  },
+  {
+    verb: 'BOOTSTRAP', tag: 'FICTION', usage: 'BOOTSTRAP', help: 'the next mission you commit costs nothing (a causal loop built it)', mode: 'SIMULATION',
+    handler: (_a, ctx) => {
+      flag(ctx, 'BOOTSTRAP');
+      return ['A BOOTSTRAP PARADOX HAS NO ORIGIN FOR ITS INFORMATION OR ITS MATTER. CAUSALITY SAYS NO.', ctx.round?.bootstrap() ?? 'NO ROUND.'];
+    },
+  },
+  {
+    verb: 'RETROCAUSAL', tag: 'FICTION', usage: 'RETROCAUSAL', help: 'a 5 t impactor at 30 km/s that arrived before it launched (applied now)', mode: 'SIMULATION',
+    handler: (_a, ctx) => {
+      flag(ctx, 'RETROCAUSAL');
+      return ['NO SIGNAL OR MASS TRAVELS BACKWARD IN TIME: THE LIGHT CONE IS ONE-WAY.', ctx.round?.retrocausal() ?? 'NO THREAT.'];
+    },
+  },
+  {
+    verb: 'BORROW', tag: 'FICTION', usage: 'BORROW n', help: 'copy branch n\'s missions into the selected branch', mode: 'MULTIVERSE',
+    handler: (a, ctx) => {
+      flag(ctx, 'BORROW');
+      return ['BRANCHES OF A WAVEFUNCTION DO NOT EXCHANGE MATTER OR PLANS.', ctx.round?.borrow(n(a, 0, 1)) ?? 'NO BRANCHES.'];
     },
   },
   {

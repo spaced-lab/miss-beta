@@ -135,6 +135,8 @@ export class SystemScreen implements Screen {
   private ticketFiled = false;
   /** PEEL: until this real time (ms) a big flap shows the raw state. */
   private peelUntil = 0;
+  /** BOOTSTRAP: the next commit is free. */
+  private freeNext = false;
   private approachSounded = false;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly settings: Settings = DEFAULT_SETTINGS, private readonly sfx: UiSfx | null = null, openCenter: ((id: string, level: Level) => void) | null = null) {
@@ -445,8 +447,12 @@ export class SystemScreen implements Screen {
             return false;
           }
         }
-        const cost = ms.reduce((a, m) => a + m.cost, 0);
+        const cost = this.freeNext ? 0 : ms.reduce((a, m) => a + m.cost, 0);
         if (!spend(this.run.economy, this.world.t, cost)) return false;
+        if (this.freeNext) {
+          this.freeNext = false;
+          this.note('BOOTSTRAP: THIS ONE WAS ALWAYS PAID FOR.', 4);
+        }
         this.sfx?.commit();
         if (branch) {
           branch.missions.push(...ms);
@@ -1063,6 +1069,27 @@ export class SystemScreen implements Screen {
           this.peelUntil = performance.now() + 8000;
           this.glitch = true;
           return 'THE CORNER HAS COME AWAY FOR EIGHT SECONDS. THE NUMBERS UNDERNEATH ARE THE REAL ONES.';
+        },
+        bootstrap: () => {
+          this.freeNext = true;
+          return 'THE NEXT MISSION YOU COMMIT COSTS NOTHING.';
+        },
+        retrocausal: () => {
+          const th = this.world.threat;
+          if (!th) return 'NO THREAT.';
+          // Honest impact physics for a 5 t impactor at 30 km/s with beta 2; only the timing is fiction.
+          const dv = (2 * 5000 * 30000) / th.mass;
+          return this.gameContext().round?.impulse(dv, 'RETROCAUSAL') ?? 'NO THREAT.';
+        },
+        borrow: (n) => {
+          const mv = this.mv;
+          if (!mv) return 'NO BRANCHES: TYPE MULTIVERSE N FIRST.';
+          const src = mv.branches[Math.round(n) - 1];
+          const dst = mv.branches[mv.selected];
+          if (!src || !dst || src === dst) return `NO SUCH OTHER BRANCH ${n}.`;
+          dst.missions.push(...src.missions.map((m) => ({ ...m, id: `${m.id}-B${src.index + 1}` })));
+          resolveBranch(dst, this.resolveOpts());
+          return `BRANCH ${dst.index + 1} NOW FLIES BRANCH ${src.index + 1}'S ${src.missions.length} MISSION${src.missions.length === 1 ? '' : 'S'} TOO.`;
         },
         nibiru: () => {
           this.nibiru = true;
