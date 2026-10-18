@@ -173,13 +173,17 @@ were the only rock axis that produced impacts against a full arsenal; speed and 
 
 ## Resume here (for a fresh session after a context clear)
 
-1. Read `CLAUDE.md`, then this file, then the first unchecked box in `docs/BUILD_PLAN.md` (M13 cinematics and
-   narratives, the user's request of 2026-10-17; M12 is done, its findings are above and in IDEAS.md).
-2. Play URL for the user is http://localhost:4173 (`npm run play`, or `npx vite build` after a commit while the
-   preview keeps running). The dev server on 5173 is for the agent; its hot updates reset a running minigame.
-3. Commit only with `bash scripts/gate.sh && git add -A && git commit -q -m "..."`; the gate includes
-   `scripts/build_lore.py --check`, which needs every SIMPLE picture generator present.
-4. Open agent branches are merged with `git merge --no-ff <branch>`; keep both sides of CHANGELOG/STATUS conflicts.
-5. Nobody in a session can hear audio: minigame sound feedback goes through the SOUND LAB (L on the PERIMETER
-   ready panel) or as "event + one adjective".
+1. Read `CLAUDE.md`, then this file, then GAME_PLAN Section 30 (2026-10-18: unproven tech, deadpan fiction,
+   "Earth must be protected by all means") and IDEAS.md. M0-M13 are done; work since then is owner-directed.
+2. Play URL for the user is http://localhost:4173 (`npx vite build` after a commit). The dev server on 5173 is
+   for the agent; `window.__miss.screens.get(id)` reaches any screen's state in dev.
+3. Commit only with `bash scripts/gate.sh && git add -A && git commit -q -m "..."`. The gate runs every
+   notebook too (pymiss/tests/test_notebooks.py).
+4. Owner's standing direction (2026-10-18): keep improving by playing in the browser; COLOUR MONO default with
+   NEON option; Learning Center three panes with readable width; 20 labs, 9 rotating models, real JPL data
+   panels; pixel-art cinematics; SCI-FI speculative capabilities (nanoforge, thruster swarm, shepherd network,
+   fusion tugs); SIMULATION/MULTIVERSE fiction stays in character (REALITY ON shows the physics); PEEL and
+   ambient peels. Reference images: local only in temp/refs (docs/ASSET_REQUESTS.md rules), never committed.
+5. Queued ideas from the owner: seed fleets that build more of themselves, attachable kits, an L4/L5 picket line,
+   more deadpan fiction (singularity projectiles exist as MICROHOLE), speculative-push cinematics.
 6. The repo has no GitHub remote yet; the user decides when to push (`miss-beta`, AGPL-3.0). CI is written but unrun.
