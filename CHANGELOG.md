@@ -2,7 +2,7 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
-## 26.4.0 (unreleased: first public publish, after code review)
+## 26.4.0 (2026-10-18)
 
 Versions are YY.Q.N (docs/RELEASING.md).
 
