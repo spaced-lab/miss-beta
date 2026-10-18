@@ -152,3 +152,12 @@ describe('PERIMETER v3.4 (owner follow-up 2026-10-18)', () => {
     expect(SOUND_EVENTS.length).toBeGreaterThan(0);
   });
 });
+
+describe('PERIMETER daily seed (IDEAS 6)', () => {
+  it('the daily seed is a stable hash of the date, different per day', async () => {
+    const { dailySeed } = await import('../src/minigame/index');
+    expect(dailySeed('2026-10-18')).toBe(dailySeed('2026-10-18'));
+    expect(dailySeed('2026-10-18')).not.toBe(dailySeed('2026-10-19'));
+    expect(Number.isInteger(dailySeed('2026-10-18'))).toBe(true);
+  });
+});

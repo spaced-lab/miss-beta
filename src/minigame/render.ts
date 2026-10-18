@@ -23,6 +23,8 @@ export interface RenderOpts {
   sound: string;
   /** A saved game is waiting on the ready panel: its headline numbers, or null. */
   resume?: { level: number; score: number; t: number } | null;
+  /** DAILY mode: today's date and the day's best, or null. */
+  daily?: { date: string; best: number } | null;
 }
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
@@ -361,7 +363,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   const fs = 14;
 
   drawText(s, `SCORE ${pad(st.score, 6)}`, m, m, fs);
-  drawText(s, `BEST  ${pad(opts.best, 6)}`, m, m + fs * 1.7, fs, { color: p.dim, glow: 0 });
+  drawText(s, opts.daily ? `DAILY ${opts.daily.date}  BEST ${pad(opts.daily.best, 6)}` : `BEST  ${pad(opts.best, 6)}`, m, m + fs * 1.7, fs, { color: opts.daily ? p.hot : p.dim, glow: 0 });
   drawText(s, `LEVEL ${st.level}`, m, m + fs * 3.4, fs, { color: p.hot, glow: 1.2 });
 
   // Right column: HULL, HEAT, PULSE.
@@ -510,7 +512,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   } else if (blink) {
     drawTextFit(s, 'PRESS SPACE TO START', cx, by + 20, 16, inner, { align: 'center', color: p.hot, glow: 1.5 });
   }
-  drawTextFit(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  L SOUND LAB  SEED ${st.seed}`, cx, y + h - 26, 10, inner, { align: 'center', color: p.dim, glow: 0 });
+  drawTextFit(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  6 DAILY${opts.daily ? ' (ON)' : ''}  L SOUND LAB  SEED ${st.seed}`, cx, y + h - 26, 10, inner, { align: 'center', color: p.dim, glow: 0 });
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {

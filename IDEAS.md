@@ -23,6 +23,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 6. **Daily seed for PERIMETER (S).** Same seed for everyone per calendar day, separate best score, mirrors
    the main game's daily seed mode (GAME_PLAN 12).
    Recommendation: DO with 4 (same code path: a fixed seed plus a stored input stream).
+   Status 2026-10-18: DONE (key 6 on the ready panel: today's seed, its own best).
 7. **Gamepad for the main game and PERIMETER (S).** Gamepad API polling in `ui/input.ts` mapped onto the same
    key codes (left stick = arrows, A = Space, B = Esc, bumpers = warp), so no screen changes. Touch pan and
    pinch landed in M8; this is the remaining half of GAME_PLAN 13's "controller/touch".

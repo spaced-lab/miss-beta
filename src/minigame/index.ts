@@ -32,6 +32,17 @@ const SFX_KEY = 'minigame.sfx';
 /** sessionStorage: one tab, survives reloads, gone when the tab closes. */
 const SAVE_KEY = 'minigame.save';
 const AUTOSAVE_SECONDS = 5;
+/** DAILY (IDEAS 6): the day's best, guarded; the seed is the date, the same for everyone. */
+const DAILY_KEY = 'minigame.daily';
+const isDaily = (v: unknown): v is { date: string; best: number } => typeof v === 'object' && v !== null && typeof (v as { date?: unknown }).date === 'string' && typeof (v as { best?: unknown }).best === 'number';
+/** Today's date (local), YYYY-MM-DD. */
+export const today = (): string => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+/** The daily seed: a string hash of the date, so every player gets the same field. */
+export function dailySeed(date: string): number {
+  let h = 2166136261;
+  for (const ch of `PERIMETER-${date}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return h >>> 0;
+}
 const GLOW_CYCLE: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 
 export class MinigameScreen implements Screen {
@@ -77,7 +88,12 @@ export class MinigameScreen implements Screen {
     return `${this.sfx.enabled ? 'SND ON' : 'SND OFF'}  KIT ${this.sfx.kit.name}`;
   }
 
+  /** DAILY mode on: new games use today's seed. */
+  private daily = false;
+  private dailyBest = 0;
+
   private newSeed(): number {
+    if (this.daily) return dailySeed(today());
     // NOTE: the seed is the only non-deterministic input; it is shown in the debug HUD so a run can be replayed.
     return (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   }
@@ -132,6 +148,14 @@ export class MinigameScreen implements Screen {
     if (k.pressed('Digit2')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
     if (k.pressed('Digit3')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
 
+    if (st.status === 'ready' && k.pressed('Digit6')) {
+      // DAILY toggles the field: today's seed for everyone, its own best.
+      this.daily = !this.daily;
+      const rec = loadJson(DAILY_KEY, isDaily, null);
+      this.dailyBest = rec && rec.date === today() ? rec.best : 0;
+      this.st = createState(this.newSeed(), st.collision);
+      return;
+    }
     if (st.status === 'ready') {
       // NOTE: with a save present Space RESUMES (so does R); only Backspace, a key nobody hits by reflex while
       // firing, throws the save away. Without a save Space starts a fresh game as it always did.
@@ -206,6 +230,10 @@ export class MinigameScreen implements Screen {
       this.best = st.score;
       saveJson(BEST_KEY, this.best);
     }
+    if (this.daily && st.status === 'over' && !st.cheats.assisted && st.score > this.dailyBest) {
+      this.dailyBest = st.score;
+      saveJson(DAILY_KEY, { date: today(), best: st.score });
+    }
   }
 
   render(): void {
@@ -219,6 +247,7 @@ export class MinigameScreen implements Screen {
       best: this.best,
       sound: this.soundLabel(),
       resume: sv ? { level: sv.level, score: sv.score, t: sv.t } : null,
+      daily: this.daily ? { date: today(), best: this.dailyBest } : null,
     });
     if (this.labState.open) renderLab(this.s, this.labState, this.sfx);
   }
