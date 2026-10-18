@@ -25,6 +25,12 @@ export interface RenderOpts {
   resume?: { level: number; score: number; t: number } | null;
   /** DAILY mode: today's date and the day's best, or null. */
   daily?: { date: string; best: number } | null;
+  /** SUPER DEMO running: its speed, and seconds to the next demo game after a game over (else null). */
+  demo?: { speed: number; restartIn: number | null } | null;
+  /** Difficulty and start level chosen on the ready panel. */
+  options?: { difficulty: string; startLevel: number };
+  /** Main OPTIONS > REDUCE MOTION: no screen shake. */
+  reduceMotion?: boolean;
 }
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
@@ -140,12 +146,16 @@ function bulletColor(s: Surface, damage: number, stage: number): string {
   return stage >= 2 ? (NEON.bullet[damage - 1] ?? s.palette.hot) : s.palette.hot;
 }
 
+/** Screen-shake amplitude in px: shake (world radii) x scale. NOTE: REDUCE MOTION (the main game's photosensitivity
+ *  setting) turns it off entirely; the flash text and particles stay. Example: shakePx(0.1, 50, false) = 5. */
+export const shakePx = (shake: number, scale: number, reduceMotion: boolean): number => (reduceMotion ? 0 : shake * scale);
+
 export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const p = s.palette;
   const W = s.width;
   const H = s.height;
   const k = Math.min(W, H) / 2 / MG.VIEW_R;
-  const sh = st.shake * k;
+  const sh = shakePx(st.shake, k, opts.reduceMotion === true);
   const cx = W / 2 + Math.sin(st.t * 61) * sh;
   const cy = H / 2 + Math.cos(st.t * 47) * sh;
   const X = (x: number): number => cx + x * k;
@@ -320,8 +330,20 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   }
 
   drawHud(s, st, opts, stage);
+  if (opts.demo) drawDemoBanner(s, opts.demo);
   if (st.status === 'ready') drawReady(s, st, opts);
-  if (st.status === 'over') drawOver(s, st, opts);
+  if (st.status === 'over' && !opts.demo) drawOver(s, st, opts);
+}
+
+/** The SUPER DEMO banner: what is playing and how to leave. */
+function drawDemoBanner(s: Surface, demo: { speed: number; restartIn: number | null }): void {
+  const p = s.palette;
+  const cx = s.width / 2;
+  const w = Math.min(560, s.width - 32);
+  const blink = Math.floor(performance.now() / 600) % 2 === 0;
+  drawTextFit(s, `SUPER DEMO  ${demo.speed.toFixed(2)}X  THE BOT IS PLAYING`, cx, s.height * 0.16, 16, w, { align: 'center', color: p.hot, glow: blink ? 1.5 : 0.6 });
+  const sub = demo.restartIn !== null ? `HOME LOST. NEXT DEMO IN ${Math.ceil(demo.restartIn)} S.  ANY KEY TO EXIT` : 'ANY KEY TO EXIT  (1 DEBUG  2 GLOW  4 SOUND KEEP IT RUNNING)';
+  drawTextFit(s, sub, cx, s.height * 0.16 + 24, 11, w, { align: 'center', color: p.dim, glow: 0 });
 }
 
 function pad(n: number, w: number): string {
@@ -365,6 +387,8 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   drawText(s, `SCORE ${pad(st.score, 6)}`, m, m, fs);
   drawText(s, opts.daily ? `DAILY ${opts.daily.date}  BEST ${pad(opts.daily.best, 6)}` : `BEST  ${pad(opts.best, 6)}`, m, m + fs * 1.7, fs, { color: opts.daily ? p.hot : p.dim, glow: 0 });
   drawText(s, `LEVEL ${st.level}`, m, m + fs * 3.4, fs, { color: p.hot, glow: 1.2 });
+  const tags = [st.difficulty !== 'normal' ? st.difficulty.toUpperCase() : '', st.startLevel > 1 ? `FROM ${st.startLevel}` : ''].filter((t) => t).join('  ');
+  if (tags && st.status !== 'ready') drawText(s, tags, m, m + fs * 5.1, 11, { color: p.dim, glow: 0 });
 
   // Right column: HULL, HEAT, PULSE.
   const bw = 160;
@@ -482,7 +506,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const noteLines = notes.flatMap((n) => wrapText(n, inner, 11));
   const lh = (sz: number): number => sz * 1.6 * getTextScale();
   const rowsH = rowLines.reduce((a, ls) => a + ls.length * lh(ks) + 4, 0);
-  const h = 128 + rowsH + 8 + noteLines.length * lh(11) + 110;
+  const h = 128 + rowsH + 8 + noteLines.length * lh(11) + 136;
   const { x, y } = drawPanel(s, pw, h);
   const cx = s.width / 2;
   const x0 = x + 28;
@@ -512,6 +536,11 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   } else if (blink) {
     drawTextFit(s, 'PRESS SPACE TO START', cx, by + 20, 16, inner, { align: 'center', color: p.hot, glow: 1.5 });
   }
+  const o = opts.options;
+  if (o) {
+    const from = o.startLevel > 1 ? `LEVEL ${o.startLevel} (NOT RANKED)` : 'LEVEL 1';
+    drawTextFit(s, `9 DIFFICULTY ${o.difficulty.toUpperCase()}    0 START AT ${from}    8 SUPER DEMO`, cx, by - 26, 12, inner, { align: 'center', color: p.ink, glow: 0.6 });
+  }
   drawTextFit(s, `ESC TITLE  1 DEBUG  2 GLOW  3 COLLISION  4 SOUND  5 KIT  6 DAILY${opts.daily ? ' (ON)' : ''}  7 WATCH BEST  L SOUND LAB  SEED ${st.seed}`, cx, y + h - 26, 10, inner, { align: 'center', color: p.dim, glow: 0 });
 }
 
@@ -524,5 +553,7 @@ function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
   drawText(s, isBest ? 'NEW BEST' : `BEST ${opts.best}`, cx, y + 116, 14, { align: 'center', color: isBest ? s.palette.hot : s.palette.dim, glow: isBest ? 1.5 : 0 });
   drawText(s, `LEVEL ${st.level}   SURVIVED ${clock(st.t)}   ROCKS ${st.kills}`, cx, y + 146, 13, { align: 'center' });
   if (st.cheats.assisted) drawText(s, 'ASSISTED RUN: NOT SAVED', cx, y + 172, 11, { align: 'center', color: s.palette.dim, glow: 0 });
+  else if (st.startLevel > 1) drawText(s, `STARTED AT LEVEL ${st.startLevel}: NOT RANKED`, cx, y + 172, 11, { align: 'center', color: s.palette.dim, glow: 0 });
+  if (st.difficulty !== 'normal') drawText(s, `${st.difficulty.toUpperCase()}`, cx, y + 188, 11, { align: 'center', color: s.palette.dim, glow: 0 });
   drawText(s, 'SPACE RETRY    L SOUND LAB    ESC TITLE', cx, y + 212, 14, { align: 'center', color: s.palette.hot, glow: 1.5 });
 }

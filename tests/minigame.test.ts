@@ -3,6 +3,7 @@ import { CheatRegistry } from '../src/game/cheats';
 import { MINIGAME_CHEATS } from '../src/minigame/cheats';
 import { findHitsGrid, findHitsNaive, type Circle } from '../src/minigame/collision';
 import { byLevel, MG } from '../src/minigame/config';
+import { botInput } from '../src/minigame/bot';
 import { MinigameScreen } from '../src/minigame/index';
 import { generateContinents } from '../src/minigame/planet';
 import { AUDITION_CUE, choicesFor, clickiness, DEFAULT_INDEX, isSfxPrefs, OFF, SfxPlayer, SOUND_EVENTS, VARIANTS, variantIndex, type SoundEvent } from '../src/minigame/sfx';
@@ -1257,35 +1258,8 @@ describe('balance probe', () => {
       expect(st.hp, `seed ${seed} hull at 150 s`).toBeLessThan(MG.MAX_HP);
     }
   });
-  /**
-   * A weapons-using scripted player, still naive where a human is naive (no lead, overheats): fires and turns toward
-   * the nearest non-passing rock, pauses fire for the laser break every 3 s so the beam (or the mesh) arms, presses
-   * `<` and `>` whenever stock exists, and pulses when three threats are close or one is about to land.
-   */
-  function armed(st: MinigameState): Input {
-    let best: Asteroid | null = null;
-    let bestD = Infinity;
-    let close = 0;
-    for (const a of st.asteroids) {
-      if (a.passing) continue;
-      const d = Math.hypot(a.x, a.y);
-      if (d < 2.2) close++;
-      if (d < bestD) {
-        bestD = d;
-        best = a;
-      }
-    }
-    const stage = laserStage(st.streamCount, st.level);
-    const pause = (stage >= 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1) + 0.05;
-    const fire = !(stage > 0 && st.t % 3 < pause) && !st.overheated;
-    const pulse = st.pulses > 0 && st.pulseR < 0 && (close >= 3 || bestD < 1.6);
-    const seeker = st.seekerStock > 0 && best !== null;
-    const swarm = st.swarmStock > 0 && st.asteroids.length >= 5;
-    if (!best) return { ...NO_INPUT, fire, pulse, seeker, swarm };
-    const diff = wrapAngle(Math.atan2(best.y, best.x) - st.launcherAngle);
-    const sd = diff > Math.PI ? diff - 2 * Math.PI : diff;
-    return { left: sd > 0.02, right: sd < -0.02, fire, pulse, seeker, swarm };
-  }
+  // The weapons-using bot now lives in src/minigame/bot.ts (shared with the SUPER DEMO and the difficulty table).
+  const armed = botInput;
   it.each([1, 2, 3, 4])('with every weapon in use the ramp still bites, after level 10 (seed %i, 600 s, god off)', { timeout: 120000 }, (seed) => {
     // Measured 2026-10-17 with the knobs of that day (HP_MULT_PER_LEVEL 0.15, SPAWN_FLOOR_FACTOR 0.95,
     // SWARM_KILLS_PER_LEVEL 30): seeds 1..4 reach levels 27, 30, 30, 30; hull lost before / after level 10:

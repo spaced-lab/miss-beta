@@ -340,12 +340,54 @@ export const MG = {
   MAX_ASTEROIDS_CAP: 220,
   SHAKE_PER_HP: 0.004,
 
+  /** Difficulty levels (ready panel, `9`): multipliers on the base balance above, never a change to it. NORMAL is
+   *  1 everywhere and is today's game. `spawn` multiplies the spawn RATE (the interval is divided by it), `hp` the rock
+   *  hit points at spawn, `speed` the rock speed at spawn, `damage` the hull damage per impact (the moon is not scaled).
+   *  Measured 2026-10-18 with the bot (bot.ts; seeds 1..4, god off, 900 s cap; seconds survived from the start / level
+   *  reached; "+" = alive at the cap). NORMAL is untouched base balance; EASY and HARD were tuned on these four numbers.
+   *    start   EASY (0.8/0.85/0.9/0.7)        NORMAL (1/1/1/1)              HARD (1.3/1.7/1.15/1.4)
+   *    1       821-900+ s, L49-53+            480-584 s, L29-35             367-472 s, L22-28
+   *    10      580-708 s, L44-51              478-606 s, L38-45             169-259 s, L19-25
+   *    20      347-636 s, L40-57              243-438 s, L34-45              47-149 s, L22-28
+   *    30      311-520 s, L48-60              167-358 s, L39-51              37-124 s, L32-37
+   *    40      197-335 s, L51-59               50-266 s, L42-55              14-18 s,  L40-41
+   *  A first try (EASY 0.7/0.75/0.85/0.6, HARD 1.25/1.25/1.1/1.3) left EASY alive at 900 s on every seed and HARD within
+   *  the NORMAL spread from level 1 (382-466 s); rock hit points are again the axis that separates them. Start-level
+   *  runs outlast level-1 runs on NORMAL (fresh hull and moon, pressure reset): see docs/MINIGAME_BACKLOG.md. */
+  DIFFICULTY: {
+    easy: { spawn: 0.8, hp: 0.85, speed: 0.9, damage: 0.7 },
+    normal: { spawn: 1, hp: 1, speed: 1, damage: 1 },
+    hard: { spawn: 1.3, hp: 1.7, speed: 1.15, damage: 1.4 },
+  },
+  /** The order `9` cycles through and the default. */
+  DIFFICULTY_ORDER: ['easy', 'normal', 'hard'] as readonly ('easy' | 'normal' | 'hard')[],
+  DIFFICULTY_DEFAULT: 'normal' as 'easy' | 'normal' | 'hard',
+
+  /** Start level (ready panel, `0`): a run may begin at any of these levels. Level-derived upgrades (streams, launchers,
+   *  laser stage and mesh, drone and sentry tiers, stock caps) follow from the level by themselves; the earned stocks a
+   *  typical run carries are granted as a kit (modes.setupStart). Measured with the bot (seeds 1..4, NORMAL): pulses sit
+   *  at the cap from level 5 on, it spends seekers and swarms as they arrive, and it has 1-3 sentries at 10, 3-4 at 15,
+   *  4-6 from 20. So: full pulses, START_SEEKERS and START_SWARMS in stock, and turretMax(level) - START_SENTRIES_SHORT
+   *  sentries deployed (they burn out on their usual TURRET_LIFE, a cushion while the player settles). Pressure starts
+   *  at PRESSURE_START and climbs as usual. Such runs are flagged and never ranked. */
+  START_LEVELS: [1, 10, 20, 30, 40] as readonly number[],
+  START_SEEKERS: 1,
+  START_SWARMS: 1,
+  START_SENTRIES_SHORT: 1,
+
+  /** SUPER DEMO (ready panel, `8`): the bot (bot.ts) plays itself at DEMO_SPEED x real time, NORMAL, from level 1; after
+   *  a game over the next demo starts in DEMO_RESTART_SECONDS. */
+  DEMO_SPEED: 0.75,
+  DEMO_RESTART_SECONDS: 4,
+
   /** Fixed simulation step (s) and the cap on steps per rendered frame. */
   DT: 1 / 120,
   MAX_STEPS_PER_FRAME: 8,
 } as const;
 
 /** Read a by-level table with the last entry repeating. */
+export type Difficulty = keyof typeof MG.DIFFICULTY;
+
 export function byLevel(table: readonly number[], level: number): number {
   const i = Math.max(0, Math.min(table.length - 1, level - 1));
   return table[i] ?? 1;
