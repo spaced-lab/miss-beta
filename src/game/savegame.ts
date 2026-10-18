@@ -1,8 +1,8 @@
 // WHAT: Run <-> SAVE.md glue: build a SaveFile from the run, mirror it in localStorage, export/import.
 // WHY:  GAME_PLAN 22.1: the run is saved as a markdown file, mirrored in localStorage, EXPORT downloads it,
 //       IMPORT accepts drag and drop. The parser only trusts the front matter (game/saveMd.ts).
-// HOW:  Saves happen at round boundaries and on EXPORT. CONTINUE rebuilds a RunState from the SaveFile and
-//       starts that round fresh (missions in flight are not persisted; STATUS.md).
+// HOW:  Saves happen at round boundaries only; EXPORT downloads the last one. CONTINUE rebuilds a RunState from the
+//       SaveFile and starts that round fresh (missions in flight are not persisted; STATUS.md).
 // LORE: G1 (how to play)
 
 import { createPrograms, defaultEffects, programById, applyEffects } from '../sim/programs';
@@ -52,21 +52,21 @@ export function renderSave(run: RunState, world: World | null): string {
   return writeSave(toSaveFile(run, world), run.history);
 }
 
-/** Mirror the save in localStorage (as the markdown text). */
-export function saveRun(run: RunState, world: World | null, _unused: null): boolean {
-  return saveJson(KEY, renderSave(run, world));
-}
-
 /**
- * Save a finished round as the start of the next one: a copy of the run goes through nextRound (round + 1, rounds
- * survived + 1, the budget banked at `budgetNow`) and that is saved, with no threat yet. NOTE: the debrief used to
- * save the finished round itself with its score already added, so CONTINUE replayed the same round from the same
- * seed and paid its score again (code review 2026-10-18). The live run is not touched.
+ * SAVE.md text for a finished round, as the start of the next one: a copy of the run goes through nextRound (round
+ * + 1, rounds survived + 1, the budget banked at `budgetNow`), with no threat yet. NOTE: the debrief used to save the
+ * finished round itself with its score already added, so CONTINUE replayed the same round from the same seed and
+ * paid its score again (code review 2026-10-18). The live run is not touched.
  */
-export function saveAfterRound(run: RunState, budgetNow: number): boolean {
+export function renderAfterRound(run: RunState, budgetNow: number): string {
   const next = structuredClone(run);
   nextRound(next, budgetNow);
-  return saveRun(next, null, null);
+  return renderSave(next, null);
+}
+
+/** Mirror a rendered SAVE.md in localStorage (the text a round boundary produced). */
+export function storeSave(text: string): boolean {
+  return saveJson(KEY, text);
 }
 
 /** True only for a save that parses, so the title never offers a run CONTINUE would refuse. */
@@ -147,10 +147,15 @@ export function importRun(text: string): RunState | null {
   return runFromSave(sf);
 }
 
-/** Trigger a browser download of SAVE.md. Returns false when the DOM is unavailable. */
-export function exportSave(run: RunState, world: World | null): boolean {
+/**
+ * Trigger a browser download of a SAVE.md text. Returns false when the DOM is unavailable. NOTE: callers pass the
+ * last round-boundary save, never a mid-round snapshot: CONTINUE restarts a round at t = 0 without its missions, so
+ * a mid-round budget would bank the round's accrued income and drop missions already paid for (code review
+ * 2026-10-18).
+ */
+export function exportSave(text: string): boolean {
   if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof Blob === 'undefined') return false;
-  const blob = new Blob([renderSave(run, world)], { type: 'text/markdown' });
+  const blob = new Blob([text], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

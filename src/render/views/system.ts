@@ -77,7 +77,7 @@ import { stateToElements as toElements } from '../../physics/elements';
 import { sphereMass } from '../../physics/closeApproach';
 import { boardFor } from '../../game/modes';
 import { advancePrograms } from '../../sim/programs';
-import { exportSave, saveAfterRound, saveRun } from '../../game/savegame';
+import { exportSave, renderAfterRound, renderSave, storeSave } from '../../game/savegame';
 import { Teletype } from './teletype';
 import { Cinematics } from '../cinematics/index';
 import type { CineContext } from '../cinematics/scene';
@@ -455,7 +455,9 @@ export class SystemScreen implements Screen {
     this.glitch = this.run.mode === 'SIMULATION' || this.run.mode === 'MULTIVERSE';
     this.run.evacuatedAt = null;
     this.tutSeen = { maxWarp: 0, plannerOpened: false, planetOpened: false, programsOpened: false };
-    if (!this.run.tutorial && !this.autoFresh) saveRun(this.run, this.world, null);
+    // The round-boundary save: mirrored for CONTINUE (real runs only) and kept for EXPORT (any run).
+    this.boundarySave = renderSave(this.run, this.world);
+    if (!this.run.tutorial && !this.autoFresh) storeSave(this.boundarySave);
     this.missions = [];
     this.result = resolveRound(this.world, this.missions, this.resolveOpts());
     this.requestMc();
@@ -675,7 +677,8 @@ export class SystemScreen implements Screen {
       this.run.score += Math.round(this.score.roundScore * this.run.effects.researchMult) === this.score.roundScore ? this.score.roundScore : this.score.roundScore;
       this.run.research += Math.floor(this.score.research * this.run.effects.researchMult);
       this.phase = 'debrief';
-      if (!this.run.tutorial && !this.autoFresh) saveAfterRound(this.run, budgetAt(this.run.economy, this.world.t));
+      this.boundarySave = renderAfterRound(this.run, budgetAt(this.run.economy, this.world.t));
+      if (!this.run.tutorial && !this.autoFresh) storeSave(this.boundarySave);
     } else {
       this.phase = 'over';
       this.rank = this.run.sandbox || this.run.tutorial || this.autoFresh ? -1 : recordRun({ handle: 'PLAYER', rounds: this.run.roundsSurvived, score: this.run.score, seed: this.run.seed, date: this.run.startedAt, tech: `L${this.run.launcherTier} I${this.run.impactorTier}`, assisted: this.run.assisted, ...(this.run.exaggerated ? { exaggerated: true } : {}) }, boardFor(this.run.mode));
@@ -879,8 +882,8 @@ export class SystemScreen implements Screen {
     this.panY += drag.y;
 
     if (k.pressed('KeyX')) {
-      saveRun(this.run, this.world, null);
-      this.note(exportSave(this.run, this.world) ? 'SAVE.MD DOWNLOADED' : 'EXPORT UNAVAILABLE');
+      // EXPORT is the last round boundary (what CONTINUE would load), not this moment of the round.
+      this.note(exportSave(this.boundarySave) ? 'SAVE.MD DOWNLOADED (THE START OF THIS ROUND)' : 'EXPORT UNAVAILABLE');
     }
     if (k.pressed('KeyR') && this.result) {
       this.finishRound();
@@ -943,6 +946,8 @@ export class SystemScreen implements Screen {
     this.note(`${targetOf(this.world, id).label} LOST. HOME IS SAFE. REBUILD IT IN PROGRAMS.`, 8);
   }
 
+  /** SAVE.md text of the last round boundary (round start, or the next round once a round is won): EXPORT's text. */
+  private boundarySave = '';
   /** SUPER-DUPER-DEMO real seconds watched (the demo is timed by the clock). */
   private demoT = 0;
   /** SUPER-DUPER-DEMO cutaways to animated summaries between the games' own frames. */

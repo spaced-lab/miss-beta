@@ -43,6 +43,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - NOCLIP works: the round scored and ended the run as the HIT it replaced; it is now a miss everywhere (finding 18).
 - Saves: the debrief autosave records the start of the next round. It saved the finished round with its score
   already added, so reloading and pressing CONTINUE replayed the same round and paid its score again (finding 19).
+- EXPORT (X) downloads the last round-boundary save. Mid-round it wrote the budget accrued so far, while CONTINUE
+  restarts the round at t = 0 without its missions: the round's income could be banked again and again, and money
+  already spent on missions in flight was lost (finding 20).
 
 ## 26.4.0 (2026-10-18)
 
