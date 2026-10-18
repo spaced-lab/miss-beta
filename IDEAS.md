@@ -58,6 +58,11 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     DE-STAR), damage multiplier scales the hit energy in scoring, and the three SCI-FI depots become standing
     capabilities in `ResolveOpts.scifi`.
     Recommendation: DO FIRST after M13. The PROGRAMS panel promises these effects and the player pays for them.
+    Status 2026-10-18: DONE for launcher tier unlock, launch cap (a real 365-day cadence rule now), C3 bonus
+    (ORBITAL_DEPOT and LUNAR_MASS_DRIVER, read inside every search), ground laser (DE-STAR's windows inside
+    0.05 AU at 30 % through the air), precursor (tracking tier 1), sail depot and fusion tugs (standing strikes
+    and pushes). Still inert: warheadBuildYears (warheads have no separate build time to shorten) and damageMult
+    (no damage model downstream of a hit yet).
 14. **Civilization level auto-unlock (S).** GAME_PLAN 22.3: all REALISTIC programs complete unlocks SCI-FI
     without a code, all SPECULATIVE complete unlocks SIMULATION. `civilizationLevel` is computed; the title
     readout exists; only the codes move the mode today.

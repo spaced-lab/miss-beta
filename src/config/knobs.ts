@@ -253,4 +253,9 @@ export const KNOBS = {
   SHEPHERD_DELAY: 150 * DAY,
   /** FUSION_TUG_FLEET (20.3): the tug reaches the threat after this transit, then pushes at fusionTugN. */
   FUSION_TUG_TRANSIT: 365 * DAY,
+  /** SAIL_SWARM_DEPOT (19/20.3): each parked sail impactor's mass, closing speed (15 km/s pre-accelerated), beta, and the delay. */
+  SAIL_DEPOT_KG: 1500,
+  SAIL_DEPOT_U: 15000,
+  SAIL_DEPOT_BETA: 2,
+  SAIL_DEPOT_DELAY: 60 * DAY,
 } as const;

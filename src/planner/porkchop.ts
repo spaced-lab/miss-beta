@@ -20,6 +20,8 @@ export interface PorkchopRequest {
   /** Nominal impact epoch, s. */
   tImpact: number;
   tier: LauncherTier;
+  /** Free departure energy from programs (ORBITAL_DEPOT, LUNAR_MASS_DRIVER), km^2/s^2: payload is read at C3 - bonus. */
+  c3Bonus?: number;
 }
 
 export interface PorkchopGrid {
@@ -89,7 +91,7 @@ export function computePorkchop(req: PorkchopRequest): PorkchopGrid {
       const i = iL * nA + iA;
       const vinf = Math.hypot(sol.v1.x - hs.v.x, sol.v1.y - hs.v.y);
       const c3 = c3FromVinf(vinf);
-      const payload = payloadForC3(req.tier, c3);
+      const payload = payloadForC3(req.tier, Math.max(0, c3 - (req.c3Bonus ?? 0)));
       g.c3[i] = c3;
       g.payload[i] = payload;
       g.U[i] = Math.hypot(sol.v2.x - ts.v.x, sol.v2.y - ts.v.y);

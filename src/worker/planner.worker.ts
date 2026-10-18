@@ -23,6 +23,8 @@ export interface PorkchopJob {
   tMin: number;
   tImpact: number;
   tier: number;
+  /** Free C3 from programs, km^2/s^2. */
+  c3Bonus?: number;
 }
 
 export interface MonteCarloJob {
@@ -44,6 +46,7 @@ export interface FlybyJob {
   tImpact: number;
   tier: number;
   dsmBudget: number;
+  c3Bonus?: number;
 }
 
 export interface SailJob {
@@ -57,6 +60,7 @@ export interface SailJob {
   tier: number;
   sailTier: number;
   dsmBudget: number;
+  c3Bonus?: number;
 }
 
 export type WorkerJob = PorkchopJob | MonteCarloJob | FlybyJob | SailJob;
@@ -125,13 +129,13 @@ function isSailJob(v: unknown): v is SailJob {
 /** Runs a job synchronously; exported so the main thread can fall back to it when Workers are unavailable. */
 export function runJob(job: WorkerJob): WorkerReply {
   if (isFlybyJob(job)) {
-    return { id: job.id, type: 'flyby', result: flybySearch({ home: job.home, threat: job.threat, planets: job.planets, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), dsmBudget: job.dsmBudget }) };
+    return { id: job.id, type: 'flyby', result: flybySearch({ home: job.home, threat: job.threat, planets: job.planets, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), dsmBudget: job.dsmBudget, c3Bonus: job.c3Bonus ?? 0 }) };
   }
   if (isSailJob(job)) {
-    return { id: job.id, type: 'sail', result: sailSearch({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), sailTier: job.sailTier, dsmBudget: job.dsmBudget }) };
+    return { id: job.id, type: 'sail', result: sailSearch({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), sailTier: job.sailTier, dsmBudget: job.dsmBudget, c3Bonus: job.c3Bonus ?? 0 }) };
   }
   if (isPorkchopJob(job)) {
-    const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier) });
+    const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), c3Bonus: job.c3Bonus ?? 0 });
     return { id: job.id, type: 'porkchop', grid };
   }
   if (isMonteCarloJob(job)) {

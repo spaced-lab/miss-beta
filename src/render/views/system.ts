@@ -189,12 +189,17 @@ export class SystemScreen implements Screen {
         shepherdSince: done('SHEPHERD_NETWORK'),
         fusionTugN: this.run.effects.fusionTugN,
         fusionTugSince: done('FUSION_TUG_FLEET'),
+        groundLaserSince: this.run.effects.groundLaser ? done('GROUND_LASER') : null,
+        sailDepot: this.run.effects.sailDepot,
+        sailDepotSince: done('SAIL_SWARM_DEPOT'),
       },
     };
   }
 
   private trackingTier(): number {
-    return this.run.sandbox ? 2 : Math.max(this.run.trackingTier, this.run.effects.trackingTier);
+    // PRECURSOR_FLEET (19): a reconnaissance probe at discovery measures density, spin and the beta range,
+    // which the game models as at least tracking tier 1 (beta revealed sooner after an impact).
+    return this.run.sandbox ? 2 : Math.max(this.run.trackingTier, this.run.effects.trackingTier, this.run.effects.precursor ? 1 : 0);
   }
 
   private note(text: string, seconds = 3): void {
@@ -409,7 +414,8 @@ export class SystemScreen implements Screen {
       world,
       missions,
       result,
-      launcherTier: this.run.launcherTier,
+      // HEAVY_LAUNCH_CADENCE unlocks the Tier 3 launcher without the tech node (GAME_PLAN 19).
+      launcherTier: Math.max(this.run.launcherTier, this.run.effects.launcherTierUnlock),
       impactorTier: this.run.impactorTier,
       navTier: this.run.navTier,
       sailTier: this.run.sailTier,
@@ -421,8 +427,19 @@ export class SystemScreen implements Screen {
       pi: this.run.pi,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       buildTime: this.run.effects.buildTimeYears * YEAR,
+      c3Bonus: this.run.effects.c3Bonus + this.run.effects.lunarDriverC3,
       budget: budgetAt(this.run.economy, this.world.t),
       onCommit: (ms: Mission[]): boolean => {
+        // Launch cadence (19): at most launchCap launches within any 365-day window (2 at start, 6 with HEAVY_LAUNCH_CADENCE).
+        const cap = this.run.effects.launchCap;
+        const all = [...missions, ...ms].filter((m) => m.archetype !== 'SLOW_PUSH' || m.launchTime > this.world.t);
+        for (const m of ms) {
+          const near = all.filter((o) => Math.abs(o.launchTime - m.launchTime) < YEAR / 2).length;
+          if (near > cap) {
+            this.note(`LAUNCH CADENCE: ${cap} LAUNCHES PER YEAR. FUND HEAVY LAUNCH CADENCE (G) OR PICK ANOTHER WINDOW.`, 5);
+            return false;
+          }
+        }
         const cost = ms.reduce((a, m) => a + m.cost, 0);
         if (!spend(this.run.economy, this.world.t, cost)) return false;
         this.sfx?.commit();

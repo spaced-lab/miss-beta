@@ -45,3 +45,24 @@ describe('speculative standing capabilities (GAME_PLAN 30)', () => {
     expect(p.completedAt).toBe(0);
   });
 });
+
+describe('IDEAS 13: program effects that act', () => {
+  it('the sail depot and the ground laser push; the C3 bonus raises payload', async () => {
+    const world = round('SPEC3');
+    const none = resolveRound(world, [], { scifi: base });
+    const dep = resolveRound(world, [], { scifi: { ...base, sailDepot: 6, sailDepotSince: 0 } });
+    expect(dep.events.some((e) => e.kind === 'PUSH' && e.method === 'SAIL_DEPOT')).toBe(true);
+    expect(Math.abs(dep.ca.dMin - none.ca.dMin)).toBeGreaterThan(1e3);
+    const gl = resolveRound(world, [], { scifi: { ...base, groundLaserSince: 0 } });
+    const push = gl.events.find((e) => e.kind === 'PUSH' && e.method === 'GROUND_LASER');
+    expect(push).toBeDefined();
+    const { computePorkchop } = await import('../src/planner/porkchop');
+    const { launcherTier } = await import('../src/physics/estimates');
+    const home = world.planets.find((p) => p.id === 'HOME')!;
+    const req = { home: home.elements, threat: world.threat!.elements, muSun: world.star.mu, tMin: 0, tImpact: world.threat!.tImpact, tier: launcherTier(1) };
+    const a = computePorkchop(req);
+    const b = computePorkchop({ ...req, c3Bonus: 15 });
+    const best = (g: { payload: ArrayLike<number> }) => Math.max(...Array.from(g.payload).filter((v) => Number.isFinite(v)));
+    expect(best(b)).toBeGreaterThan(best(a));
+  });
+});

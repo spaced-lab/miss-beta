@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- Programs now do what the panel says (IDEAS 13): HEAVY_LAUNCH_CADENCE unlocks L3 and lifts a real 2-launches-per-year
+  cap, ORBITAL_DEPOT and the lunar mass driver add free C3 to every search, GROUND_LASER fires inside 0.05 AU,
+  PRECURSOR_FLEET gives tracking tier 1, SAIL_SWARM_DEPOT's parked sails strike.
+
 - SPECULATIVE standing capabilities (GAME_PLAN 30): NANOFORGE SEEDS (the rock becomes its own mass-driver rocket),
   a SELF-ASSEMBLING THRUSTER SWARM, a SHEPHERD NETWORK of parked impactor rocks, and the FUSION TUG FLEET now
   actually pushes. Fixed: programs completed in an earlier round never acted again (their completion time was on

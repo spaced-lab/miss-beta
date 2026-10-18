@@ -22,6 +22,8 @@ export interface SailRequest {
   tMin: number;
   tImpact: number;
   tier: LauncherTier;
+  /** Free departure energy from programs (ORBITAL_DEPOT, LUNAR_MASS_DRIVER), km^2/s^2: payload is read at C3 - bonus. */
+  c3Bonus?: number;
   sailTier: number;
   dsmBudget: number;
 }
@@ -55,7 +57,7 @@ export function sailSearch(req: SailRequest): SailResult {
   const frac = KNOBS.SAIL_TIERS.find((t) => t.tier === req.sailTier)?.massFraction ?? 0.3;
   const law: SailLaw = req.sailTier >= 2 ? 'TARGET_STEER' : 'SPIRAL_OUT';
   const c3 = c3FromVinf(KNOBS.SAIL_DEPARTURE_VINF);
-  const payload = payloadForC3(req.tier, c3);
+  const payload = payloadForC3(req.tier, Math.max(0, c3 - (req.c3Bonus ?? 0)));
   const cells: SailCell[] = [];
   let arcs = 0;
   if (!(payload > 0)) return { cells, arcsTried: 0 };

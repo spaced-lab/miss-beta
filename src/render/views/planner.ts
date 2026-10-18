@@ -46,6 +46,8 @@ export interface PlannerSession {
   dsmBudget: number;
   /** Build time for a new mission, s (programs can shorten it). */
   buildTime: number;
+  /** Free C3 from programs (km^2/s^2), passed to every search. */
+  c3Bonus?: number;
   budget: number;
   onCommit: (ms: Mission[]) => boolean;
 }
@@ -108,7 +110,7 @@ export class PlannerOverlay {
     const tMin = w.t + session.buildTime;
     const token = ++this.jobToken;
     this.client
-      .porkchop({ home: home.elements, threat: elementsAt(target.segments, tMin), muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier })
+      .porkchop({ home: home.elements, threat: elementsAt(target.segments, tMin), muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier, c3Bonus: session.c3Bonus ?? 0 })
       .then((grid) => {
         if (token !== this.jobToken) return;
         this.grid = grid;
@@ -122,7 +124,7 @@ export class PlannerOverlay {
     if (session.navTier >= 1) {
       this.extraStatus = 'FLYBY SEARCH ...';
       this.client
-        .flyby({ home: home.elements, threat: threatEl, planets: w.planets.filter((p) => p.id !== 'HOME').map((p) => ({ id: p.id, mu: p.mu, radius: p.radius, elements: p.elements })), muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier, dsmBudget: session.dsmBudget })
+        .flyby({ home: home.elements, threat: threatEl, planets: w.planets.filter((p) => p.id !== 'HOME').map((p) => ({ id: p.id, mu: p.mu, radius: p.radius, elements: p.elements })), muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier, dsmBudget: session.dsmBudget, c3Bonus: session.c3Bonus ?? 0 })
         .then((r) => {
           if (token !== this.jobToken) return;
           this.flybyRes = r;
@@ -132,7 +134,7 @@ export class PlannerOverlay {
     }
     if (session.sailTier >= 1) {
       this.client
-        .sail({ home: home.elements, threat: threatEl, muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier, sailTier: session.sailTier, dsmBudget: session.dsmBudget })
+        .sail({ home: home.elements, threat: threatEl, muSun: w.star.mu, tMin, tImpact: session.result.ca.tCa, tier: session.launcherTier, sailTier: session.sailTier, dsmBudget: session.dsmBudget, c3Bonus: session.c3Bonus ?? 0 })
         .then((r) => {
           if (token !== this.jobToken) return;
           this.sailRes = r;

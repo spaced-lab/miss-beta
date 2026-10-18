@@ -118,6 +118,11 @@ export interface SciFiOpts {
   /** FUSION_TUG_FLEET thrust (N) and completion time. */
   fusionTugN?: number;
   fusionTugSince?: number | null;
+  /** GROUND_LASER program completion (round time) or null. */
+  groundLaserSince?: number | null;
+  /** SAIL_SWARM_DEPOT: pre-accelerated sail impactors on hand (count) and completion time. */
+  sailDepot?: number;
+  sailDepotSince?: number | null;
 }
 
 function streamFor(world: World, tag: string, sample: number): Rng {
@@ -588,15 +593,15 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
       events.push({ t: since, kind: 'NOTE', text: `DISASSEMBLER SWARM ON ${b.id}: ${m0.toExponential(2)} KG -> ${b.mass.toExponential(2)} KG BY T-0 (TAU ${sf.disassemblerTauYears} YR)${b.harmless ? '; DUST' : ''}` });
     }
   }
-  if (sf && sf.orbitalLaserW > 0 && sf.laserSince !== null) {
+  const laserWindows = (powerW: number, rangeAu: number, since: number, label: string, method: string, endMargin: number): void => {
     // DE-STAR: ablation thrust C_m P on every damaging body while it is within DE_STAR_RANGE_AU of HOME.
-    const range = KNOBS.DE_STAR_RANGE_AU * AU;
+    const range = rangeAu * AU;
     // The array fires until the last day: at 20 km/s the body is only inside 0.3 AU for the final ~25 days.
-    const tEnd = threat.tImpact - KNOBS.DE_STAR_END_MARGIN;
+    const tEnd = threat.tImpact - endMargin;
     for (const b of bodies) {
       if (b.escaped || b.tDeath !== Infinity || b.harmless) continue;
       let el = elementsAt(b.segments, Infinity);
-      let t = Math.max(sf.laserSince, b.tBirth === -Infinity ? sf.laserSince : b.tBirth, tLast);
+      let t = Math.max(since, b.tBirth === -Infinity ? since : b.tBirth, tLast);
       const inRange = (tt: number): boolean => {
         const a = propagate(el, mu, tt);
         const h = propagate(home.elements, mu, tt);
@@ -610,7 +615,7 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
         while (t < tEnd && inRange(t)) t += DAY;
         const tOut = Math.min(t, tEnd);
         if (tOut - tIn < DAY) continue;
-        const force = KNOBS.LASER_CM_N_PER_W * sf.orbitalLaserW;
+        const force = KNOBS.LASER_CM_N_PER_W * powerW;
         try {
           const arc = integratePush(el, mu, tIn, tOut, force / b.mass);
           const lastSeg = b.segments[b.segments.length - 1];
@@ -619,15 +624,19 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
           b.segments.push({ tFrom: tOut, tTo: Infinity, elements: arc.elements });
           el = arc.elements;
           windows++;
-          events.push({ t: tIn, kind: 'PUSH', missionId: 'DE-STAR', targetId: b.id, method: 'DE_STAR', force, dv: arc.dv, duration: tOut - tIn, viable: true, note: `${(sf.orbitalLaserW / 1e9).toFixed(1)} GW ARRAY, IN RANGE (${KNOBS.DE_STAR_RANGE_AU} AU)` });
+          events.push({ t: tIn, kind: 'PUSH', missionId: label, targetId: b.id, method, force, dv: arc.dv, duration: tOut - tIn, viable: true, note: `${(powerW / 1e9).toFixed(1)} GW ARRAY, IN RANGE (${KNOBS.DE_STAR_RANGE_AU} AU)` });
         } catch (e) {
           if (!(e instanceof OrbitError)) throw e;
-          events.push({ t: tIn, kind: 'NOTE', text: `DE-STAR PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
+          events.push({ t: tIn, kind: 'NOTE', text: `${label} PUSHED ${b.id} ONTO AN UNBOUND ORBIT; IGNORED` });
           break;
         }
       }
     }
-  }
+  };
+
+  if (sf && sf.orbitalLaserW > 0 && sf.laserSince !== null) laserWindows(sf.orbitalLaserW, KNOBS.DE_STAR_RANGE_AU, sf.laserSince, 'DE-STAR', 'DE_STAR', KNOBS.DE_STAR_END_MARGIN);
+  // GROUND_LASER (19, Phipps): the same windows from the ground, only inside 0.05 AU, through the atmosphere.
+  if (sf && sf.groundLaserSince !== null && sf.groundLaserSince !== undefined) laserWindows(KNOBS.GROUND_LASER_POWER_W * KNOBS.GROUND_LASER_ATM_EFF, KNOBS.GROUND_LASER_RANGE_AU, sf.groundLaserSince, 'GROUND-LASER', 'GROUND_LASER', KNOBS.DE_STAR_END_MARGIN);
 
   // 30: speculative standing pushes (SCI-FI): each acts on the threat or its largest remnant from a start time
   // to the push end margin with a constant force, like DE-STAR's windows but without a range limit.
@@ -659,6 +668,8 @@ export function resolveRound(world: World, missions: readonly Mission[] = [], op
     standing('THRUSTER-SWARM', 'THRUSTER_SWARM', sf.thrusterSwarmSince, KNOBS.THRUSTER_TRANSIT, () => KNOBS.THRUSTER_ETA * KNOBS.THRUSTER_SWARM_N * KNOBS.THRUSTER_UNIT_N);
     if ((sf.fusionTugN ?? 0) > 0) standing('FUSION-TUG', 'FUSION_TUG', sf.fusionTugSince, KNOBS.FUSION_TUG_TRANSIT, () => sf.fusionTugN ?? 0);
     // The shepherd rock: one kinetic hit, delivered as a one-hour push of the same impulse.
+    // SAIL_SWARM_DEPOT: the parked sails strike together 60 days in, each SAIL_DEPOT_KG at SAIL_DEPOT_U, beta SAIL_DEPOT_BETA.
+    if ((sf.sailDepot ?? 0) > 0) standing('SAIL-DEPOT', 'SAIL_DEPOT', sf.sailDepotSince, KNOBS.SAIL_DEPOT_DELAY, () => ((sf.sailDepot ?? 0) * KNOBS.SAIL_DEPOT_BETA * KNOBS.SAIL_DEPOT_KG * KNOBS.SAIL_DEPOT_U) / 3600, 3600);
     standing('SHEPHERD', 'SHEPHERD', sf.shepherdSince, KNOBS.SHEPHERD_DELAY, () => (KNOBS.SHEPHERD_BETA * KNOBS.SHEPHERD_KG * KNOBS.SHEPHERD_U) / 3600, 3600);
   }
 

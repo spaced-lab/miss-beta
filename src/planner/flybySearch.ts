@@ -31,6 +31,8 @@ export interface FlybyRequest {
   tMin: number;
   tImpact: number;
   tier: LauncherTier;
+  /** Free departure energy from programs (ORBITAL_DEPOT, LUNAR_MASS_DRIVER), km^2/s^2: payload is read at C3 - bonus. */
+  c3Bonus?: number;
   /** Onboard dv available for the mismatch, m/s. */
   dsmBudget: number;
 }
@@ -92,7 +94,7 @@ export function flybySearch(req: FlybyRequest): FlybyResult {
         const sol = lambert(hs.r, ps.r, dt, req.muSun);
         if (!sol) continue;
         const c3 = c3FromVinf(Math.hypot(sol.v1.x - hs.v.x, sol.v1.y - hs.v.y));
-        const payload = payloadForC3(req.tier, c3);
+        const payload = payloadForC3(req.tier, Math.max(0, c3 - (req.c3Bonus ?? 0)));
         if (!(payload > 0)) continue;
         leg1.set(iL * n + iF, { vArr: sol.v2, c3, payload, v1: sol.v1 });
       }
