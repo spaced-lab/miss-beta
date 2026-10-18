@@ -46,6 +46,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - EXPORT (X) downloads the last round-boundary save. Mid-round it wrote the budget accrued so far, while CONTINUE
   restarts the round at t = 0 without its missions: the round's income could be banked again and again, and money
   already spent on missions in flight was lost (finding 20).
+- Scoring: a round where the CNT net captured a body earns the +0.3 style bonus GAME_PLAN 12 promises; it was never passed (finding 21).
 
 ## 26.4.0 (2026-10-18)
 

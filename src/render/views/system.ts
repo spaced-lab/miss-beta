@@ -642,7 +642,7 @@ export class SystemScreen implements Screen {
       leadSeconds: th.tImpact,
       usedWarhead: res.usedWarhead,
       producedFragments: res.producedFragments,
-      netCapture: false,
+      netCapture: res.captured > 0,
     });
     this.scrub = Math.max(0, res.events.length - 1);
     this.panelHidden = false;
