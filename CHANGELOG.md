@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## 0.1.0 (2026-10-17)
 
+- AUTOPLAY pace SLOW / NORMAL / FAST (1x, 1.5x default, 2.25x on panes, step waits and the sim clock): `-` and `=`
+  change it while it plays, the hint sits under the pane bottom left; OPTIONS > AUTOPLAY SPEED stores it.
+  OPTIONS > DEMO LENGTH: SUPER-DUPER-DEMO SHORT (2-3 min), MEDIUM (5 min, default), LONG (10 min).
+
 - OPTIONS > SOUND STYLE: ARCADE (default) plays PERIMETER's low lo-fi voices for menus, commits, launches and
   impacts; CLASSIC keeps the original bleeps. Every menu now ticks on cursor moves and selects.
 

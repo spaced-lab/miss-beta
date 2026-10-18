@@ -15,6 +15,10 @@ import type { SoundStyle } from '../audio/ui';
 export type TextSize = 'SMALL' | 'NORMAL' | 'LARGE';
 export type Units = 'SI' | 'IMPERIAL';
 export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE';
+/** AUTOPLAY pace (owner 2026-10-18): SLOW is the first pace, NORMAL 1.5x, FAST 2.25x (knobs AUTO_SPEEDS). */
+export type AutoSpeed = 'SLOW' | 'NORMAL' | 'FAST';
+/** SUPER-DUPER-DEMO length before the finale: about 2-3, 5 or 10 minutes (knobs DEMO_LENGTHS). */
+export type DemoLength = 'SHORT' | 'MEDIUM' | 'LONG';
 export type LearningLevel = 'SIMPLE' | 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
 
 export interface Settings {
@@ -36,8 +40,14 @@ export interface Settings {
   voice?: VoiceSetting;
   /** Interface sounds: PERIMETER's lo-fi voices (ARCADE, default) or the original bleeps. Optional for old records. */
   soundStyle?: SoundStyle;
+  /** AUTOPLAY pace; optional for old records, missing means NORMAL. */
+  autoSpeed?: AutoSpeed;
+  /** SUPER-DUPER-DEMO length; optional for old records, missing means MEDIUM (5 minutes). */
+  demoLength?: DemoLength;
 }
 
+export const AUTO_SPEED_LEVELS: readonly AutoSpeed[] = ['SLOW', 'NORMAL', 'FAST'];
+export const DEMO_LENGTH_LEVELS: readonly DemoLength[] = ['SHORT', 'MEDIUM', 'LONG'];
 export const SOUND_STYLES: readonly SoundStyle[] = ['ARCADE', 'CLASSIC'];
 export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'VAPOR', 'BLACKLIGHT', 'HOLO', 'DAYLIGHT'];
 export const GLOW_MODES: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
@@ -67,7 +77,9 @@ export function isSettings(v: unknown): v is Settings {
     (o.tips === undefined || typeof o.tips === 'boolean') &&
     (o.colourV === undefined || typeof o.colourV === 'number') &&
     (o.voice === undefined || VOICES.includes(o.voice as VoiceSetting)) &&
-    (o.soundStyle === undefined || SOUND_STYLES.includes(o.soundStyle as SoundStyle))
+    (o.soundStyle === undefined || SOUND_STYLES.includes(o.soundStyle as SoundStyle)) &&
+    (o.autoSpeed === undefined || AUTO_SPEED_LEVELS.includes(o.autoSpeed as AutoSpeed)) &&
+    (o.demoLength === undefined || DEMO_LENGTH_LEVELS.includes(o.demoLength as DemoLength))
   );
 }
 

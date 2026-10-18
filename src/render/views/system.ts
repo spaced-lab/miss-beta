@@ -55,7 +55,7 @@ import type { UiSfx } from '../../audio/ui';
 import { voiceForEvents } from '../../audio/voice';
 import { advanceTutorial, createTutorial, stepsOf, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, type TutorialFacts, type TutorialState } from '../../game/tutorial';
 import { saveJson } from '../../game/persistence';
-import { DEFAULT_SETTINGS, type Settings } from '../../game/settings';
+import { AUTO_SPEED_LEVELS, DEFAULT_SETTINGS, saveSettings, type Settings } from '../../game/settings';
 import { scenarioById, spawnScenario } from '../../sim/scenarios';
 import { shiftEpoch } from '../../sim/roundGen';
 import { craftPosition } from '../../planner/legs';
@@ -820,7 +820,7 @@ export class SystemScreen implements Screen {
     }
     const before = w.t;
     // SUPER-DUPER-DEMO runs the clock faster every game; everything else plays at warp.
-    advance(w, (Math.min(dtMs, 100) / 1000) * (this.auto?.demo ? this.auto.speed : 1));
+    advance(w, (Math.min(dtMs, 100) / 1000) * (this.auto?.speed ?? 1));
     if (this.result && w.t > before) this.onEventsPassed(this.result.events.filter((e) => e.t > before && e.t <= w.t));
     if (!this.imminentSaid && this.result?.outcome === 'HIT' && w.threat && w.threat.tImpact - w.t < KNOBS.VOICE_IMMINENT_S) {
       this.imminentSaid = true;
@@ -870,9 +870,20 @@ export class SystemScreen implements Screen {
       return;
     }
     if (!this.auto) return;
+    // Pace (owner 2026-10-18): - and = step SLOW / NORMAL / FAST live; the choice is the OPTIONS AUTOPLAY SPEED row.
+    if (!typing && (k.pressed('Minus') || k.pressed('Equal'))) {
+      const i = AUTO_SPEED_LEVELS.indexOf(this.settings.autoSpeed ?? 'NORMAL');
+      const next = AUTO_SPEED_LEVELS[Math.max(0, Math.min(AUTO_SPEED_LEVELS.length - 1, i + (k.pressed('Equal') ? 1 : -1)))] ?? 'NORMAL';
+      this.settings.autoSpeed = next;
+      saveSettings(this.settings);
+      this.note(`AUTOPLAY SPEED ${next}`, 2);
+    }
+    const pace = KNOBS.AUTO_SPEEDS[this.settings.autoSpeed ?? 'NORMAL'];
+    const demoLen = KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'];
+    this.auto.speed = pace;
     if (this.auto.demo) {
-      this.auto.speed = Math.min(KNOBS.DEMO_SPEED_MAX, KNOBS.DEMO_SPEED_START * Math.pow(KNOBS.DEMO_SPEED_GROWTH, this.auto.rounds));
-      if (this.auto.rounds >= KNOBS.DEMO_GAMES) {
+      this.auto.speed = pace * Math.min(KNOBS.DEMO_SPEED_MAX, demoLen.start * Math.pow(KNOBS.DEMO_SPEED_GROWTH, this.auto.rounds));
+      if (this.auto.rounds >= demoLen.games) {
         this.auto = null;
         this.autoPane = null;
         this.router.go('demo');
@@ -909,7 +920,12 @@ export class SystemScreen implements Screen {
     if (!this.auto) return;
     const ui = uiColors(s.palette, s.spectrum);
     const a = this.auto;
-    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1} OF ${KNOBS.DEMO_GAMES}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, s.width / 2, 6, 10, { align: 'center', color: ui.title, glow: 1 });
+    const games = KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].games;
+    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1} OF ${games}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, 16, s.height - 64, 10, { color: ui.title, glow: 1 });
+    // How to change the pace, always on screen while the game plays itself.
+    const lv = this.settings.autoSpeed ?? 'NORMAL';
+    const pace = AUTO_SPEED_LEVELS.map((l) => (l === lv ? `[${l}]` : l)).join(' ');
+    drawText(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, 16, s.height - 50, 9, { color: ui.sub, glow: 0.5 });
     const ap = this.autoPane;
     if (!ap) return;
     // Bottom left: the teletype docks bottom right and the HUD owns the top.
@@ -917,7 +933,7 @@ export class SystemScreen implements Screen {
     const lines = wrapText(ap.pane.body, w - 28, 11);
     const h = 44 + lines.length * 16 + 10;
     const x = 16;
-    const y = s.height - 70 - h;
+    const y = s.height - 74 - h;
     const fade = Math.min(1, ap.t * 4, (ap.pane.hold - ap.t) * 3);
     s.ctx.fillStyle = withAlpha(s.palette.bg, 0.88 * fade);
     s.ctx.fillRect(x, y, w, h);

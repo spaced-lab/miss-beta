@@ -32,6 +32,8 @@ export const KEY_ACTIONS: readonly KeyAction[] = [
   { id: 'TILT', label: 'TILT', def: 'KeyI' },
   { id: 'CONSOLE', label: 'CONSOLE', def: 'Backquote' },
   { id: 'AUTOPLAY', label: 'AUTOPLAY (WATCH)', def: 'KeyA' },
+  { id: 'AUTO_SLOWER', label: 'AUTOPLAY SLOWER', def: 'Minus' },
+  { id: 'AUTO_FASTER', label: 'AUTOPLAY FASTER', def: 'Equal' },
 ];
 
 export type KeyBindings = Record<string, string>;

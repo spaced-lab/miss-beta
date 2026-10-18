@@ -11,6 +11,9 @@ describe('SETTINGS (options screen)', () => {
     expect(isSettings({ ...DEFAULT_SETTINGS, colorMode: 'NEON' })).toBe(false);
     expect(isSettings({ ...DEFAULT_SETTINGS, crt: 'yes' })).toBe(false);
     expect(isSettings({ ...DEFAULT_SETTINGS, glow: 'bloom' })).toBe(false);
+    expect(isSettings({ ...DEFAULT_SETTINGS, autoSpeed: 'FAST', demoLength: 'SHORT' })).toBe(true);
+    expect(isSettings({ ...DEFAULT_SETTINGS, autoSpeed: 'WARP9' })).toBe(false);
+    expect(isSettings({ ...DEFAULT_SETTINGS, demoLength: 3 })).toBe(false);
     expect(isSettings(null)).toBe(false);
     expect(isSettings('PHOSPHOR')).toBe(false);
     expect(cycle(COLOR_MODES, 'PHOSPHOR', -1)).toBe('DAYLIGHT');

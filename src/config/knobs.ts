@@ -278,9 +278,14 @@ export const KNOBS = {
   /** Fade applied when a newer line cuts a playing one off, s. */
   VOICE_CUT_S: 0.06,
   /** SUPER-DUPER-DEMO (IDEAS 20): games watched before the montage, the starting speed and the growth per
-   *  game (speed = START x GROWTH^games, capped). 2 x 1.15^n puts the whole run near ten minutes. */
+   *  game (speed = START x GROWTH^games, capped). 2 x 1.15^n puts the whole run near ten minutes (LONG); the
+   *  OPTIONS DEMO LENGTH row picks a row of DEMO_LENGTHS, which replaces games and start. */
   DEMO_GAMES: 100,
   DEMO_SPEED_START: 2,
+  /** Owner 2026-10-18: default about 5 minutes, also about 2-3 or 10. Run time scales roughly as 1/START. */
+  DEMO_LENGTHS: { SHORT: { games: 50, start: 8 }, MEDIUM: { games: 70, start: 4 }, LONG: { games: 100, start: 2 } },
+  /** AUTOPLAY pace multipliers on panes, step waits and the sim clock (owner 2026-10-18: old pace = SLOW). */
+  AUTO_SPEEDS: { SLOW: 1, NORMAL: 1.5, FAST: 2.25 },
   DEMO_SPEED_GROWTH: 1.15,
   DEMO_SPEED_MAX: 400,
 } as const;
