@@ -14,7 +14,8 @@ Versions are YY.Q.N (docs/RELEASING.md).
   four 3-D Python vector tests compare through pymiss/tests/near.py, both at 1e-8 relative (linux libm differs
   from macOS by ulps, up to 8e-10 in close-approach distances). The smoke test serves and fetches on 127.0.0.1
   (on linux Vite bound only ::1 and node's fetch was refused).
-  CI can be started by hand (workflow_dispatch). docs/RELEASING.md gains a first-publish checklist (go public, enable Pages, add a macOS arm64 CI runner).
+  CI can be started by hand (workflow_dispatch). Least privilege: only the deploy job gets `pages: write` and
+  `id-token: write` (security review 2026-10-18, docs/SAFETY.md finding 7). docs/RELEASING.md gains a first-publish checklist (go public, enable Pages, add a macOS arm64 CI runner).
 
 - Fixes from a code review: WATCH BEST no longer drops or overwrites the saved PERIMETER game and is never
   ranked; a SAVE.md with bad lore levels no longer wipes reading progress; a second WORMHOLE cannot erase the

@@ -43,6 +43,9 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 5. Source maps ship with the build (a teaching repo; DECISIONS D2, WARNINGS 10). Confirm that is still wanted.
 6. CHECKED 2026-10-18: the dev server's screenshot sink and the dev hooks are absent from the production build
    (`grep -rl "__dev\|__miss\|localhost" dist` finds nothing; the voice generator is a script, never shipped).
+7. FIXED 2026-10-18 (security review, whole tree): CI granted `pages: write` and `id-token: write` to the whole
+   workflow, so pull-request runs on same-repository branches held them (fork PRs never do). They now sit on the
+   `deploy` job only, which runs on `main`; the workflow default is `contents: read`.
 
 ## Assessment checklist (owner, before going live)
 
@@ -52,7 +55,7 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 - [ ] Devtools Network tab during play: every request is to the Pages origin
 - [ ] Import a hand-edited and an oversized SAVE.md: rejected cleanly, nothing breaks
 - [ ] Clear site data, reload: the photosensitivity notice shows; REDUCE MOTION calms every listed effect
-- [ ] Review findings 1-6 above and record the decision for each
+- [ ] Review findings 1-7 above and record the decision for each
 - [ ] Review docs/WARNINGS.md end to end
 - [ ] X.509 / certificate items (IDEAS 23) decided for the chosen domain
 - [ ] Record the result below with the commit hash
@@ -62,3 +65,4 @@ Findings to look at during the assessment (not yet fixed, each a judgement call)
 | Date | Who | Commit | Result | Notes |
 |---|---|---|---|---|
 | 2026-10-18 | Claude (automated baseline) | see git log | baseline above | manual assessment pending |
+| 2026-10-18 | Claude (/security-review, whole tree: 515 tracked files, ideas/ excluded) | b64dc32 | no HIGH or MEDIUM findings | checked DOM and code sinks, SAVE.md import and drag-drop, storage guards, lore and voice fetches, URL hash, worker and console, CSP and dev hooks in dist, CI triggers and tokens, Python scripts, secrets; one hardening applied (finding 7) |
