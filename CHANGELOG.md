@@ -9,6 +9,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   NASA/JPL data panels (fireballs, closest passes, Sentry list) in the Learning Center; pixel-art launch and
   impact cinematics; L opens the Learning Center from OPTIONS, the tech tree, the programs panel and the manual,
   and Esc returns there; situation-aware in-game TIPS (OPTIONS toggle); the tutorial's skip key is up front.
+- Labs batch A (2026-10-18): LAB_IMPACT_ENERGY, LAB_QSTAR, LAB_FRAGMENT_CLOUD, LAB_NUKE_STANDOFF, LAB_TRACTOR,
+  LAB_ROCKET_EQ and LAB_TORINO, animated from the real physics; new `physics/risk.ts` (Torino, Palermo) and
+  `physics/rocket.ts` (Tsiolkovsky, staging) with Python twins, vectors and notebooks.
 
 - Readable columns (2026-10-18, owner screenshots): the Learning Center is three panes at every level with prose
   capped at 72 characters and re-wrapped whenever the pane changes (the lab arriving no longer leaves text running

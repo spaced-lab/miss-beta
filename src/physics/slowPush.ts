@@ -34,14 +34,27 @@ export interface PushForce {
   note: string;
 }
 
+/**
+ * Gravity tractor pull on the body, N: F = G m_sc M / d^2 with hover distance d = hover R.
+ * Example: m_sc 1000 kg, M 1.41e9 kg (100 m stony), R 50 m, hover 1.5 -> d 75 m, F = 0.0167 N.
+ */
+export function gravityTractorForce(mSc: number, M: number, R: number, hover: number = KNOBS.TRACTOR_HOVER_FACTOR): number {
+  const d = hover * R;
+  return (G * mSc * M) / (d * d);
+}
+
+/** Laser ablation thrust, N: F = C_m P. Example: 1 MW at C_m 3e-5 N/W -> 30 N. */
+export function laserForce(powerW: number, cm: number = KNOBS.LASER_CM_N_PER_W): number {
+  return cm * powerW;
+}
+
 /** Force a method applies to a body of mass M and radius R at heliocentric distance r (m). */
 export function pushForce(spec: PushSpec, M: number, R: number, r: number, iron = false): PushForce {
   const t = spec.tier;
   switch (spec.method) {
     case 'GRAVITY_TRACTOR': {
       const mSc = KNOBS.TRACTOR_SC_MASS_KG[t] ?? 1000;
-      const d = KNOBS.TRACTOR_HOVER_FACTOR * R;
-      return { force: (G * mSc * M) / (d * d), comShift: 0, viable: true, note: `m_sc ${mSc} kg hovering at ${KNOBS.TRACTOR_HOVER_FACTOR} R` };
+      return { force: gravityTractorForce(mSc, M, R), comShift: 0, viable: true, note: `m_sc ${mSc} kg hovering at ${KNOBS.TRACTOR_HOVER_FACTOR} R` };
     }
     case 'ENHANCED_TRACTOR': {
       const mSc = (KNOBS.TRACTOR_SC_MASS_KG[t] ?? 1000) + 2e4;
@@ -51,7 +64,7 @@ export function pushForce(spec: PushSpec, M: number, R: number, r: number, iron 
     case 'ION_BEAM':
       return { force: KNOBS.ION_BEAM_N[t] ?? 0.1, comShift: 0, viable: true, note: `beam ${KNOBS.ION_BEAM_N[t]} N, Isp ${KNOBS.ION_ISP_S} s` };
     case 'LASER':
-      return { force: KNOBS.LASER_CM_N_PER_W * (KNOBS.LASER_POWER_W[t] ?? 5e4), comShift: 0, viable: true, note: `${(KNOBS.LASER_POWER_W[t] ?? 0) / 1e3} kW optical, C_m 3e-5 N/W` };
+      return { force: laserForce(KNOBS.LASER_POWER_W[t] ?? 5e4), comShift: 0, viable: true, note: `${(KNOBS.LASER_POWER_W[t] ?? 0) / 1e3} kW optical, C_m 3e-5 N/W` };
     case 'GROUND_LASER':
       return { force: KNOBS.LASER_CM_N_PER_W * KNOBS.GROUND_LASER_POWER_W * KNOBS.GROUND_LASER_ATM_EFF, comShift: 0, viable: true, note: `1 MW through the atmosphere (x0.3), only within ${KNOBS.GROUND_LASER_RANGE_AU} AU` };
     case 'MIRRORS': {

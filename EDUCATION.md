@@ -1301,11 +1301,11 @@ Each lab: sliders on the left, a live vector plot on the right, the formula show
 | LAB_FOCUSING           | v_inf, planet mass                                 | b_crit ring vs planet radius; sample trajectories bending in    | closeApproach.ts         |
 | LAB_3DVT               | dv, T, e                                           | miss estimate vs propagated miss; the 3 dv T line               | estimates.ts, resolver   |
 | LAB_BETA               | m, U, M, beta                                      | dv; DART preset; momentum bars (impactor, ejecta, target)       | kinetic.ts               |
-| LAB_QSTAR              | R, rho, type                                       | Q* curve vs size with the current body marked; Q from an impactor overlay | fragment.ts     |
+| LAB_QSTAR              | R, rho, type; impactor m, U                        | Q* curve vs size with the current body marked; Q from an impactor overlay | fragment.ts     |
 | LAB_FRAGMENT_CLOUD     | Q/Q*, v_esc, T, N                                  | cloud footprint at close approach; hit fraction                 | fragment.ts, resolver    |
 | LAB_SAIL_SPIRAL        | sigma, alpha law, duration                         | spiral trajectory; dv-equivalent vs time                        | sail.ts, integrate.ts    |
 | LAB_NUKE_STANDOFF      | Y, H/R, R, rho, C_m                                | f_omega, E_abs, dv; disruption flag                             | nuclear.ts               |
-| LAB_TRACTOR            | m_sc, d/R, tau, T_rem; method selector             | dv and miss for tractor / ion beam / laser / mass driver        | slowPush.ts              |
+| LAB_TRACTOR            | m_sc, d/R, tau, T_rem, D, tier; method selector    | dv and miss for tractor / ion beam / laser / mass driver        | slowPush.ts              |
 | LAB_ROCKET_EQ          | Isp, mass fraction, stages; C3                     | dv; payload vs C3 curve for each launcher tier                  | economy tables           |
 | LAB_MAGNITUDE          | D, p, r, delta, alpha; network                     | H, V; detectable or not per network; distance where V = V_lim   | photometry.ts, detection |
 | LAB_SUNWARD            | approach direction, D; sentinel on/off             | when each network first sees it; days of warning                | detection.ts             |
