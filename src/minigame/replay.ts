@@ -5,6 +5,7 @@
 //       stores [mask, count, mask, count, ...]; the player expands it step by step. Pure, no DOM.
 // LORE: O14 (randomness, seeds), C1 (how the game is built)
 
+import { MG, type Difficulty } from './config';
 import type { Input } from './sim';
 
 export function inputMask(i: Readonly<Input>): number {
@@ -48,10 +49,12 @@ export interface SavedReplay {
   collision: 'auto' | 'naive' | 'grid';
   score: number;
   rle: number[];
+  /** Absent in replays saved before difficulty levels: NORMAL. */
+  difficulty?: Difficulty;
 }
 
 export const isSavedReplay = (v: unknown): v is SavedReplay => {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
-  return typeof o.seed === 'number' && typeof o.score === 'number' && (o.collision === 'auto' || o.collision === 'naive' || o.collision === 'grid') && Array.isArray(o.rle) && o.rle.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= 0);
+  return typeof o.seed === 'number' && typeof o.score === 'number' && (o.collision === 'auto' || o.collision === 'naive' || o.collision === 'grid') && Array.isArray(o.rle) && o.rle.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= 0) && (o.difficulty === undefined || (MG.DIFFICULTY_ORDER as readonly unknown[]).includes(o.difficulty));
 };

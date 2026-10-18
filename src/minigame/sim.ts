@@ -29,7 +29,7 @@
 import { Rng } from '../sim/rng';
 import { clamp, wrapAngle } from '../util/vec';
 import { findHits, type CollisionStrategy } from './collision';
-import { byLevel, MG } from './config';
+import { byLevel, MG, type Difficulty } from './config';
 import { generateAsteroidShape, generateContinents, generateCraters, type Continent } from './planet';
 
 export interface Input {
@@ -262,6 +262,10 @@ export interface MinigameState {
   secAccum: number;
   cheats: Cheats;
   collision: CollisionStrategy;
+  /** Difficulty level (MG.DIFFICULTY): multipliers on spawn rate, rock hit points, rock speed and hull damage. */
+  difficulty: Difficulty;
+  /** The level this run started at (1, or a skip from MG.START_LEVELS; modes.setupStart). Above 1 the run is not ranked. */
+  startLevel: number;
   stats: { collisionChecksLastStep: number };
 }
 
@@ -302,6 +306,11 @@ export const damageMax = (level: number): number => byLevel(MG.DAMAGE_MAX_BY_LEV
 /** Hull points one rock removes: DAMAGE_PER_R * r * (1 + 0.5 tier), clamped to the level's cap. */
 export const hullDamage = (level: number, r: number, tier: number): number =>
   clamp(Math.round(r * MG.DAMAGE_PER_R * (1 + 0.5 * tier)), MG.DAMAGE_MIN, Math.round(damageMax(level)));
+/** The difficulty multipliers of a state (MG.DIFFICULTY; NORMAL is 1 everywhere). */
+export const difficultyOf = (st: Readonly<MinigameState>): { spawn: number; hp: number; speed: number; damage: number } => MG.DIFFICULTY[st.difficulty];
+/** Hull points one impact removes at a difficulty: hullDamage x the damage multiplier, rounded, never below 1. */
+export const scaledHullDamage = (st: Readonly<MinigameState>, r: number, tier: number): number =>
+  Math.max(1, Math.round(hullDamage(st.level, r, tier) * difficultyOf(st).damage));
 export const moonActive = (level: number): boolean => level >= MG.MOON_LEVEL;
 export const moonAlive = (st: MinigameState): boolean => moonActive(st.level) && st.moonHp > 0;
 /** Sentry tier from level: one step per TURRET_TIER_LEVELS after TURRET_LEVEL, capped at 2. */
@@ -407,7 +416,7 @@ const signedAngle = (t: number): number => {
 
 // --- construction ----------------------------------------------------------------------------------------
 
-export function createState(seed: number, collision: CollisionStrategy = 'auto'): MinigameState {
+export function createState(seed: number, collision: CollisionStrategy = 'auto', difficulty: Difficulty = MG.DIFFICULTY_DEFAULT): MinigameState {
   const rng = new Rng(seed);
   return {
     seed,
@@ -457,6 +466,8 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto')
     secAccum: 0,
     cheats: { god: false, timeScale: 1, assisted: false, noHeat: false },
     collision,
+    difficulty,
+    startLevel: 1,
     stats: { collisionChecksLastStep: 0 },
   };
 }
@@ -501,7 +512,7 @@ export function rockMass(a: Asteroid): number {
 function makeAsteroid(st: MinigameState, x: number, y: number, vx: number, vy: number, r: number, tier: number, core: boolean, passing: boolean): Asteroid {
   // Hit points: size units times the tier multiplier times the level multiplier (hpMult), whole numbers so the
   // display-tier ladder steps cleanly.
-  const hp = Math.max(1, Math.round(Math.max(1, Math.round(r / MG.AST_HP_UNIT)) * (MG.TIER_HP_MULT[tier] ?? 1) * hpMult(st.level)));
+  const hp = Math.max(1, Math.round(Math.max(1, Math.round(r / MG.AST_HP_UNIT)) * (MG.TIER_HP_MULT[tier] ?? 1) * hpMult(st.level) * difficultyOf(st).hp));
   return {
     id: st.nextId++,
     x, y, vx, vy, r,
@@ -569,7 +580,7 @@ function spawnAsteroid(st: MinigameState): void {
   const dx = aimR * Math.cos(aimA) - x;
   const dy = aimR * Math.sin(aimA) - y;
   const d = Math.hypot(dx, dy);
-  const v = baseSpeed(st.level) * (0.8 + 0.2 * st.pressure) * st.rng.float(0.8, 1.2);
+  const v = baseSpeed(st.level) * (0.8 + 0.2 * st.pressure) * st.rng.float(0.8, 1.2) * difficultyOf(st).speed;
   const tier = drawTier(st, maxTier(st.level));
   if (!passing && st.level >= MG.BINARY_LEVEL && st.asteroids.length + 2 <= budget && st.rng.chance(MG.BINARY_PROB)) {
     spawnBinary(st, x, y, (dx / d) * v * 0.9, (dy / d) * v * 0.9, tier);
@@ -1423,7 +1434,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   st.spawnTimer -= dt;
   while (st.spawnTimer <= 0) {
     spawnAsteroid(st);
-    st.spawnTimer += baseSpawnInterval(st.level) / st.pressure;
+    st.spawnTimer += baseSpawnInterval(st.level) / (st.pressure * difficultyOf(st).spawn);
   }
 
   // Bullets: fly, expire, or get absorbed by the moon.
@@ -1478,7 +1489,7 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     a.rot += a.spin * dt;
     const d = Math.hypot(a.x, a.y);
     if (d - a.r <= MG.PLANET_R) {
-      const dmg = hullDamage(st.level, a.r, a.tier);
+      const dmg = scaledHullDamage(st, a.r, a.tier);
       if (!st.cheats.god) st.hp -= dmg;
       st.shake += dmg * MG.SHAKE_PER_HP;
       st.sinceHit = 0;
@@ -1600,6 +1611,9 @@ export interface SavedGame {
   secAccum: number;
   cheats: Cheats;
   collision: CollisionStrategy;
+  /** Optional so saves from before difficulty levels still load (as NORMAL from level 1). */
+  difficulty?: Difficulty;
+  startLevel?: number;
 }
 
 type Pred = (v: unknown) => boolean;
@@ -1635,6 +1649,7 @@ const SAVED = shaped({
   seekers: arrOf(SEEKER), seekerStock: num, seekerProgress: num, drones: arrOf(DRONE), swarmStock: num, swarmProgress: num,
   flashes: arrOf(FLASH), beams: arrOf(BEAM), arrayCd: opt(num),
   sinceShot: num, shake: num, secAccum: num, cheats: CHEATS, collision: oneOf('auto', 'naive', 'grid'),
+  difficulty: opt(oneOf(...MG.DIFFICULTY_ORDER)), startLevel: opt(num),
 });
 
 /** Type guard for anything read back from storage (persistence.ts convention). */
@@ -1689,6 +1704,8 @@ export function toSaved(st: MinigameState): SavedGame {
     secAccum: st.secAccum,
     cheats: { ...st.cheats },
     collision: st.collision,
+    difficulty: st.difficulty,
+    startLevel: st.startLevel,
   };
 }
 
@@ -1742,6 +1759,8 @@ export function fromSaved(s: SavedGame): MinigameState {
     secAccum: s.secAccum,
     cheats: { ...s.cheats },
     collision: s.collision,
+    difficulty: s.difficulty ?? 'normal',
+    startLevel: s.startLevel ?? 1,
     stats: { collisionChecksLastStep: 0 },
   };
 }

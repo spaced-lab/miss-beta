@@ -54,7 +54,7 @@ function boot(): void {
     },
   };
   screens.set('title', new TitleScreen(surface, keys, router, () => (screens.get('system') as SystemScreen | undefined) ?? null, sfx, settings));
-  screens.set('minigame', new MinigameScreen(surface, keys, router));
+  screens.set('minigame', new MinigameScreen(surface, keys, router, () => settings.reduceMotion));
   screens.set('system', new SystemScreen(surface, keys, router, settings, sfx, (id, level) => {
     center.openTopic(id, level);
     router.go('center');

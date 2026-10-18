@@ -28,6 +28,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - Photosensitivity notice on first boot (acknowledged once); the SUPER-DUPER-DEMO montage never cuts more than
   three times a second (once with REDUCE MOTION). Title screen spells out MISS: and BETA: (purple labels, green
   words). docs/WARNINGS.md 8 (flashing) and 9 (GitHub Pages: shared origin, meta-tag CSP limits).
+- PERIMETER: difficulty levels EASY / NORMAL / HARD (`9` on the ready panel, saved; each has its own best), start at
+  level 1 / 10 / 20 / 30 / 40 (`0`, with the weapons and a typical run's kit; such runs are not ranked), and the SUPER
+  DEMO (`8`): the bot plays itself at 0.75x and restarts after a game over; any key exits. Screen shake follows OPTIONS >
+  REDUCE MOTION. New review list `docs/MINIGAME_BACKLOG.md` with the measured difficulty table.
 
 - DETECTION GAUGE (PROGRAMS and the debrief): a 1 m to 10 km bar with DEFLECT (1 yr), EVACUATE, SUNWARD and
   INTERSTELLAR (3 wk) and AFTERMATH needles, computed in the worker by the discovery model over 59 reference

@@ -10,6 +10,13 @@
 //       reload lands must not wipe their game, and resuming is the harmless action. L on the ready or game-over
 //       panel opens the SOUND LAB (soundLab.ts); while it is open the sim is not stepped and the game is kept.
 //       Sound choices (variant per event, volume, ambient level) persist under one localStorage key, guarded.
+//       Run options (modes.ts): `9` cycles the difficulty, `0` the start level; both persist under one guarded key.
+//       Each difficulty keeps its own best (NORMAL keeps the original key); a run started past level 1 or cheated is
+//       never ranked, replayed or saved as a daily best. `8` starts the SUPER DEMO: the bot (bot.ts) plays NORMAL from
+//       level 1 at MG.DEMO_SPEED, its Input fed per step into the same `step` call the keyboard uses; it is never
+//       saved or ranked, restarts itself after a game over, and ANY key except the view toggles 1, 2 and 4 ends it (back
+//       to the ready panel; Escape still goes to the title). Exiting was chosen over taking over: simpler, and a demo
+//       game can never leak into a best score. Screen shake is off when the main OPTIONS > REDUCE MOTION is on.
 // LORE: G1 (how to play), C1 (how the game is built)
 
 import { CheatRegistry } from '../game/cheats';
@@ -17,8 +24,10 @@ import { loadJson, loadNumber, loadSessionJson, removeSessionJson, saveJson, sav
 import type { Router, Screen } from '../game/screen';
 import type { GlowMode, Surface } from '../render/canvas';
 import type { Input as Keys } from '../ui/input';
+import { botInput } from './bot';
 import { MINIGAME_CHEATS } from './cheats';
-import { MG } from './config';
+import { MG, type Difficulty } from './config';
+import { DEFAULT_SETTINGS, isMinigameSettings, isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSettings } from './modes';
 import { renderMinigame } from './render';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
@@ -26,6 +35,12 @@ import { isSavedReplay, Player, Recorder, type SavedReplay } from './replay';
 import { chaosLevel, createState, flash, fromSaved, isSavedGame, start, step, toSaved, type Input, type MinigameState } from './sim';
 
 const BEST_KEY = 'minigame.best';
+/** Best score per difficulty: NORMAL keeps the original key so existing bests stay where they were. */
+export const bestKey = (d: Difficulty): string => (d === 'normal' ? BEST_KEY : `${BEST_KEY}.${d}`);
+/** Difficulty and start level (modes.ts), one guarded localStorage key. */
+export const SETTINGS_KEY = 'minigame.settings';
+/** View toggles that do not end the SUPER DEMO (debug HUD, glow, sound). */
+const DEMO_KEEP_KEYS = ['Digit1', 'Digit2', 'Digit4'] as const;
 const SOUND_KEY = 'minigame.sound';
 const KIT_KEY = 'minigame.kit';
 /** One key for every SOUND LAB choice (variant names per event, master volume, ambient level). */
@@ -52,7 +67,12 @@ export class MinigameScreen implements Screen {
   private st: MinigameState;
   private acc = 0;
   private debug = false;
-  private best = loadNumber(BEST_KEY, 0);
+  private settings: MinigameSettings = loadJson(SETTINGS_KEY, isMinigameSettings, { ...DEFAULT_SETTINGS });
+  private best = loadNumber(bestKey(this.settings.difficulty), 0);
+  /** SUPER DEMO running: the bot drives, nothing is saved. */
+  private demo = false;
+  /** Seconds since the demo game ended (the next one starts at MG.DEMO_RESTART_SECONDS). */
+  private demoRestart = 0;
   private frameMs = 0;
   private lastFrame = 0;
   /** A game restored from sessionStorage, offered on the ready panel until the player picks RESUME or NEW. */
@@ -62,8 +82,8 @@ export class MinigameScreen implements Screen {
   private readonly sfx = new SfxPlayer();
   private readonly labState = createLab();
 
-  constructor(private readonly s: Surface, private readonly keys: Keys, private readonly router: Router) {
-    this.st = createState(this.newSeed());
+  constructor(private readonly s: Surface, private readonly keys: Keys, private readonly router: Router, private readonly reduceMotion: () => boolean = () => false) {
+    this.st = createState(this.newSeed(), 'auto', this.settings.difficulty);
     this.sfx.enabled = loadJson(SOUND_KEY, (v): v is boolean => typeof v === 'boolean', true);
     this.sfx.kitIndex = loadJson(KIT_KEY, (v): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 8, 0) % 3;
     // NOTE: a malformed or stale preference (an unknown variant name after a rename) fails the guard and the
@@ -80,6 +100,43 @@ export class MinigameScreen implements Screen {
   /** The sound player (choices, volume); read by tests. */
   get sounds(): SfxPlayer {
     return this.sfx;
+  }
+
+  /** Difficulty and start level as chosen on the ready panel; read by tests. */
+  get options(): Readonly<MinigameSettings> {
+    return this.settings;
+  }
+
+  /** True while the SUPER DEMO plays; read by tests. */
+  get demoOn(): boolean {
+    return this.demo;
+  }
+
+  /** A fresh game with the panel's options; the recorder runs only for a run that can be ranked and replayed. */
+  private begin(seed: number): void {
+    this.st = newGame(seed, this.st.collision, this.settings);
+    this.rec = isRanked(this.st) ? new Recorder() : null;
+    this.player = null;
+  }
+
+  private startDemo(): void {
+    this.demo = true;
+    this.demoRestart = 0;
+    this.saved = null;
+    this.rec = null;
+    this.player = null;
+    this.acc = 0;
+    this.st = newGame(this.newSeed(), this.st.collision, { difficulty: 'normal', startLevel: 1 });
+    flash(this.st, 'SUPER DEMO', 2);
+  }
+
+  private stopDemo(): void {
+    this.demo = false;
+    this.st = createState(this.newSeed(), this.st.collision, this.settings.difficulty);
+    // A real game was waiting before the demo: offer it again.
+    const saved = loadSessionJson(SAVE_KEY, isSavedGame, null);
+    this.saved = saved && saved.status === 'playing' ? fromSaved(saved) : null;
+    this.acc = 0;
   }
 
   /** The live state; read by tests (ready-panel key mapping) and never mutated from outside. */
@@ -109,7 +166,8 @@ export class MinigameScreen implements Screen {
 
   enter(): void {
     this.keys.takeMultiTap?.(); // a two-finger pinch on another screen must not fire a pulse here
-    this.st = createState(this.newSeed(), this.st.collision);
+    this.demo = false;
+    this.st = createState(this.newSeed(), this.st.collision, this.settings.difficulty);
     // NOTE: the save is validated by isSavedGame before anything is read from it; only a game still in
     // progress is worth offering.
     const saved = loadSessionJson(SAVE_KEY, isSavedGame, null);
@@ -121,7 +179,7 @@ export class MinigameScreen implements Screen {
 
   exit(): void {
     // The surface and listeners are shared; only the game in progress needs keeping.
-    if (this.st.status === 'playing') saveSessionJson(SAVE_KEY, toSaved(this.st));
+    if (this.st.status === 'playing' && !this.demo) saveSessionJson(SAVE_KEY, toSaved(this.st));
   }
 
   update(dtMs: number): void {
@@ -130,6 +188,10 @@ export class MinigameScreen implements Screen {
 
     // Any key counts as the user gesture browsers require before audio may start.
     if (k.anyKeyPressed()) this.sfx.unlock();
+    if (this.demo) {
+      this.updateDemo(dtMs);
+      return;
+    }
     // The SOUND LAB owns the keys while open; the sim is not stepped and the game is untouched.
     if (this.labState.open) {
       if (updateLab(this.labState, k, this.sfx, Math.min(dtMs, 250) / 1000)) saveJson(SFX_KEY, this.sfx.prefs());
@@ -158,11 +220,25 @@ export class MinigameScreen implements Screen {
     if (k.pressed('Digit2')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
     if (k.pressed('Digit3')) st.collision = st.collision === 'auto' ? 'naive' : st.collision === 'naive' ? 'grid' : 'auto';
 
+    if (st.status === 'ready' && k.pressed('Digit8')) {
+      this.startDemo();
+      k.clearTyped();
+      return;
+    }
+    if (st.status === 'ready' && k.anyPressed('Digit9', 'Digit0')) {
+      // NOTE: options apply to the next new game; a saved game keeps the options it was started with.
+      if (k.pressed('Digit9')) this.settings = { ...this.settings, difficulty: nextDifficulty(this.settings.difficulty) };
+      if (k.pressed('Digit0')) this.settings = { ...this.settings, startLevel: nextStartLevel(this.settings.startLevel) };
+      saveJson(SETTINGS_KEY, this.settings);
+      this.best = loadNumber(bestKey(this.settings.difficulty), 0);
+      this.st = createState(st.seed, st.collision, this.settings.difficulty);
+      return;
+    }
     if (st.status === 'ready' && k.pressed('Digit7')) {
       // WATCH BEST: the saved best game, fed back step by step from its seed.
       const r = loadJson(REPLAY_KEY, isSavedReplay, null);
       if (r) {
-        this.st = createState(r.seed, r.collision);
+        this.st = createState(r.seed, r.collision, r.difficulty ?? 'normal');
         start(this.st);
         this.player = new Player(r.rle);
         this.rec = null;
@@ -177,16 +253,16 @@ export class MinigameScreen implements Screen {
       this.daily = !this.daily;
       const rec = loadJson(DAILY_KEY, isDaily, null);
       this.dailyBest = rec && rec.date === today() ? rec.best : 0;
-      this.st = createState(this.newSeed(), st.collision);
+      this.st = createState(this.newSeed(), st.collision, this.settings.difficulty);
       return;
     }
     const touches = k.touchPoints ?? [];
     const touchStart = touches.length > 0 && !this.touchWas;
     this.touchWas = touches.length > 0;
     if (touchStart && (st.status === 'ready' || st.status === 'over')) {
-      if (st.status === 'ready' && !this.saved) start(st);
-      else if (st.status === 'ready' && this.saved) { this.st = this.saved; this.saved = null; }
-      else { this.st = createState(this.newSeed(), st.collision); start(this.st); }
+      if (st.status === 'ready' && !this.saved) this.begin(st.seed);
+      else if (st.status === 'ready' && this.saved) { this.st = this.saved; this.saved = null; this.rec = null; }
+      else this.begin(this.newSeed());
       return;
     }
     if (st.status === 'ready') {
@@ -204,17 +280,13 @@ export class MinigameScreen implements Screen {
       if (this.saved ? k.pressed('Backspace') : k.pressed('Space')) {
         this.saved = null;
         removeSessionJson(SAVE_KEY);
-        start(st);
-        this.rec = new Recorder();
-        this.player = null;
+        this.begin(st.seed);
+        return;
       }
     }
     if (st.status === 'over' && k.pressed('Space')) {
       removeSessionJson(SAVE_KEY);
-      this.st = createState(this.newSeed(), st.collision);
-      start(this.st);
-      this.rec = new Recorder();
-      this.player = null;
+      this.begin(this.newSeed());
       return;
     }
 
@@ -275,19 +347,63 @@ export class MinigameScreen implements Screen {
     st.events.length = 0;
     if (st.status === 'playing') this.sfx.ambient(chaosLevel(st), Math.min(dtMs, 250) / 1000);
 
-    if (st.status === 'over' && this.rec && !st.cheats.assisted) {
+    if (st.status === 'over' && this.rec && isRanked(st)) {
       const prev = loadJson(REPLAY_KEY, isSavedReplay, null);
-      if (!prev || st.score > prev.score) saveJson(REPLAY_KEY, { seed: st.seed, collision: st.collision, score: st.score, rle: this.rec.rle } satisfies SavedReplay);
+      if (!prev || st.score > prev.score) saveJson(REPLAY_KEY, { seed: st.seed, collision: st.collision, score: st.score, rle: this.rec.rle, difficulty: st.difficulty } satisfies SavedReplay);
       this.rec = null;
     }
-    if (st.status === 'over' && !st.cheats.assisted && st.score > this.best) {
+    if (st.status === 'over' && isRanked(st) && st.score > this.best) {
       this.best = st.score;
-      saveJson(BEST_KEY, this.best);
+      saveJson(bestKey(st.difficulty), this.best);
     }
-    if (this.daily && st.status === 'over' && !st.cheats.assisted && st.score > this.dailyBest) {
+    // NOTE: the daily seed is the same for everyone, so only a NORMAL run from level 1 is a fair daily best.
+    if (this.daily && st.status === 'over' && isRanked(st) && st.difficulty === 'normal' && st.score > this.dailyBest) {
       this.dailyBest = st.score;
       saveJson(DAILY_KEY, { date: today(), best: st.score });
     }
+  }
+
+  /** SUPER DEMO frame: any key but the view toggles ends it; otherwise the bot plays at MG.DEMO_SPEED. */
+  private updateDemo(dtMs: number): void {
+    const k = this.keys;
+    if (k.pressed('Escape')) {
+      this.stopDemo();
+      this.router.go('title');
+      return;
+    }
+    const toggled = DEMO_KEEP_KEYS.some((c) => k.pressed(c));
+    const touched = (k.touchPoints ?? []).length > 0;
+    if ((k.anyKeyPressed() && !toggled) || touched) {
+      this.stopDemo();
+      k.clearTyped();
+      return;
+    }
+    if (k.pressed('Digit1')) this.debug = !this.debug;
+    if (k.pressed('Digit2')) this.s.glowMode = GLOW_CYCLE[(GLOW_CYCLE.indexOf(this.s.glowMode) + 1) % GLOW_CYCLE.length] ?? 'understroke';
+    if (k.pressed('Digit4')) {
+      this.sfx.enabled = !this.sfx.enabled;
+      saveJson(SOUND_KEY, this.sfx.enabled);
+    }
+    k.clearTyped();
+    const sec = Math.min(dtMs, 250) / 1000;
+    const st = this.st;
+    if (st.status === 'over') {
+      this.demoRestart += sec;
+      st.events.length = 0;
+      if (this.demoRestart >= MG.DEMO_RESTART_SECONDS) this.startDemo();
+      return;
+    }
+    this.acc += sec * MG.DEMO_SPEED;
+    let steps = 0;
+    while (this.acc >= MG.DT && steps < MG.MAX_STEPS_PER_FRAME && st.status === 'playing') {
+      step(st, botInput(st), MG.DT);
+      this.acc -= MG.DT;
+      steps++;
+    }
+    if (steps === MG.MAX_STEPS_PER_FRAME) this.acc = 0;
+    this.sfx.play(st.events, performance.now() / 1000);
+    st.events.length = 0;
+    if (st.status === 'playing') this.sfx.ambient(chaosLevel(st), sec);
   }
 
   render(): void {
@@ -302,6 +418,9 @@ export class MinigameScreen implements Screen {
       sound: this.soundLabel(),
       resume: sv ? { level: sv.level, score: sv.score, t: sv.t } : null,
       daily: this.daily ? { date: today(), best: this.dailyBest } : null,
+      demo: this.demo ? { speed: MG.DEMO_SPEED, restartIn: this.st.status === 'over' ? Math.max(0, MG.DEMO_RESTART_SECONDS - this.demoRestart) : null } : null,
+      options: this.settings,
+      reduceMotion: this.reduceMotion(),
     });
     if (this.labState.open) renderLab(this.s, this.labState, this.sfx);
   }
