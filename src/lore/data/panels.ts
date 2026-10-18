@@ -73,7 +73,7 @@ const FIREBALLS: DataPanel = {
 const APPROACHES: DataPanel = {
   id: 'APPROACHES',
   title: 'CLOSEST RECORDED PASSES SINCE 2015',
-  topics: ['O12', 'F8', 'F1'],
+  topics: ['O12', 'F8'],
   note: 'Distance from Earth\'s centre in lunar distances (LD, 384,400 km), against estimated size. Inside 0.0166 LD a rock is in the atmosphere.',
   draw: (s, b, t) => {
     const p = s.palette;

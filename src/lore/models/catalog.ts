@@ -62,7 +62,7 @@ const DART: Model = {
 const RUBIN: Model = {
   id: 'RUBIN',
   title: 'RUBIN OBSERVATORY  (SIMONYI SURVEY TELESCOPE)',
-  topics: ['F5', 'F1', 'F2', 'F8'],
+  topics: ['F5', 'F2', 'F8'],
   facts: [
     '8.4 M PRIMARY MIRROR, 3.2 GIGAPIXEL CAMERA, 9.6 SQUARE DEGREE FIELD.',
     'SWEEPS THE WHOLE VISIBLE SOUTHERN SKY ABOUT EVERY 3 NIGHTS TO V ~24.5.',
@@ -251,7 +251,7 @@ const HAMMER: Model = {
 const RUBBLE: Model = {
   id: 'RUBBLE',
   title: 'RUBBLE-PILE ASTEROID  (BENNU / RYUGU SHAPE)',
-  topics: ['T5', 'T1', 'T2', 'T6', 'D4'],
+  topics: ['T5', 'T1', 'T2', 'D4'],
   facts: [
     'BENNU: 490 M, A "SPINNING TOP" WITH AN EQUATORIAL RIDGE, BULK DENSITY ABOUT 1.2 G/CM3.',
     'HALF EMPTY SPACE INSIDE: BOULDERS HELD BY THEIR OWN WEAK GRAVITY.',
@@ -355,7 +355,75 @@ const SHEPHERD_MODEL: Model = {
   },
 };
 
-export const MODELS: readonly Model[] = [DART, RUBIN, GOLDSTONE, NEO_SURVEYOR, SOLAR_SAIL, TRACTOR, LAUNCHER, HAMMER, RUBBLE, NANOFORGE, THRUSTER_SWARM_MODEL, SHEPHERD_MODEL];
+/** A comet nucleus (67P-like size) with jets on the sunlit side, a coma, and the two tails. */
+const COMET: Model = {
+  id: 'COMET',
+  title: 'COMET NUCLEUS  (JETS, COMA, TWO TAILS)',
+  topics: ['T6'],
+  facts: [
+    'A FEW KM OF DUST AND ICE. NEAR THE SUN THE ICE TURNS STRAIGHT TO GAS AND JETS OUT, DRAGGING DUST.',
+    'TWO TAILS: GAS STRAIGHT AWAY FROM THE SUN (SOLAR WIND), DUST CURVED ALONG THE ORBIT.',
+    'JETS PUSH THE NUCLEUS TOO: COMET ORBITS ARE HARDER TO PREDICT THAN ASTEROID ORBITS.',
+  ],
+  source: 'ESA ROSETTA AND NASA DEEP IMPACT / STARDUST PUBLIC RESULTS (FACTS ONLY). SHAPE STYLISED.',
+  scaleBar: 1000,
+  build: (t) => {
+    const nucleus = sphere(2000, 6, 10, 'threat', (u, v) => 1 + 0.25 * Math.sin(3 * u) * Math.cos(2 * v) + 0.1 * Math.sin(7 * v));
+    const coma = [ring(5500, 0, 32, 'sail', true), ...rotX([ring(5500, 0, 32, 'sail', true)], Math.PI / 2)];
+    // The Sun is toward -x: jets on the -x face flicker; both tails point toward +x.
+    const jets: Part[] = [];
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI + (i - 2.5) * 0.35;
+      const on = (Math.floor(t * 3) + i) % 3 !== 0;
+      if (!on) continue;
+      const p0: V3 = [2000 * Math.cos(a), 600 * Math.sin(i), 2000 * Math.sin(a)];
+      jets.push(strut(p0, [p0[0] * 2.4, p0[1] * 2.4, p0[2] * 2.4], 'fragment', false));
+    }
+    const ion = [strut([2000, 0, 0], [10000, 0, 0], 'orbit', false), strut([2000, 300, 0], [10000, 700, 0], 'orbit', true), strut([2000, -300, 0], [10000, -700, 0], 'orbit', true)];
+    const dust: Part = { role: 'star', seg: [], fine: true };
+    let prev: V3 = [2000, 0, 0];
+    for (let k = 1; k <= 10; k++) {
+      const x = 2000 + k * 800;
+      const p: V3 = [x, 0, -0.012 * (x - 2000) ** 1.5 / 10];
+      dust.seg.push(prev[0], prev[1], prev[2], p[0], p[1], p[2]);
+      prev = p;
+    }
+    return flat(rotY(nucleus, t * 0.4), coma, jets, ion, [dust]);
+  },
+};
+
+/** An ATLAS survey station: a 0.5 m Wright-Schmidt telescope under a small dome. */
+const ATLAS: Model = {
+  id: 'ATLAS',
+  title: 'ATLAS SURVEY STATION  (0.5 M WIDE-FIELD TELESCOPE)',
+  topics: ['F1'],
+  facts: [
+    'ASTEROID TERRESTRIAL-IMPACT LAST ALERT SYSTEM: FOUR (NOW FIVE) STATIONS IN HAWAII, CHILE, SOUTH AFRICA, SPAIN.',
+    'SMALL MIRRORS, HUGE FIELD (30 SQUARE DEGREES): THE WHOLE DARK SKY EVERY NIGHT TO ABOUT V 19.5.',
+    'BUILT TO GIVE DAYS TO WEEKS OF WARNING FOR CITY-KILLERS ON THEIR FINAL PLUNGE.',
+  ],
+  source: 'UNIVERSITY OF HAWAII / NASA PDCO ATLAS PROJECT FACTS. SHAPE IS GENERIC.',
+  scaleBar: 2,
+  build: (t) => {
+    const dome = sphere(3, 4, 12, 'craft', () => 1).map((p) => ({ ...p, seg: p.seg.filter((_, i, a) => true && a.length > 0) }));
+    // Keep the upper hemisphere only and open a slit that slides with time.
+    const upper: Part = { role: 'craft', seg: [] };
+    const src = dome[0]?.seg ?? [];
+    const slit = 0.6 + 0.4 * Math.sin(t * 0.5);
+    for (let i = 0; i + 5 < src.length; i += 6) {
+      const y0 = src[i + 1] ?? 0, y1 = src[i + 4] ?? 0;
+      const z0 = src[i + 2] ?? 0, z1 = src[i + 5] ?? 0;
+      if (y0 < -0.01 || y1 < -0.01) continue;
+      if (Math.abs(z0) < slit && Math.abs(z1) < slit && y0 > 0.5 && y1 > 0.5) continue;
+      for (let k = 0; k < 6; k++) upper.seg.push(src[i + k] ?? 0);
+    }
+    const wall = cylinder(3, 3, -2.5, 0, 12, 'planet');
+    const scope = rotX(flat(cylinder(0.35, 0.35, 0, 1.6, 8, 'sail')), -0.6 - 0.2 * Math.sin(t * 0.5));
+    return rotY(flat([upper], wall, scope), t * 0.2);
+  },
+};
+
+export const MODELS: readonly Model[] = [DART, RUBIN, GOLDSTONE, NEO_SURVEYOR, SOLAR_SAIL, TRACTOR, LAUNCHER, HAMMER, RUBBLE, NANOFORGE, THRUSTER_SWARM_MODEL, SHEPHERD_MODEL, COMET, ATLAS];
 
 /** The model for a topic, or null. */
 export function modelForTopic(id: string): Model | null {
