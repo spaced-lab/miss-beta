@@ -33,6 +33,8 @@ describe('why the planner has no plan (IDEAS 27)', () => {
     expect(why2?.lines[0]).toMatch(/BEST WINDOW NEEDS C3 \d+ KM2\/S2; L3 SUPERHEAVY REACHES 130\./);
     expect(why2?.lines[0]).toContain('OUT OF THE PLANE');
     expect(why2?.lines.join(' ')).not.toContain('INTERCEPTOR ON STANDBY');
+    expect(why2?.lines.join(' ')).not.toContain('DE-STAR');
+    expect(explainNoPlan(ready, { ...ctx, buildTime: 0, standby: true, scifi: true })?.lines.join(' ')).toContain('DE-STAR ACTS BY RANGE, NOT PLANE');
   });
 
   it('a feasible grid needs no explanation', () => {

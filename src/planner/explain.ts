@@ -28,7 +28,13 @@ export interface NoPlanContext {
   c3Bonus: number;
   /** True when a craft on standby is available for this target (INTERCEPTOR_ON_STANDBY against a visitor). */
   standby: boolean;
+  /** SCI-FI or beyond: name the orbital laser array, which acts by range and ignores the plane (tests/laser3d). */
+  scifi?: boolean;
 }
+
+/** SCI-FI levers that do not launch from HOME. The ground laser's 0.05 AU is crossed in about a day by a fast visitor,
+ *  inside the last-day margin, so it never fires on one (tests/laser3d.test.ts); DE-STAR's 0.3 AU gives days. */
+const SCIFI_HELP = 'AN ORBITAL LASER ARRAY (DE-STAR ACTS BY RANGE, NOT PLANE; A GROUND LASER IS TOO SLOW FOR A FAST VISITOR)';
 
 export interface NoPlanWhy {
   kind: 'TIME' | 'ENERGY';
@@ -59,7 +65,7 @@ export function explainNoPlan(g: PorkchopGrid, ctx: NoPlanContext): NoPlanWhy | 
       kind: 'TIME',
       lines: [
         `NO LAUNCH WINDOW: IMPACT IN ${days(ctx.lead)}; A NEW CRAFT TAKES ${days(ctx.buildTime)} TO BUILD AND AT LEAST ${days(ctx.minFlight)} TO FLY.`,
-        help([...(ctx.standby ? [] : ['A CRAFT ALREADY WAITING IN SPACE (INTERCEPTOR ON STANDBY: NO BUILD TIME)']), 'EARLIER WARNING (MORE SURVEYS, THE HIVE STUDIES)']),
+        help([...(ctx.standby ? [] : ['A CRAFT ALREADY WAITING IN SPACE (INTERCEPTOR ON STANDBY: NO BUILD TIME)']), 'EARLIER WARNING (MORE SURVEYS, THE HIVE STUDIES)', ...(ctx.scifi ? [SCIFI_HELP] : [])]),
       ],
     };
   }
@@ -77,6 +83,7 @@ export function explainNoPlan(g: PorkchopGrid, ctx: NoPlanContext): NoPlanWhy | 
     'A BIGGER LAUNCHER (T)',
     'FREE C3 (ORBITAL DEPOT, LUNAR MASS DRIVER)',
     'EARLIER WARNING',
+    ...(ctx.scifi ? [SCIFI_HELP] : []),
   ]));
   return { kind: 'ENERGY', lines };
 }

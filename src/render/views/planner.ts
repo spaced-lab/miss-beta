@@ -54,6 +54,8 @@ export interface PlannerSession {
   c3Bonus?: number;
   /** A craft on standby serves this target (INTERCEPTOR_ON_STANDBY against a visitor): no build time. */
   standby?: boolean;
+  /** SCI-FI or beyond: the no-plan explanation may name SCI-FI levers. */
+  scifi?: boolean;
   /** Launches allowed inside any 365-day window (19, HEAVY_LAUNCH_CADENCE); plans that would exceed it are hidden. */
   launchCap?: number;
   budget: number;
@@ -153,7 +155,7 @@ export class PlannerOverlay {
       .then((grid) => {
         if (token !== this.jobToken) return;
         this.grid = grid;
-        this.why = explainNoPlan(grid, { lead: session.result.ca.tCa - w.t, buildTime: session.buildTime, minFlight: KNOBS.PORKCHOP_MIN_FLIGHT, tier: launcherTier(session.launcherTier), c3Bonus: session.c3Bonus ?? 0, standby: session.standby ?? false });
+        this.why = explainNoPlan(grid, { lead: session.result.ca.tCa - w.t, buildTime: session.buildTime, minFlight: KNOBS.PORKCHOP_MIN_FLIGHT, tier: launcherTier(session.launcherTier), c3Bonus: session.c3Bonus ?? 0, standby: session.standby ?? false, scifi: session.scifi ?? false });
         this.rank();
       })
       .catch((e: unknown) => {

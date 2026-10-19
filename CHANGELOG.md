@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Lasers against out-of-plane visitors (IDEAS 27, part 2): tested that DE-STAR fires on 3-D visitors by range and moves
+  them; the ground laser never fires on a fast visitor (it crosses 0.05 AU in about a day, inside the reserved last
+  day). In SCI-FI the planner's no-plan help names the array and says so.
 - Planner, when no launch exists (IDEAS 27, part 1): it says which wall the player hit, NOT ENOUGH TIME (impact in N
   days, a build takes M) or NOT ENOUGH LAUNCH ENERGY (the best window's C3 against the launcher's reach, and how much
   of it is climbing out of the plane for a steep visitor), and what would help (`planner/explain.ts`). Measured on 30
