@@ -9,7 +9,7 @@ import { botInput } from '../src/minigame/bot';
 import { MG, type Difficulty } from '../src/minigame/config';
 import { bestKey, MinigameScreen, SETTINGS_KEY } from '../src/minigame/index';
 import { loadMinigameSettings, saveMinigameSettings, stepDifficulty, stepStartLevel } from '../src/minigame/prefs';
-import { DEFAULT_SETTINGS, isMinigameSettings, isRanked, newGame, nextDifficulty, nextStartLevel, setupStart } from '../src/minigame/modes';
+import { DEFAULT_SETTINGS, isMinigameSettings, isRanked, newGame, nextDifficulty, nextStartLevel, setupStart, startMoonFrac } from '../src/minigame/modes';
 import { shakePx } from '../src/minigame/render';
 import { isSavedReplay } from '../src/minigame/replay';
 import {
@@ -162,6 +162,16 @@ describe('skipped starts are the same game, later (IDEAS 31)', () => {
       expect(st.moonHp).toBe(MG.MOON_HP * (MG.START_MOON_FRAC[level] ?? 0));
       expect(st.spawnTimer).toBeGreaterThanOrEqual(MG.START_GRACE_S);
     }
+  });
+  it('a start level missing from START_MOON_FRAC interpolates instead of starting with no moon', () => {
+    expect(startMoonFrac(1)).toBe(1);
+    expect(startMoonFrac(10)).toBe(MG.START_MOON_FRAC[10]);
+    const t10 = MG.START_MOON_FRAC[10] ?? 1;
+    const t20 = MG.START_MOON_FRAC[20] ?? 0;
+    expect(startMoonFrac(5)).toBeCloseTo(1 + ((t10 - 1) * 4) / 9, 9);
+    expect(startMoonFrac(15)).toBeCloseTo((t10 + t20) / 2, 9);
+    expect(startMoonFrac(5)).toBeGreaterThan(0.9);
+    expect(startMoonFrac(99)).toBe(MG.START_MOON_FRAC[40]);
   });
 });
 

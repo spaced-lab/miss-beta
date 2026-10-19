@@ -15,6 +15,24 @@ export { DEFAULT_SETTINGS, isMinigameSettings, nextDifficulty, nextStartLevel, t
 import type { MinigameSettings } from './prefs';
 
 /**
+ * Moon health at the start of `level` as a fraction of MOON_HP: MG.START_MOON_FRAC, linear between its levels, full at
+ * level 1 and the last entry's value past it, so a start level added to MG.START_LEVELS without a table entry never
+ * begins with the moon already gone. Example: with { 10: 0.9, 20: 0.1 }, level 15 gives 0.5 and level 5 gives 0.96.
+ */
+export function startMoonFrac(level: number): number {
+  if (level <= 1) return 1;
+  const pts: [number, number][] = [[1, 1], ...Object.entries(MG.START_MOON_FRAC).map(([k, v]): [number, number] => [Number(k), v])];
+  pts.sort((a, b) => a[0] - b[0]);
+  let prev = pts[0] ?? [1, 1];
+  for (const p of pts) {
+    if (level === p[0]) return p[1];
+    if (level < p[0]) return prev[1] + ((p[1] - prev[1]) * (level - prev[0])) / (p[0] - prev[0]);
+    prev = p;
+  }
+  return prev[1];
+}
+
+/**
  * Put a fresh 'playing' state at the start of `level` with a typical run's kit. Example: level 20 gives t = 323 s
  * (19 x 17), 4 launchers, 5 streams, 3 pulses, 1 seeker, 1 swarm and turretMax(20) - 1 = 4 sentries. Level 1 is a no-op.
  */
@@ -33,7 +51,7 @@ export function setupStart(st: MinigameState, level: number): void {
     for (let k = 0; k < n; k++) deployTurret(st, false);
   }
   st.pressure = Math.max(MG.PRESSURE_START, MG.START_PRESSURE_FRAC * pressureMax(level));
-  st.moonHp = MG.MOON_HP * (MG.START_MOON_FRAC[level] ?? 0);
+  st.moonHp = MG.MOON_HP * startMoonFrac(level);
   st.spawnTimer = Math.max(st.spawnTimer, MG.START_GRACE_S);
   st.flashes.length = 0;
   flash(st, `LEVEL ${level} START`, 2);
