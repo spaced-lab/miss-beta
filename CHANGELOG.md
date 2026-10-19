@@ -4,6 +4,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Flash meter judges saturated red in linear light, as WCAG defines it (reddish colours were skipped); re-measured: still 0 flashes a second everywhere. The capture no longer copies each frame twice.
 - Planner no-plan hints fixed (review 2026-10-19): INTERCEPTOR ON STANDBY and INCLINED PICKETS are suggested only against a visitor (an ordinary rock gets INTERCEPTOR STOCKPILE); LUNAR MASS DRIVER only in SCI-FI; the TIME line counts the 60-day resolve margin and a standby craft; a window with no solved transfer reads NO TRANSFER FOUND. The standby rule lives in one helper, `launchReadiness`.
 - Visitor defence measured end to end (IDEAS 27): with HIVE_3, inclined pickets, kick stages and the depot, 10 of 30 SCI-FI visitors can be reached and 9 made to miss; none could before (bench/visitors.bench.ts).
 - INCLINED PICKETS program (IDEAS 27, part 5, PROPOSED): two interceptors on standby in orbits tilted about 10 degrees,

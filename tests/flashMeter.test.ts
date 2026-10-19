@@ -56,4 +56,12 @@ describe('flash meter (WCAG 2.x thresholds, IDEAS 34)', () => {
     expect(r.redPerSecond).toBeGreaterThan(3);
     expect(r.fails).toBe(true);
   });
+  it('saturated red is judged in linear light: (255, 60, 60) counts, (255, 140, 140) does not', () => {
+    // Raw r / sum for (255, 60, 60) is 0.68, under 0.8; in linear light it is about 0.92 (review 2026-10-19, finding 1).
+    const reddish = measureFlashes(toggle(100, 30, (t) => frame(t, 0), (t) => frame(t, 0, [0, 0, 64, [255, 60, 60]])), FIELD);
+    expect(reddish.redPerSecond).toBeGreaterThan(3);
+    // Pink: linear r / sum is about 0.6, not saturated red (the general-flash rule still applies to it).
+    const pink = measureFlashes(toggle(100, 30, (t) => frame(t, 0), (t) => frame(t, 0, [0, 0, 64, [255, 140, 140]])), FIELD);
+    expect(pink.redPerSecond).toBe(0);
+  });
 });

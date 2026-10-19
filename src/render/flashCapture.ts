@@ -25,7 +25,7 @@ export async function captureFlashes(canvas: HTMLCanvasElement, ms: number): Pro
   await new Promise<void>((done) => {
     const grab = (): void => {
       ctx.drawImage(canvas, 0, 0, W, H);
-      frames.push({ t: performance.now() - t0, width: W, height: H, rgba: ctx.getImageData(0, 0, W, H).data.slice() });
+      frames.push({ t: performance.now() - t0, width: W, height: H, rgba: ctx.getImageData(0, 0, W, H).data });
       if (performance.now() - t0 < ms) requestAnimationFrame(grab);
       else done();
     };

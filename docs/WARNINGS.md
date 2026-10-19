@@ -76,6 +76,9 @@ it lives, what it can do, and what to do about it. Add an entry whenever a conve
   white toggle every 100 ms, captured the same way) reads 5 a second and fails. Not measured: PI and FRAGMENTATION
   cinematics (same hit-flash code), DAYLIGHT colour mode, other screen sizes. Re-measure with
   `src/render/flashCapture.ts` (dev console) after any effect change; a REDUCE FLASHING option is not needed today.
+  Re-measured 2026-10-19 after the saturated-red test moved to linear light (it had skipped reddish colours such as
+  orange fireballs): IMPACT, NUKE and HIT cinematics in NEON and MONO, 6 s of the demo and of PERIMETER, all 0 general,
+  0 red.
 - **Do:** keep any new full-screen change at or under three per second, route it through `reduceMotion`, and
   list it here and in the notice.
 

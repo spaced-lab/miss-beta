@@ -55,8 +55,9 @@ function measures(f: FlashFrame): { L: Float32Array; red: Float32Array; sat: Uin
     const g = f.rgba[i * 4 + 1] as number;
     const b = f.rgba[i * 4 + 2] as number;
     L[i] = 0.2126 * (LIN[r] as number) + 0.7152 * (LIN[g] as number) + 0.0722 * (LIN[b] as number);
-    const sum = r + g + b;
-    sat[i] = sum > 0 && r / sum >= 0.8 ? 1 : 0;
+    const lsum = (LIN[r] as number) + (LIN[g] as number) + (LIN[b] as number);
+    // WCAG takes R, G, B for saturated red from the relative-luminance definition: linear light, not raw 0..255.
+    sat[i] = lsum > 0 && (LIN[r] as number) / lsum >= 0.8 ? 1 : 0;
     red[i] = Math.max(0, ((LIN[r] as number) - (LIN[g] as number) - (LIN[b] as number)) * 320);
   }
   return { L, red, sat };
