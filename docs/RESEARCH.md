@@ -60,17 +60,18 @@ labelled.
 
 Each line: claim id, what to do, size. The registry holds the details.
 
-- F11-1: find the current found share of 140 m NEAs from CNEOS statistics and a population model. S.
+- F11-1: re-check the found share of 140 m NEAs each release (CNEOS count over NEOMOD2). S, recurring.
 - F5-1: per-survey limiting magnitudes and nightly sky area, turned into the game's coverage chances. M.
-- F5-2: ATLAS warning times for 10 m and 100 m impactors; reproduce with LAB_MAGNITUDE. S.
-- F5-3: count of pre-impact discoveries, dated. S.
+- F5-2: reproduce the ATLAS warning times as an upper bound with LAB_MAGNITUDE (then CHECKED). S.
+- F5-3: re-count the NEOCC past-impactors list each release. S, recurring.
 - G8-1: measure our flashes against the WCAG general-flash and red-flash thresholds (luminance and area), not
   only the three-per-second rule. M.
 - O-1: molten-salt reactors in free fall: literature search; compare specific mass with liquid-metal designs. M.
 - Gauge calibration (F11): compare the model's needles with a published NEO population model; the gauge tilts
   orbits and charges a trailing loss that the rounds do not yet (3-D orbits milestone). L.
-- F12-3, F12-5: read v_inf and the discovery and perihelion dates from the 1I, 2I and 3I papers. S.
-- F12-4: Comet Interceptor launch date and parking point from ESA documents. S.
+- F12-4: re-read ESA's Comet Interceptor launch date each release (tied to Ariel). S, recurring.
+- F5-1: re-read the ZTF and Rubin limits and Rubin's nightly coverage; decide whether networks.json changes (balance). M.
+- FS-1: date each feasibility card's TRL against a source. M.
 - Future-tech backlog items (hive survey, mothership, radiators, fission and fusion tiers, feasibility studies,
   interstellar warning): each real-world figure enters the registry as UNVERIFIED before any card uses it. L.
 
@@ -83,4 +84,17 @@ Append, never delete. Date, who, claim, change, reason.
 2026-10-18  Claude  F5 text: "[verify]" marks replaced by UNVERIFIED with claim ids; F11 and G9 written
 2026-10-18  Claude  SOURCED entries name sources from memory; each needs the quote re-read before it is CHECKED
 2026-10-18  Claude  F12-3..5 added UNVERIFIED for topic F12 (visitors from other stars)
+2026-10-18  Claude  claims review (IDEAS 33; a research agent read the sources online; Nature and APS pages were
+                    paywalled, so Cheng, Thomas and Abu-Shawareb were confirmed from Crossref metadata and abstracts):
+                    F11-2, F11-3, D3-1, D3-2, G8-1, FS-2, FS-3, F12-1, U-1 confirmed, unchanged.
+                    F11-1 UNVERIFIED -> SOURCED: about half (11,688 of 21,000 to 25,000; CNEOS, NEOMOD2).
+                    F5-2 UNVERIFIED -> SOURCED, corrected: about a day for 20 m (not two days for 10 m), up to
+                    about three weeks for 100 m (ATLAS team, Tonry 2011).
+                    F5-3 UNVERIFIED -> SOURCED (ESA NEOCC, 13 as of 24 Sep 2026); EDUCATION no longer says "nearly all
+                    by Catalina and ATLAS", which the review could not support.
+                    F12-2 UNVERIFIED -> CHECKED (Do et al. 2018 density; rate reproduced in tests/claims.test.ts).
+                    F12-3 UNVERIFIED -> CHECKED (SBDB a values; v_inf reproduced in tests/claims.test.ts).
+                    F12-4, F12-5 UNVERIFIED -> SOURCED. F5-1 and FS-1 stay UNVERIFIED with sharper checks (ATLAS
+                    limit 19.5 in EDUCATION to match networks.json; the networks.json numbers themselves unchanged).
+                    T7-1: Moon GM agrees with NSSDCA to 0.1 percent; Mars and Ganymede not re-read.
 ```

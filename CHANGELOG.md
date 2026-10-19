@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Claims review (IDEAS 33): the found share of 140 m NEAs is "about half" (SOURCED); ATLAS warning corrected to about a
+  day for a 20 m rock and up to three weeks for 100 m (it said two days for 10 m); thirteen pre-impact discoveries
+  SOURCED, without the unsupported "nearly all by Catalina and ATLAS"; interstellar impact rate and the three
+  visitors' excess speeds CHECKED by tests; Comet Interceptor and 'Oumuamua dates SOURCED. Review log in docs/RESEARCH.md.
 - `npm run safety` (scripts/safety.sh): the automatable part of the docs/SAFETY.md checklist on a clean checkout of a commit (gate, build, smoke, dist greps, CSP, SAVE.md import tests); it lists the steps that stay manual (IDEAS 35).
 - Planner: plans are ranked in the planner worker (`planner/rank.ts`, docs/DECISIONS.md D11), not on the UI
   thread. Opening the planner or committing a plan froze the screen for 0.6 to 1 s; that freeze was the stutter in

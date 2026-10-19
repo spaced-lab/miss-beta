@@ -5,10 +5,10 @@
       "id": "F11-1",
       "topic": "F11",
       "claim": "Share of near-Earth asteroids of 140 m and larger that have been found",
-      "value": "a little under half (estimate)",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "Read the latest CNEOS discovery statistics and a population model (Granvik et al. 2018; Nesvorny et al. 2024); divide found by estimated total at H <= 22.",
+      "value": "about half: 11,688 found (CNEOS, 17 Oct 2026) of an estimated 21,000 to 25,000 (NEOMOD2), so 47 to 56 percent",
+      "status": "SOURCED",
+      "source": "CNEOS discovery statistics (cneos.jpl.nasa.gov/stats, NEA-140m, accessed 2026-10-18); Nesvorny et al. 2024, Icarus 411, 115922 (NEOMOD2, Table 3)",
+      "check": "Divide the CNEOS count of NEAs of 140 m and up by the population model at H <= 22. Changes with time: re-check each release. Population models differ by about 15 percent, hence \"about half\".",
       "usedIn": [
         "EDUCATION.md F11 ADVANCED",
         "EDUCATION.md F5 INTERMEDIATE"
@@ -47,7 +47,7 @@
       "value": "src/config/networks.json (vLim, pCover, eps)",
       "status": "UNVERIFIED",
       "source": "",
-      "check": "For each survey, find the published single-visit limiting magnitude and the sky area per night; convert area to a per-night coverage chance for a random NEO position.",
+      "check": "Compare each network in src/config/networks.json with its survey paper: ATLAS 30 s limit (Tonry et al. 2018, PASP 130, 064505: median about 19.1, best 19.8); Catalina G96 (Jedicke et al. 2016: about 21.2); ZTF (Bellm et al. 2019, PASP 131, 018002); Rubin single visit (Ivezic et al. 2019, ApJ 873, 111); ESA Flyeye (design 21.5, Flyeye 2.0 study goal 21.0). pCover = nightly area / accessible sky (Rubin revisits a field every 3 to 4 nights, so about 0.3 rather than 0.6). Review 2026-10-18 read ATLAS, Catalina and Flyeye; ZTF and Rubin numbers were not re-read.",
       "usedIn": [
         "src/config/networks.json",
         "EDUCATION.md F5 ADVANCED"
@@ -57,10 +57,10 @@
       "id": "F5-2",
       "topic": "F5",
       "claim": "ATLAS warning time for a 10 m and a 100 m impactor",
-      "value": "about two days and about three weeks",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "ATLAS project pages and Tonry et al. 2018 (PASP 130, 064505); reproduce with LAB_MAGNITUDE.",
+      "value": "about one day for a 20 m rock, up to about three weeks for a 100 m rock",
+      "status": "SOURCED",
+      "source": "University of Hawaii, ATLAS news release, 27 January 2022; Tonry 2011, PASP 123, 58 (design: about three weeks for 140 m)",
+      "check": "Best case with V = 19.5, albedo 0.14, zero phase, 20 km/s: about 1.9 days for 10 m, 3.9 days for 20 m, 19 days for 100 m, so the team's figures are realistic and a 10 m rock gets less. Reproduce as an upper bound with LAB_MAGNITUDE.",
       "usedIn": [
         "EDUCATION.md F5 BEGINNER"
       ]
@@ -69,10 +69,10 @@
       "id": "F5-3",
       "topic": "F5",
       "claim": "Number of asteroids discovered before they hit the Earth",
-      "value": "thirteen, all under 8 m (as of 2026)",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "Count the list maintained by the Minor Planet Center / CNEOS for pre-impact discoveries; the count changes, so date it.",
+      "value": "thirteen, all about 8 m or smaller (as of 24 September 2026)",
+      "status": "SOURCED",
+      "source": "ESA NEO Coordination Centre, list of past impactors (neo.ssa.esa.int, updated 2026-09-24); the largest is 2019 MO at 4 to 8 m",
+      "check": "Count the NEOCC past-impactors list; re-check each release (new small impactors are found every year).",
       "usedIn": [
         "EDUCATION.md F5 INTERMEDIATE"
       ]
@@ -159,7 +159,7 @@
       "value": "src/config/studies.json trlNow",
       "status": "UNVERIFIED",
       "source": "",
-      "check": "For each card find the latest project or agency statement of readiness (NASA project pages, peer-reviewed status reviews) and record a dated TRL.",
+      "check": "Date each card's TRL against a source: KRUSTY (NASA NTRS 20180001487, TRL 5 at 1 kWe; a 40 kWe unit is arguably 4); no tokamak has net gain and ITER is not operating (arguably 3); HIVE: flown parts but the swarm survey is a concept (3 to 4); droplet radiators have drop-tower tests (2 to 3). Review 2026-10-18 found the others plausible; none is sourced yet.",
       "usedIn": [
         "src/config/studies.json",
         "EDUCATION.md D14"
@@ -209,10 +209,10 @@
       "id": "F12-2",
       "topic": "F12",
       "claim": "Impact rate of interstellar objects of 100 m and larger on the Earth",
-      "value": "effectively never in a human lifetime (no published anchor found yet)",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "Find a published number density of interstellar objects by size (e.g. from 1I's detection rate) and multiply by the Earth's gravitationally focused cross-section and typical speed.",
+      "value": "about one hit per 40 to 140 million years for 100 m class visitors",
+      "status": "CHECKED",
+      "source": "Do, Tucker and Tonry 2018, ApJ Letters 855, L10 (number density about 0.2 per cubic AU for objects like 1I/'Oumuamua)",
+      "check": "rate = n x sigma x v with n = 0.2 au^-3, sigma = pi R^2 (1 + v_esc^2 / v^2), v 26 to 32 km/s, with and without the Sun's focusing; tests/claims.test.ts reproduces the range.",
       "usedIn": [
         "src/config/knobs.ts INTERSTELLAR_RATES REAL",
         "EDUCATION.md F12 ADVANCED"
@@ -223,9 +223,9 @@
       "topic": "F12",
       "claim": "Hyperbolic excess speeds (relative to the Sun) of the three known interstellar visitors",
       "value": "about 26 km/s (1I), 32 km/s (2I), 58 km/s (3I)",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "Read v_inf from the orbit solutions in Meech et al. 2017 (1I), Guzik et al. 2020 (2I) and the 3I/ATLAS discovery paper or the JPL Small-Body Database; v_inf = sqrt(-mu / a) from the osculating a.",
+      "status": "CHECKED",
+      "source": "JPL Small-Body Database osculating elements (accessed 2026-10-18): a = -1.27 au (1I), -0.851 au (2I), -0.264 au (3I); Meech et al. 2017; Guzik et al. 2020; Seligman et al. 2025, ApJ Letters (arXiv 2507.02757)",
+      "check": "v_inf = sqrt(mu_sun / -a); tests/claims.test.ts reproduces 26, 32 and 58 km/s from the three a values.",
       "usedIn": [
         "EDUCATION.md F12 INTERMEDIATE",
         "src/config/knobs.ts REAL_INTERSTELLAR_VINF_KMS (comment)"
@@ -235,10 +235,10 @@
       "id": "F12-4",
       "topic": "F12",
       "claim": "ESA's Comet Interceptor is planned to wait in space at a Sun-Earth Lagrange point for a fresh comet or an interstellar visitor",
-      "value": "launch about 2029, parked at Sun-Earth L2 (as of 2026)",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "ESA Comet Interceptor mission pages and the mission definition study report: launch date, parking point, waiting time, reachable targets.",
+      "value": "launch planned for late 2028 or 2029, waiting in a halo orbit at Sun-Earth L2 (as of October 2026; the date is at risk)",
+      "status": "SOURCED",
+      "source": "Jones et al. 2024, Space Science Reviews 220, 9; ESA Comet Interceptor mission page (accessed 2026-10-18)",
+      "check": "Re-read the ESA mission page each release: the launch is tied to Ariel's.",
       "usedIn": [
         "EDUCATION.md F12 EXPERT",
         "src/config/programs.json INTERCEPTOR_ON_STANDBY (L2)"
@@ -249,9 +249,9 @@
       "topic": "F12",
       "claim": "1I/'Oumuamua was discovered after its perihelion, on its way out",
       "value": "discovered 19 October 2017, about 40 days after perihelion (9 September 2017)",
-      "status": "UNVERIFIED",
-      "source": "",
-      "check": "The MPC discovery circular and Meech et al. 2017: discovery date and perihelion time.",
+      "status": "SOURCED",
+      "source": "MPEC 2017-U181 (perihelion 2017 September 9.4 TT; first images 18 October 2017, Pan-STARRS); JPL SBDB",
+      "check": "Discovery date minus perihelion date: 40 days.",
       "usedIn": [
         "EDUCATION.md F12 INTERMEDIATE"
       ]
@@ -263,7 +263,7 @@
       "value": "Moon GM 4.905e12 m^3/s^2, R 1737.4 km, a 384,400 km; Mars GM 4.283e13, R 3389.5 km; Ganymede GM 9.888e12, R 2634.1 km, a 1,070,400 km",
       "status": "SOURCED",
       "source": "NASA planetary fact sheets (NSSDCA); JPL planetary physical parameters",
-      "check": "Compare each value with the fact sheets.",
+      "check": "Compare each value with the fact sheets. Review 2026-10-18: NSSDCA gives the Moon's GM as 0.00490e6 km^3/s^2 (4.90e12 m^3/s^2 to three figures); knobs MOON_MU 4.9048695e12 agrees to 0.1 percent. Mars and Ganymede were not re-read.",
       "usedIn": [
         "src/config/knobs.ts MOON_* GIANT_MOON_*",
         "src/config/bodies.json OUTER",

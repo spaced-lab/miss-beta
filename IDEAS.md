@@ -182,7 +182,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     batch it with item 30's seed change. Status: backlog; owner 2026-10-18: skip 30 and 32 for now, land them together later.
 
 33. **Claims review to keep us honest (M).** Re-read every SOURCED claim's source and promote it to CHECKED, or
-    correct it; research the UNVERIFIED ones (docs/RESEARCH.md section 4). Status: backlog, recurring each release.
+    correct it; research the UNVERIFIED ones (docs/RESEARCH.md section 4). Status: 2026-10-18 pass done (review log in
+    docs/RESEARCH.md); recurring each release.
 
 34. **Flash measurement (S).** Measure each flash against the WCAG general-flash and red-flash thresholds (area
     and luminance, claim G8-1); keep the notice and REDUCE MOTION for now, and add a dedicated REDUCE FLASHING
