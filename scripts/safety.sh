@@ -5,8 +5,8 @@
 # WHY:  The owner runs the full security review before every publish; the mechanical steps should be one command that
 #       cannot be done half-way, so the manual review can spend its time on judgement. The manual steps (the live
 #       Pages origin, devtools network tab, a fresh-profile boot, WARNINGS.md) stay manual and are listed at the end.
-# HOW:  `npm run safety` (HEAD) or `bash scripts/safety.sh <ref>`. git archive into a temporary folder, npm ci, then
-#       each step; the first failure stops with FAIL and a non-zero exit. Nothing in the working tree is touched.
+# HOW:  `npm run safety` (HEAD) or `bash scripts/safety.sh <ref>`. git archive into a temporary folder, npm ci, the
+#       lore build, then each step; the first failure stops with FAIL and a non-zero exit. Nothing in the working tree is touched.
 # LORE: C1 (how the game is built), C3 (tests)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -21,11 +21,14 @@ git archive "$ref" | tar -x -C "$tmp"
 cd "$tmp"
 npm ci --silent >/dev/null 2>&1 || fail "npm ci"
 
+# Lore first: public/lore is gitignored, and the gate's built-lore tests skip silently without it.
+echo "== lore"
+python3 scripts/build_lore.py >/dev/null || fail "build_lore"
+
 echo "== gate"
 bash scripts/check.sh > gate.log 2>&1 || { tail -30 gate.log; fail "gate (scripts/check.sh)"; }
 
 echo "== build and smoke"
-python3 scripts/build_lore.py >/dev/null || fail "build_lore"
 npm run build --silent >/dev/null 2>&1 || fail "build"
 node scripts/smoke.mjs || fail "smoke"
 
@@ -36,9 +39,12 @@ if grep -rIoh --exclude='*.map' -E 'http://[^"'"'"' )<>]+' dist | grep -vE '^htt
 if grep -rIl --exclude='*.map' -E '\beval\(|new Function\(' dist; then fail "dynamic code in dist"; fi
 
 echo "== CSP"
-csp="$(grep -o '<meta http-equiv="Content-Security-Policy" content="[^"]*"' dist/index.html | sed 's/.*content="//; s/"$//')"
+# `|| true`: under pipefail a grep with no match would end the script here without saying why.
+csp="$(grep -o '<meta http-equiv="Content-Security-Policy" content="[^"]*"' dist/index.html | sed 's/.*content="//; s/"$//' || true)"
 [ -n "$csp" ] || fail "no CSP meta tag in dist/index.html"
-for need in "default-src 'self'" "script-src 'self'" "worker-src 'self'" "style-src 'self'" "connect-src 'self'" "object-src 'none'" "base-uri 'self'" "form-action 'none'" "frame-ancestors 'none'"; do
+# frame-ancestors is not checked: browsers ignore it in a <meta> CSP, so it protects nothing here. Framing is an
+# accepted risk until a host can send headers (docs/SAFETY.md finding 1, IDEAS 29); it stays a manual item below.
+for need in "default-src 'self'" "script-src 'self'" "worker-src 'self'" "style-src 'self'" "connect-src 'self'" "object-src 'none'" "base-uri 'self'" "form-action 'none'"; do
   case "$csp" in *"$need"*) ;; *) fail "CSP lacks: $need";; esac
 done
 for bad in "unsafe-inline" "unsafe-eval" "blob:" " *" "http:"; do
@@ -53,4 +59,5 @@ grep -E 'Tests' save.log
 echo "== safety ok (${sha})"
 echo "Still manual (docs/SAFETY.md checklist): the live Pages URL over HTTPS with a clean console, the devtools"
 echo "network tab during play (one origin), a fresh-profile boot (photosensitivity notice, REDUCE MOTION),"
-echo "docs/WARNINGS.md end to end, and the decision on each open finding."
+echo "docs/WARNINGS.md end to end, the decision on each open finding, and framing (frame-ancestors needs a response"
+echo "header; a meta CSP cannot carry it: accepted risk on GitHub Pages, docs/SAFETY.md finding 1)."
