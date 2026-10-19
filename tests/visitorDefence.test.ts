@@ -31,3 +31,21 @@ describe('lasers on visitors from out of the plane (IDEAS 27)', () => {
     expect(r.events.some((e) => e.kind === 'PUSH')).toBe(false);
   });
 });
+
+describe('deep-space surveys warn of a SCI-FI visitor sooner (IDEAS 27)', () => {
+  it('HIVE_2 multiplies the warning by 1.5 and HIVE_3 by 2; a run without them draws exactly as before', async () => {
+    const { visitorWarningMult } = await import('../src/sim/roundGen');
+    expect(visitorWarningMult([])).toBe(1);
+    expect(visitorWarningMult(['ATLAS', 'HIVE_2'])).toBe(1.5);
+    expect(visitorWarningMult(['HIVE_2', 'HIVE_3'])).toBe(2);
+    const lead = (active: string[]): number => {
+      const w = createWorld('VIS-3', 3);
+      w.networks = { active, since: {} };
+      return (generateThreat(roundRng('VIS-3', 3), w, 3, 0, { flavor: 'INTERSTELLAR', skipDiscovery: true, scifi: true }).tImpact - w.t);
+    };
+    const base = lead([]);
+    expect(lead(['ATLAS'])).toBe(base);
+    expect(lead(['HIVE_2']) / base).toBeCloseTo(1.5, 12);
+    expect(lead(['HIVE_3']) / base).toBeCloseTo(2, 12);
+  });
+});

@@ -356,6 +356,11 @@ export const KNOBS = {
   GAUGE_AFTERMATH_M: 1,
   /** The danger band drawn red on the gauge: damage begins near 20 m, the catalog is fairly complete from 140 m. */
   GAUGE_DANGER_M: [20, 140] as readonly [number, number],
+  /** IDEAS 27: SCI-FI visitors' warning (0.6 to 1.5 years, drawn) is multiplied by the best deep-space survey active:
+   *  nodes above and below the plane (HIVE_2) and infrared nodes on Venus and L4/L5 legs (HIVE_3) see a steep visitor
+   *  sooner. Balance values, not claims. Measured (bench/visitors.bench.ts): warning x1.5 lifts SCI-FI visitors with
+   *  any feasible launch from 0 to 4 of 30 (5 with a craft on standby), x2 to 5 (7). */
+  SCIFI_VISITOR_WARNING_MULT: { HIVE_2: 1.5, HIVE_3: 2 } as Readonly<Record<string, number>>,
   /** SUPER-DUPER-DEMO (IDEAS 20): timed by the clock, not by games (owner 2026-10-18: about 5 minutes by default,
    *  also 2-3 or 10). Speed = START x (END / START)^(elapsed / length), capped at DEMO_SPEED_MAX, then the
    *  montage. NOTE: a game-count rule (100 games at 2 x 1.15^n) was dropped after a measurement: one game takes

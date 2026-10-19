@@ -265,9 +265,17 @@ function generateRealVisitor(rng: Rng, world: World, k: number, now: number): Th
   return { ...th, flavor: 'INTERSTELLAR' };
 }
 
+/** The best SCI-FI visitor warning multiplier among the active networks. Example: ['ATLAS', 'HIVE_2'] gives 1.5. */
+export function visitorWarningMult(active: readonly string[]): number {
+  let m = 1;
+  for (const id of active) m = Math.max(m, KNOBS.SCIFI_VISITOR_WARNING_MULT[id] ?? 1);
+  return m;
+}
+
 /**
  * SCI-FI round types (21.2). The lead is fixed by the flavor (the civilization's networks are assumed to
- * see everything; discovery is not simulated): INTERSTELLAR 0.6 to 1.5 yr on a hyperbola at 50 to 90 km/s;
+ * see everything; discovery is not simulated): INTERSTELLAR 0.6 to 1.5 yr on a hyperbola at 50 to 90 km/s, times the
+ * deep-space survey multiplier (visitorWarningMult);
  * LONG_PERIOD a comet 0.5 to 3 km with one year of warning; GIANT a 5 km body with the ordinary lead x1.5.
  */
 function generateFlavored(rng: Rng, world: World, k: number, now: number, flavor: ThreatFlavor): Threat {
@@ -280,7 +288,9 @@ function generateFlavored(rng: Rng, world: World, k: number, now: number, flavor
     case 'INTERSTELLAR':
       type = (rng.chance(0.5) ? THREAT_TYPES.find((t) => t.id === 'ICY') : THREAT_TYPES.find((t) => t.id === 'STONY')) as ThreatType;
       D = rng.logUniform(100, 800);
-      lead = rng.float(0.6, 1.5) * YEAR;
+      // NOTE: the deep-space surveys see a visitor sooner (IDEAS 27, knob SCIFI_VISITOR_WARNING_MULT). Applied after
+      // the draw, so a run without them draws exactly as before.
+      lead = rng.float(0.6, 1.5) * YEAR * visitorWarningMult(world.networks.active);
       break;
     case 'LONG_PERIOD':
       type = THREAT_TYPES.find((t) => t.id === 'ICY') as ThreatType;

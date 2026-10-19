@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- SCI-FI visitors (IDEAS 27, part 3): the deep-space surveys stretch a visitor's warning, HIVE_2 x1.5 and HIVE_3 x2
+  (knob SCIFI_VISITOR_WARNING_MULT), the strongest lever measured: visitors with any feasible launch go from 0 to 4 of
+  30 at x1.5 and 5 at x2 (7 with a craft on standby). Runs without them draw exactly as before.
 - Lasers against out-of-plane visitors (IDEAS 27, part 2): tested that DE-STAR fires on 3-D visitors by range and moves
   them; the ground laser never fires on a fast visitor (it crosses 0.05 AU in about a day, inside the reserved last
   day). In SCI-FI the planner's no-plan help names the array and says so.
