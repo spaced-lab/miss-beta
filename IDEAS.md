@@ -157,7 +157,14 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
       range, not plane; check they apply to 3-D bodies and say so in the planner.
     - Terminal defense for the last weeks (PROPOSED): PI penetrator arrays and civil defense tuned for visitors.
     Also: show in the planner WHY no plan exists for a 3-D visitor (plane too steep, dv shown), so the player learns
-    what would help. Status: queued (owner: put in backlog; build in turn).
+    what would help. Status: 2026-10-18, measured and partly built (bench/visitors.bench.ts, 30 SCI-FI visitors):
+    time is the first wall (0 reachable after a half-year build), the plane the second (50 to 80 % of the C3 of the
+    rest). Built: the planner's no-plan explanation (time, energy, plane share, levers); lasers checked on 3-D bodies
+    (DE-STAR works, the ground laser is too slow for a fast visitor); HIVE_2/HIVE_3 stretch a SCI-FI visitor's
+    warning x1.5 / x2; KICK_STAGES (C3 +40, claim KS-1 UNVERIFIED); INCLINED_PICKETS (standby, 5 km/s parked
+    out of the plane, claim PK-1 CHECKED). All stacked: 10 of 30 reachable, 9 made to miss (was 0). Left: 3-D flyby
+    and sail plans (they need more time than a visitor gives, so they belong with IDEAS 30's ordinary 3-D NEAs);
+    nuclear-electric interceptors and terminal-defence tuning, still open.
 
 28. **Hosting origin (S).** Owner 2026-10-18: publish from the owner's GitHub account (in the keyring). Suggestion:
     a free GitHub organization for the project (for example `spacedlab`) keeps the owner's account but gives the

@@ -4,6 +4,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Visitor defence measured end to end (IDEAS 27): with HIVE_3, inclined pickets, kick stages and the depot, 10 of 30 SCI-FI visitors can be reached and 9 made to miss; none could before (bench/visitors.bench.ts).
 - INCLINED PICKETS program (IDEAS 27, part 5, PROPOSED): two interceptors on standby in orbits tilted about 10 degrees,
   already moving up to 5 km/s out of the plane (CHECKED, claim PK-1), so a steep visitor costs less launch energy.
   For the visitors still out of reach, 50 to 80 % of the needed C3 was the climb out of the plane. With HIVE_3's

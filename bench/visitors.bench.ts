@@ -13,6 +13,8 @@ import { describe, expect, it } from 'vitest';
 import { KNOBS } from '../src/config/knobs';
 import { launcherTier } from '../src/physics/estimates';
 import { computePorkchop } from '../src/planner/porkchop';
+import { rankGrid } from '../src/planner/rank';
+import { resolveRound } from '../src/sim/resolver';
 import { roundRng } from '../src/sim/rng';
 import { generateThreat } from '../src/sim/roundGen';
 import { createWorld, planetById } from '../src/sim/world';
@@ -48,5 +50,31 @@ describe('visitor reachability', () => {
     fs.mkdirSync('.dev', { recursive: true });
     fs.writeFileSync('.dev/visitors.txt', out.join('\n') + '\n');
     expect(out.length).toBe(levers.length);
+  });
+
+  it('with every defence stacked, counts visitors that a plan makes miss', { timeout: 900_000 }, async () => {
+    // HIVE_3 active (warning x2 through the real generator), INCLINED_PICKETS (standby, vz 5 km/s), KICK_STAGES +
+    // ORBITAL_DEPOT (C3 55), every impactor, warhead and push tier at its top. Measured 2026-10-18: 10 reachable,
+    // 9 MISS (mostly NUKE_DISRUPT), 1 PARTIAL.
+    let reach = 0;
+    let miss = 0;
+    for (let i = 1; i <= 30; i++) {
+      const seed = `VIS-${i}`;
+      const w = createWorld(seed, 3);
+      w.networks = { active: [...w.networks.active, 'HIVE_3'], since: {} };
+      const th = generateThreat(roundRng(seed, 3), w, 3, 0, { flavor: 'INTERSTELLAR', skipDiscovery: true, scifi: true });
+      w.threat = th;
+      const res = resolveRound(w, []);
+      const target = res.bodies[0];
+      if (!target) continue;
+      const g = computePorkchop({ home: planetById(w, 'HOME').elements, threat: th.elements, muSun: w.star.mu, tMin: w.t, tImpact: th.tImpact, tier: launcherTier(3), c3Bonus: 55, vzPark: 5000 });
+      if (g.feasible === 0) continue;
+      reach++;
+      const cands = rankGrid(g, { world: w, missions: [], target, threatEnergyMt: res.energy.energyMt, launcherTier: 3, impactorTier: 3, warheadTier: 3, slowPushTier: 3, sailTier: 0, swarmTier: 3, autonomyTier: 2, pi: true, dsmBudget: KNOBS.DSM_BUDGET[2] ?? 15000, budget: 1e9 });
+      if (cands.some((c) => c.verdict?.outcome === 'MISS')) miss++;
+    }
+    const fs = await nodeFs();
+    fs.appendFileSync('.dev/visitors.txt', `all defences stacked: reachable ${reach}/30, made to miss ${miss}/30\n`);
+    expect(miss).toBeLessThanOrEqual(reach);
   });
 });
