@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 WHAT: Render the canned robot voice lines (IDEAS 21) to public/audio/voice/<voice>/<ID>.ogg for every robot voice
-      (female, male, terminal, computer, mainframe, toy) and write the id -> text manifest src/config/voice.json.
+      (female, male, terminal, computer, mainframe, toy, narrator, radio) and write the manifest src/config/voice.json.
 WHY:  The game loads nothing remote and synthesises no speech at run time, so the lines are baked offline once and
       committed as tiny Opus files. Kokoro-82M (hexgrad, Apache-2.0) is a free, local, small TTS model; its British
       British voices bf_emma and bm_fable (and American af_heart, am_michael, am_onyx, af_bella) are read through a
@@ -58,13 +58,21 @@ BASE = {"bands": 24, "dry": 0.45, "ring": 0.08, "quant": 96, "band": (250.0, 400
 VOICES = {
     "female": ("b", "bf_emma", 120.0, 0.95, {}),
     "male": ("b", "bm_fable", 90.0, 0.95, {}),
+    # NOTE: TERMINAL, MAINFRAME and TOY were retuned for clarity (IDEAS 36, scripts/voice_check.py, Whisper base.en
+    # word accuracy over all 23 lines): TERMINAL 76 -> 86 %, MAINFRAME 70 -> 79 %, TOY 52 -> 74 %, by keeping more of
+    # the dry voice under the vocoder, finer quantising and (MAINFRAME) a little less pitch drop. Each keeps its
+    # character: mostly vocoder, deep and slow, 8 kHz sample-and-hold fizz.
     "terminal": ("a", "af_heart", 140.0, 0.95,
-                 {"bands": 16, "dry": 0.18, "ring": 0.12, "quant": 40, "band": (300.0, 3400.0)}),
+                 {"bands": 24, "dry": 0.45, "ring": 0.10, "quant": 64, "band": (300.0, 3400.0)}),
     "computer": ("a", "am_michael", 100.0, 0.95, {"dry": 0.75, "ring": 0.0, "quant": 256, "band": (180.0, 5500.0)}),
-    "mainframe": ("a", "am_onyx", 55.0, 0.9,
-                  {"bands": 20, "dry": 0.35, "ring": 0.14, "quant": 80, "band": (120.0, 3200.0), "shift": 0.84}),
+    "mainframe": ("a", "am_onyx", 60.0, 0.9,
+                  {"bands": 24, "dry": 0.5, "ring": 0.10, "quant": 96, "band": (120.0, 3800.0), "shift": 0.88}),
     "toy": ("a", "af_bella", 160.0, 1.0,
-            {"bands": 16, "dry": 0.4, "ring": 0.05, "quant": 24, "band": (300.0, 3800.0), "hold": 2}),
+            {"bands": 16, "dry": 0.6, "ring": 0.05, "quant": 48, "band": (300.0, 3800.0), "hold": 2}),
+    # New options (IDEAS 36): NARRATOR, a calm British announcer with a light robot edge (94.6 %), and RADIO, mission
+    # comms through a narrow 400-3000 Hz radio band (95.7 %), the two clearest voices.
+    "narrator": ("b", "bm_george", 95.0, 0.95, {"bands": 24, "dry": 0.7, "ring": 0.02, "quant": 192, "band": (150.0, 5500.0)}),
+    "radio": ("a", "am_adam", 110.0, 0.95, {"bands": 20, "dry": 0.6, "ring": 0.06, "quant": 64, "band": (400.0, 3000.0)}),
 }
 
 LINES = {

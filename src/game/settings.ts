@@ -15,7 +15,7 @@ import type { SoundStyle } from '../audio/ui';
 export type TextSize = 'SMALL' | 'NORMAL' | 'LARGE';
 export type Units = 'SI' | 'IMPERIAL';
 /** Robot voices: each is one baked clip folder, public/audio/voice/<lower case name>/ (scripts/gen_voice.py). */
-export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE' | 'TERMINAL' | 'COMPUTER' | 'MAINFRAME' | 'TOY';
+export type VoiceSetting = 'OFF' | 'FEMALE' | 'MALE' | 'TERMINAL' | 'COMPUTER' | 'MAINFRAME' | 'TOY' | 'NARRATOR' | 'RADIO';
 /** AUTOPLAY pace (owner 2026-10-18): SLOW is the first pace, NORMAL 1.5x, FAST 2.25x (knobs AUTO_SPEEDS). */
 export type AutoSpeed = 'SLOW' | 'NORMAL' | 'FAST';
 /** SUPER-DUPER-DEMO length before the finale: about 1, 2.5 or 5 minutes (knobs DEMO_LENGTHS). */
@@ -65,7 +65,7 @@ export const COLOR_MODES: readonly ColorMode[] = ['PHOSPHOR', 'AMBER', 'ICE', 'V
 export const GLOW_MODES: readonly GlowMode[] = ['understroke', 'shadow', 'none'];
 export const TEXT_SIZES: readonly TextSize[] = ['SMALL', 'NORMAL', 'LARGE'];
 export const UNITS: readonly Units[] = ['SI', 'IMPERIAL'];
-export const VOICES: readonly VoiceSetting[] = ['OFF', 'FEMALE', 'MALE', 'TERMINAL', 'COMPUTER', 'MAINFRAME', 'TOY'];
+export const VOICES: readonly VoiceSetting[] = ['OFF', 'FEMALE', 'MALE', 'TERMINAL', 'COMPUTER', 'MAINFRAME', 'TOY', 'NARRATOR', 'RADIO'];
 export const LEARNING_LEVELS: readonly LearningLevel[] = ['SIMPLE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 const TEXT_SCALE: Record<TextSize, number> = { SMALL: 0.9, NORMAL: 1, LARGE: 1.15 };
 

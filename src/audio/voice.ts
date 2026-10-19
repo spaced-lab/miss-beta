@@ -9,7 +9,8 @@
 //       same id is not repeated within VOICE_REPEAT_S. A line may name one follow-up (`then`) that plays when it
 //       ends uncut ("IMPACT. EARTH HAS BEEN HIT." then "GAME OVER."). Playback goes through the shared Synth's master bus and
 //       compressor, so the SOUND volume and the loudness cap apply. The voice has its own mode: OFF or one of the
-//       baked robot voices (FEMALE, MALE, TERMINAL, COMPUTER, MAINFRAME, TOY), each a folder named after it.
+//       baked robot voices (FEMALE, MALE, TERMINAL, COMPUTER, MAINFRAME, TOY, NARRATOR, RADIO), each a folder named after
+//       it. scripts/voice_check.py scores each voice's clarity with a speech recogniser (IDEAS 36).
 // LORE: G8 (the look, and the sound)
 
 import manifest from '../config/voice.json';

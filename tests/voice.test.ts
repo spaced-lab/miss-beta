@@ -41,9 +41,9 @@ describe('VOICE setting', () => {
     expect(isSettings(older)).toBe(true);
     expect(isSettings({ ...DEFAULT_SETTINGS, voice: 'ROBOT' })).toBe(false);
     expect(isSettings({ ...DEFAULT_SETTINGS, voice: 1 })).toBe(false);
-    expect(VOICES.length).toBe(7);
+    expect(VOICES.length).toBe(9);
     expect(isSettings({ ...DEFAULT_SETTINGS, voice: 'MALE' })).toBe(true);
-    expect(cycle(VOICES, 'TOY', 1)).toBe('OFF');
+    expect(cycle(VOICES, 'RADIO', 1)).toBe('OFF');
     expect(voiceUrl('FEMALE', 'LAUNCHING')).toBe('audio/voice/female/LAUNCHING.ogg');
     expect(voiceUrl('MAINFRAME', 'PLAY_A_GAME')).toBe('audio/voice/mainframe/PLAY_A_GAME.ogg');
     expect(voiceText('PLAY_A_GAME')).toBe('Would you like to play a game?');

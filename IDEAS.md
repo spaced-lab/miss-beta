@@ -196,4 +196,5 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     the full manual security review still happens before every publish. Status: DONE 2026-10-18 (`npm run safety`).
 
 36. **Robot voice work (M).** Owner: voice will be worked on; more options; FEMALE stays the default. Listen to all
-    six voices, tune clarity (scripts/gen_voice.py), add options. Status: backlog.
+    six voices, tune clarity (scripts/gen_voice.py), add options. Status: DONE 2026-10-18 (scripts/voice_check.py; TERMINAL,
+    MAINFRAME, TOY retuned; NARRATOR and RADIO added). Nobody has listened yet: the owner's ear is the final check.

@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Voices (IDEAS 36): two new voices, NARRATOR (a calm announcer) and RADIO (mission comms), the clearest of all, and
+  TERMINAL, MAINFRAME and TOY retuned for clarity while keeping their character. Measured with a speech recogniser
+  over all 23 lines on the shipped files (`scripts/voice_check.py`, Whisper base.en word accuracy): TOY 56 to 71 %,
+  TERMINAL 75 to 85 %, MAINFRAME 73 to 75 %, NARRATOR and RADIO 95 %; FEMALE, MALE and COMPUTER unchanged.
 - PERIMETER balance (IDEAS 31): a skipped start is the same game, later. Pressure starts near the level's ceiling and
   the moon as worn as a real run's would be (both measured on level-1 runs), with a 3 s grace before the first rock.
   Over 12 seeds a level-10 start now ends at the same median level as a level-1 run; HARD from 40 lasts 43-131 s
