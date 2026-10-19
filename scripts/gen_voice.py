@@ -4,7 +4,7 @@ WHAT: Render the canned robot voice lines (IDEAS 21) to public/audio/voice/<voic
       (female, male, terminal, computer, mainframe, toy, narrator, radio) and write the manifest src/config/voice.json.
 WHY:  The game loads nothing remote and synthesises no speech at run time, so the lines are baked offline once and
       committed as tiny Opus files. Kokoro-82M (hexgrad, Apache-2.0) is a free, local, small TTS model; its British
-      British voices bf_emma and bm_fable (and American af_heart, am_michael, am_onyx, af_bella) are read through a
+      voices bf_emma, bm_fable and bm_george (and American af_heart, am_michael, am_onyx, af_bella, am_adam) are read through a
       channel vocoder so they sound like a 1980s mission computer rather than a person. Each voice is one Kokoro
       speaker plus one processing style (how much vocoder, how much grit, pitch and pace), so a new voice is data.
 HOW:  One-time setup (torch does not support the system Python 3.14; the venv and the model cache stay out of git):

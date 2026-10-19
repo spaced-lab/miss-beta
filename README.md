@@ -99,4 +99,5 @@ MISS β is self-funded and runs on coffee. Donations for coffee are welcome and 
 free for everyone either way.
 
 Voice lines (`public/audio/voice/`) were rendered with [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
-by hexgrad (Apache-2.0), voices `bf_emma` and `bm_fable`, then vocoded by `scripts/gen_voice.py`.
+by hexgrad (Apache-2.0), voices `bf_emma`, `bm_fable`, `bm_george`, `af_heart`, `am_michael`, `am_onyx`, `af_bella`
+and `am_adam`, then vocoded by `scripts/gen_voice.py`.
