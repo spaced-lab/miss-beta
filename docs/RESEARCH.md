@@ -97,4 +97,7 @@ Append, never delete. Date, who, claim, change, reason.
                     F12-4, F12-5 UNVERIFIED -> SOURCED. F5-1 and FS-1 stay UNVERIFIED with sharper checks (ATLAS
                     limit 19.5 in EDUCATION to match networks.json; the networks.json numbers themselves unchanged).
                     T7-1: Moon GM agrees with NSSDCA to 0.1 percent; Mars and Ganymede not re-read.
+2026-10-19  Claude  F12-2 range corrected 40-140 -> 75-135 million years: the formula over the stated speeds (26-32
+                    km/s, with and without the Sun's pull) never reached 40; the test now reproduces both ends.
+                    New test: status labels in knobs.ts and programs.json must match the registry.
 ```

@@ -184,7 +184,7 @@ export const KNOBS = {
   SCIFI_SHARE_GIANT: 0.2,
   INTERSTELLAR_VINF_KMS: [50, 90] as readonly [number, number],
   /** OPTIONS INTERSTELLAR RATE (owner backlog 12): chance per REALISTIC round of a visitor from another star.
-   *  REAL is the true rate (a dangerous one is effectively never seen in a human lifetime; UNVERIFIED, claim
+   *  REAL is the true rate (a dangerous one is effectively never seen in a human lifetime; CHECKED, claim
    *  F12-2); anything above stamps the run EXAGGERATED. Drawn from its own seeded stream, so seeds keep their rounds. */
   INTERSTELLAR_RATES: { REAL: 1e-6, ELEVATED: 0.02, FREQUENT: 0.1, STORM: 0.3 },
   /** A REALISTIC visitor: excess speed range km/s (the known three came in at about 26 to 58), size range m,

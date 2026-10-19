@@ -3,6 +3,7 @@
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
 import registry from '../src/config/claims.json';
+import { YEAR } from '../src/physics/constants';
 
 const STATUSES = ['UNVERIFIED', 'SOURCED', 'CHECKED', 'CONTESTED', 'REFUTED', 'OPEN', 'UNFEASIBLE'];
 const claims = (registry as { claims: Record<string, unknown>[] }).claims;
@@ -31,26 +32,38 @@ describe('CLAIMS registry', () => {
       if ((m[1] as string).includes('UNVERIFIED')) expect(c?.status).toBe('UNVERIFIED');
     }
   });
+  it('status labels in the config files match the registry (knobs.ts, programs.json)', () => {
+    const byId = new Map(claims.map((c) => [c.id as string, c]));
+    let n = 0;
+    for (const file of ['src/config/knobs.ts', 'src/config/programs.json']) {
+      const text = (readFileSync as (p: string, e: string) => string)(file, 'utf8');
+      // "UNVERIFIED, claim F12-2", also wrapped across a comment line ("claim\n   *  F12-2").
+      for (const m of text.matchAll(/\b(UNVERIFIED|SOURCED|CHECKED)[,;]? claim[\s*]+([A-Z0-9]+-\d+)/g)) {
+        n++;
+        expect(byId.get(m[2] as string)?.status, `${file}: ${m[0]}`).toBe(m[1]);
+      }
+    }
+    expect(n).toBeGreaterThan(2);
+  });
   it('U-1: about 7e11 DART-class hits to move Ceres by 1 cm/s', () => {
     const dp = 9.38e20 * 0.01;
     const hit = 3.6 * 580 * 6100;
     expect(dp / hit).toBeGreaterThan(7e11);
     expect(dp / hit).toBeLessThan(8e11);
   });
-  it('F12-2: a 100 m class visitor hits the Earth about once per 40 to 140 million years (Do et al. 2018 density)', () => {
+  it('F12-2: a 100 m class visitor hits the Earth about once per 75 to 135 million years (Do et al. 2018 density)', () => {
     const AU = 1.495978707e11;
-    const YEAR = 3.15576e7;
     const n = 0.2 / AU ** 3; // objects per cubic metre
     const R = 6.371e6;
     const vEsc = 11.19e3;
-    // v_inf 26 km/s far from the Sun; about 49 km/s at 1 AU once the Sun's pull is added (sqrt(26^2 + 42.1^2)).
+    // v_inf 26 to 32 km/s far from the Sun; 49 to 53 km/s at 1 AU once the Sun's pull is added (sqrt(v^2 + 42.1^2)).
     const years = (v: number): number => 1 / (n * Math.PI * R * R * (1 + (vEsc / v) ** 2) * v * YEAR);
-    const slow = years(26e3);
-    const fast = years(49e3);
-    expect(slow).toBeGreaterThan(4e7);
-    expect(slow).toBeLessThan(1.5e8);
-    expect(fast).toBeGreaterThan(4e7);
-    expect(fast).toBeLessThan(1.5e8);
+    const cases = [26, 32, Math.hypot(26, 42.1), Math.hypot(32, 42.1)].map((v) => years(v * 1e3));
+    // Both ends of the stated range are reproduced, not just bounded.
+    expect(Math.max(...cases) / 1e6).toBeCloseTo(135, -1);
+    expect(Math.min(...cases) / 1e6).toBeCloseTo(75, -1);
+    expect(Math.max(...cases)).toBeLessThan(1.4e8);
+    expect(Math.min(...cases)).toBeGreaterThan(7e7);
   });
   it('F12-3: v_inf = sqrt(mu / -a) gives 26, 32 and 58 km/s for 1I, 2I and 3I', () => {
     const MU = 1.32712440018e20;

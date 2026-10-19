@@ -4,6 +4,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Claim F12-2 corrected to one 100 m class visitor hit per 75 to 135 million years (the low end of 40 was never reproduced); a test now keeps the claim labels in knobs.ts and programs.json in step with the registry.
 - Balance probes moved to `bench/*.probe.ts` and `npm run probe`, so `npm run bench` times only; the visitors probe generates its 30 visitors once (40 s to 5 s, same counts) and creates `.dev/` in either test.
 - PROGRAMS list scrolls (^ / v N MORE) when the window is too short for every row, so it no longer runs into the note, the detection gauge and the footer.
 - HELP > CREDITS, README and gen_voice.py list all 8 voices and credit every Kokoro speaker shipped (bm_george and am_adam were missing).

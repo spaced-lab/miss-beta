@@ -209,10 +209,10 @@
       "id": "F12-2",
       "topic": "F12",
       "claim": "Impact rate of interstellar objects of 100 m and larger on the Earth",
-      "value": "about one hit per 40 to 140 million years for 100 m class visitors",
+      "value": "about one hit per 75 to 135 million years for 100 m class visitors",
       "status": "CHECKED",
       "source": "Do, Tucker and Tonry 2018, ApJ Letters 855, L10 (number density about 0.2 per cubic AU for objects like 1I/'Oumuamua)",
-      "check": "rate = n x sigma x v with n = 0.2 au^-3, sigma = pi R^2 (1 + v_esc^2 / v^2), v 26 to 32 km/s, with and without the Sun's focusing; tests/claims.test.ts reproduces the range.",
+      "check": "rate = n x sigma x v with n = 0.2 au^-3, sigma = pi R^2 (1 + v_esc^2 / v^2), v 26 to 32 km/s far from the Sun, with and without the Sun's focusing (49 to 53 km/s at 1 AU); tests/claims.test.ts reproduces both ends (135 and 75 million years). Corrected 2026-10-19 from 40 to 140, whose low end no case reproduced.",
       "usedIn": [
         "src/config/knobs.ts INTERSTELLAR_RATES REAL",
         "EDUCATION.md F12 ADVANCED"
