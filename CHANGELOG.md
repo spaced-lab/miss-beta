@@ -4,6 +4,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Flash measurement (IDEAS 34): a WCAG 2.x flash meter (`render/flashMeter.ts`, tested; dev driver `render/flashCapture.ts`) measured every flashing effect in the browser: all at 0 flashes a second, the hit flash just under the luminance threshold. docs/WARNINGS.md item 8 has the table.
 - Claims review (IDEAS 33): the found share of 140 m NEAs is "about half" (SOURCED); ATLAS warning corrected to about a
   day for a 20 m rock and up to three weeks for 100 m (it said two days for 10 m); thirteen pre-impact discoveries
   SOURCED, without the unsupported "nearly all by Catalina and ATLAS"; interstellar impact rate and the three

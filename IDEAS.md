@@ -187,7 +187,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 
 34. **Flash measurement (S).** Measure each flash against the WCAG general-flash and red-flash thresholds (area
     and luminance, claim G8-1); keep the notice and REDUCE MOTION for now, and add a dedicated REDUCE FLASHING
-    option if testing finds any effect over the line. Status: backlog.
+    option if testing finds any effect over the line. Status: DONE 2026-10-18 (all effects 0 flashes a second; no REDUCE
+    FLASHING option needed; docs/WARNINGS.md item 8).
 
 35. **Automated security steps (S).** Script the automatable parts of the docs/SAFETY.md checklist (clean
     checkout gate and build, dist greps, CSP check, oversized and malformed SAVE.md import); reviewed by the owner;

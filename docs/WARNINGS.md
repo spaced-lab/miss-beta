@@ -64,8 +64,18 @@ it lives, what it can do, and what to do about it. Add an entry whenever a conve
   acknowledged once (`photoAck` in the settings record). OPTIONS > REDUCE MOTION turns off the hit flash, the
   glitch and the CRT flicker, shows cinematics as a still frame and slows the montage to one cut a second.
   Without it the montage is still capped at three cuts a second (WCAG 2.3.1, "three flashes or below threshold";
-  `DEMO_MONTAGE.SAFE_MIN_S`). Not yet measured: the luminance area of each flash against the WCAG general-flash
-  threshold, and red-flash content. `[unverified]`
+  `DEMO_MONTAGE.SAFE_MIN_S`).
+- **Measured (IDEAS 34, 2026-10-18, dev build, Chrome, 1579 px wide, NEON):** `src/render/flashMeter.ts` counts general
+  and red flashes by the WCAG 2.x thresholds (Delta L >= 0.1 with the darker state under 0.8, over 25 % of a 10-degree
+  field, more than three a second fails; red: saturated red, Delta (R - G - B) x 320 > 20). Results, flashes in the
+  busiest second: title with CRT flicker 0; the whole finale montage through the blur and the teletype 0; 40 s of the
+  demo's faster games with 15 cutaways and 3 cinematics 0; SIMULATION glitch with a forced peel 0; PERIMETER from level
+  30 (lasers, beams, shake) 0; IMPACT, NUKE and HIT close-approach cinematics rendered frame by frame at 60 fps in NEON
+  and MONO 0 general, 0 red. Margin: the hit flash is white at 35 % over a dark scene, a relative luminance step of
+  about 0.0999, just under the 0.1 threshold, and at most one per scene. A positive control (a full-screen black and
+  white toggle every 100 ms, captured the same way) reads 5 a second and fails. Not measured: PI and FRAGMENTATION
+  cinematics (same hit-flash code), DAYLIGHT colour mode, other screen sizes. Re-measure with
+  `src/render/flashCapture.ts` (dev console) after any effect change; a REDUCE FLASHING option is not needed today.
 - **Do:** keep any new full-screen change at or under three per second, route it through `reduceMotion`, and
   list it here and in the notice.
 

@@ -109,7 +109,7 @@
       "value": "WCAG 2.3.1 Three Flashes or Below Threshold",
       "status": "SOURCED",
       "source": "W3C Web Content Accessibility Guidelines 2.1, success criterion 2.3.1",
-      "check": "Read the criterion and its general and red flash thresholds; measure our flashes against them.",
+      "check": "Read the criterion and its general and red flash thresholds; measure our flashes against them. Measured 2026-10-18 with src/render/flashMeter.ts (WCAG 2.x general and red flash thresholds): every effect at 0 flashes in the busiest second; the hit flash is a 0.0999 luminance step, just under 0.1 (docs/WARNINGS.md item 8).",
       "usedIn": [
         "src/render/views/demo.ts",
         "docs/WARNINGS.md 8"
