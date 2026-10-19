@@ -2,7 +2,7 @@
 //       enough time, not enough launch energy, and how much of that energy is climbing out of the planet's plane)
 //       and what would help.
 // WHY:  A visitor from another star usually leaves the planner blank. Measured over 30 SCI-FI visitors (bench/
-//       visitors.bench.ts): with the half-year build none has a feasible launch; a craft already on standby reaches
+//       visitors.probe.ts): with the half-year build none has a feasible launch; a craft already on standby reaches
 //       1, plus 150 km^2/s^2 of free C3 3, plus 400 km^2/s^2 8. Time is the first wall, energy the second, so the
 //       player should learn that, not stare at an empty list.
 // HOW:  Pure: (grid, context) -> lines. TIME when the grid has no cell with a solved transfer and the lead is shorter

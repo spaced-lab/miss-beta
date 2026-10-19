@@ -11,7 +11,7 @@ To watch the game: press `8` on the PERIMETER ready panel. The bot plays NORMAL 
 (`MG.DEMO_SPEED`) and starts a new game 4 s after each game over. `1` (debug HUD), `2` (glow) and `4` (sound) keep the
 demo running; any other key ends it, and Escape goes to the title. To measure: the same bot runs headlessly in vitest.
 `tests/minigameModes.test.ts` has a cheap EASY-against-HARD check. To redo the full table, run
-`npm run bench -- bench/minigameEasy.bench.ts bench/minigameNormal.bench.ts bench/minigameHard.bench.ts` (bench/mgProbe.ts;
+`npm run probe -- bench/minigameEasy.probe.ts bench/minigameNormal.probe.ts bench/minigameHard.probe.ts` (bench/mgProbe.ts;
 the three run in parallel, about 6 minutes; results in `.dev/mg-<difficulty>.txt`).
 
 ## Measured difficulty table (2026-10-18)
@@ -33,8 +33,8 @@ sooner from level 1, and much sooner from a skipped start.
 
 ### After IDEAS 31 (2026-10-18): a skip is "the same game, later"
 
-How the measurement drove the fix, as a worked example. First the probe (`bench/mgProbe.ts`, `npm run bench --
-bench/minigameNormal.bench.ts`, results in `.dev/mg-*.txt`) reproduced the table above exactly, so it measures the same
+How the measurement drove the fix, as a worked example. First the probe (`bench/mgProbe.ts`, `npm run probe --
+bench/minigameNormal.probe.ts`, results in `.dev/mg-*.txt`) reproduced the table above exactly, so it measures the same
 thing. Then a snapshot of level-1 NORMAL runs at the levels a skip lands on showed what a skip was missing: at level 10
 pressure already sits at its ceiling (1.60) and the moon has 530-580 of 600 HP; by level 20 the moon is gone on three
 seeds of four and pressure is near 1.87 of 1.90. A skip started at pressure 0.85 with a full moon. So the skip now

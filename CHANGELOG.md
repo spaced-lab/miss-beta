@@ -4,11 +4,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Balance probes moved to `bench/*.probe.ts` and `npm run probe`, so `npm run bench` times only; the visitors probe generates its 30 visitors once (40 s to 5 s, same counts) and creates `.dev/` in either test.
 - PROGRAMS list scrolls (^ / v N MORE) when the window is too short for every row, so it no longer runs into the note, the detection gauge and the footer.
 - HELP > CREDITS, README and gen_voice.py list all 8 voices and credit every Kokoro speaker shipped (bm_george and am_adam were missing).
 - Flash meter judges saturated red in linear light, as WCAG defines it (reddish colours were skipped); re-measured: still 0 flashes a second everywhere. The capture no longer copies each frame twice.
 - Planner no-plan hints fixed (review 2026-10-19): INTERCEPTOR ON STANDBY and INCLINED PICKETS are suggested only against a visitor (an ordinary rock gets INTERCEPTOR STOCKPILE); LUNAR MASS DRIVER only in SCI-FI; the TIME line counts the 60-day resolve margin and a standby craft; a window with no solved transfer reads NO TRANSFER FOUND. The standby rule lives in one helper, `launchReadiness`.
-- Visitor defence measured end to end (IDEAS 27): with HIVE_3, inclined pickets, kick stages and the depot, 10 of 30 SCI-FI visitors can be reached and 9 made to miss; none could before (bench/visitors.bench.ts).
+- Visitor defence measured end to end (IDEAS 27): with HIVE_3, inclined pickets, kick stages and the depot, 10 of 30 SCI-FI visitors can be reached and 9 made to miss; none could before (bench/visitors.probe.ts).
 - INCLINED PICKETS program (IDEAS 27, part 5, PROPOSED): two interceptors on standby in orbits tilted about 10 degrees,
   already moving up to 5 km/s out of the plane (CHECKED, claim PK-1), so a steep visitor costs less launch energy.
   For the visitors still out of reach, 50 to 80 % of the needed C3 was the climb out of the plane. With HIVE_3's
@@ -25,7 +26,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - Planner, when no launch exists (IDEAS 27, part 1): it says which wall the player hit, NOT ENOUGH TIME (impact in N
   days, a build takes M) or NOT ENOUGH LAUNCH ENERGY (the best window's C3 against the launcher's reach, and how much
   of it is climbing out of the plane for a steep visitor), and what would help (`planner/explain.ts`). Measured on 30
-  SCI-FI visitors (`bench/visitors.bench.ts`): none reachable after a half-year build; time is the first wall.
+  SCI-FI visitors (`bench/visitors.probe.ts`): none reachable after a half-year build; time is the first wall.
 - Voices (IDEAS 36): two new voices, NARRATOR (a calm announcer) and RADIO (mission comms), the clearest of all, and
   TERMINAL, MAINFRAME and TOY retuned for clarity while keeping their character. Measured with a speech recogniser
   over all 23 lines on the shipped files (`scripts/voice_check.py`, Whisper base.en word accuracy): TOY 56 to 71 %,

@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "MISS_BENCH=1 vitest run",
+    "probe": "MISS_BENCH=probe vitest run",
     "typecheck": "tsc --noEmit",
     "check": "bash scripts/check.sh",
     "safety": "bash scripts/safety.sh"

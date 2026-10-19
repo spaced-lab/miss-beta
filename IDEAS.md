@@ -157,7 +157,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
       range, not plane; check they apply to 3-D bodies and say so in the planner.
     - Terminal defense for the last weeks (PROPOSED): PI penetrator arrays and civil defense tuned for visitors.
     Also: show in the planner WHY no plan exists for a 3-D visitor (plane too steep, dv shown), so the player learns
-    what would help. Status: 2026-10-18, measured and partly built (bench/visitors.bench.ts, 30 SCI-FI visitors):
+    what would help. Status: 2026-10-18, measured and partly built (bench/visitors.probe.ts, 30 SCI-FI visitors):
     time is the first wall (0 reachable after a half-year build), the plane the second (50 to 80 % of the C3 of the
     rest). Built: the planner's no-plan explanation (time, energy, plane share, levers); lasers checked on 3-D bodies
     (DE-STAR works, the ground laser is too slow for a fast visitor); HIVE_2/HIVE_3 stretch a SCI-FI visitor's

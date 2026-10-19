@@ -358,7 +358,7 @@ export const KNOBS = {
   GAUGE_DANGER_M: [20, 140] as readonly [number, number],
   /** IDEAS 27: SCI-FI visitors' warning (0.6 to 1.5 years, drawn) is multiplied by the best deep-space survey active:
    *  nodes above and below the plane (HIVE_2) and infrared nodes on Venus and L4/L5 legs (HIVE_3) see a steep visitor
-   *  sooner. Balance values, not claims. Measured (bench/visitors.bench.ts): warning x1.5 lifts SCI-FI visitors with
+   *  sooner. Balance values, not claims. Measured (bench/visitors.probe.ts): warning x1.5 lifts SCI-FI visitors with
    *  any feasible launch from 0 to 4 of 30 (5 with a craft on standby), x2 to 5 (7). */
   SCIFI_VISITOR_WARNING_MULT: { HIVE_2: 1.5, HIVE_3: 2 } as Readonly<Record<string, number>>,
   /** [knob] Planner no-plan explanation (planner/explain.ts): name the climb out of the plane once its share of the best

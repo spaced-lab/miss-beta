@@ -7,7 +7,7 @@
 //       with x2 and C3 55 12/30. Time is the first wall, then the climb out of the plane (50 to 80 % of the C3 of the
 //       still-unreachable visitors); flyby and sail legs need more time than a visitor gives.
 // HOW:  Seeds VIS-1..30, round 3, flavor INTERSTELLAR, discovery skipped (the lead is the round's). computePorkchop
-//       from HOME at L3 for each lever; results in .dev/visitors.txt. About 40 seconds.
+//       from HOME at L3 for each lever (the 30 visitors generated once); results in .dev/visitors.txt. About 5 seconds.
 // LORE: G3 (the planner), F12 (visitors from other stars)
 import { describe, expect, it } from 'vitest';
 import { KNOBS } from '../src/config/knobs';
@@ -34,12 +34,15 @@ describe('visitor reachability', () => {
       ['inclined pickets', 0, 0, 1, 5000], ['warning x2, pickets, C3 55', 0, 55, 2, 5000],
     ];
     const out: string[] = [];
+    // The 30 visitors do not depend on the lever: generate each once.
+    const visitors = Array.from({ length: 30 }, (_, k) => {
+      const seed = `VIS-${k + 1}`;
+      const w = createWorld(seed, 3);
+      return { w, th: generateThreat(roundRng(seed, 3), w, 3, 0, { flavor: 'INTERSTELLAR', skipDiscovery: true, scifi: true }) };
+    });
     for (const [name, build, c3, mult, vzPark] of levers) {
       let reach = 0;
-      for (let i = 1; i <= 30; i++) {
-        const seed = `VIS-${i}`;
-        const w = createWorld(seed, 3);
-        const th = generateThreat(roundRng(seed, 3), w, 3, 0, { flavor: 'INTERSTELLAR', skipDiscovery: true, scifi: true });
+      for (const { w, th } of visitors) {
         const start = th.tImpact - mult * (th.tImpact - w.t);
         const g = computePorkchop({ home: planetById(w, 'HOME').elements, threat: th.elements, muSun: w.star.mu, tMin: start + build, tImpact: th.tImpact, tier: launcherTier(3), c3Bonus: c3, vzPark: vzPark ?? 0 });
         if (g.feasible > 0) reach++;
@@ -74,6 +77,7 @@ describe('visitor reachability', () => {
       if (cands.some((c) => c.verdict?.outcome === 'MISS')) miss++;
     }
     const fs = await nodeFs();
+    fs.mkdirSync('.dev', { recursive: true });
     fs.appendFileSync('.dev/visitors.txt', `all defences stacked: reachable ${reach}/30, made to miss ${miss}/30\n`);
     expect(miss).toBeLessThanOrEqual(reach);
   });

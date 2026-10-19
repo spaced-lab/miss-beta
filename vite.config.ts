@@ -2,7 +2,8 @@
 // WHY:  One config file keeps the dependency list at three packages (vite, typescript, vitest).
 // HOW:  Relative base so the build also runs from a GitHub Pages sub-path. Tests live in tests/ and run
 //       in node (no DOM); anything that needs a canvas is kept out of the pure modules. Setting
-//       MISS_BENCH=1 swaps the include pattern to the timing tests in bench/ (`npm run bench`).
+//       MISS_BENCH=1 swaps the include pattern to the timing tests in bench/ (`npm run bench`); MISS_BENCH=probe to the
+//       long balance probes (`npm run probe`), kept apart so their CPU load never skews a timing.
 //       The csp() plugin injects a strict Content-Security-Policy meta tag into the PRODUCTION html only:
 //       in dev it would block the HMR client and browser-extension tooling.
 // LORE: C1 (how the game is built), C3 (tests and the two-language trick)
@@ -11,6 +12,7 @@ import { dirname, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
 
 const bench = process.env['MISS_BENCH'] === '1';
+const probe = process.env['MISS_BENCH'] === 'probe';
 
 export const CSP = [
   "default-src 'self'",
@@ -93,7 +95,7 @@ export default defineConfig({
     sourcemap: process.env['MISS_SOURCEMAP'] !== '0',
   },
   test: {
-    include: bench ? ['bench/**/*.bench.ts'] : ['tests/**/*.test.ts'],
+    include: bench ? ['bench/**/*.bench.ts'] : probe ? ['bench/**/*.probe.ts'] : ['tests/**/*.test.ts'],
     environment: 'node',
     testTimeout: 30000,
   },

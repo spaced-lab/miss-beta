@@ -16,6 +16,7 @@ public teaching repo (the code is a course). Also, as a side mode, PERIMETER: a 
 npm run dev        # Vite dev server, http://localhost:5173  (#minigame deep-links into the arcade mode)
 npm test           # vitest, tests/**/*.test.ts (pure modules only, node environment)
 npm run bench      # timing tests in bench/ (MISS_BENCH=1)
+npm run probe      # long balance probes in bench/*.probe.ts (MISS_BENCH=probe), kept off the timing run
 npm run check      # the quality gate: tsc, tests, npm audit, static security greps. Run before every commit.
 npm run build      # production build with the strict CSP injected into index.html
 ```
