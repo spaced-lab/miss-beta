@@ -166,6 +166,9 @@ export class PlannerOverlay {
         this.status = `PLANNER ERROR: ${e instanceof Error ? e.message.toUpperCase() : 'UNKNOWN'}`;
       });
     // Flyby and sail searches run alongside; their plans join the list when they land.
+    // NOTE: vzPark goes to the porkchop only on purpose. The flyby and sail searches are planar (Vec2 legs): they charge
+    // no climb out of the plane, so there is nothing for a parked craft to take off. 3-D flyby and sail plans land with
+    // IDEAS 30 (review 2026-10-19, finding 4).
     const threatEl = elementsAt(target.segments, tMin);
     if (session.navTier >= 1) {
       this.extraStatus = 'FLYBY SEARCH ...';
