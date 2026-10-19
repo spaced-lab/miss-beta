@@ -29,6 +29,8 @@ export interface PorkchopJob {
   tier: number;
   /** Free C3 from programs, km^2/s^2. */
   c3Bonus?: number;
+  /** Out-of-plane speed of a parked craft, m/s (INCLINED_PICKETS). */
+  vzPark?: number;
 }
 
 export interface MonteCarloJob {
@@ -215,7 +217,7 @@ export function runJob(job: WorkerJob): WorkerReply {
     return { id: job.id, type: 'sail', result: sailSearch({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), sailTier: job.sailTier, dsmBudget: job.dsmBudget, c3Bonus: job.c3Bonus ?? 0 }) };
   }
   if (isPorkchopJob(job)) {
-    const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), c3Bonus: job.c3Bonus ?? 0 });
+    const grid = computePorkchop({ home: job.home, threat: job.threat, muSun: job.muSun, tMin: job.tMin, tImpact: job.tImpact, tier: launcherTier(job.tier), c3Bonus: job.c3Bonus ?? 0, vzPark: typeof job.vzPark === 'number' && job.vzPark > 0 ? job.vzPark : 0 });
     return { id: job.id, type: 'porkchop', grid };
   }
   if (isRankJob(job)) return { id: job.id, type: 'rank', cands: job.grid ? rankGrid(job.grid, job.input) : rankExtras(job.flyby, job.sail, job.input) };

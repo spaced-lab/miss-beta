@@ -60,4 +60,7 @@ describe('CLAIMS registry', () => {
     expect(vinf(-0.851)).toBeCloseTo(32.3, 0);
     expect(vinf(-0.264)).toBeCloseTo(58.0, 0);
   });
+  it('PK-1: a craft inclined 10 degrees at 1 AU moves up to about 5.2 km/s out of the plane', () => {
+    expect(29.78 * Math.sin((10 * Math.PI) / 180)).toBeCloseTo(5.17, 2);
+  });
 });

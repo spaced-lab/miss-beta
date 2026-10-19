@@ -285,6 +285,24 @@
       "note": "a craft parked at Sun-Earth L2 waiting for a target: no build time against a visitor from another star"
     },
     {
+      "id": "INCLINED_PICKETS",
+      "name": "INCLINED PICKETS (STANDBY ABOVE AND BELOW THE PLANE)",
+      "tag": "PROPOSED",
+      "years": 5,
+      "costPerYear": 4,
+      "mode": "REALISTIC",
+      "effects": [
+        {
+          "kind": "STANDBY_INTERCEPTOR"
+        },
+        {
+          "kind": "PARKED_VZ",
+          "value": 5000
+        }
+      ],
+      "note": "two interceptors on standby in heliocentric orbits inclined about 10 degrees near the Earth's, one rising and one falling: no build time against a visitor, and up to 5 km/s of the climb out of the plane already paid (CHECKED, claim PK-1)"
+    },
+    {
       "id": "MOON_BASE",
       "name": "MOON BASE (CREWED OUTPOST)",
       "tag": "PROPOSED",

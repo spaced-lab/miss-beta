@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- INCLINED PICKETS program (IDEAS 27, part 5, PROPOSED): two interceptors on standby in orbits tilted about 10 degrees,
+  already moving up to 5 km/s out of the plane (CHECKED, claim PK-1), so a steep visitor costs less launch energy.
+  For the visitors still out of reach, 50 to 80 % of the needed C3 was the climb out of the plane. With HIVE_3's
+  warning and the free C3 programs, 12 of 30 SCI-FI visitors now have a feasible launch (0 without these).
 - KICK STAGES program (IDEAS 27, part 4, PROPOSED): a solid upper stage on every interceptor, effective C3 +40 km^2/s^2
   (UNVERIFIED, claim KS-1). With HIVE_3, a craft on standby and the orbital depot, 8 of 30 SCI-FI visitors have a
   feasible launch (0 without any of them).

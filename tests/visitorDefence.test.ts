@@ -49,3 +49,41 @@ describe('deep-space surveys warn of a SCI-FI visitor sooner (IDEAS 27)', () => 
     expect(lead(['HIVE_3']) / base).toBeCloseTo(2, 12);
   });
 });
+
+describe('inclined pickets (IDEAS 27)', () => {
+  it('a parked craft pays less C3 for a steep visitor and finds more windows; nothing changes for a planar rock', async () => {
+    const { computePorkchop } = await import('../src/planner/porkchop');
+    const { launcherTier } = await import('../src/physics/estimates');
+    const { planetById } = await import('../src/sim/world');
+    const w = visitor('VIS-6');
+    const th = w.threat;
+    if (!th) throw new Error('no threat');
+    const req = { home: planetById(w, 'HOME').elements, threat: th.elements, muSun: w.star.mu, tMin: w.t, tImpact: th.tImpact, tier: launcherTier(3), c3Bonus: 55 };
+    const plain = computePorkchop(req);
+    const parked = computePorkchop({ ...req, vzPark: 5000 });
+    let lower = 0;
+    for (let i = 0; i < plain.c3.length; i++) {
+      const a = plain.c3[i] ?? NaN;
+      const b = parked.c3[i] ?? NaN;
+      if (Number.isFinite(a)) {
+        expect(b).toBeLessThanOrEqual(a);
+        if (b < a) lower++;
+      }
+    }
+    expect(lower).toBeGreaterThan(0);
+    expect(parked.feasible).toBeGreaterThanOrEqual(plain.feasible);
+    const flat = createWorld('PICKET-FLAT', 1);
+    const ft = generateThreat(roundRng('PICKET-FLAT', 1), flat, 1, 0, { skipDiscovery: true });
+    const fr = { home: planetById(flat, 'HOME').elements, threat: ft.elements, muSun: flat.star.mu, tMin: 0, tImpact: ft.tImpact, tier: launcherTier(3) };
+    expect([...computePorkchop({ ...fr, vzPark: 5000 }).c3]).toEqual([...computePorkchop(fr).c3]);
+  });
+
+  it('the program gives a craft on standby and 5 km/s of parked out-of-plane speed', async () => {
+    const { applyEffects, defaultEffects, programById } = await import('../src/sim/programs');
+    const { createEconomy } = await import('../src/game/economy');
+    const c = { economy: createEconomy(10, 8), effects: defaultEffects(), networks: { active: [] as string[], since: {} } };
+    applyEffects(programById('INCLINED_PICKETS'), c, 0);
+    expect(c.effects.standbyInterceptor).toBe(true);
+    expect(c.effects.parkedVz).toBe(5000);
+  });
+});

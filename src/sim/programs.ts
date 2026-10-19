@@ -13,7 +13,7 @@ import { YEAR } from '../physics/constants';
 import type { Economy } from '../game/economy';
 import { yearOf } from './detection';
 
-export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD' | 'SEED_FLEET' | 'STUDY_FUSION_TUGS' | 'STANDBY_INTERCEPTOR' | 'PICKET' | 'SAIL_KITS' | 'SITE';
+export type EffectKind = 'BUDGET_PER_YEAR' | 'RESEARCH_MULT' | 'WARHEAD_PENALTY_MULT' | 'EVAC_MIN_DAYS' | 'DAMAGE_MULT' | 'ACTIVATE_NETWORK' | 'NETWORK_PCOVER' | 'TRACKING_TIER' | 'PRECURSOR' | 'BUILD_TIME_YEARS' | 'LAUNCH_CAP' | 'LAUNCHER_TIER' | 'C3_BONUS' | 'WARHEAD_BUILD_YEARS' | 'GROUND_LASER' | 'SIGMA_V_MULT' | 'SAIL_DEPOT' | 'ORBITAL_LASER' | 'LUNAR_DRIVER' | 'FUSION_TUGS' | 'DISASSEMBLER' | 'NANOFORGE' | 'THRUSTER_SWARM' | 'SHEPHERD' | 'SEED_FLEET' | 'STUDY_FUSION_TUGS' | 'STANDBY_INTERCEPTOR' | 'PARKED_VZ' | 'PICKET' | 'SAIL_KITS' | 'SITE';
 
 export interface Effect {
   kind: EffectKind;
@@ -79,6 +79,8 @@ export interface RunEffects {
   studyFusionTugN: number;
   /** INTERCEPTOR_ON_STANDBY: no build time against an interstellar visitor. */
   standbyInterceptor: boolean;
+  /** INCLINED_PICKETS: out-of-plane speed the standby craft already has, m/s (IDEAS 27). */
+  parkedVz: number;
   /** IDEAS 26: protected sites built (MOON, OUTER, GIANT_MOON); rounds may aim at them. */
   sites: string[];
   disassemblerTauYears: number;
@@ -112,6 +114,7 @@ export function defaultEffects(): RunEffects {
     fusionTugN: 0,
     studyFusionTugN: 0,
     standbyInterceptor: false,
+    parkedVz: 0,
     sites: [],
     disassemblerTauYears: 0,
     nanoforge: 0,
@@ -252,6 +255,9 @@ export function applyEffects(def: ProgramDef, ctx: ProgramsContext, t: number): 
         break;
       case 'STANDBY_INTERCEPTOR':
         ctx.effects.standbyInterceptor = true;
+        break;
+      case 'PARKED_VZ':
+        ctx.effects.parkedVz = Math.max(ctx.effects.parkedVz, v);
         break;
       case 'STUDY_FUSION_TUGS':
         ctx.effects.studyFusionTugN = Math.max(ctx.effects.studyFusionTugN, v);

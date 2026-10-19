@@ -26,6 +26,9 @@ export interface PorkchopRequest {
   tier: LauncherTier;
   /** Free departure energy from programs (ORBITAL_DEPOT, LUNAR_MASS_DRIVER), km^2/s^2: payload is read at C3 - bonus. */
   c3Bonus?: number;
+  /** Out-of-plane speed a craft parked off the plane already has, m/s (INCLINED_PICKETS, IDEAS 27): it comes off the
+   *  z part of the excess speed a target off the ecliptic needs. 0 or absent for a launch from HOME. */
+  vzPark?: number;
 }
 
 export interface PorkchopGrid {
@@ -146,7 +149,8 @@ function porkchop3(req: PorkchopRequest, g: PorkchopGrid): PorkchopGrid {
       const sol = lambert3({ x: hs.r.x, y: hs.r.y, z: 0 }, ts.r, dt, req.muSun);
       if (!sol) continue;
       const i = iL * nA + iA;
-      const vinf = Math.hypot(sol.v1.x - hs.v.x, sol.v1.y - hs.v.y, sol.v1.z);
+      // A craft parked off the plane already moves vzPark out of it, so only the rest of the climb is paid for.
+      const vinf = Math.hypot(sol.v1.x - hs.v.x, sol.v1.y - hs.v.y, Math.max(0, Math.abs(sol.v1.z) - (req.vzPark ?? 0)));
       const c3 = c3FromVinf(vinf);
       const payload = payloadForC3(req.tier, Math.max(0, c3 - (req.c3Bonus ?? 0)));
       g.c3[i] = c3;

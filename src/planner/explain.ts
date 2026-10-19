@@ -30,6 +30,8 @@ export interface NoPlanContext {
   standby: boolean;
   /** SCI-FI or beyond: name the orbital laser array, which acts by range and ignores the plane (tests/visitorDefence). */
   scifi?: boolean;
+  /** Out-of-plane speed a parked standby craft already has, m/s (INCLINED_PICKETS); already taken off the grid's C3. */
+  vzPark?: number;
 }
 
 /** SCI-FI levers that do not launch from HOME. The ground laser's 0.05 AU is crossed in about a day by a fast visitor,
@@ -74,9 +76,10 @@ export function explainNoPlan(g: PorkchopGrid, ctx: NoPlanContext): NoPlanWhy | 
   const lines = [`BEST WINDOW NEEDS C3 ${need.toFixed(0)} KM2/S2; L${ctx.tier.tier} ${ctx.tier.name}${ctx.c3Bonus > 0 ? ` WITH ${ctx.c3Bonus.toFixed(0)} FREE` : ''} REACHES ${ceiling.toFixed(0)}.`];
   if (g.v1z) {
     // HOME moves in the plane, so the whole z part of the departure velocity is excess speed: v_inf,z = v1z.
-    const vz = (g.v1z[best] ?? 0) / 1000;
+    const vz = Math.max(0, Math.abs(g.v1z[best] ?? 0) - (ctx.vzPark ?? 0)) / 1000;
     const share = need > 0 ? Math.min(1, (vz * vz) / need) : 0;
     if (share >= 0.05) lines[0] += ` ${(share * 100).toFixed(0)} % OF IT IS CLIMBING OUT OF THE PLANE: THE ROCK ARRIVES STEEPLY.`;
+    if (share >= 0.3 && !(ctx.vzPark ?? 0)) lines.push('A CRAFT PARKED OFF THE PLANE STARTS WITH PART OF THAT CLIMB PAID: INCLINED PICKETS (G).');
   }
   lines.push(help([
     ...(ctx.standby ? [] : ['A CRAFT ALREADY WAITING (INTERCEPTOR ON STANDBY: NO BUILD TIME, MORE WINDOWS)']),

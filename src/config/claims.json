@@ -281,6 +281,18 @@
       "usedIn": [
         "src/config/programs.json KICK_STAGES"
       ]
+    },
+    {
+      "id": "PK-1",
+      "topic": "T6",
+      "claim": "Out-of-plane speed of a craft on a heliocentric orbit inclined 10 degrees near 1 AU",
+      "value": "up to about 5 km/s (29.8 km/s x sin 10 degrees = 5.2 km/s), reached where it crosses the Earth's orbital plane",
+      "status": "CHECKED",
+      "source": "Earth's mean orbital speed 29.78 km/s: NASA Earth fact sheet (NSSDCA)",
+      "check": "v_z,max = v_orbit x sin(i) for a near-circular orbit; tests/claims.test.ts reproduces 5.2 km/s. The game uses 5 km/s for both pickets and ignores that a picket is not exactly at the Earth's position when it leaves (it stays within about 0.17 AU)",
+      "usedIn": [
+        "src/config/programs.json INCLINED_PICKETS"
+      ]
     }
   ]
 }
