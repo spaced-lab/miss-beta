@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- Planner, when no launch exists (IDEAS 27, part 1): it says which wall the player hit, NOT ENOUGH TIME (impact in N
+  days, a build takes M) or NOT ENOUGH LAUNCH ENERGY (the best window's C3 against the launcher's reach, and how much
+  of it is climbing out of the plane for a steep visitor), and what would help (`planner/explain.ts`). Measured on 30
+  SCI-FI visitors (`bench/visitors.bench.ts`): none reachable after a half-year build; time is the first wall.
 - Voices (IDEAS 36): two new voices, NARRATOR (a calm announcer) and RADIO (mission comms), the clearest of all, and
   TERMINAL, MAINFRAME and TOY retuned for clarity while keeping their character. Measured with a speech recogniser
   over all 23 lines on the shipped files (`scripts/voice_check.py`, Whisper base.en word accuracy): TOY 56 to 71 %,

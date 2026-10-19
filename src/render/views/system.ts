@@ -557,6 +557,7 @@ export class SystemScreen implements Screen {
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
       // A craft on standby needs no build time against a visitor from another star (INTERCEPTOR_ON_STANDBY).
       buildTime: this.run.effects.standbyInterceptor && this.world.threat?.flavor === 'INTERSTELLAR' ? 0 : this.run.effects.buildTimeYears * YEAR,
+      standby: this.run.effects.standbyInterceptor && this.world.threat?.flavor === 'INTERSTELLAR',
       c3Bonus: this.run.effects.c3Bonus + this.run.effects.lunarDriverC3,
       launchCap: this.run.effects.launchCap,
       budget: budgetAt(this.run.economy, this.world.t),

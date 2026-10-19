@@ -15,6 +15,8 @@ import { YEAR } from '../../physics/constants';
 import { propagate } from '../../physics/kepler';
 import type { Candidate } from '../../planner/candidates';
 import type { RankInput } from '../../planner/rank';
+import { explainNoPlan, type NoPlanWhy } from '../../planner/explain';
+import { launcherTier } from '../../physics/estimates';
 import { RULE_PRESETS } from '../../planner/rules';
 import type { FlybyResult } from '../../planner/flybySearch';
 import type { SailResult } from '../../planner/sailSearch';
@@ -29,7 +31,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import type { AutoCand } from '../../game/autoplay';
-import { drawText, drawTextFit, measureText } from '../vectorFont';
+import { drawText, drawTextFit, measureText, wrapText } from '../vectorFont';
 
 export interface PlannerSession {
   world: World;
@@ -50,6 +52,8 @@ export interface PlannerSession {
   buildTime: number;
   /** Free C3 from programs (km^2/s^2), passed to every search. */
   c3Bonus?: number;
+  /** A craft on standby serves this target (INTERCEPTOR_ON_STANDBY against a visitor): no build time. */
+  standby?: boolean;
   /** Launches allowed inside any 365-day window (19, HEAVY_LAUNCH_CADENCE); plans that would exceed it are hidden. */
   launchCap?: number;
   budget: number;
@@ -88,6 +92,8 @@ export class PlannerOverlay {
   private extraTicket = 0;
   /** True once the grid's plans have been ranked for the current target. */
   private ranked = false;
+  /** Why the grid holds no launch (planner/explain.ts), drawn where the plans would be; null with any window. */
+  private why: NoPlanWhy | null = null;
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly client: PlannerClient) {}
 
@@ -125,6 +131,7 @@ export class PlannerOverlay {
     const target = this.target;
     this.grid = null;
     this.ranked = false;
+    this.why = null;
     this.cands = [];
     this.extra = [];
     this.flybyRes = null;
@@ -146,6 +153,7 @@ export class PlannerOverlay {
       .then((grid) => {
         if (token !== this.jobToken) return;
         this.grid = grid;
+        this.why = explainNoPlan(grid, { lead: session.result.ca.tCa - w.t, buildTime: session.buildTime, minFlight: KNOBS.PORKCHOP_MIN_FLIGHT, tier: launcherTier(session.launcherTier), c3Bonus: session.c3Bonus ?? 0, standby: session.standby ?? false });
         this.rank();
       })
       .catch((e: unknown) => {
@@ -464,7 +472,7 @@ export class PlannerOverlay {
     this.planX = lx - 12;
     let ly = top;
     const range = KNOBS.BETA_RANGE[th.type.id] ?? ([2, 4] as const);
-    if (this.cands.length === 0 && g) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
+    if (this.cands.length === 0 && g && !this.why) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
     this.planYs = [];
     this.learnHits = [];
     const budget = this.session.budget;
@@ -508,6 +516,19 @@ export class PlannerOverlay {
       const last = this.planYs[this.planYs.length - 1];
       if (last) last.y1 = ly;
     });
+    // No launch window at all: say which wall it is and what would help (IDEAS 27).
+    if (this.why && this.cands.length === 0) {
+      const ui = uiColors(p, s.spectrum);
+      drawTextFit(s, this.why.kind === 'TIME' ? 'NO PLAN: NOT ENOUGH TIME' : 'NO PLAN: NOT ENOUGH LAUNCH ENERGY', lx, ly, 13, W - lx - m, { color: ui.title, glow: 1 });
+      let wy = ly + 22;
+      for (const line of this.why.lines) {
+        for (const l of wrapText(line, W - lx - m, 11)) {
+          drawText(s, l, lx, wy, 11, { color: ui.text, glow: 0.4 });
+          wy += 16;
+        }
+        wy += 6;
+      }
+    }
     // When no single plan is enough, say what to do: pushes add up, so commit one and plan again.
     const judged = this.cands.filter((c) => c.verdict);
     if (judged.length > 0 && judged.every((c) => c.verdict?.outcome !== 'MISS')) {
