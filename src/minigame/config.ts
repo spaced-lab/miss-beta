@@ -368,12 +368,22 @@ export const MG = {
    *  typical run carries are granted as a kit (modes.setupStart). Measured with the bot (seeds 1..4, NORMAL): pulses sit
    *  at the cap from level 5 on, it spends seekers and swarms as they arrive, and it has 1-3 sentries at 10, 3-4 at 15,
    *  4-6 from 20. So: full pulses, START_SEEKERS and START_SWARMS in stock, and turretMax(level) - START_SENTRIES_SHORT
-   *  sentries deployed (they burn out on their usual TURRET_LIFE, a cushion while the player settles). Pressure starts
-   *  at PRESSURE_START and climbs as usual. Such runs are flagged and never ranked. */
+   *  sentries deployed (they burn out on their usual TURRET_LIFE, a cushion while the player settles). Pressure and
+   *  the moon follow START_PRESSURE_FRAC and START_MOON_FRAC below. Such runs are flagged and never ranked. */
   START_LEVELS: [1, 10, 20, 30, 40] as readonly number[],
   START_SEEKERS: 1,
   START_SWARMS: 1,
   START_SENTRIES_SHORT: 1,
+  /** IDEAS 31: a skipped start is "the same game, later". Measured on level-1 NORMAL runs (bench/mgProbe.ts, seeds
+   *  1..4): at level 10 pressure sits at its ceiling and the moon has 530-580 of 600 HP; by level 20 the moon is gone
+   *  on three seeds of four. So a skip starts pressure at START_PRESSURE_FRAC x pressureMax(level) (was
+   *  PRESSURE_START, 0.85) and the moon at START_MOON_FRAC of MOON_HP (was full). START_GRACE_S is a calm opening
+   *  (the first spawn waits) so a hard skip does not end before the player has turned the launcher. Result (seeds
+   *  1..12, NORMAL): a level-10 start ends at median level 34.5 against 33.5 from level 1; HARD from 40 lasts 43-131 s
+   *  instead of 14-18 s (docs/MINIGAME_BACKLOG.md, "After IDEAS 31"). */
+  START_PRESSURE_FRAC: 0.95,
+  START_MOON_FRAC: { 10: 0.9, 20: 0.1, 30: 0, 40: 0 } as Readonly<Record<number, number>>,
+  START_GRACE_S: 3,
 
   /** SUPER DEMO (ready panel, `8`): the bot (bot.ts) plays itself at DEMO_SPEED x real time, NORMAL, from level 1; after
    *  a game over the next demo starts in DEMO_RESTART_SECONDS. */

@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS, isMinigameSettings, isRanked, newGame, nextDifficulty
 import { shakePx } from '../src/minigame/render';
 import { isSavedReplay } from '../src/minigame/replay';
 import {
-  createState, deserialize, difficultyOf, hullDamage, launcherCount, NO_INPUT, scaledHullDamage, serialize, snapshot, start, step, streamCount, toSaved, turretMax,
+  createState, deserialize, difficultyOf, hullDamage, launcherCount, NO_INPUT, pressureMax, scaledHullDamage, serialize, snapshot, start, step, streamCount, toSaved, turretMax,
 } from '../src/minigame/sim';
 import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
@@ -58,6 +58,9 @@ describe('difficulty multipliers', () => {
       const st = newGame(9, 'auto', { difficulty: d, startLevel: 20 });
       st.turrets.length = 0;
       st.cheats.god = true;
+      // A full moon soaks up the hits: a level-20 start now has almost none (MG.START_MOON_FRAC), and hits on the
+      // planet lower the pressure, a feedback that would blur the multipliers this test isolates.
+      st.moonHp = MG.MOON_HP;
       let speed = 0;
       let hp = 0;
       let n = 0;
@@ -145,6 +148,20 @@ describe('start level', () => {
     expect(legacy?.difficulty).toBe('normal');
     expect(legacy?.startLevel).toBe(1);
     expect(deserialize(JSON.stringify({ ...old, difficulty: 'nightmare' }))).toBeNull();
+  });
+});
+
+describe('skipped starts are the same game, later (IDEAS 31)', () => {
+  it('pressure near the level ceiling, the moon worn down, and a short grace before the first rock', () => {
+    const one = newGame(5, 'auto', { difficulty: 'normal', startLevel: 1 });
+    expect(one.pressure).toBe(MG.PRESSURE_START);
+    expect(one.moonHp).toBe(MG.MOON_HP);
+    for (const level of [10, 20, 30, 40]) {
+      const st = newGame(5, 'auto', { difficulty: 'normal', startLevel: level });
+      expect(st.pressure).toBeCloseTo(MG.START_PRESSURE_FRAC * pressureMax(level), 9);
+      expect(st.moonHp).toBe(MG.MOON_HP * (MG.START_MOON_FRAC[level] ?? 0));
+      expect(st.spawnTimer).toBeGreaterThanOrEqual(MG.START_GRACE_S);
+    }
   });
 });
 

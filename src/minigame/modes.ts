@@ -9,7 +9,7 @@
 
 import type { CollisionStrategy } from './collision';
 import { MG, type Difficulty } from './config';
-import { createState, deployTurret, flash, launcherCount, seekerMax, start, streamCount, swarmMax, turretMax, type MinigameState } from './sim';
+import { createState, deployTurret, flash, launcherCount, pressureMax, seekerMax, start, streamCount, swarmMax, turretMax, type MinigameState } from './sim';
 
 export { DEFAULT_SETTINGS, isMinigameSettings, nextDifficulty, nextStartLevel, type MinigameSettings } from './prefs';
 import type { MinigameSettings } from './prefs';
@@ -32,6 +32,9 @@ export function setupStart(st: MinigameState, level: number): void {
     const n = Math.max(0, turretMax(level) - MG.START_SENTRIES_SHORT);
     for (let k = 0; k < n; k++) deployTurret(st, false);
   }
+  st.pressure = Math.max(MG.PRESSURE_START, MG.START_PRESSURE_FRAC * pressureMax(level));
+  st.moonHp = MG.MOON_HP * (MG.START_MOON_FRAC[level] ?? 0);
+  st.spawnTimer = Math.max(st.spawnTimer, MG.START_GRACE_S);
   st.flashes.length = 0;
   flash(st, `LEVEL ${level} START`, 2);
 }

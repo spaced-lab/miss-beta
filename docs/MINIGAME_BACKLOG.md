@@ -10,9 +10,9 @@ ACCEPTED or REJECTED, and accepted ones go into `docs/BUILD_PLAN.md` the usual w
 To watch the game: press `8` on the PERIMETER ready panel. The bot plays NORMAL from level 1 at 0.75x speed
 (`MG.DEMO_SPEED`) and starts a new game 4 s after each game over. `1` (debug HUD), `2` (glow) and `4` (sound) keep the
 demo running; any other key ends it, and Escape goes to the title. To measure: the same bot runs headlessly in vitest.
-`tests/minigameModes.test.ts` has a cheap EASY-against-HARD check. To redo the full table, loop `newGame(seed, 'auto',
-{ difficulty, startLevel })` and `step(st, botInput(st), MG.DT)` over seeds 1..4. It takes about 4 minutes per
-difficulty on one core.
+`tests/minigameModes.test.ts` has a cheap EASY-against-HARD check. To redo the full table, run
+`npm run bench -- bench/minigameEasy.bench.ts bench/minigameNormal.bench.ts bench/minigameHard.bench.ts` (bench/mgProbe.ts;
+the three run in parallel, about 6 minutes; results in `.dev/mg-<difficulty>.txt`).
 
 ## Measured difficulty table (2026-10-18)
 
@@ -31,16 +31,39 @@ hull damage (`MG.DIFFICULTY` in `src/minigame/config.ts`).
 NORMAL is today's balance and was not changed. EASY gives about 14 minutes from level 1. HARD dies roughly 20 %
 sooner from level 1, and much sooner from a skipped start.
 
+### After IDEAS 31 (2026-10-18): a skip is "the same game, later"
+
+How the measurement drove the fix, as a worked example. First the probe (`bench/mgProbe.ts`, `npm run bench --
+bench/minigameNormal.bench.ts`, results in `.dev/mg-*.txt`) reproduced the table above exactly, so it measures the same
+thing. Then a snapshot of level-1 NORMAL runs at the levels a skip lands on showed what a skip was missing: at level 10
+pressure already sits at its ceiling (1.60) and the moon has 530-580 of 600 HP; by level 20 the moon is gone on three
+seeds of four and pressure is near 1.87 of 1.90. A skip started at pressure 0.85 with a full moon. So the skip now
+copies the run it replaces: pressure at `START_PRESSURE_FRAC` (0.95) of the level's ceiling and the moon at
+`START_MOON_FRAC` (10: 0.9, 20: 0.1, 30 and 40: none). For the HARD-from-40 wall a `START_GRACE_S` of 3 s holds the
+first spawn. Rows that changed (seeds 1..4, 900 s cap):
+
+| Start level | EASY | NORMAL | HARD |
+|---|---|---|---|
+| 10 | 580-709 s, L44-51 | 326-611 s, L29-45 | 171-288 s, L20-26 |
+| 20 | 484-653 s, L48-58 | 290-403 s, L37-43 | 27-194 s, L21-31 |
+| 30 | 242-468 s, L44-57 | 155-274 s, L39-46 | 66-170 s, L33-40 |
+| 40 | 231-322 s, L53-58 | 118-256 s, L46-55 | 43-131 s, L42-47 |
+
+Four seeds were too few for item 1: NORMAL from 10 still read L29-45. Over seeds 1..12 a level-1 run ends at a median
+level of 33.5 and a level-10 start at 34.5, so the first four seeds were the lucky ones and the skip now matches the
+game it stands in for. HARD from 40 lasts 43-131 s instead of 14-18 s. Lesson: measure the state you are replacing
+before tuning, and check a surprising row with more seeds before changing a second knob.
+
 ## Items
 
-### 1. Start-level runs outlast level-1 runs on NORMAL (S, PROPOSED)
+### 1. Start-level runs outlast level-1 runs on NORMAL (S, DONE 2026-10-18, IDEAS 31)
 From level 10, the bot reaches level 38-45. From level 1 it reaches only 29-35. A skipped start comes with a fresh hull,
 a full moon (a level-1 run has lost its moon by level 20-25 on every seed) and pressure reset to `PRESSURE_START`
 (a level-1 run sits at the ceiling by then). One fix: start the pressure at `0.8 * pressureMax(level)` and the moon at
 a share of `MOON_HP` that falls with the level. Both would be new `START_*` knobs in config.ts, so the skip feels like
 "the same game, later".
 
-### 2. HARD from level 40 is a wall (S, PROPOSED)
+### 2. HARD from level 40 is a wall (S, DONE 2026-10-18, IDEAS 31: START_GRACE_S)
 The bot lasts 14-18 s on every seed. One option is a short grace at a skipped start: no spawns for 3 s and pressure at
 `PRESSURE_MIN`. Another is to offer HARD only up to start level 30. A human with lead aim may do better than the bot.
 Still, a menu choice that ends in 15 s reads as a bug.

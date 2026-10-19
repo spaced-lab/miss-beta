@@ -70,6 +70,9 @@ SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster
 75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
 cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 replaced by BLUR_CUTS 12 (same blur).
 
+PERIMETER (IDEAS 31, 2026-10-18): new START_PRESSURE_FRAC 0.95, START_MOON_FRAC {10: 0.9, 20: 0.1, 30: 0, 40: 0},
+START_GRACE_S 3 (a skipped start used PRESSURE_START and a full moon).
+
 ## Decisions
 
 - 2026-10-18 (code review finding 27): Lambert closes in on the y = 0 edge by bisection when the 0.1 walk-up passes
@@ -307,7 +310,7 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
    - NEXT (owner 2026-10-18, in this order, no asking): IDEAS 31, 33, 34, 35, 36, then IDEAS 27. Owner: skip IDEAS 32
      (Saturn-like planet) and IDEAS 30 (ordinary NEAs in 3-D) for now; both stay in the backlog and land together,
      since each changes every seed's rounds.
-     Done: IDEAS 35 (`npm run safety`), IDEAS 33 (claims review 2026-10-18; F5-1, FS-1 still UNVERIFIED), IDEAS 34 (flashes measured, all 0/s). Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
+     Done: IDEAS 31 (skip-start balance), IDEAS 35 (`npm run safety`), IDEAS 33 (claims review 2026-10-18; F5-1, FS-1 still UNVERIFIED), IDEAS 34 (flashes measured, all 0/s). Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
      then all 31 findings in `ideas/CODE_REVIEW_2026-10-18.md`, verify then fix, one commit each (both gitignored).
      Done: P1 part 1, planner ranking in the worker (D11: the demo's freeze).
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).

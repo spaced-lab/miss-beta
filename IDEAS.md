@@ -176,7 +176,8 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 
 31. **PERIMETER balance fixes as a learning item (S).** A start at level 10 outlasts a level-1 run (fresh hull,
     full moon, reset pressure); HARD from level 40 is a 15-second wall. Fix with the bot table in
-    docs/MINIGAME_BACKLOG.md and write up how the measurement drove the fix. Status: backlog.
+    docs/MINIGAME_BACKLOG.md and write up how the measurement drove the fix. Status: DONE 2026-10-18 (START_PRESSURE_FRAC,
+    START_MOON_FRAC, START_GRACE_S; write-up in docs/MINIGAME_BACKLOG.md).
 
 32. **Saturn-like planet and its moons (M).** Needs a new planet in bodies.json, which changes every seed's world;
     batch it with item 30's seed change. Status: backlog; owner 2026-10-18: skip 30 and 32 for now, land them together later.

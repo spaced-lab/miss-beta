@@ -4,6 +4,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- PERIMETER balance (IDEAS 31): a skipped start is the same game, later. Pressure starts near the level's ceiling and
+  the moon as worn as a real run's would be (both measured on level-1 runs), with a 3 s grace before the first rock.
+  Over 12 seeds a level-10 start now ends at the same median level as a level-1 run; HARD from 40 lasts 43-131 s
+  instead of 14-18 s. The balance probe is `npm run bench -- bench/minigame*.bench.ts`.
 - Flash measurement (IDEAS 34): a WCAG 2.x flash meter (`render/flashMeter.ts`, tested; dev driver `render/flashCapture.ts`) measured every flashing effect in the browser: all at 0 flashes a second, the hit flash just under the luminance threshold. docs/WARNINGS.md item 8 has the table.
 - Claims review (IDEAS 33): the found share of 140 m NEAs is "about half" (SOURCED); ATLAS warning corrected to about a
   day for a 20 m rock and up to three weeks for 100 m (it said two days for 10 m); thirteen pre-impact discoveries
