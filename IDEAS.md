@@ -179,7 +179,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     docs/MINIGAME_BACKLOG.md and write up how the measurement drove the fix. Status: backlog.
 
 32. **Saturn-like planet and its moons (M).** Needs a new planet in bodies.json, which changes every seed's world;
-    batch it with item 30's seed change. Status: backlog, skipped for v26.4.0.
+    batch it with item 30's seed change. Status: backlog; owner 2026-10-18: skip 30 and 32 for now, land them together later.
 
 33. **Claims review to keep us honest (M).** Re-read every SOURCED claim's source and promote it to CHECKED, or
     correct it; research the UNVERIFIED ones (docs/RESEARCH.md section 4). Status: backlog, recurring each release.
@@ -190,7 +190,7 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 
 35. **Automated security steps (S).** Script the automatable parts of the docs/SAFETY.md checklist (clean
     checkout gate and build, dist greps, CSP check, oversized and malformed SAVE.md import); reviewed by the owner;
-    the full manual security review still happens before every publish. Status: backlog.
+    the full manual security review still happens before every publish. Status: DONE 2026-10-18 (`npm run safety`).
 
 36. **Robot voice work (M).** Owner: voice will be worked on; more options; FEMALE stays the default. Listen to all
     six voices, tune clarity (scripts/gen_voice.py), add options. Status: backlog.

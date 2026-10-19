@@ -303,8 +303,11 @@ IDEAS 27); NEON default. First updates after review: IDEAS 30 (NEAs in 3-D), the
    Done: interstellar dial + sky coverage (3-D lite sky.ts, INTERSTELLAR RATE, SKY view K, F12, LAB_INTERSTELLAR);
    full 3-D orbits remain milestone M14.
    Queue added 2026-10-18 (owner "enhancement" notes go here and are built in turn, no asking):
-   - DONE, AWAITING OWNER REVIEW (2026-10-18): branch `fix/post-ship-and-review`, local commits only, NOT PUSHED;
-     merge and push only after the owner reviews. Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
+   - DONE AND PUSHED (owner 2026-10-18 'merge and push'): branch `fix/post-ship-and-review` fast-forwarded into main.
+   - NEXT (owner 2026-10-18, in this order, no asking): IDEAS 31, 33, 34, 35, 36, then IDEAS 27. Owner: skip IDEAS 32
+     (Saturn-like planet) and IDEAS 30 (ordinary NEAs in 3-D) for now; both stay in the backlog and land together,
+     since each changes every seed's rounds.
+     Done: IDEAS 35 (`npm run safety`). Order: `ideas/POST_SHIP_FIXES_2026-10-18.md` (P1 demo, P2 minigame level menu),
      then all 31 findings in `ideas/CODE_REVIEW_2026-10-18.md`, verify then fix, one commit each (both gitignored).
      Done: P1 part 1, planner ranking in the worker (D11: the demo's freeze).
      Done: P1 part 2, demo pace (lengths halved, speed 8-200, DEMO_CINE_S, cutaways DEMO_CUT).

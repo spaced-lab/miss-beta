@@ -4,6 +4,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- `npm run safety` (scripts/safety.sh): the automatable part of the docs/SAFETY.md checklist on a clean checkout of a commit (gate, build, smoke, dist greps, CSP, SAVE.md import tests); it lists the steps that stay manual (IDEAS 35).
 - Planner: plans are ranked in the planner worker (`planner/rank.ts`, docs/DECISIONS.md D11), not on the UI
   thread. Opening the planner or committing a plan froze the screen for 0.6 to 1 s; that freeze was the stutter in
   AUTOPLAY and the SUPER-DUPER-DEMO. The overlay shows RANKING PLANS while it waits.

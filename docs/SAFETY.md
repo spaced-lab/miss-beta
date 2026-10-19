@@ -62,6 +62,10 @@ Findings from the assessment, each closed (fixed, decided by the owner, or check
 
 ## Assessment checklist (owner, before going live)
 
+`npm run safety` (scripts/safety.sh, IDEAS 35) runs the automatable steps on a clean checkout of a commit: the gate,
+build and smoke test, the dist greps, the CSP and the SAVE.md import tests; it prints the steps that stay manual.
+It replaces typing the first two commands below, not the review.
+
 - [x] `npm ci && bash scripts/gate.sh && python3 scripts/build_lore.py && npm run build && node scripts/smoke.mjs` on a clean checkout
       (2026-10-18, clone of d4c71da: 0 vulnerabilities, 414 tests, python, lore, vectors, build, smoke ok. The first
       attempt without build_lore shipped no Learning Center; the command here and RELEASING step 4 now include it)
