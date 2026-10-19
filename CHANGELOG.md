@@ -4,6 +4,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- KICK STAGES program (IDEAS 27, part 4, PROPOSED): a solid upper stage on every interceptor, effective C3 +40 km^2/s^2
+  (UNVERIFIED, claim KS-1). With HIVE_3, a craft on standby and the orbital depot, 8 of 30 SCI-FI visitors have a
+  feasible launch (0 without any of them).
 - SCI-FI visitors (IDEAS 27, part 3): the deep-space surveys stretch a visitor's warning, HIVE_2 x1.5 and HIVE_3 x2
   (knob SCIFI_VISITOR_WARNING_MULT), the strongest lever measured: visitors with any feasible launch go from 0 to 4 of
   30 at x1.5 and 5 at x2 (7 with a craft on standby). Runs without them draw exactly as before.

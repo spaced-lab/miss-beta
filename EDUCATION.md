@@ -1205,7 +1205,7 @@ TEXT: Build telescopes and radar in the background. They take years. They pay fo
 ### BEGINNER
 Programs are long projects that outlast any single rock: a space telescope, a sunward sentinel, a radar network, a stockpile of ready impactors. You set how much of your yearly budget goes to each; they take years; when done they permanently change what you can see and how fast you can respond. The temptation is to spend everything on the rock in front of you. The game is designed so that, sooner or later, that loses.
 ### INTERMEDIATE
-Each program lists its real-world basis and tag. Early, cheap, high-value: INTL_COORDINATION (more budget), GROUND_SURVEY_EXPANSION and SPACE_IR_SURVEYOR (lead time), RADAR_NET (confidence), INTERCEPTOR_STOCKPILE (build time). Mid-game: SUNWARD_SENTINEL (the one that saves you from a Chelyabinsk), PRECURSOR_FLEET (know beta before you commit), HEAVY_LAUNCH_CADENCE. Late: ORBITAL_DEPOT, L4_L5_SENTINELS, VENUS_ORBIT_IR. SCI-FI mode adds the laser array, the lunar mass driver, fusion tugs and the disassembler swarm.
+Each program lists its real-world basis and tag. Early, cheap, high-value: INTL_COORDINATION (more budget), GROUND_SURVEY_EXPANSION and SPACE_IR_SURVEYOR (lead time), RADAR_NET (confidence), INTERCEPTOR_STOCKPILE (build time). Mid-game: SUNWARD_SENTINEL (the one that saves you from a Chelyabinsk), PRECURSOR_FLEET (know beta before you commit), HEAVY_LAUNCH_CADENCE. Late: ORBITAL_DEPOT, KICK_STAGES (more launch energy for a steep visitor), L4_L5_SENTINELS, VENUS_ORBIT_IR. SCI-FI mode adds the laser array, the lunar mass driver, fusion tugs and the disassembler swarm.
 ### ADVANCED
 ```
 progress += funding_fraction * dt / (years * YEAR);  cost drawn continuously at costPerYear * funding_fraction

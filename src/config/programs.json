@@ -177,6 +177,21 @@
       "note": "propellant depot in high orbit: effective C3 +15 km^2/s^2"
     },
     {
+      "id": "KICK_STAGES",
+      "name": "KICK STAGES (STEEP INTERCEPTS)",
+      "tag": "PROPOSED",
+      "years": 3,
+      "costPerYear": 3,
+      "mode": "REALISTIC",
+      "effects": [
+        {
+          "kind": "C3_BONUS",
+          "value": 40
+        }
+      ],
+      "note": "a solid upper stage on every interceptor: effective C3 +40 km^2/s^2, for the climb out of the plane to a steep visitor (UNVERIFIED, claim KS-1)"
+    },
+    {
       "id": "NUCLEAR_READINESS",
       "name": "NUCLEAR READINESS",
       "tag": "PROPOSED",

@@ -81,7 +81,7 @@ export function explainNoPlan(g: PorkchopGrid, ctx: NoPlanContext): NoPlanWhy | 
   lines.push(help([
     ...(ctx.standby ? [] : ['A CRAFT ALREADY WAITING (INTERCEPTOR ON STANDBY: NO BUILD TIME, MORE WINDOWS)']),
     'A BIGGER LAUNCHER (T)',
-    'FREE C3 (ORBITAL DEPOT, LUNAR MASS DRIVER)',
+    'FREE C3 (KICK STAGES, ORBITAL DEPOT, LUNAR MASS DRIVER)',
     'EARLIER WARNING',
     ...(ctx.scifi ? [SCIFI_HELP] : []),
   ]));

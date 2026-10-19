@@ -269,6 +269,18 @@
         "src/config/bodies.json OUTER",
         "EDUCATION.md T7"
       ]
+    },
+    {
+      "id": "KS-1",
+      "topic": "D8",
+      "claim": "A solid kick stage on a large launcher raises the departure energy a small probe can reach",
+      "value": "by roughly 40 km^2/s^2 of C3 for a probe of a few hundred kilograms (game model: KICK_STAGES program, C3 +40)",
+      "status": "UNVERIFIED",
+      "source": "",
+      "check": "Compare a launcher's published C3 for a few hundred kg with and without a solid kick stage (for example the launch vehicles of New Horizons and Parker Solar Probe and their Star 48 stages); the difference in C3 at the same payload is the bonus. Until then the +40 is a game estimate.",
+      "usedIn": [
+        "src/config/programs.json KICK_STAGES"
+      ]
     }
   ]
 }

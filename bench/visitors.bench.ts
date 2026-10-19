@@ -3,7 +3,8 @@
 // WHY:  IDEAS 27 asks for new defences against out-of-plane visitors "not by making visitors easier"; each one is
 //       judged by how far it moves this count. Measured 2026-10-18 with L3: build 0.5 y 0/30; standby 1/30; standby
 //       + 50 km^2/s^2 2/30; + 150 3/30; + 400 8/30; build 0.5 y + 150 still 0/30; warning x1.5 4/30 (standby 5),
-//       x2 5/30 (standby 7). Time is the first wall, energy the second; flyby and sail legs need more time than a
+//       x2 5/30 (standby 7); x2 + standby + KICK_STAGES and ORBITAL_DEPOT (C3 55) 8/30. Time is the first wall, energy
+//       the second; flyby and sail legs need more time than a
 //       visitor gives.
 // HOW:  Seeds VIS-1..30, round 3, flavor INTERSTELLAR, discovery skipped (the lead is the round's). computePorkchop
 //       from HOME at L3 for each lever; results in .dev/visitors.txt. About 40 seconds.
@@ -25,6 +26,8 @@ describe('visitor reachability', () => {
       ['standby + C3 400', 0, 400, 1], ['build 0.5 y + C3 150', KNOBS.BUILD_TIME_KINETIC, 150, 1],
       ['warning x1.5, build', KNOBS.BUILD_TIME_KINETIC, 0, 1.5], ['warning x1.5, standby', 0, 0, 1.5],
       ['warning x2, build', KNOBS.BUILD_TIME_KINETIC, 0, 2], ['warning x2, standby', 0, 0, 2],
+      // Everything a REALISTIC-to-SCI-FI player can stack today: HIVE_3, a craft on standby, KICK_STAGES + ORBITAL_DEPOT.
+      ['warning x2, standby, C3 55', 0, 55, 2], ['warning x2, build, C3 55', KNOBS.BUILD_TIME_KINETIC, 55, 2],
     ];
     const out: string[] = [];
     for (const [name, build, c3, mult] of levers) {
