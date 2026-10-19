@@ -361,6 +361,9 @@ export const KNOBS = {
    *  sooner. Balance values, not claims. Measured (bench/visitors.bench.ts): warning x1.5 lifts SCI-FI visitors with
    *  any feasible launch from 0 to 4 of 30 (5 with a craft on standby), x2 to 5 (7). */
   SCIFI_VISITOR_WARNING_MULT: { HIVE_2: 1.5, HIVE_3: 2 } as Readonly<Record<string, number>>,
+  /** [knob] Planner no-plan explanation (planner/explain.ts): name the climb out of the plane once its share of the best
+   *  window's C3 reaches PLANE_MENTION; suggest INCLINED PICKETS from PICKETS_SHARE. Teaching thresholds, not physics. */
+  EXPLAIN_PLANE_SHARE: { PLANE_MENTION: 0.05, PICKETS_SHARE: 0.3 },
   /** SUPER-DUPER-DEMO (IDEAS 20): timed by the clock, not by games (owner 2026-10-18: about 5 minutes by default,
    *  also 2-3 or 10). Speed = START x (END / START)^(elapsed / length), capped at DEMO_SPEED_MAX, then the
    *  montage. NOTE: a game-count rule (100 games at 2 x 1.15^n) was dropped after a measurement: one game takes

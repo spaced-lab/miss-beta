@@ -70,7 +70,7 @@ import { scenarioById, spawnScenario } from '../../sim/scenarios';
 import { shiftEpoch } from '../../sim/roundGen';
 import { craftPosition } from '../../planner/legs';
 import { hashSeed, Rng } from '../../sim/rng';
-import { applyEffects, createPrograms, programById, syncPrograms } from '../../sim/programs';
+import { applyEffects, createPrograms, launchReadiness, programById, syncPrograms } from '../../sim/programs';
 import { advanceCivilization } from '../../game/civ';
 import { modeIndex } from '../../game/modes';
 import { stateToElements as toElements } from '../../physics/elements';
@@ -555,11 +555,9 @@ export class SystemScreen implements Screen {
       rulesPreset: this.rulesPreset,
       pi: this.run.pi,
       dsmBudget: KNOBS.DSM_BUDGET[this.run.propulsionTier - 1] ?? 0,
-      // A craft on standby needs no build time against a visitor from another star (INTERCEPTOR_ON_STANDBY).
-      buildTime: this.run.effects.standbyInterceptor && this.world.threat?.flavor === 'INTERSTELLAR' ? 0 : this.run.effects.buildTimeYears * YEAR,
-      standby: this.run.effects.standbyInterceptor && this.world.threat?.flavor === 'INTERSTELLAR',
+      // A craft on standby needs no build time against a visitor from another star (sim/programs launchReadiness).
+      ...launchReadiness(this.run.effects, world.threat?.flavor),
       scifi: modeIndex(this.run.mode) >= 1,
-      vzPark: this.run.effects.standbyInterceptor && this.world.threat?.flavor === 'INTERSTELLAR' ? this.run.effects.parkedVz : 0,
       c3Bonus: this.run.effects.c3Bonus + this.run.effects.lunarDriverC3,
       launchCap: this.run.effects.launchCap,
       budget: budgetAt(this.run.economy, this.world.t),

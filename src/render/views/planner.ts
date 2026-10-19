@@ -54,6 +54,8 @@ export interface PlannerSession {
   c3Bonus?: number;
   /** A craft on standby serves this target (INTERCEPTOR_ON_STANDBY against a visitor): no build time. */
   standby?: boolean;
+  /** The target is a visitor from another star (standby and pickets apply only to one). */
+  visitor?: boolean;
   /** SCI-FI or beyond: the no-plan explanation may name SCI-FI levers. */
   scifi?: boolean;
   /** Out-of-plane speed of a parked standby craft, m/s (INCLINED_PICKETS); 0 for a launch from HOME. */
@@ -157,7 +159,7 @@ export class PlannerOverlay {
       .then((grid) => {
         if (token !== this.jobToken) return;
         this.grid = grid;
-        this.why = explainNoPlan(grid, { lead: session.result.ca.tCa - w.t, buildTime: session.buildTime, minFlight: KNOBS.PORKCHOP_MIN_FLIGHT, tier: launcherTier(session.launcherTier), c3Bonus: session.c3Bonus ?? 0, standby: session.standby ?? false, scifi: session.scifi ?? false, vzPark: session.vzPark ?? 0 });
+        this.why = explainNoPlan(grid, { lead: session.result.ca.tCa - w.t, buildTime: session.buildTime, minFlight: KNOBS.PORKCHOP_MIN_FLIGHT, tier: launcherTier(session.launcherTier), c3Bonus: session.c3Bonus ?? 0, standby: session.standby ?? false, visitor: session.visitor ?? false, scifi: session.scifi ?? false, vzPark: session.vzPark ?? 0 });
         this.rank();
       })
       .catch((e: unknown) => {
@@ -523,7 +525,7 @@ export class PlannerOverlay {
     // No launch window at all: say which wall it is and what would help (IDEAS 27).
     if (this.why && this.cands.length === 0) {
       const ui = uiColors(p, s.spectrum);
-      drawTextFit(s, this.why.kind === 'TIME' ? 'NO PLAN: NOT ENOUGH TIME' : 'NO PLAN: NOT ENOUGH LAUNCH ENERGY', lx, ly, 13, W - lx - m, { color: ui.title, glow: 1 });
+      drawTextFit(s, this.why.kind === 'TIME' ? 'NO PLAN: NOT ENOUGH TIME' : this.why.kind === 'NO_TRANSFER' ? 'NO PLAN: NO TRANSFER FOUND' : 'NO PLAN: NOT ENOUGH LAUNCH ENERGY', lx, ly, 13, W - lx - m, { color: ui.title, glow: 1 });
       let wy = ly + 22;
       for (const line of this.why.lines) {
         for (const l of wrapText(line, W - lx - m, 11)) {

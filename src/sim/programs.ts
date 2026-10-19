@@ -91,6 +91,18 @@ export interface RunEffects {
   seedFleet: number;
 }
 
+/**
+ * How the next launch at a target is served: a craft on standby (INTERCEPTOR_ON_STANDBY, and INCLINED_PICKETS' parked
+ * out-of-plane speed) only against a visitor from another star; otherwise a new build. Example: standby owned and an
+ * INTERSTELLAR target gives { buildTime: 0, standby: true, vzPark: fx.parkedVz }; an ordinary asteroid gives
+ * { buildTime: fx.buildTimeYears x YEAR, standby: false, vzPark: 0 }.
+ */
+export function launchReadiness(fx: RunEffects, flavor: string | null | undefined): { buildTime: number; standby: boolean; vzPark: number; visitor: boolean } {
+  const visitor = flavor === 'INTERSTELLAR';
+  const standby = fx.standbyInterceptor && visitor;
+  return { buildTime: standby ? 0 : fx.buildTimeYears * YEAR, standby, vzPark: standby ? fx.parkedVz : 0, visitor };
+}
+
 export function defaultEffects(): RunEffects {
   return {
     budgetPerYearBonus: 0,
