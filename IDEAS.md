@@ -205,3 +205,12 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
 36. **Robot voice work (M).** Owner: voice will be worked on; more options; FEMALE stays the default. Listen to all
     six voices, tune clarity (scripts/gen_voice.py), add options. Status: DONE 2026-10-18 (scripts/voice_check.py; TERMINAL,
     MAINFRAME, TOY retuned; NARRATOR and RADIO added). Nobody has listened yet: the owner's ear is the final check.
+    Owner listened 2026-10-18: fine for now, but the ask was a heavier robot vocoder and more lo-fi on the two original
+    voices, not more voices with the same treatment (IDEAS 37).
+
+37. **MACHINE LEVEL slider for the voice (M).** Owner 2026-10-18: the wanted change was a heavier robotic vocoder and a
+    more lo-fi sound on FEMALE and MALE, not more voices with the same treatment. An OPTIONS slider, MACHINE LEVEL,
+    from near-clean speech to a heavy vocoder: fewer bands, lower bit depth and sample rate, more ring modulation and
+    less dry signal as it rises. Bake a few levels per voice in scripts/gen_voice.py (the browser has no vocoder of its
+    own), or apply bit crush and ring modulation at play time with Web Audio. Check each level with
+    scripts/voice_check.py so that even the heaviest level stays intelligible.
