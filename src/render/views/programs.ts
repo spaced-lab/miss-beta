@@ -31,6 +31,8 @@ export class ProgramsOverlay {
   openLore: ((id: string) => void) | null = null;
   private open = false;
   private sel = 0;
+  /** First program row shown: the list scrolls when it is taller than the screen allows (review 2026-10-19). */
+  private top = 0;
   /** PROGRAMS (things we know how to build) or STUDIES (feasibility research); Tab switches. */
   private tab: 'PROGRAMS' | 'STUDIES' = 'PROGRAMS';
   private studySel = 0;
@@ -215,7 +217,18 @@ export class ProgramsOverlay {
     for (const [x, h] of [[m, 'ID'], [cTag, 'TAG'], [cYr, 'YEARS'], [cCost, 'COST/Y'], [bx, 'PROGRESS'], [bx + bw + 14, 'FUNDING']] as const) drawText(s, h, x, m + 26, 10, { color: p.dim, glow: 0 });
     let y = m + 44;
     this.rowYs = [];
+    // Rows that fit above the note, the networks and detection gauge beside them, and the footer; the window follows
+    // the selection. The gauge goes under the list on a narrow screen and reserves its own space there.
+    const wideGauge = s.width - 16 - Math.max(m + 560, s.width - 16 - 680) >= 380;
+    const rows = Math.max(6, Math.floor((s.height - (m + 44) - (wideGauge ? Math.max(130, gaugeHeight() + 90) : 130)) / 17));
+    const n = run.programs.length;
+    this.top = Math.max(0, Math.min(this.top, n - rows, this.sel), this.sel - rows + 1);
+    if (this.top > 0) drawText(s, `^ ${this.top} MORE`, bx + bw + 70, m + 44, 10, { color: p.dim, glow: 0 });
     run.programs.forEach((st, i) => {
+      if (i < this.top || i >= this.top + rows) {
+        this.rowYs.push(NaN);
+        return;
+      }
       this.rowYs.push(y);
       const def = programById(st.id);
       const selected = i === this.sel;
@@ -234,6 +247,7 @@ export class ProgramsOverlay {
       drawText(s, fund, bx + bw + 14, y, 11, { color: col, glow: selected ? 0.8 : 0.2 });
       y += 17;
     });
+    if (this.top + rows < n) drawText(s, `v ${n - this.top - rows} MORE`, bx + bw + 70, y - 17, 10, { color: p.dim, glow: 0 });
     const sel = run.programs[this.sel];
     if (sel) drawText(s, programById(sel.id).note.toUpperCase(), m, y + 6, 10, { color: p.hot, glow: 0.5 });
     // Networks, with the detection gauge beside them (or under them on a narrow screen).

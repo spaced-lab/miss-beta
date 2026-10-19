@@ -4,6 +4,7 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 
 ## Unreleased
 
+- PROGRAMS list scrolls (^ / v N MORE) when the window is too short for every row, so it no longer runs into the note, the detection gauge and the footer.
 - HELP > CREDITS, README and gen_voice.py list all 8 voices and credit every Kokoro speaker shipped (bm_george and am_adam were missing).
 - Flash meter judges saturated red in linear light, as WCAG defines it (reddish colours were skipped); re-measured: still 0 flashes a second everywhere. The capture no longer copies each frame twice.
 - Planner no-plan hints fixed (review 2026-10-19): INTERCEPTOR ON STANDBY and INCLINED PICKETS are suggested only against a visitor (an ordinary rock gets INTERCEPTOR STOCKPILE); LUNAR MASS DRIVER only in SCI-FI; the TIME line counts the 60-day resolve margin and a standby craft; a window with no solved transfer reads NO TRANSFER FOUND. The standby rule lives in one helper, `launchReadiness`.
