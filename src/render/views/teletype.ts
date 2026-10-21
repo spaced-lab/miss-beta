@@ -27,7 +27,16 @@ export class Teletype {
   private hold = 0;
   private blink = 0;
 
+  /** The panel drawn last frame (a tap on it is a key press on phones). */
+  private box: { x: number; y: number; w: number; h: number } | null = null;
+
   constructor(private readonly s: Surface) {}
+
+  /** True when (x, y) is on the brief drawn last frame. */
+  hit(x: number, y: number): boolean {
+    const b = this.box;
+    return this.cur !== null && b !== null && x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+  }
 
   get isOpen(): boolean {
     return this.cur !== null;
@@ -101,7 +110,8 @@ export class Teletype {
     return out;
   }
 
-  render(anchor: TeletypeAnchor): void {
+  /** `bottomInset`: px reserved along the bottom edge (the action bar) that a docked brief stays above. */
+  render(anchor: TeletypeAnchor, bottomInset = 36): void {
     const c = this.cur;
     if (!c) return;
     const s = this.s;
@@ -127,8 +137,9 @@ export class Teletype {
       s.ctx.fillRect(0, 0, s.width, s.height);
     } else {
       x = s.width - 16 - panelW;
-      y = narrow ? Math.round(s.height * 0.3) : s.height - 16 - 56 - panelH;
+      y = narrow ? Math.round(s.height * 0.3) : s.height - bottomInset - 36 - panelH;
     }
+    this.box = { x, y, w: panelW, h: panelH };
     s.ctx.fillStyle = withAlpha(p.bg, 0.78);
     s.ctx.fillRect(x, y, panelW, panelH);
     s.stroke([x, y, x + panelW, y, x + panelW, y + panelH, x, y + panelH], { closed: true, glow: 0.8, color: s.role(c.n.header.role), alpha: 0.9 });

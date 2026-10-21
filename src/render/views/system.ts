@@ -39,6 +39,7 @@ import { roundRng } from '../../sim/rng';
 import { generateThreat } from '../../sim/roundGen';
 import { advance, createWorld, planetById, planetState, setWarp, warpLabel, type World } from '../../sim/world';
 import { formatCountdown } from '../../ui/hud';
+import { barHeight, barHit, barLayout, drawBar, drawMenu, menuLayout, type BarBox, type BarItem } from '../../ui/actionBar';
 import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertainty';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
@@ -187,6 +188,17 @@ export class SystemScreen implements Screen {
     return null;
   }
   private approachSounded = false;
+  /** The ACTION BAR (ui/actionBar.ts): last frame's boxes, the height it takes along the bottom, the MORE menu. */
+  private barBoxes: BarBox[] = [];
+  private barH = 36;
+  private menuOpen = false;
+  private menuBoxes: BarBox[] = [];
+  /** Bottom of the HUD's top block (the tutorial box and notes go under it on a phone). */
+  private hudBottom = 96;
+  /** Phone layout (owner 2026-10-21, IDEAS 38): a compact HUD, the five-button bar with MORE, panels that fit. */
+  private compact(): boolean {
+    return this.s.width < 700 || this.s.height < 500;
+  }
   /** IDEAS 21: "IMPACT IMMINENT" is said once per round. */
   private imminentSaid = false;
 
@@ -390,7 +402,7 @@ export class SystemScreen implements Screen {
     const p = s.palette;
     const w = Math.min(700, s.width - 32);
     const x = s.width - w - 16;
-    const y = 96;
+    const y = this.compact() ? this.hudBottom + 6 : 96;
     const inner = w - 24;
     // Re-wrap the step text to the panel's width at draw time (TEXT SIZE and window width both change it).
     const body = wrapText(step.lines.join(' '), inner, 9);
@@ -699,12 +711,42 @@ export class SystemScreen implements Screen {
   update(dtMs: number): void {
     const k = this.keys;
     const w = this.world;
+    // The action bar and the MORE menu (ui/actionBar.ts): a tap on a button presses its key for this frame, so the
+    // code below sees it like a key. The menu takes every tap while open and the clock waits.
+    let tapKey = false;
+    if (!this.cine.isOpen) {
+      const tap = k.peekClick();
+      if (this.menuOpen) {
+        if (k.pressed('Escape')) this.menuOpen = false;
+        if (tap) {
+          k.takeClick();
+          const it = barHit(tap.x, tap.y, this.menuBoxes);
+          this.menuOpen = false;
+          if (it && it.code !== 'MENU_CLOSE') k.inject(it.code, true);
+        }
+        if (this.menuOpen) return;
+      } else if (tap) {
+        const it = barHit(tap.x, tap.y, this.barBoxes);
+        if (it) {
+          k.takeClick();
+          if (it.code === 'MORE') {
+            this.menuOpen = true;
+            return;
+          }
+          k.inject(it.code, true);
+        } else if (this.tele.isOpen && (this.tele.isModal || this.tele.hit(tap.x, tap.y))) {
+          // A tap on a brief is the "any key" that finishes or clears it (phones have no keys).
+          k.takeClick();
+          tapKey = true;
+        }
+      }
+    }
     this.updateAutoplay(dtMs);
     if (this.programs.isOpen || this.phase !== 'planning') this.refreshGauge();
     this.trackTutorial(dtMs);
     if (this.cine.isOpen) {
-      // The clock does not advance while a scene plays; any key skips it (GAME_PLAN 29).
-      this.cine.update(dtMs, k.anyKeyPressed());
+      // The clock does not advance while a scene plays; any key or tap skips it (GAME_PLAN 29).
+      this.cine.update(dtMs, k.anyKeyPressed() || k.takeClick() !== null);
       if (!this.cine.isOpen && this.pendingFinish) {
         this.pendingFinish = false;
         this.finishRound();
@@ -713,7 +755,7 @@ export class SystemScreen implements Screen {
     }
     if (this.tele.isOpen) {
       const modal = this.tele.isModal;
-      if (k.anyKeyPressed()) this.tele.key();
+      if (k.anyKeyPressed() || tapKey) this.tele.key();
       this.tele.update(dtMs);
       if (modal) return;
     }
@@ -1071,12 +1113,13 @@ export class SystemScreen implements Screen {
     const right = this.planner.isOpen;
     const hx = right ? s.width - 16 : 16;
     const align = right ? 'right' : 'left';
-    drawTextFit(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, s.height - 64, 10, s.width - 32, { align, color: ui.title, glow: 1 });
+    const base = s.height - this.barH;
+    drawTextFit(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, base - 28, 10, s.width - 32, { align, color: ui.title, glow: 1 });
     // How to change the pace, always on screen while the game plays itself.
     const lv = this.settings.autoSpeed ?? 'NORMAL';
     const pace = AUTO_SPEED_LEVELS.map((l) => (l === lv ? `[${l}]` : l)).join(' ');
     // On a phone the pace keys do not exist and the line ran into the HUD's bottom line.
-    if (s.width >= 700) drawTextFit(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, s.height - 50, 9, s.width - 32, { align, color: ui.sub, glow: 0.5 });
+    if (s.width >= 700) drawTextFit(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, base - 14, 9, s.width - 32, { align, color: ui.sub, glow: 0.5 });
     const ap = this.autoPane;
     if (!ap) return;
     // Bottom left: the teletype docks bottom right and the HUD owns the top.
@@ -1090,7 +1133,7 @@ export class SystemScreen implements Screen {
     const lines = wrapText(ap.pane.body, w - 28, bfs);
     const h = tfs * 2 + 18 + lines.length * lh + 10;
     const x = right ? s.width - 16 - w : 16;
-    const y = s.height - 74 - h;
+    const y = base - 38 - h;
     const fade = Math.min(1, ap.t * 4, (ap.pane.hold - ap.t) * 3);
     s.ctx.fillStyle = withAlpha(s.palette.bg, 0.88 * fade);
     s.ctx.fillRect(x, y, w, h);
@@ -1251,6 +1294,7 @@ export class SystemScreen implements Screen {
     }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen && !this.sky.isOpen) this.drawHud();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
+    for (const o of [this.planner, this.programs, this.tech, this.sky, this.planet]) o.bottomInset = this.barH;
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge, this.experimental());
     this.tech.render(this.run);
     this.sky.render(this.world, performance.now() / 1000, this.settings.reduceMotion);
@@ -1260,7 +1304,7 @@ export class SystemScreen implements Screen {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
     } else if (this.phase !== 'planning' && !overlay) {
-      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - 62, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
+      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - this.barH - 26, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
     if (this.planner.isOpen && this.tut) {
@@ -1269,15 +1313,21 @@ export class SystemScreen implements Screen {
       drawTextFit(s, hint, s.width / 2, s.height - 50, 11, s.width - 32, { align: 'center', color: s.spectrum ? s.role('program') : p.hot, glow: 1 });
     }
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
-    if (this.tele.isModal || (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.planetOpen)) this.tele.render(this.tele.isModal ? 'center' : 'dock');
+    if (this.tele.isModal || (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen && !this.planetOpen)) this.tele.render(this.tele.isModal ? 'center' : 'dock', this.barH);
     // Hover: name what a click would teach.
     const mp = this.keys.mouse;
     if (mp && this.phase === 'planning' && !this.planner.isOpen && !this.lore.isOpen && !this.console.isOpen) {
       const h = this.hitAt(mp.x, mp.y);
       if (h) drawText(s, `${h.label}  (CLICK: LEARN ${h.topic})`, mp.x + 14, mp.y + 14, 9, { color: s.spectrum ? s.role('program') : p.hot, glow: 0.6 });
     }
+    this.lore.bottomInset = this.barH;
     this.lore.render();
+    this.drawBar();
     this.drawAutoPane();
+    if (this.menuOpen) {
+      this.menuBoxes = menuLayout(s.width, s.height, this.menuItems(), this.keys.touchUsed || this.compact());
+      drawMenu(s, this.menuBoxes, this.phase === 'planning' ? 'ACTIONS' : 'DEBRIEF ACTIONS', this.keys.touchUsed || this.compact());
+    }
     this.console.render(this.gameContext());
     if (this.glitch && !this.settings.reduceMotion) {
       const now = performance.now();
@@ -1303,7 +1353,7 @@ export class SystemScreen implements Screen {
     const m = 16;
     const top = 70;
     const tw = (s.width - 2 * m) / cols;
-    const th = (s.height - top - 60) / rows;
+    const th = (s.height - top - this.barH - 24) / rows;
     mv.branches.forEach((b, i) => {
       const x0 = m + (i % cols) * tw;
       const y0 = top + Math.floor(i / cols) * th;
@@ -1313,7 +1363,7 @@ export class SystemScreen implements Screen {
       const alive = branchSurvives(b);
       drawText(s, `${i + 1}  ${b.result.outcome}${b.extraResult ? ` + ${b.extraResult.outcome}` : ''}  ${alive ? 'SURVIVES' : 'LOST'}  MISSIONS ${b.missions.length}`, x0 + 6, y0 + 4, 9, { color: alive ? p.ink : p.hot, glow: 0.3 });
     });
-    drawText(s, `MULTIVERSE X${n}   SURVIVAL ${(survivalFraction(mv) * 100).toFixed(0)}%   DIGITS SELECT   P PLANS THE SELECTED BRANCH   C COLLAPSE   WORMHOLE IN THE CONSOLE`, s.width / 2, s.height - 44, 11, { align: 'center', color: p.hot, glow: 0.8 });
+    drawTextFit(s, `MULTIVERSE X${n}   SURVIVAL ${(survivalFraction(mv) * 100).toFixed(0)}%   DIGITS SELECT   P PLANS THE SELECTED BRANCH   C COLLAPSE   WORMHOLE IN THE CONSOLE`, s.width / 2, s.height - this.barH - 8, 11, s.width - 32, { align: 'center', color: p.hot, glow: 0.8 });
   }
 
   private drawBranchTile(b: Branch, x0: number, y0: number, tw: number, th: number): void {
@@ -1771,6 +1821,12 @@ export class SystemScreen implements Screen {
     const th = w.threat;
     const res = this.result;
     if (!th || !res) return;
+    if (this.compact()) {
+      this.drawHudCompact();
+      return;
+    }
+    this.hudBottom = 96;
+    const base = s.height - this.barH;
 
     drawText(s, formatCountdown(th.tImpact - w.t), m, m, 14, { color: p.hot, glow: 1.2 });
     this.hit(m, m, 200, 40, 'G2', 'CLOCK AND WARP');
@@ -1792,7 +1848,7 @@ export class SystemScreen implements Screen {
     if (this.phase === 'planning' && this.missions.length > 0 && !craftRemaining(res.missionsResolved, w.t)) drawText(s, 'NO CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', m, m + 96, 10, { color: p.dim, glow: 0 });
     if (this.phase === 'planning' && this.settings.tips !== false && !this.tut && !this.tele.isOpen) {
       const tip = pickTip({ missions: this.missions.length, inFlight: craftRemaining(res.missionsResolved, w.t), budget: budgetAt(this.run.economy, w.t), leadLeftYears: (th.tImpact - w.t) / YEAR, predictedMiss: res.outcome === 'MISS' }, Math.floor(performance.now() / 1000 / KNOBS.TIP_SECONDS));
-      if (tip) drawTextFit(s, `TIP  ${tip.text}`, s.width - m, s.height - m - 50, 9, Math.min(620, s.width * 0.5), { align: 'right', color: s.spectrum ? s.role('program') : p.dim, glow: 0.2 });
+      if (tip) drawTextFit(s, `TIP  ${tip.text}`, s.width - m, base - 34, 9, Math.min(620, s.width * 0.5), { align: 'right', color: s.spectrum ? s.role('program') : p.dim, glow: 0.2 });
     }
 
     const kms = (res.ca.vInf / 1000).toFixed(1);
@@ -1813,13 +1869,162 @@ export class SystemScreen implements Screen {
 
     // Play-by-play: the last six events whose time has passed.
     const passed = res.events.filter((e) => e.t <= w.t).slice(-6);
-    let ly = s.height - m - 50 - passed.length * 15;
+    let ly = base - 34 - passed.length * 15;
     for (const e of passed) {
       drawText(s, formatEvent(e, th.tImpact, this.run.reveal ? undefined : w.t), m, ly, 10, { color: p.dim, glow: 0 });
       ly += 15;
     }
-    drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, s.height - m - 30, 11, { align: 'right', color: p.dim, glow: 0 });
-    drawTextFit(s, `<${keyName('PLANNER')}> PLANNER   <${keyName('TECH')}> TECH   <${keyName('PROGRAMS')}> PROGRAMS   <${keyName('PLANET')}> PLANET   <${keyName('EVACUATE')}> EVACUATE   <${keyName('PAUSE')}> PAUSE   ${keyName('WARP_DOWN')} ${keyName('WARP_UP')} WARP   ${keyName('RESOLVE')} RESOLVE   ${keyName('SCALE')} SCALE   ${keyName('TILT')} TILT   K SKY   Z RESET   X EXPORT   ${keyName('LORE')} LORE   ${keyName('LEARN')} LEARN   ${keyName('MANUAL')} MANUAL   ${keyName('AUTOPLAY')} WATCH   ESC TITLE`, s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawText(s, `ROUND ${w.round}   SEED ${w.runSeed}   SCALE ${this.scale}   MISS 4.1 R`, s.width - m, base - 14, 11, { align: 'right', color: p.dim, glow: 0 });
+  }
+
+  /**
+   * The phone HUD (IDEAS 38): the countdown and warp on one line, budget / score / research / missions on a small
+   * second line, then the brief and the prediction wrapped to the width; the play-by-play and the round line sit
+   * just above the action bar. The BACK tab owns the top-left corner on a touch screen.
+   */
+  private drawHudCompact(): void {
+    const s = this.s;
+    const p = s.palette;
+    const w = this.world;
+    const th = w.threat;
+    const res = this.result;
+    if (!th || !res) return;
+    const m = 8;
+    const x0 = this.keys.touchUsed ? 46 : m;
+    const W = s.width;
+    const ui = uiColors(p, s.spectrum);
+    let y = 8;
+    drawText(s, formatCountdown(th.tImpact - w.t), x0, y, 12, { color: p.hot, glow: 1.2 });
+    this.hit(x0, y, 120, 16, 'G2', 'CLOCK AND WARP');
+    drawText(s, `WARP ${warpLabel(w)}`, W - m, y, 12, { align: 'right', color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
+    y += 18;
+    drawTextFit(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)} (+${this.run.economy.perYear}/Y)   SCORE ${this.run.score}   RES ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX' : ''}${this.run.tutorial ? '   TUTORIAL' : ''}`, x0, y, 8, W - m - x0, { color: this.run.sandbox ? p.hot : ui.dim, glow: 0 });
+    this.hit(x0, y, W - m - x0, 12, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
+    y += 14;
+    const kms = (res.ca.vInf / 1000).toFixed(1);
+    const mt = res.energy.energyMt.toFixed(res.energy.energyMt < 10 ? 1 : 0);
+    const brief = `${th.name}  ${th.targetId && th.targetId !== 'HOME' ? `TARGET ${targetOf(w, th.targetId).label}  ` : ''}${th.flavor ? th.flavor + ' ' : ''}${th.type.label}  D ${th.D.toFixed(0)} M  E ${mt} MT  ${res.category}  FOUND BY ${th.discoveredBy ?? 'INFRASOUND'}`;
+    const by0 = y;
+    for (const l of wrapText(brief, W - m - x0, 8).slice(0, 2)) {
+      drawText(s, l, x0, y, 8, { color: ui.text, glow: 0.3 });
+      y += 11;
+    }
+    this.hit(x0, by0, W - m - x0, y - by0, 'T2', 'THREAT BRIEF: HOW BIG IS DANGEROUS');
+    const margin = res.ca.marginRadii;
+    const pred = res.outcome === 'HIT' ? `PREDICTED IMPACT  MARGIN ${margin.toFixed(2)} R` : res.outcome === 'PARTIAL' ? `PREDICTED PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `PREDICTED MISS  MARGIN +${margin.toFixed(2)} R`;
+    const tier = this.trackingTier();
+    const sv = sigmaVWithArc(tier, Math.max(0, w.t) / DAY) * this.run.effects.sigmaVMult;
+    const pTrack = impactProbability(res.ca.dMin, res.ca.bCrit, sigmaB(sv, Math.max(0, th.tImpact - w.t)));
+    const pImpact = this.mc ? (1 - this.mc.pMiss).toFixed(2) : pTrack.toFixed(2);
+    const py0 = y;
+    for (const l of wrapText(`${pred}   P(IMPACT) ${pImpact}   V-INF ${kms} KM/S   LEAD ${(th.tImpact / YEAR).toFixed(1)} Y   TRACKING T${tier}${res.producedFragments ? `   BODIES ${res.outcomes.length}` : ''}`, W - m - x0, 8).slice(0, 2)) {
+      drawText(s, l, x0, y, 8, { color: res.outcome === 'HIT' ? p.hot : ui.dim, glow: res.outcome === 'HIT' ? 0.8 : 0 });
+      y += 11;
+    }
+    this.hit(x0, py0, W - m - x0, y - py0, 'F9', 'PREDICTION AND P(IMPACT): RISK SCALES');
+    if (th.noWarning) {
+      for (const l of wrapText('NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY: EVACUATE.', W - m - x0, 8)) {
+        drawText(s, l, x0, y, 8, { color: p.hot, glow: 1 });
+        y += 11;
+      }
+    }
+    if (this.noteT > 0) {
+      for (const l of wrapText(this.noteText, W - 2 * m, 9).slice(0, 2)) {
+        drawText(s, l, m, y + 2, 9, { color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
+        y += 13;
+      }
+    }
+    this.hudBottom = y + 4;
+    // Above the bar: the last three events on the left, the round line on the right, a tip above them.
+    const base = s.height - this.barH;
+    const passed = res.events.filter((e) => e.t <= w.t).slice(-3);
+    let ly = base - 12 - passed.length * 11;
+    for (const e of passed) {
+      drawTextFit(s, formatEvent(e, th.tImpact, this.run.reveal ? undefined : w.t), m, ly, 8, W * 0.62, { color: p.dim, glow: 0 });
+      ly += 11;
+    }
+    drawText(s, `R${w.round}  ${w.runSeed}  ${this.scale === 'COMPRESSED' ? 'COMPRESSED' : 'LINEAR'}`, W - m, base - 12, 8, { align: 'right', color: p.dim, glow: 0 });
+    if (this.phase === 'planning' && this.settings.tips !== false && !this.tut && !this.tele.isOpen && !this.auto) {
+      const tip = pickTip({ missions: this.missions.length, inFlight: craftRemaining(res.missionsResolved, w.t), budget: budgetAt(this.run.economy, w.t), leadLeftYears: (th.tImpact - w.t) / YEAR, predictedMiss: res.outcome === 'MISS' }, Math.floor(performance.now() / 1000 / KNOBS.TIP_SECONDS));
+      if (tip) {
+        // On a touch screen the tip names the button, not the key.
+        const names: Record<string, string> = { P: 'PLANNER', ']': 'WARP +', G: 'PROGRAMS', T: 'TECH', E: 'EVACUATE', '?': 'LORE', V: 'PLANET VIEW' };
+        const text = this.keys.touchUsed ? tip.text.replace(/PRESS (\S)/g, (_m, key: string) => `TAP ${names[key] ?? key}`) : tip.text;
+        const lines = wrapText(`TIP  ${text}`, W - 2 * m, 8).slice(0, 2);
+        let ty = base - 14 - passed.length * 11 - lines.length * 11;
+        for (const l of lines) {
+          drawText(s, l, m, ty, 8, { color: s.spectrum ? s.role('program') : p.dim, glow: 0.2 });
+          ty += 11;
+        }
+      }
+    }
+  }
+
+  /** The buttons along the bottom for the moment: what the open overlay or the phase can do (ui/actionBar.ts). */
+  private barItems(): BarItem[] {
+    const compact = this.compact();
+    const close: BarItem = { label: 'CLOSE', code: 'Escape', key: 'ESC' };
+    const up: BarItem = { label: 'UP', code: 'ArrowUp' };
+    const down: BarItem = { label: 'DOWN', code: 'ArrowDown' };
+    const more: BarItem = { label: 'MORE', code: 'MORE' };
+    if (this.console.isOpen) return [{ label: 'CLOSE CONSOLE', code: 'Escape', key: 'ESC' }];
+    if (this.lore.isOpen) return [up, down, { label: 'LEVEL', code: 'Tab', key: 'TAB' }, { label: 'LEARN MORE', code: 'KeyL', key: keyName('LEARN') }, close];
+    if (this.planner.isOpen) return [up, down, { label: 'COMMIT', code: 'Enter', key: 'ENTER', hot: true }, { label: 'TARGET', code: 'Tab', key: 'TAB', off: this.planner.targetCount < 2 }, ...(compact ? [] : [{ label: 'RULES', code: 'KeyR', key: 'R' }]), close];
+    if (this.programs.isOpen) return [up, down, { label: 'FUND -', code: 'ArrowLeft' }, { label: 'FUND +', code: 'ArrowRight' }, { label: 'FULL / NONE', code: 'Enter', key: 'ENTER' }, { label: 'STUDIES', code: 'Tab', key: 'TAB' }, { label: 'LEARN', code: 'KeyL', key: keyName('LEARN') }, close];
+    if (this.tech.isOpen) return [{ label: '< TRACK', code: 'ArrowLeft' }, { label: 'TRACK >', code: 'ArrowRight' }, up, down, { label: 'UNLOCK', code: 'Enter', key: 'ENTER', hot: true }, { label: 'LEARN', code: 'KeyL', key: keyName('LEARN') }, close];
+    if (this.sky.isOpen) return [{ label: 'CLOSE SKY VIEW', code: 'Escape', key: 'ESC' }];
+    if (this.planetOpen) return [{ label: 'SYSTEM VIEW', code: 'KeyV', key: keyName('PLANET') }, ...(this.phase === 'planning' ? [] : [{ label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }])];
+    if (this.phase === 'debrief') return [{ label: this.run.tutorial ? 'ROUND 1' : 'NEXT ROUND', code: 'Space', key: 'SPACE', hot: true }, { label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }, { label: 'PROGRAMS', code: 'KeyG', key: keyName('PROGRAMS') }, more];
+    if (this.phase === 'over') return [{ label: 'NEW RUN', code: 'Space', key: 'SPACE', hot: true }, { label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }, { label: this.panelHidden ? 'SHOW PANEL' : 'HIDE PANEL', code: 'KeyH', key: 'H' }, { label: 'PLANET', code: 'KeyV', key: keyName('PLANET') }, { label: 'TITLE', code: 'Escape', key: 'ESC' }];
+    const w = this.world;
+    const paused = w.warp === 0;
+    const base: BarItem[] = [
+      { label: paused ? 'RUN' : 'PAUSE', code: 'Space', key: 'SPACE', hot: paused },
+      { label: 'WARP -', code: 'BracketLeft', key: keyName('WARP_DOWN'), off: w.warp === 0 },
+      { label: 'WARP +', code: 'BracketRight', key: keyName('WARP_UP'), off: w.warp >= KNOBS.WARP_LEVELS.length - 1 },
+      { label: 'PLANNER', code: 'KeyP', key: keyName('PLANNER'), hot: this.missions.length === 0 },
+    ];
+    if (this.auto && !this.auto.demo) base.unshift({ label: 'TAKE OVER', code: 'KeyA', key: keyName('AUTOPLAY'), hot: true });
+    if (compact) return [...base, more];
+    return [...base, { label: 'PROGRAMS', code: 'KeyG', key: keyName('PROGRAMS') }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }, { label: 'PLANET', code: 'KeyV', key: keyName('PLANET') }, { label: 'EVACUATE', code: 'KeyE', key: keyName('EVACUATE'), off: this.run.evacuatedAt !== null }, { label: 'LORE', code: 'Slash', key: keyName('LORE') }, more];
+  }
+
+  /** The MORE menu's grid: everything the bar left out. */
+  private menuItems(): BarItem[] {
+    const closeMenu: BarItem = { label: 'CLOSE MENU', code: 'MENU_CLOSE' };
+    const common: BarItem[] = [{ label: 'LEARNING CENTER', code: 'KeyL', key: keyName('LEARN') }, { label: 'MANUAL', code: 'KeyM', key: keyName('MANUAL') }, { label: 'TITLE', code: 'Escape', key: 'ESC' }];
+    if (this.phase !== 'planning') return [{ label: 'PLANET VIEW', code: 'KeyV', key: keyName('PLANET') }, { label: this.panelHidden ? 'SHOW PANEL' : 'HIDE PANEL', code: 'KeyH', key: 'H' }, ...common, closeMenu];
+    return [
+      { label: 'PROGRAMS', code: 'KeyG', key: keyName('PROGRAMS') },
+      { label: 'TECH TREE', code: 'KeyT', key: keyName('TECH') },
+      { label: 'PLANET VIEW', code: 'KeyV', key: keyName('PLANET') },
+      { label: 'SKY VIEW', code: 'KeyK', key: 'K' },
+      { label: 'EVACUATE', code: 'KeyE', key: keyName('EVACUATE'), off: this.run.evacuatedAt !== null },
+      { label: 'RESOLVE NOW', code: 'KeyR', key: keyName('RESOLVE') },
+      { label: `SCALE ${this.scale === 'LINEAR' ? 'COMPRESSED' : 'LINEAR'}`, code: 'KeyS', key: keyName('SCALE') },
+      { label: 'TILT', code: 'KeyI', key: keyName('TILT') },
+      { label: 'RESET VIEW', code: 'KeyZ', key: 'Z' },
+      { label: 'LORE PANEL', code: 'Slash', key: keyName('LORE') },
+      { label: this.auto ? 'TAKE OVER' : 'AUTOPLAY', code: 'KeyA', key: keyName('AUTOPLAY') },
+      { label: 'EXPORT SAVE', code: 'KeyX', key: 'X' },
+      ...(this.tut ? [{ label: 'SKIP TUTORIAL', code: 'Tab', key: 'TAB' }] : []),
+      ...common,
+      closeMenu,
+    ];
+  }
+
+  /** Lay out and draw the bar for this frame; its height is kept for the lines that sit above it. */
+  private drawBar(): void {
+    const s = this.s;
+    if (this.auto?.demo) {
+      this.barBoxes = [];
+      this.barH = 36;
+      return;
+    }
+    const touch = this.keys.touchUsed || this.compact();
+    this.barBoxes = barLayout(s.width, s.height, this.barItems(), touch);
+    this.barH = barHeight(this.barBoxes, s.height);
+    drawBar(s, this.barBoxes, touch);
   }
 
   private panel(w: number, h: number): { x: number; y: number } {
@@ -1840,16 +2045,20 @@ export class SystemScreen implements Screen {
     const res = this.result;
     const sc = this.score;
     if (!th || !res || !sc) return;
-    const events = res.events.slice(-8);
+    // A short window (a phone held sideways) shows four events and no gauge; a narrow one smaller headings.
+    const short = s.height < 500;
+    const compact = this.compact();
+    const events = res.events.slice(short ? -4 : -8);
+    const gh = short ? 0 : gaugeHeight(undefined, false, true);
     const pw = Math.min(900, s.width - 32);
-    const { x, y } = this.panel(pw, 150 + events.length * 15 + 60 + gaugeHeight(undefined, false, true) + 24);
+    const { x, y } = this.panel(pw, (compact ? 136 : 150) + events.length * 15 + 60 + gh + (short ? 4 : 24));
     const fitW = pw - 32;
     const cx = s.width / 2;
     // A hit that the run survives (evacuated, shielded, or a practice round) says so instead of "MISS BY -x".
     const site = th.targetId && th.targetId !== 'HOME' ? targetOf(this.world, th.targetId).label : null;
     const why = this.run.tutorial || this.tut?.script === 'DART' ? 'PRACTICE ROUND' : this.run.shield ? 'SHIELDED' : site ? `${site} LOST` : 'EVACUATED';
     const head = res.outcome === 'HIT' ? `HIT, SURVIVED: ${why}` : res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT GOT THROUGH` : `MISS BY ${res.ca.marginRadii.toFixed(2)} R`;
-    drawTextFit(s, head, cx, y + 22, 30, fitW, { align: 'center', color: p.hot, glow: 2 });
+    drawTextFit(s, head, cx, y + 22, compact ? 22 : 30, fitW, { align: 'center', color: p.hot, glow: 2 });
     drawTextFit(s, `${th.name}  ${th.type.label}  D ${th.D.toFixed(0)} M   CLOSEST APPROACH ${(res.ca.dMin / 1000).toFixed(0)} KM   B-CRIT ${(res.ca.bCrit / 1000).toFixed(0)} KM`, cx, y + 64, 12, fitW, { align: 'center' });
     let ly = y + 92;
     const firstIdx = res.events.length - events.length;
@@ -1872,9 +2081,9 @@ export class SystemScreen implements Screen {
     drawTextFit(s, `FOUND BY ${th.discoveredBy ?? 'NOBODY'} WITH ${(th.tImpact / YEAR).toFixed(1)} Y OF LEAD.  A SUNWARD SENTINEL OR SPACE IR SURVEYOR BUYS LEAD TIME: <G> PROGRAMS`, cx, ly + 36, 10, fitW, { align: 'center', color: p.dim, glow: 0 });
     // Where this rock sat on the detection gauge: seen by design, or by luck.
     drawTextFit(s, this.gauge ? gaugeVerdict(th.D, th.tImpact, th.noWarning, this.gauge.needles.DEFLECT) : `THIS ROCK: ${th.D.toFixed(0)} M. THE DETECTION GAUGE IS STILL COMPUTING.`, cx, ly + 54, 10, fitW, { align: 'center', color: uiColors(p, s.spectrum).sub, glow: 0.5 });
-    drawGauge(s, this.gauge, x + 16, ly + 72, pw - 32, { rock: th.D, title: false });
-    ly += gaugeHeight(undefined, false, true) + 24;
-    drawTextFit(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
+    if (!short) drawGauge(s, this.gauge, x + 16, ly + 72, pw - 32, { rock: th.D, title: false });
+    ly += gh + (short ? 4 : 24);
+    if (!this.keys.touchUsed) drawTextFit(s, '<SPACE> NEXT ROUND   <T> TECH   <G> PROGRAMS   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, ly + 56, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 
   private drawOver(): void {
@@ -1898,6 +2107,6 @@ export class SystemScreen implements Screen {
       drawTextFit(s, `YOUR MISSIONS MOVED IT ${moved >= 0 ? '+' : ''}${moved.toFixed(2)} R. IT NEEDED ${(-res.ca.marginRadii).toFixed(2)} R MORE: EARLIER, OR A SECOND IMPACTOR.`, cx, y + 156, 11, fitW, { align: 'center', color: s.spectrum ? s.role('craft') : p.ink, glow: 0.6 });
     }
     drawTextFit(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 184, 12, fitW, { align: 'center' });
-    drawTextFit(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 230, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
+    if (!this.keys.touchUsed) drawTextFit(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 230, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 }

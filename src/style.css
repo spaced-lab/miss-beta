@@ -3,5 +3,8 @@
 html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
 /* 100dvh: on phones 100vh runs under the browser's toolbars, which hid the bottom of the screen. touch-action: none
    hands every touch to the game (no browser pan, zoom or double-tap zoom over the canvas). */
-canvas#game { display: block; width: 100vw; height: 100vh; height: 100dvh; image-rendering: auto; touch-action: none; }
+/* user-select / touch-callout: a long press on a phone selected the whole page (the canvas's accessible name) and
+   the selection could not be cleared (owner 2026-10-21, PERIMETER); nothing on the page is text to copy. */
+html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+canvas#game { display: block; width: 100vw; height: 100vh; height: 100dvh; image-rendering: auto; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 noscript { color: #33ff33; font-family: monospace; padding: 2rem; display: block; }

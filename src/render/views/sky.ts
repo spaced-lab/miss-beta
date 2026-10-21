@@ -42,6 +42,8 @@ export class SkyOverlay {
   private readonly mat = new Materialize();
   still: () => boolean = () => false;
   private open = false;
+  /** Px reserved along the bottom edge (the owner's action bar), set by the owner each frame. */
+  bottomInset = 36;
   constructor(private readonly s: Surface, private readonly keys: Input) {}
 
   get isOpen(): boolean {
@@ -177,7 +179,7 @@ export class SkyOverlay {
       }
     }
     const pct = Math.round((blind / Math.max(1, cells)) * 100);
-    drawTextFit(s, `${nets.length} DISCOVERING NETWORKS   ${pct} % OF THE SKY RARELY COVERED   ECLIPTIC BRIGHT, LATITUDE CIRCLES EVERY 30 DEG, SUN CAP 60 DEG`, cx, s.height - 48, 10, s.width - 32, { align: 'center', color: ui.text, glow: 0.3 });
-    drawTextFit(s, '<K> OR <ESC> CLOSE   ? LORE F12', cx, s.height - 28, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    drawTextFit(s, `${nets.length} DISCOVERING NETWORKS   ${pct} % OF THE SKY RARELY COVERED   ECLIPTIC BRIGHT, LATITUDE CIRCLES EVERY 30 DEG, SUN CAP 60 DEG`, cx, s.height - this.bottomInset - 28, 10, s.width - 32, { align: 'center', color: ui.text, glow: 0.3 });
+    drawTextFit(s, '<K> OR <ESC> CLOSE   ? LORE F12', cx, s.height - this.bottomInset - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

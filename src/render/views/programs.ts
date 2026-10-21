@@ -38,7 +38,13 @@ export class ProgramsOverlay {
   private studySel = 0;
   private studyRowYs: number[] = [];
   /** Right edge of the name column, CSS px: a click left of it on the selected row opens the lore. */
-  private readonly nameW = 16 + 190;
+  private nameW = 16 + 190;
+  /** Px reserved along the bottom edge (the owner's action bar), set by the owner each frame. */
+  bottomInset = 36;
+  /** Phone layout (IDEAS 38): a name, a progress bar and the funding per row; tag, years and cost in the note. */
+  private compact(): boolean {
+    return this.s.width < 700 || this.s.height < 500;
+  }
   constructor(private readonly s: Surface, private readonly keys: Input) {}
 
   get isOpen(): boolean {
@@ -75,7 +81,8 @@ export class ProgramsOverlay {
     const n = run.programs.length;
     const click = k.takeClick();
     if (click) {
-      const i = this.rowYs.findIndex((y) => click.y >= y - 2 && click.y < y + 15);
+      const pitch = this.compact() ? 16 : 17;
+      const i = this.rowYs.findIndex((y) => click.y >= y - 2 && click.y < y + pitch - 2);
       // Click-to-learn: a click on the name of the row already selected opens its lore topic.
       const ps0 = run.programs[i];
       if (i >= 0 && i === this.sel && click.x < this.nameW && ps0 && this.openLore) {
@@ -141,6 +148,10 @@ export class ProgramsOverlay {
     const ui = uiColors(p, s.spectrum);
     const m = 16;
     const rows = this.visibleStudies(run, experimental);
+    if (this.compact()) {
+      this.renderStudiesCompact(run, experimental, rows);
+      return;
+    }
     const cTag = m + 200, cTrl = m + 345, cHy = m + 410, cGy = m + 490, cCost = m + 565, cP = m + 640, bx = m + 735, bw = 150;
     for (const [x, h] of [[m, 'STUDY'], [cTag, 'TAG'], [cTrl, 'TRL'], [cHy, 'HUMAN Y'], [cGy, 'GAME Y'], [cCost, 'COST/Y'], [cP, 'P(WORKS)'], [bx, 'MILESTONES'], [bx + bw + 14, 'STATUS']] as const) drawText(s, h, x, m + 26, 10, { color: p.dim, glow: 0 });
     let y = m + 44;
@@ -192,6 +203,108 @@ export class ProgramsOverlay {
     if (!experimental) drawTextFit(s, 'EXPERIMENTAL STUDIES (FUSION LINES): OPTIONS > EXPERIMENTAL TECH, OR ANY SCI-FI RUN.', m, y + 14, 9, w, { color: p.dim, glow: 0 });
   }
 
+  /** STUDIES on a phone: id, readiness, a bar and the status per row; tag, years, cost and odds in the detail text. */
+  private renderStudiesCompact(run: RunState, experimental: boolean, rows: StudyState[]): void {
+    const s = this.s;
+    const p = s.palette;
+    const ui = uiColors(p, s.spectrum);
+    const m = 12;
+    const W = s.width;
+    const fs = 9;
+    const pitch = 16;
+    const cTrl = m + W * 0.4, bx = m + W * 0.52, bw = W * 0.2, cSt = bx + bw + 8;
+    let y = m + 30;
+    this.nameW = cTrl;
+    this.studyRowYs = [];
+    const bottom = s.height - this.bottomInset - 96;
+    rows.forEach((st, i) => {
+      if (y > bottom) {
+        this.studyRowYs.push(NaN);
+        return;
+      }
+      this.studyRowYs.push(y);
+      const c = studyById(st.id);
+      const selected = i === this.studySel;
+      const avail = studyAvailable(c, run.studies, experimental);
+      const col = st.status === 'SUCCEEDED' ? p.dim : !avail && st.status === 'IDLE' ? p.dim : selected ? p.hot : p.ink;
+      const sty = { color: col, glow: selected ? 0.8 : 0.2 };
+      drawTextFit(s, `${selected ? '>' : ' '}${c.id}`, m - 6, y, fs, cTrl - m, sty);
+      drawText(s, `${trlReached(c, st)}/${c.trlNeeded}`, cTrl, y, fs, sty);
+      s.stroke([bx, y + 1, bx + bw, y + 1, bx + bw, y + 9, bx, y + 9], { closed: true, color: p.dim, glow: 0 });
+      if (st.progress > 0) s.stroke([bx + 2, y + 5, bx + 2 + (bw - 4) * st.progress, y + 5], { color: st.status === 'FAILED' ? p.hot : col, width: 4, glow: 0.5 });
+      const stat = st.status === 'RUNNING' ? (st.funding >= 1 ? 'RUNNING' : st.funding > 0 ? `${Math.round(st.funding * 100)}%` : 'PAUSED') : st.status === 'IDLE' ? (avail ? 'IDLE' : 'LOCKED') : st.status;
+      drawTextFit(s, stat, cSt, y, fs, W - m - cSt, { color: st.status === 'FAILED' ? p.hot : col, glow: selected ? 0.8 : 0.2 });
+      y += pitch;
+    });
+    const sel = rows[this.studySel];
+    if (!sel) return;
+    const c = studyById(sel.id);
+    y += 4;
+    const w = W - 2 * m;
+    drawTextFit(s, `${c.name}  ${c.tag}  ${c.humanYears} HUMAN Y (${(c.humanYears * KNOBS.STUDY_TIME_COMPRESSION).toFixed(1)} GAME Y)  COST ${studyCostPerYear(c).toFixed(1)}/Y  P(WORKS) ${Math.round(c.pSuccess * 100)}%`, m, y, 9, w, { color: ui.title, glow: 0.8 });
+    y += 13;
+    for (const l of wrapText(c.note.toUpperCase(), w, 8).slice(0, 3)) {
+      drawText(s, l, m, y, 8, { color: ui.text, glow: 0.3 });
+      y += 11;
+    }
+    const sidx = rows.length - this.studyRowYs.filter((v) => Number.isFinite(v)).length;
+    if (sidx > 0) drawText(s, `${sidx} MORE BELOW`, W - m, m + 30, 8, { align: 'right', color: p.dim, glow: 0 });
+  }
+
+  /** PROGRAMS on a phone: the name, a progress bar and the funding per row; the note carries tag, years and cost. */
+  private renderCompact(run: RunState, budget: number, gauge: GaugeReading | null): void {
+    const s = this.s;
+    const p = s.palette;
+    const ui = uiColors(p, s.spectrum);
+    const m = 12;
+    const W = s.width;
+    const fs = 9;
+    const pitch = 16;
+    const burn = programBurn(run.programs);
+    drawTextFit(s, `${this.tab}   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y)`, m + (this.keys.touchUsed ? 34 : 0), m, 12, W - 2 * m - 34, { color: ui.title, glow: 1.2 });
+    const bx = m + W * 0.52, bw = W * 0.26, fx = bx + bw + 8;
+    this.fundX = bx;
+    this.nameW = bx - 8;
+    let y = m + 30;
+    // Rows that fit above the note (two lines) and the bar; the window follows the selection.
+    const noteH = 40;
+    const rows = Math.max(4, Math.floor((s.height - this.bottomInset - noteH - y) / pitch));
+    const n = run.programs.length;
+    this.top = Math.max(0, Math.min(this.top, n - rows, this.sel), this.sel - rows + 1);
+    this.rowYs = [];
+    run.programs.forEach((st, i) => {
+      if (i < this.top || i >= this.top + rows) {
+        this.rowYs.push(NaN);
+        return;
+      }
+      this.rowYs.push(y);
+      const def = programById(st.id);
+      const selected = i === this.sel;
+      const col = st.completedAt !== null ? p.dim : selected ? p.hot : p.ink;
+      const tagCol = st.completedAt !== null || !s.spectrum ? col : def.tag === 'REAL' ? s.role('planet') : def.tag === 'PROPOSED' ? s.role('craft') : s.role('program');
+      drawTextFit(s, `${selected ? '>' : ' '}${def.id}`, m - 6, y, fs, bx - m - 2, { color: selected ? col : tagCol, glow: selected ? 0.8 : 0.2 });
+      s.stroke([bx, y + 1, bx + bw, y + 1, bx + bw, y + 9, bx, y + 9], { closed: true, color: p.dim, glow: 0 });
+      if (st.progress > 0) s.stroke([bx + 2, y + 5, bx + 2 + (bw - 4) * st.progress, y + 5], { color: col, width: 4, glow: 0.5 });
+      const fund = st.completedAt !== null ? 'DONE' : st.funding === 0 ? 'NONE' : st.funding >= 1 ? 'FULL' : `${(st.funding * 100).toFixed(0)}%`;
+      drawText(s, fund, fx, y, fs, { color: col, glow: selected ? 0.8 : 0.2 });
+      y += pitch;
+    });
+    if (this.top > 0) drawText(s, `^ ${this.top}`, W - m, m + 16, 8, { align: 'right', color: p.dim, glow: 0 });
+    if (this.top + rows < n) drawText(s, `v ${n - this.top - rows}`, W - m, y - 4, 8, { align: 'right', color: p.dim, glow: 0 });
+    const sel = run.programs[this.sel];
+    if (sel) {
+      const def = programById(sel.id);
+      drawTextFit(s, `${def.tag}   ${def.years} Y   COST ${def.costPerYear}/Y`, m, y + 2, 9, W - 2 * m, { color: ui.sub, glow: 0.4 });
+      let ny = y + 14;
+      for (const l of wrapText(def.note.toUpperCase(), W - 2 * m, 8).slice(0, 2)) {
+        drawText(s, l, m, ny, 8, { color: p.hot, glow: 0.5 });
+        ny += 11;
+      }
+      // The gauge only where the window is tall enough for it under the note.
+      if (s.height - this.bottomInset - ny - 8 >= gaugeHeight() + 10) drawGauge(s, gauge, m, ny + 6, W - 2 * m);
+    }
+  }
+
   render(run: RunState, budget: number, t: number, gauge: GaugeReading | null = null, experimental = false): void {
     if (!this.open) return;
     const s = this.s;
@@ -202,6 +315,15 @@ export class ProgramsOverlay {
     // Materialize (24.2): the frame draws itself in when the overlay opens.
     this.mat.tick(1 / 60);
     this.mat.frame(s, 3, 3, s.width - 6, s.height - 6, 0.8, this.still());
+    if (this.compact()) {
+      if (this.tab === 'STUDIES') {
+        drawTextFit(s, `STUDIES   BUDGET ${budget.toFixed(1)}  (-${studyBurn(run.studies).toFixed(2)}/Y STUDIES)`, 12 + (this.keys.touchUsed ? 34 : 0), 12, 12, s.width - 60, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+        this.renderStudies(run, experimental);
+      } else this.renderCompact(run, budget, gauge);
+      void t;
+      return;
+    }
+    this.nameW = 16 + 190;
     const burn = programBurn(run.programs);
     const sBurn = studyBurn(run.studies);
     drawText(s, `${this.tab}   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS  -${sBurn.toFixed(2)}/Y STUDIES)`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });

@@ -102,7 +102,10 @@ export class Input {
         this.dragging = false;
         pinch = dist(t);
       }
-    }, { passive: true });
+      // NOTE: not passive: the default action of a touch on the canvas is a long-press selection / callout or a
+      // browser gesture, never anything the game wants (owner 2026-10-21: the whole screen got selected in PERIMETER).
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
     target.addEventListener('touchmove', (e) => {
       const t = e.touches;
       this.setTouches(t);
@@ -185,9 +188,11 @@ export class Input {
     return this.edge.size > 0;
   }
 
-  /** AUTOPLAY: press a logical code for one frame, as if the player had (game/autoplay.ts). */
-  inject(code: string): void {
+  /** Press a logical code for one frame, as if the player had: AUTOPLAY (game/autoplay.ts, not `real`) and the
+   *  on-screen buttons (ui/actionBar.ts, `real`: a tap is the player, so it can take control back from AUTOPLAY). */
+  inject(code: string, real = false): void {
     this.edge.add(code);
+    if (real) this.real = true;
   }
   private real = false;
   /** True when a physical key went down this frame (AUTOPLAY hands control back on one). */

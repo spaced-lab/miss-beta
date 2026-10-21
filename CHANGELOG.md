@@ -2,6 +2,26 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-21: the main game on a phone (IDEAS 38), PERIMETER held sideways
+
+- `ui/actionBar.ts`: an ACTION BAR along the bottom of the SYSTEM screen (PAUSE / RUN, WARP -, WARP +, PLANNER, MORE on a
+  phone; PROGRAMS, TECH, PLANET, EVACUATE and LORE join it on a desktop) and a MORE menu grid with every other action.
+  Each button presses a logical key code (`Input.inject`), so the planner, PROGRAMS, TECH, the lore panel, the debrief
+  and RUN OVER get their own bars (UP / DOWN / COMMIT / TARGET, FUND - / +, < TRACK / TRACK >, NEXT ROUND ...) with no new
+  code paths. The desktop's footer line of key hints is gone; keys show small on the buttons instead.
+- Phone HUD under 700 x 500: countdown and warp on one line, budget / score / research / missions small under it, the
+  brief and the prediction wrapped; notes and the tutorial box sit under the HUD; play-by-play and tips above the bar.
+  A tap on a brief or a cinematic is the "any key"; tips name buttons instead of keys on a touch screen.
+- PLANNER on a phone: the porkchop above the plans when upright, beside them sideways; 8 px plan text; the list scrolls
+  to the selected plan. PROGRAMS and STUDIES: name, bar and funding per row (tag, years, cost in the note); the gauge
+  only where it fits. TECH: one track at a time from a row of tabs. The lore panel fills a phone's width. The debrief
+  shows four events and no gauge on a short window. Every overlay keeps its last lines above the bar (`bottomInset`).
+- PERIMETER held sideways (owner 2026-10-21, "a little weird"): SEEK and SWARM sit above the turn buttons, PULSE beside
+  FIRE, the bar column is narrower with closer rows, the status line moves to the top, and the field scales from
+  min(W, 1.35 H) so the planet is a third larger (`viewScale`).
+- A long press on a phone selected the whole page and could not be cleared (owner 2026-10-21): `user-select: none` and
+  `-webkit-touch-callout: none` on the page, and touchstart now prevents its default.
+
 ### 2026-10-21: Learning Center on a phone held upright (IDEAS 39, part)
 
 - `render/views/center.ts` has three layouts by window size: FULL (desktop), WIDE (a phone held sideways: tree,

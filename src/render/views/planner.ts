@@ -101,10 +101,26 @@ export class PlannerOverlay {
   /** Why the grid holds no launch (planner/explain.ts), drawn where the plans would be; null with any window. */
   private why: NoPlanWhy | null = null;
 
+  /** Px reserved along the bottom edge (the owner's action bar), set by the owner each frame. */
+  bottomInset = 36;
+  /** First plan drawn: the list scrolls so the selected plan is always on screen. */
+  private first = 0;
+  /** Phone layout (IDEAS 38): the porkchop above the plans when upright, beside them when sideways, smaller text. */
+  private compact(): boolean {
+    return this.s.width < 700 || this.s.height < 500;
+  }
+  private stack(): boolean {
+    return this.s.width < this.s.height;
+  }
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly client: PlannerClient) {}
 
   get isOpen(): boolean {
     return this.open;
+  }
+
+  /** Live bodies the planner can target (the TARGET button is off with one). */
+  get targetCount(): number {
+    return this.targets.length;
   }
 
   /** AUTOPLAY's read-only view of the list (game/autoplay.ts). */
@@ -352,6 +368,7 @@ export class PlannerOverlay {
     }
     if (click) {
       const hit = this.planYs.find((r) => click.y >= r.y0 && click.y < (r.y1 ?? r.y0 + 90) && click.x > this.planX);
+      // A drag on the list scrolls it (phones); the wheel too.
       if (hit) {
         if (hit.idx === this.sel) clickCommit = true;
         else this.sel = hit.idx;
@@ -391,7 +408,9 @@ export class PlannerOverlay {
     const w = this.session.world;
     const th = w.threat;
     if (!th) return;
-    const m = 16;
+    const compact = this.compact();
+    const stack = compact && this.stack();
+    const m = compact ? 10 : 16;
     const W = s.width;
     const H = s.height;
     s.ctx.fillStyle = withAlpha(p.bg, 0.86);
@@ -399,11 +418,13 @@ export class PlannerOverlay {
     // Materialize (24.2): the frame draws itself in when the overlay opens.
     this.mat.tick(1 / 60);
     this.mat.frame(s, 3, 3, W - 6, H - 6, 0.8, this.still());
-    const top = m + 40;
-    const bottom = H - m - 40;
-    const leftW = Math.min(W * 0.46, 600);
-    drawText(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 ? '  <TAB> NEXT TARGET' : ''}`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
-    drawText(s, this.status, m, m + 20, 11, { color: p.dim, glow: 0 });
+    const top = m + (compact ? 36 : 40);
+    const bottom = H - this.bottomInset - (compact ? 4 : 20);
+    // Sideways on a phone the plot takes 38 % of the width; upright it takes the top third and the plans the rest.
+    const leftW = stack ? W - m : compact ? W * 0.38 : Math.min(W * 0.46, 600);
+    const hx = m + (this.keys.touchUsed && compact ? 34 : 0);
+    drawTextFit(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 && !compact ? '  <TAB> NEXT TARGET' : ''}`, hx, m, compact ? 11 : 14, W - hx - m, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+    drawTextFit(s, this.status, hx, m + (compact ? 15 : 20), compact ? 8 : 11, W - hx - m, { color: p.dim, glow: 0 });
 
     const px0 = m;
     const py0 = top + 10;
@@ -412,7 +433,7 @@ export class PlannerOverlay {
     // flyby list never runs into the footer hint (owner screenshot 2026-10-18).
     const flyRows = this.flybyRes ? Object.keys(this.flybyRes.windows).length + 1 : this.extraStatus ? 1 : 0;
     const under = 32 + flyRows * 12;
-    const ph = Math.max(80, bottom - py0 - under);
+    const ph = stack ? Math.max(70, Math.min(H * 0.26, W * 0.5)) : Math.max(80, bottom - py0 - under);
     s.stroke([px0, py0, px0 + pw, py0, px0 + pw, py0 + ph, px0, py0 + ph], { closed: true, color: p.dim, glow: 0 });
     drawText(s, 'LAUNCH (YEARS FROM NOW)', px0 + pw / 2, py0 + ph + 17, 10, { align: 'center', color: p.dim, glow: 0 });
     drawText(s, 'ARRIVAL', px0, py0 - 14, 10, { color: p.dim, glow: 0 });
@@ -463,8 +484,8 @@ export class PlannerOverlay {
       }
     }
 
-    // FLYBY WINDOWS: feasible flyby dates per planet, under the plot.
-    if (this.flybyRes) {
+    // FLYBY WINDOWS: feasible flyby dates per planet, under the plot (not when the plans sit under the plot).
+    if (this.flybyRes && !stack) {
       let wy = py0 + ph + 32;
       drawText(s, `FLYBY WINDOWS  ${this.extraStatus}`, px0, wy, 10, { color: p.dim, glow: 0 });
       wy += 13;
@@ -473,19 +494,29 @@ export class PlannerOverlay {
         drawText(s, `${pid.padEnd(6)} ${txt}`, px0, wy, 10, { color: times.length ? p.ink : p.dim, glow: 0 });
         wy += 12;
       }
-    } else if (this.extraStatus) {
+    } else if (this.extraStatus && !stack) {
       drawText(s, this.extraStatus, px0, py0 + ph + 32, 10, { color: p.dim, glow: 0 });
     }
 
-    const lx = leftW + m;
+    const lx = stack ? m : leftW + m;
     this.planX = lx - 12;
-    let ly = top;
+    let ly = stack ? py0 + ph + 26 : top;
+    // Plan text: 10 px lines of 13 on the desktop, 8 px lines of 10.5 on a phone.
+    const pfs = compact ? 8 : 10;
+    const plh = compact ? 10.5 : 13;
+    // Scroll: keep the selected plan on screen (about 7 lines plus a gap per plan).
+    const perPlan = 7 * plh + 6;
+    const fit = Math.max(1, Math.floor((bottom - ly - (compact ? 0 : 40)) / perPlan));
+    if (this.sel < this.first) this.first = this.sel;
+    if (this.sel >= this.first + fit) this.first = this.sel - fit + 1;
+    if (this.first > 0) drawText(s, `^ ${this.first} MORE`, W - m, ly - 12, 8, { align: 'right', color: p.dim, glow: 0 });
     const range = KNOBS.BETA_RANGE[th.type.id] ?? ([2, 4] as const);
     if (this.cands.length === 0 && g && !this.why) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
     this.planYs = [];
     this.learnHits = [];
     const budget = this.session.budget;
     this.cands.forEach((c, idx) => {
+      if (idx < this.first || idx >= this.first + fit) return;
       const selected = idx === this.sel;
       this.planYs.push({ y0: ly - 4, idx });
       const ui = uiColors(p, s.spectrum);
@@ -511,15 +542,15 @@ export class PlannerOverlay {
         ` RESULT  ${verdict}${mcLine}`,
         ` COST    ${c.cost} / ${budget.toFixed(1)}`,
       ];
-      if (selected) s.stroke([lx - 8, ly - 4, lx - 8, ly + lines.length * 13 + 2], { color: p.hot, glow: 1.2, width: 2 });
+      if (selected) s.stroke([lx - 8, ly - 4, lx - 8, ly + lines.length * plh + 2], { color: p.hot, glow: 1.2, width: 2 });
       // [?] after the headline: the method's lore topic (kinetic D3, nuclear D5, slow push D6, sail D7, flyby O11).
       const topic = c.archetype === 'PI' ? 'D4' : c.archetype === 'SLOW_PUSH' ? 'D6' : c.archetype === 'SAIL_KINETIC' ? 'D7' : first.warhead ? 'D5' : c.archetype === 'KINETIC_FLYBY' ? 'O11' : 'D3';
-      const qx = lx + measureText(lines[0] ?? '', 10) + 18;
-      drawText(s, '[?]', qx - 10, ly, 10, { color: uiColors(p, s.spectrum).sub, glow: 0.6 });
+      const qx = Math.min(W - m - 8, lx + measureText(lines[0] ?? '', pfs) + 18);
+      drawText(s, '[?]', qx - 10, ly, pfs, { color: uiColors(p, s.spectrum).sub, glow: 0.6 });
       this.learnHits.push({ x: qx, y: ly + 5, topic });
       for (const l of lines) {
-        drawText(s, l, lx, ly, 10, { color: col, glow: selected ? 1.4 : 0.3 });
-        ly += 13;
+        drawTextFit(s, l, lx, ly, pfs, W - m - lx - (l === lines[0] ? 26 : 0), { color: col, glow: selected ? 1.4 : 0.3 });
+        ly += plh;
       }
       ly += 6;
       const last = this.planYs[this.planYs.length - 1];
@@ -540,12 +571,21 @@ export class PlannerOverlay {
     }
     // When no single plan is enough, say what to do: pushes add up, so commit one and plan again.
     const judged = this.cands.filter((c) => c.verdict);
-    if (judged.length > 0 && judged.every((c) => c.verdict?.outcome !== 'MISS')) {
+    if (judged.length > 0 && judged.every((c) => c.verdict?.outcome !== 'MISS') && this.first + fit >= this.cands.length) {
       const ui = uiColors(p, s.spectrum);
-      drawTextFit(s, 'NO SINGLE PLAN MAKES IT MISS. PUSHES ADD UP: COMMIT THE BEST ONE AND THE LIST RE-RANKS WITH IT; THEN COMMIT ANOTHER.', lx, ly + 8, 11, W - lx - m, { color: ui.title, glow: 0.8 });
-      drawTextFit(s, 'OR WAIT: BUDGET GROWS ON THE CLOCK, AND RESEARCH BUYS BIGGER IMPACTORS (T).', lx, ly + 24, 10, W - lx - m, { color: ui.sub, glow: 0.3 });
+      let ay = ly + 4;
+      for (const l of wrapText('NO SINGLE PLAN MAKES IT MISS. PUSHES ADD UP: COMMIT THE BEST ONE AND THE LIST RE-RANKS WITH IT; THEN COMMIT ANOTHER.', W - lx - m, compact ? 8 : 11)) {
+        if (ay > bottom - 24) break;
+        drawText(s, l, lx, ay, compact ? 8 : 11, { color: ui.title, glow: 0.8 });
+        ay += compact ? 11 : 15;
+      }
+      for (const l of wrapText('OR WAIT: BUDGET GROWS ON THE CLOCK, AND RESEARCH BUYS BIGGER IMPACTORS (T).', W - lx - m, compact ? 8 : 10)) {
+        if (ay > bottom - 12) break;
+        drawText(s, l, lx, ay, compact ? 8 : 10, { color: ui.sub, glow: 0.3 });
+        ay += compact ? 11 : 14;
+      }
     }
-    drawTextFit(s, 'UP / DOWN OR CLICK SELECT     <ENTER> OR CLICK AGAIN COMMIT     CLICK [?] LEARN     <TAB> TARGET     <R> RULES PRESET     <P> OR <ESC> CLOSE', W / 2, H - m - 14, 12, W - 32, { align: 'center', color: p.dim, glow: 0 });
+    if (this.first + fit < this.cands.length) drawText(s, `v ${this.cands.length - this.first - fit} MORE`, W - m, bottom - 10, 8, { align: 'right', color: p.dim, glow: 0 });
     void this.mcTimer;
   }
 }

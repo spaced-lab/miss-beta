@@ -153,11 +153,22 @@ function bulletColor(s: Surface, damage: number, stage: number): string {
  *  setting) turns it off entirely; the flash text and particles stay. Example: shakePx(0.1, 50, false) = 5. */
 export const shakePx = (shake: number, scale: number, reduceMotion: boolean): number => (reduceMotion ? 0 : shake * scale);
 
+/**
+ * Px per world unit: MG.VIEW_R world units fit the shorter half-axis, except that a window held sideways (wider than
+ * 1.3 times its height) scales from min(W, 1.35 H), so the planet is a third larger and rocks still start off screen
+ * (the field's edge, FIELD_R, lies past the top and bottom at 4.6 units). Example: viewScale(780, 360) = 39.2;
+ * viewScale(390, 740) = 31.5.
+ */
+export function viewScale(W: number, H: number): number {
+  const short = W > H * 1.3 ? Math.min(W, H * 1.35) : Math.min(W, H);
+  return short / 2 / MG.VIEW_R;
+}
+
 export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const p = s.palette;
   const W = s.width;
   const H = s.height;
-  const k = Math.min(W, H) / 2 / MG.VIEW_R;
+  const k = viewScale(W, H);
   const sh = shakePx(st.shake, k, opts.reduceMotion === true);
   const cx = W / 2 + Math.sin(st.t * 61) * sh;
   const cy = H / 2 + Math.cos(st.t * 47) * sh;
@@ -391,6 +402,8 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   // The left column's top: below the touch BACK tab when it is shown.
   const touch = typeof opts.touchTop === 'number';
   const lt = touch ? 36 : m;
+  // Held sideways on a phone: the bar column is narrower and its rows closer, so the stack ends above FIRE.
+  const wide = touch && W > H * 1.3;
 
   drawText(s, `SCORE ${pad(st.score, 6)}`, m, lt, fs);
   drawText(s, opts.daily ? `DAILY ${opts.daily.date}  BEST ${pad(opts.daily.best, 6)}` : `BEST  ${pad(opts.best, 6)}`, m, lt + fs * 1.7, fs, { color: opts.daily ? p.hot : p.dim, glow: 0 });
@@ -399,16 +412,17 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   if (tags && st.status !== 'ready') drawText(s, tags, m, lt + fs * 5.1, 11, { color: p.dim, glow: 0 });
 
   // Right column: HULL, HEAT, PULSE.
-  const bw = 160;
+  const bw = wide ? 120 : 160;
   const bh = 12;
   const bx = W - m - bw;
+  const rowGap = wide ? 18 : 28;
   // The first label sits above its bar: leave it room so it is never clipped by the top edge.
   let by = m + fs + 8;
   drawText(s, 'HULL', bx, by - fs - 6, fs);
   const hf = st.hp / MG.MAX_HP;
   bar(s, bx, by, bw, bh, hf, hf < 0.3 ? p.hot : p.ink, hf < 0.3 ? 1.5 : 0.8);
 
-  by += bh + 28;
+  by += bh + rowGap;
   drawText(s, st.overheated ? 'HEAT  OVERHEAT' : 'HEAT', bx, by - fs - 6, fs, { color: st.overheated ? NEON.heat : p.ink, glow: st.overheated ? 1.5 : 1 });
   bar(s, bx, by, bw, bh, st.heat, st.heat > 0.75 || st.overheated ? NEON.heat : p.ink, st.heat > 0.75 ? 1.5 : 0.6);
 
@@ -420,16 +434,16 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   }
 
   // Earned weapons: stock diamonds plus a charge bar, one row each.
-  by += bh + 28;
+  by += bh + rowGap;
   stockRow(s, bx, by, bw, bh, fs, 'PULSE', st.pulses, MG.PULSE_MAX, st.pulseCharge, p.hot);
-  by += bh + 28;
+  by += bh + rowGap;
   stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, seekerMax(st.level), st.seekerProgress / seekerHitsNeeded(st.level), stage >= 2 ? NEON.bullet[2] : p.hot);
-  by += bh + 28;
+  by += bh + rowGap;
   stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, swarmMax(st.level), st.swarmProgress / swarmKillsNeeded(st.level), stage >= 3 ? NEON.turret[0] : p.hot);
 
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {
-    by += bh + 28;
+    by += bh + rowGap;
     const need = turretHitsNeeded(st.level);
     drawText(s, `SENTRY ${st.turretProgress}/${need}`, bx, by - fs - 6, fs, { color: stage >= 3 ? NEON.turret[0] : p.ink });
     bar(s, bx, by, bw, bh, st.turretProgress / need, stage >= 3 ? NEON.turret[0] : p.ink, 0.6);
@@ -442,13 +456,17 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   }
 
   // Stream strength ladder: one dot per stream coloured by damage.
-  const bottom = touch ? (opts.touchTop ?? H) - fs - 12 : H - m - fs;
+  // Sideways the pad reaches the middle of the screen, so the status line goes to the top between the columns.
+  const bottom = wide ? m : touch ? (opts.touchTop ?? H) - fs - 12 : H - m - fs;
   const status = `T ${clock(st.t)}   LAUNCHERS X${st.launcherCount}   STREAMS X${st.streamCount}`;
   // NOTE: above the touch pad the line shrinks to leave room for its stream dots on a phone's width.
-  const sfs = touch ? Math.min(fs, (fs * (W - 2 * m - st.streamCount * 12 - 70)) / (measureText(status, fs) * getTextScale())) : fs;
+  // Sideways it must also end before the bar column (bx) with room for its stream dots.
+  const room = wide ? bx - (m + 150) - st.streamCount * 12 - 70 : W - 2 * m - st.streamCount * 12 - 70;
+  const sfs = touch ? Math.min(fs, (fs * room) / (measureText(status, fs) * getTextScale())) : fs;
   // On a touch screen the status line sits where the ready and game-over panels are; it shows only in play.
-  if (!touch || st.status === 'playing') drawText(s, status, m, bottom, sfs);
-  const lx = m + measureText(status, sfs) * getTextScale() + 18;
+  const sx = wide ? m + 150 : m;
+  if (!touch || st.status === 'playing') drawText(s, status, sx, bottom, sfs);
+  const lx = sx + measureText(status, sfs) * getTextScale() + 18;
   for (let j = 0; j < st.streamCount; j++) {
     const d = streamDamage(st.streamCount, j);
     s.dot(lx + j * 12, bottom + sfs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
@@ -460,7 +478,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   }
   if (st.cheats.assisted) drawText(s, 'ASSISTED', m, lt + fs * 5.1, 11, { color: p.dim, glow: 0 });
 
-  let fy = s.height / 2 - MG.PLANET_R * (Math.min(W, H) / 2 / MG.VIEW_R) - 70;
+  let fy = s.height / 2 - MG.PLANET_R * viewScale(W, H) - 70;
   for (const f of st.flashes) {
     const a = Math.min(1, f.t / 0.4);
     drawText(s, f.text, W / 2, fy, 22, { align: 'center', color: p.hot, glow: 2, alpha: a });

@@ -20,6 +20,8 @@ import { wireSphere } from '../wire';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class PlanetOverlay {
+  /** Px reserved along the bottom edge (the owner's action bar), set by the owner each frame. */
+  bottomInset = 36;
   private continents: Continent[] = [];
   private seed = '';
   constructor(private readonly s: Surface) {}
@@ -115,10 +117,10 @@ export class PlanetOverlay {
     if (res) {
       const hits = res.outcomes.filter((o) => o.hits).length;
       const bodies = res.outcomes.length;
-      drawText(s, `${res.outcome}   MARGIN ${res.ca.marginRadii.toFixed(2)} R   BODIES ${bodies}   HITTING ${hits}   ENERGY THROUGH ${res.hitEnergyMt.toFixed(1)} MT`, m, m + 22, 12, { color: p.dim, glow: 0 });
+      drawTextFit(s, `${res.outcome}   MARGIN ${res.ca.marginRadii.toFixed(2)} R   BODIES ${bodies}   HITTING ${hits}   ENERGY THROUGH ${res.hitEnergyMt.toFixed(1)} MT`, m, m + 22, 12, s.width - 2 * m, { color: p.dim, glow: 0 });
       if (mc) drawText(s, `MONTE CARLO  P(MISS) ${(mc.pMiss * 100).toFixed(0)}%  N ${mc.n}`, m, m + 40, 12, { color: p.dim, glow: 0 });
     }
-    drawText(s, 'DOTS: BODIES AT CLOSEST APPROACH.  BRIGHT = HITS.  DIM = HARMLESS (AIRBURST).  DASHED RING = GRAVITATIONAL FOCUSING.', s.width / 2, s.height - m - 30, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawTextFit(s, '<V> BACK TO SYSTEM VIEW', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    const base = s.height - this.bottomInset;
+    drawTextFit(s, 'DOTS: BODIES AT CLOSEST APPROACH.  BRIGHT = HITS.  DIM = HARMLESS (AIRBURST).  DASHED RING = GRAVITATIONAL FOCUSING.', s.width / 2, base - 14, 10, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

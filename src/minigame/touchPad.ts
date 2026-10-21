@@ -5,7 +5,9 @@
 //       or a swarm, or to leave the screen without a keyboard.
 // HOW:  Pure functions. `padLayout(W, H)` places round buttons in CSS px from the window size: two turn buttons
 //       bottom-left, a large FIRE bottom-right with PULSE above it and SEEK / SWARM to its left, each radius
-//       r = clamp(min(W, H) x 0.085, 26, 46). `padHeld(points, layout)` returns the buttons under any finger (a
+//       r = clamp(min(W, H) x 0.085, 26, 46). Held sideways (`landscape(W, H)`, W > 1.3 H) the screen is short, so
+//       SEEK and SWARM sit above the turn buttons and PULSE beside FIRE: the right thumb's stack would otherwise run
+//       up into the HUD's bars (owner 2026-10-21, "landscape mode in the minigame is a little weird"). `padHeld(points, layout)` returns the buttons under any finger (a
 //       finger counts for a button within 1.25 r of its centre, so a thumb that drifts keeps holding). The screen
 //       turns held buttons into the sim's Input: left / right / fire while held, pulse / seeker / swarm on the frame a
 //       button becomes held (an edge, like the keys). Drawing reads the layout and the held set and touches nothing.
@@ -36,6 +38,16 @@ export function padLayout(W: number, H: number): PadButton[] {
   const fr = r * 1.35;
   const fx = W - m - fr;
   const fy = H - m - fr;
+  if (landscape(W, H)) {
+    return [
+      { id: 'left', x: m + r * 1.1, y: by, r, label: '<' },
+      { id: 'right', x: m + r * 3.5, y: by, r, label: '>' },
+      { id: 'seeker', x: m + r * 1.1, y: by - r * 2.35, r, label: 'SEEK' },
+      { id: 'swarm', x: m + r * 3.5, y: by - r * 2.35, r, label: 'SWARM' },
+      { id: 'fire', x: fx, y: fy, r: fr, label: 'FIRE' },
+      { id: 'pulse', x: fx - fr - r * 1.3, y: fy + fr - r, r, label: 'PULSE' },
+    ];
+  }
   return [
     { id: 'left', x: m + r * 1.1, y: by, r, label: '<' },
     { id: 'right', x: m + r * 3.5, y: by, r, label: '>' },
@@ -46,6 +58,11 @@ export function padLayout(W: number, H: number): PadButton[] {
   ];
 }
 
+
+/** A phone held sideways: wider than 1.3 times its height. Example: landscape(780, 360) true; landscape(390, 740) false. */
+export function landscape(W: number, H: number): boolean {
+  return W > H * 1.3;
+}
 
 /**
  * The buttons under any of `points`. Example: a finger on FIRE's centre holds 'fire'; one far from every button
