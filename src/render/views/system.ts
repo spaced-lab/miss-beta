@@ -1270,6 +1270,9 @@ export class SystemScreen implements Screen {
       return;
     }
     if (this.cine.isOpen) {
+      // A burst that started on the frame before its cinematic opened waits again for the map (see queueBursts).
+      const t0 = performance.now();
+      for (const b of this.bursts) if (b.at >= 0 && t0 - b.at < 400) b.at = -1;
       const cur = this.cine.current;
       if (this.auto?.demo && cur?.kind === 'LAUNCH') {
         // SUPER-DUPER-DEMO (owner 2026-10-20, "multiple launches at once and different rockets"): every launch of

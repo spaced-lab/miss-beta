@@ -96,6 +96,12 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Decisions
 
+- 2026-10-21 (phones, IDEAS 38): on-screen actions are buttons that inject logical key codes (`Input.inject(code,
+  real)`), not a second input path per overlay; the SYSTEM screen picks the bar's items from its state each frame and
+  the MORE menu holds the rest. The bar shows on the desktop too (it replaced the unreadable footer of key hints; the
+  key letters sit small on the buttons). "Compact" is width < 700 or height < 500 everywhere; the Learning Center
+  also has STACK (width < 560 or narrower than tall) for an upright phone. Bursts are placed in world coordinates so
+  pan and zoom carry them; they wait for the map under a cinematic.
 - 2026-10-21 (PERIMETER): the MIRV is on from level 1 (the owner said seekers were always meant to split). The swarm
   ease stops at cap 380 from level 18: deeper cuts (320 from 15, 360 from 17) let the armed probe bot plateau on one
   seed (73-95 hull at level 36), which the balance guard forbids; the probe is chaotic per seed, so the chosen set is
@@ -314,6 +320,14 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
   re-planning against fragment bodies (Tab in the planner) after the breakup. Autonomy (M6) will automate the sweep.
 
 ## Resume here (for a fresh session after a context clear)
+
+**STATE 2026-10-21 (later, phones):** IDEAS 38 done (SYSTEM screen on a phone: `ui/actionBar.ts` bar + MORE menu, compact
+HUD, planner / PROGRAMS / TECH / lore / debrief compact layouts); IDEAS 39 mostly done (LEARN upright with a side pane
+for labs, data and models; HELP, CODEX, LEADERBOARD bars and compact layouts; PERIMETER sideways). The demo's pixel
+dust now plays on the main map (bursts per event, exhaust trails). IDEAS 39 closed later the same day: soft keyboard
+(`Input.softKeyboard`) for the console and LEARN's FIND button, KEYS marked keyboard-only on touch, PERIMETER's touch
+panels with difficulty / start level / SOUND LAB buttons and a bar for the lab. Phone check recipe: two iframes of '/' at 780x360 and 390x740 in one page, TouchEvents on
+their canvases, `__miss.screens.get(id)` for state, a half-scale contact sheet POSTed to /__dev/shot.
 
 **STATE 2026-10-21 (restart point):** main is pushed and deployed (Pages from main). Since v26.4.0: three demo passes
 (the owner calls the finale ending perfect: keep it, and keep the tyrannosaur's fishbowl helmet), a phone pass (taps,

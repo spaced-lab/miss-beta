@@ -34,6 +34,8 @@ import { drawPad, padHeld, padLayout, type PadId } from './touchPad';
 import { onBackTab } from '../ui/touchBack';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
+import { PANEL_HITS } from './render';
+import { ScreenBar } from '../ui/actionBar';
 import { isSavedReplay, Player, Recorder, type SavedReplay } from './replay';
 import { chaosLevel, createState, flash, fromSaved, isSavedGame, start, step, toSaved, type Input, type MinigameState } from './sim';
 
@@ -159,6 +161,10 @@ export class MinigameScreen implements Screen {
     return this.st;
   }
 
+  /** The touch panels' buttons (render.ts), readable by the dev visual check. */
+  readonly panelHits = PANEL_HITS;
+  /** The SOUND LAB's touch bar (ui/actionBar.ts). */
+  private readonly labBar = new ScreenBar();
   private soundLabel(): string {
     return `${this.sfx.enabled ? 'SND ON' : 'SND OFF'}  KIT ${this.sfx.kit.name}`;
   }
@@ -224,6 +230,14 @@ export class MinigameScreen implements Screen {
     if ((k.touchPoints ?? []).length > 0) this.sawTouch = true;
     const tapClick = rawClick && !seen ? rawClick : null;
     const tapBack = tapClick !== null && k.touchUsed && onBackTab(tapClick.x, tapClick.y);
+    // A tap on a panel button (render.ts PANEL_HITS) presses its key and does not start a game. NOTE: the finger's
+    // release is read from rawClick (a held finger is "seen", so tapClick is null for it), and the finger going down
+    // on a button is kept out of touchStart below, or the game began before the button was ever read.
+    const onBtn = (pt: { x: number; y: number }): boolean => PANEL_HITS.some((b) => pt.x >= b.x && pt.x < b.x + b.w && pt.y >= b.y && pt.y < b.y + b.h);
+    const panelBtn = rawClick ? PANEL_HITS.find((b) => rawClick.x >= b.x && rawClick.x < b.x + b.w && rawClick.y >= b.y && rawClick.y < b.y + b.h) : undefined;
+    if (panelBtn && (st.status === 'ready' || st.status === 'over')) k.inject(panelBtn.code, true);
+    // The SOUND LAB's bar (a phone has no arrow keys): its taps press keys too.
+    if (this.labState.open) this.labBar.tap(k);
     if ((padEdge('back') || tapBack) && !this.labState.open) {
       if (this.demo) this.stopDemo();
       this.router.go('title');
@@ -303,7 +317,8 @@ export class MinigameScreen implements Screen {
     }
     const touches = k.touchPoints ?? [];
     // NOTE: a finger on BACK (held) must not also start a game from the panel.
-    const touchStart = (touches.length > 0 && !this.touchWas && !this.padNow.has('back')) || (tapClick !== null && !tapBack);
+    const first = touches[0];
+    const touchStart = (touches.length > 0 && !this.touchWas && !this.padNow.has('back') && !(first && onBtn(first))) || (tapClick !== null && !tapBack && !panelBtn);
     this.touchWas = touches.length > 0;
     if (this.player && st.status === 'over' && (touchStart || k.pressed('Space'))) {
       this.endReplay();
@@ -479,7 +494,10 @@ export class MinigameScreen implements Screen {
       reduceMotion: this.reduceMotion(),
       touchTop: this.keys.touchUsed && !this.labState.open ? Math.min(...padLayout(this.s.width, this.s.height).map((b) => b.y - b.r)) : null,
     });
-    if (this.labState.open) renderLab(this.s, this.labState, this.sfx);
+    if (this.labState.open) {
+      renderLab(this.s, this.labState, this.sfx);
+      if (this.keys.touchUsed) this.labBar.draw(this.s, [{ label: 'UP', code: 'ArrowUp' }, { label: 'DOWN', code: 'ArrowDown' }, { label: '< PICK', code: 'ArrowLeft' }, { label: 'PICK >', code: 'ArrowRight' }, { label: 'PLAY', code: 'Enter' }, { label: 'REVIEW ALL', code: 'KeyA' }, { label: 'DEFAULTS', code: 'Digit0' }, { label: 'CLOSE', code: 'Escape' }], true);
+    }
     else if (this.keys.touchUsed) drawPad(this.s, padLayout(this.s.width, this.s.height), this.padNow, this.st.status === 'playing' && !this.player && !this.demo);
   }
 }

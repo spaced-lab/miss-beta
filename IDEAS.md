@@ -223,8 +223,11 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     view and the debrief / RUN OVER panels are laid out for a keyboard and a wide window; most actions are keys
     (warp, pause, plan, launch, evacuate) with no touch control. Needs: a compact HUD under 900 x 500, an on-screen
     action bar (warp down / up, pause, plan, launch, programs, lore), touch targets in the planner and panels, and
-    pinch / drag already map to zoom / pan.
+    pinch / drag already map to zoom / pan. Status: DONE 2026-10-21 (ui/actionBar.ts bar + MORE menu,
+    compact HUD and overlays; taps clear briefs and skip cinematics).
 39. **Other screens on a phone (M).** Owner 2026-10-21. Not yet checked or laid out for a phone: CODEX, LEADERBOARD,
     HOW TO PLAY (help pages), OPTIONS > KEYS, the console (needs a soft keyboard: a hidden text input), LEARN held
     upright (only sideways was done), LEARN's search (`/` needs a keyboard), and the SOUND LAB in PERIMETER. Also a
-    PERIMETER touch control for difficulty and start level on the ready panel (today: OPTIONS > PERIMETER).
+    PERIMETER touch control for difficulty and start level on the ready panel (today: OPTIONS > PERIMETER). Status: 2026-10-21 LEARN upright (STACK layout, side pane for labs / data /
+    models), HELP, CODEX and LEADERBOARD done; later the same day the console and search (soft keyboard), KEYS
+    note, SOUND LAB bar and the PERIMETER ready-panel buttons. DONE.

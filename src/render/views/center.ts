@@ -40,7 +40,7 @@ function panels(): typeof import('../../lore/data/panels') | null {
 }
 
 /** A compact-layout button's action. */
-type NavAct = 'UP' | 'DOWN' | 'TOPIC_UP' | 'TOPIC_DOWN' | 'LEVEL_DOWN' | 'LEVEL_UP' | 'VIEW' | 'QUIZ' | 'SIDE' | 'TREE' | 'READ' | 'BOOKMARK' | 'BACK';
+type NavAct = 'UP' | 'DOWN' | 'TOPIC_UP' | 'TOPIC_DOWN' | 'LEVEL_DOWN' | 'LEVEL_UP' | 'VIEW' | 'QUIZ' | 'SIDE' | 'TREE' | 'READ' | 'BOOKMARK' | 'BACK' | 'FIND';
 /** The compact layouts' panes: the topic list, the reading column, the side pane (lab / data / model). */
 type Pane = 'TREE' | 'READ' | 'SIDE';
 type Mode = 'FULL' | 'WIDE' | 'STACK';
@@ -113,6 +113,7 @@ export class CenterScreen implements Screen {
   exit(): void {
     this.keys.textMode = false;
     this.searching = false;
+    this.keys.softKeyboard(false);
   }
 
   /** The visible topic list for the current view and search. */
@@ -301,7 +302,7 @@ export class CenterScreen implements Screen {
       }
       return;
     }
-    const nav = click && !this.searching ? this.navHits.find((b) => click.x >= b.x && click.x < b.x + b.w && click.y >= b.y && click.y < b.y + b.h) : undefined;
+    const nav = click ? this.navHits.find((b) => click.x >= b.x && click.x < b.x + b.w && click.y >= b.y && click.y < b.y + b.h && (!this.searching || b.act === 'FIND')) : undefined;
     if (nav) {
       this.navAct(nav.act);
       return;
@@ -351,6 +352,7 @@ export class CenterScreen implements Screen {
         this.searching = false;
       }
       k.textMode = this.searching;
+      if (!this.searching) k.softKeyboard(false);
       this.sel = 0;
       this.select(0);
       return;
@@ -423,6 +425,20 @@ export class CenterScreen implements Screen {
     else if (a === 'BOOKMARK') {
       if (this.topicId) toggleBookmark(this.topicId);
     } else if (a === 'BACK') this.router.go(this.returnTo);
+    else if (a === 'FIND') {
+      // A search on a phone: the soft keyboard types into the filter; Enter or FIND again closes it.
+      if (this.searching) {
+        this.searching = false;
+        this.keys.textMode = false;
+        this.keys.softKeyboard(false);
+      } else {
+        this.searching = true;
+        this.search = '';
+        this.keys.textMode = true;
+        this.keys.takeKeyEvents();
+        if (this.keys.touchUsed) this.keys.softKeyboard(true);
+      }
+    }
     else if (a === 'SIDE') {
       // The button walks LAB -> DATA -> MODEL (those that exist) and back to the text.
       const kinds = this.sideKinds();
@@ -576,16 +592,18 @@ export class CenterScreen implements Screen {
       // STACK's tree pane carries a view row: VIEW cycles TOPICS / LABS / BOOKMARKS, then the bookmark toggle.
       let ty = top;
       if (stack) {
-        const bw = (tw - 6) / 2;
+        const bw = (tw - 12) / 3;
         this.barButton(m, ty, bw, 28, `VIEW: ${this.view}`, 'VIEW');
-        this.barButton(m + bw + 6, ty, bw, 28, bookmarks.includes(this.topicId) ? 'UNMARK TOPIC' : 'BOOKMARK TOPIC', 'BOOKMARK', bookmarks.includes(this.topicId));
+        this.barButton(m + bw + 6, ty, bw, 28, bookmarks.includes(this.topicId) ? 'UNMARK' : 'BOOKMARK', 'BOOKMARK', bookmarks.includes(this.topicId));
+        this.barButton(m + 2 * (bw + 6), ty, bw, 28, this.search || this.searching ? `FIND "${this.search.toUpperCase()}"` : 'FIND', 'FIND', this.searching);
         ty += 36;
       }
       this.drawTree(m, ty, tw, treeBottom, (stack ? 15 : 12.5) * getTextScale(), stack ? 9 : 8.5);
       if (!stack) {
-        const bw = (tw - 6) / 2;
+        const bw = (tw - 12) / 3;
         this.arrowButton(m, treeBottom + 4, bw, 30, 'up', 'TOPIC_UP');
         this.arrowButton(m + bw + 6, treeBottom + 4, bw, 30, 'down', 'TOPIC_DOWN');
+        this.barButton(m + 2 * (bw + 6), treeBottom + 4, bw, 30, this.search || this.searching ? `"${this.search.toUpperCase()}"` : 'FIND', 'FIND', this.searching);
       }
     }
     // The column: READ or SIDE.

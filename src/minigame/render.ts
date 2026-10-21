@@ -517,7 +517,26 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
  * instead of keys, TAP TO START, and the difficulty and start level read out with where to change them (OPTIONS >
  * PERIMETER; keys 9 and 0 need a keyboard). Text sizes shrink to the panel's width.
  */
+/** Buttons drawn on the touch panels this frame: a tap on one presses its key code (index.ts). */
+export const PANEL_HITS: { x: number; y: number; w: number; h: number; code: string }[] = [];
+
+/** A row of three touch buttons on a panel: difficulty (9), start level (0), the SOUND LAB (L). */
+function optionButtons(s: Surface, x: number, y: number, w: number, o: NonNullable<RenderOpts['options']>): void {
+  const p = s.palette;
+  const gap = 8;
+  const bw = (w - 2 * gap) / 3;
+  const bh = 34;
+  const items: [string, string][] = [[`${o.difficulty.toUpperCase()}`, 'Digit9'], [`START ${o.startLevel}`, 'Digit0'], ['SOUND LAB', 'KeyL']];
+  items.forEach(([label, code], i) => {
+    const bx = x + i * (bw + gap);
+    s.stroke([bx, y, bx + bw, y, bx + bw, y + bh, bx, y + bh], { closed: true, color: p.dim, glow: 0.2, alpha: 0.9 });
+    drawTextFit(s, label, bx + bw / 2, y + bh / 2 - 5, 10, bw - 10, { align: 'center', color: p.ink, glow: 0.4 });
+    PANEL_HITS.push({ x: bx, y, w: bw, h: bh, code });
+  });
+}
+
 function drawReadyTouch(s: Surface, opts: RenderOpts): void {
+  PANEL_HITS.length = 0;
   const p = s.palette;
   const pw = Math.min(560, s.width - 24);
   const inner = pw - 32;
@@ -528,16 +547,18 @@ function drawReadyTouch(s: Surface, opts: RenderOpts): void {
     ['SEEK', 'HOMING MISSILE, SPLITS NEAR ITS TARGET'],
     ['SWARM', 'A SWARM OF SENTINEL DRONES'],
   ];
-  const ks = Math.min(12, (12 * inner) / ((measureText('SWARM   HOLD TO FIRE (WATCH THE HEAT)', 12) + 20) * getTextScale()));
-  const lh = ks * 1.7 * getTextScale();
+  // A phone held sideways (under 420 px tall) gets a shorter panel: smaller title, no subtitle, tighter rows.
+  const short = s.height < 420;
+  const ks = Math.min(short ? 10 : 12, (12 * inner) / ((measureText('SWARM   HOLD TO FIRE (WATCH THE HEAT)', 12) + 20) * getTextScale()));
+  const lh = ks * (short ? 1.45 : 1.7) * getTextScale();
   const o = opts.options;
-  const h = 150 + rows.length * lh + (o ? 2 * lh + 24 : 0) + 70;
-  const { x, y } = drawPanel(s, pw, h);
+  const h = (short ? 84 : 150) + rows.length * lh + (o ? (short ? 58 : 62) : 0) + (short ? 56 : 70);
+  const { x, y } = drawPanel(s, pw, Math.min(h, s.height - 12));
   const cx = s.width / 2;
-  drawTextFit(s, 'PERIMETER', cx, y + 22, 30, inner, { align: 'center', glow: 2, color: p.hot });
-  drawTextFit(s, 'BETA ARCADE MODE', cx, y + 64, 12, inner, { align: 'center', color: p.dim, glow: 0 });
-  drawTextFit(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + 88, 12, inner, { align: 'center' });
-  let ly = y + 120;
+  drawTextFit(s, 'PERIMETER', cx, y + (short ? 10 : 22), short ? 20 : 30, inner, { align: 'center', glow: 2, color: p.hot });
+  if (!short) drawTextFit(s, 'BETA ARCADE MODE', cx, y + 64, 12, inner, { align: 'center', color: p.dim, glow: 0 });
+  drawTextFit(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + (short ? 40 : 88), short ? 10 : 12, inner, { align: 'center' });
+  let ly = y + (short ? 60 : 120);
   const kw = measureText('SWARM', ks) * getTextScale() + 18;
   for (const [key, what] of rows) {
     drawText(s, key, x + 16, ly, ks, { color: p.hot, glow: 1 });
@@ -545,14 +566,16 @@ function drawReadyTouch(s: Surface, opts: RenderOpts): void {
     ly += lh;
   }
   if (o) {
-    ly += 10;
-    drawTextFit(s, `DIFFICULTY ${o.difficulty.toUpperCase()}   START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, ly, ks, inner, { align: 'center', color: p.ink, glow: 0.6 });
-    drawTextFit(s, 'CHANGE THEM IN OPTIONS > PERIMETER', cx, ly + lh, ks * 0.9, inner, { align: 'center', color: p.dim, glow: 0 });
-    ly += 2 * lh;
+    // Owner 2026-10-21 (IDEAS 39): the options as buttons, not a note pointing at OPTIONS.
+    ly += short ? 4 : 8;
+    drawTextFit(s, `DIFFICULTY   START LEVEL${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, x + 16, ly, ks * 0.8, inner, { color: p.dim, glow: 0 });
+    optionButtons(s, x + 16, ly + 12, inner, o);
+    ly += short ? 54 : 62;
   }
   const r = opts.resume;
-  if (r) drawTextFit(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}`, cx, y + h - 64, 11, inner, { align: 'center', color: p.dim, glow: 0 });
-  if (Math.floor(performance.now() / 500) % 2 === 0) drawTextFit(s, r ? 'TAP TO RESUME' : 'TAP TO START', cx, y + h - 40, 18, inner, { align: 'center', color: p.hot, glow: 1.5 });
+  const hh = Math.min(h, s.height - 12);
+  if (r) drawTextFit(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}`, cx, y + hh - (short ? 48 : 64), 11, inner, { align: 'center', color: p.dim, glow: 0 });
+  if (Math.floor(performance.now() / 500) % 2 === 0) drawTextFit(s, r ? 'TAP TO RESUME' : 'TAP TO START', cx, y + hh - (short ? 30 : 40), short ? 14 : 18, inner, { align: 'center', color: p.hot, glow: 1.5 });
 }
 
 function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
@@ -643,7 +666,10 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
 }
 
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
-  const { y } = drawPanel(s, Math.min(580, s.width - 32), opts.options ? 272 : 250);
+  PANEL_HITS.length = 0;
+  const touch = typeof opts.touchTop === 'number';
+  const pw = Math.min(580, s.width - 32);
+  const { x, y } = drawPanel(s, pw, opts.options ? (touch ? 290 : 272) : 250);
   const cx = s.width / 2;
   drawTextFit(s, 'HOME LOST', cx, y + 28, 34, Math.min(580, s.width - 32) - 32, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, `SCORE ${st.score}`, cx, y + 86, 18, { align: 'center' });
@@ -655,5 +681,6 @@ function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
   if (st.difficulty !== 'normal') drawText(s, `${st.difficulty.toUpperCase()}`, cx, y + 188, 11, { align: 'center', color: s.palette.dim, glow: 0 });
   drawTextFit(s, typeof opts.touchTop === 'number' ? 'TAP TO RETRY' : 'SPACE RETRY    L SOUND LAB    ESC TITLE', cx, y + 212, 14, Math.min(580, s.width - 32) - 32, { align: 'center', color: s.palette.hot, glow: 1.5 });
   const o = opts.options;
-  if (o && typeof opts.touchTop !== 'number') drawTextFit(s, `RETRY AS:  9 ${o.difficulty.toUpperCase()}   0 START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, y + 240, 11, Math.min(580, s.width - 32) - 32, { align: 'center', color: s.palette.ink, glow: 0.6 });
+  if (o && !touch) drawTextFit(s, `RETRY AS:  9 ${o.difficulty.toUpperCase()}   0 START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, y + 240, 11, pw - 32, { align: 'center', color: s.palette.ink, glow: 0.6 });
+  else if (o) optionButtons(s, x + 16, y + 238, pw - 32, o);
 }

@@ -43,8 +43,10 @@ export class Input {
       this.real = true;
       if (!this.down.has(code)) this.edge.add(code);
       this.down.add(code);
-      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') this.keyEvents.push(e.key);
-      if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {
+      // With the soft keyboard up its field delivers characters and backspaces (below); only Enter comes from here.
+      const soft = this.soft !== null;
+      if ((e.key.length === 1 && !soft) || (e.key === 'Backspace' && !soft) || e.key === 'Enter') this.keyEvents.push(e.key);
+      if (e.key.length === 1 && !soft && /[a-z0-9]/i.test(e.key)) {
         this.typedBuffer = (this.typedBuffer + e.key.toUpperCase()).slice(-24);
         for (const l of this.listeners) l(e.key.toUpperCase());
       }
@@ -122,6 +124,9 @@ export class Input {
       e.preventDefault();
     }, { passive: false });
     target.addEventListener('touchend', (e) => {
+      // NOTE: iOS raises the soft keyboard only for a focus() made inside a touch handler, so a tap while the
+      // field is wanted focuses it here (the frame loop's own focus() is enough on Android).
+      if (this.soft && document.activeElement !== this.soft) this.soft.focus();
       this.setTouches(e.touches);
       if (e.touches.length === 0) this.dragging = false;
       pinch = 0;
@@ -230,6 +235,64 @@ export class Input {
     const v = this.keyEvents;
     this.keyEvents = [];
     return v;
+  }
+
+  /** The hidden text field behind the soft keyboard (phones), or null. */
+  private soft: HTMLInputElement | null = null;
+  private softVal = '';
+  /**
+   * Phones have no keys for the console or a search: a hidden text field raises the soft keyboard while `on`, and
+   * what is typed in it reaches takeKeyEvents() and typed() like key presses (characters and backspaces from its
+   * input events, Enter from its keydown). Off removes the field and the keyboard.
+   */
+  softKeyboard(on: boolean): void {
+    if (typeof document === 'undefined') return;
+    if (!on) {
+      if (this.soft) {
+        this.soft.blur();
+        this.soft.remove();
+        this.soft = null;
+      }
+      return;
+    }
+    if (this.soft) return;
+    const el = document.createElement('input');
+    el.type = 'text';
+    el.autocapitalize = 'characters';
+    el.autocomplete = 'off';
+    el.spellcheck = false;
+    el.setAttribute('aria-label', 'text entry');
+    // 16 px keeps iOS from zooming the page on focus; the field itself is a dot in the corner.
+    el.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;border:0;padding:0;margin:0;font-size:16px;background:transparent;color:transparent;';
+    el.addEventListener('input', () => {
+      const v = el.value;
+      const old = this.softVal;
+      let common = 0;
+      while (common < v.length && common < old.length && v[common] === old[common]) common++;
+      for (let i = 0; i < old.length - common; i++) this.keyEvents.push('Backspace');
+      for (const ch of v.slice(common)) {
+        if (ch === '\n') continue;
+        this.keyEvents.push(ch);
+        if (/[a-z0-9]/i.test(ch)) {
+          this.typedBuffer = (this.typedBuffer + ch.toUpperCase()).slice(-24);
+          for (const l of this.listeners) l(ch.toUpperCase());
+        }
+      }
+      this.softVal = v;
+      // Keep the field short: it only relays keystrokes.
+      if (v.length > 120) {
+        el.value = '';
+        this.softVal = '';
+      }
+    });
+    document.body.appendChild(el);
+    this.soft = el;
+    this.softVal = '';
+    el.focus();
+  }
+  /** True while the soft keyboard's field exists. */
+  get softOpen(): boolean {
+    return this.soft !== null;
   }
 
   /** Active touch points in CSS px (screens that want direct touch, like PERIMETER, read these). */

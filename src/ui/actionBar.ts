@@ -133,7 +133,8 @@ export class ScreenBar {
   height = 0;
 
   tap(keys: Input): boolean {
-    const c = keys.peekClick();
+    // NOTE: optional call: the minigame's tests drive the screen with a bare key stub that has no pointer.
+    const c = keys.peekClick?.() ?? null;
     if (!c) return false;
     const it = barHit(c.x, c.y, this.boxes);
     if (!it) return false;

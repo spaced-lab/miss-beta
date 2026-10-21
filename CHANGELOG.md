@@ -2,6 +2,17 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-21: typing on a phone, PERIMETER's panels by touch (IDEAS 39 closed)
+
+- `Input.softKeyboard(on)`: a hidden text field raises the phone's keyboard; what is typed in it reaches the same
+  takeKeyEvents / typed() path as key presses (iOS needs the focus inside a touch, so a tap refocuses it). The
+  console opens it on a touch screen; the Learning Center's new FIND button (the tree's third button in both phone
+  layouts) opens it for a search. OPTIONS > KEYS reads ASSIGN (KEYBOARD) on a touch screen.
+- PERIMETER's touch ready and game-over panels carry three buttons: the difficulty (9), the start level (0) and the
+  SOUND LAB (L); the lab has a bar (UP / DOWN / < PICK / PICK > / PLAY / REVIEW ALL / DEFAULTS / CLOSE). The ready
+  panel is shorter on a sideways phone so TAP TO START stays on screen. The console's text starts right of the
+  BACK tab.
+
 ### 2026-10-21: HELP, CODEX and LEADERBOARD on a phone; the demo's pixel dust in play
 
 - `ScreenBar` (ui/actionBar.ts) gives HELP (< PAGE, PAGE >, SECTION, UP, DOWN, LEARNING CENTER, BACK), CODEX (tabs, UP,

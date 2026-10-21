@@ -25,10 +25,13 @@ export class ConsoleOverlay {
     this.open = true;
     this.keys.textMode = true;
     this.keys.takeKeyEvents();
+    // A phone types through the soft keyboard (ui/input.ts); a tap on the console refocuses it if it closed.
+    if (this.keys.touchUsed) this.keys.softKeyboard(true);
   }
   hide(): void {
     this.open = false;
     this.keys.textMode = false;
+    this.keys.softKeyboard(false);
   }
 
   update(ctx: GameContext): void {
@@ -65,10 +68,11 @@ export class ConsoleOverlay {
     if (!this.open) return;
     const s = this.s;
     const p = s.palette;
-    const m = 16;
+    // The touch BACK tab owns the top-left corner on a phone: the text starts right of it.
+    const m = this.keys.touchUsed ? 46 : 16;
     const h = Math.min(s.height * 0.6, 420);
     s.ctx.fillStyle = withAlpha(p.bg, 0.92);
-    s.ctx.fillRect(0, 0, s.width, h + m);
+    s.ctx.fillRect(0, 0, s.width, h + 16);
     s.stroke([0, h + m, s.width, h + m], { color: p.dim, glow: 0.5 });
     const lineH = 14;
     const visible = Math.floor((h - 40) / lineH);
