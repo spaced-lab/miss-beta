@@ -272,11 +272,13 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     const dx = X(sk.x);
     const dy = Y(sk.y);
     scratch.length = 0;
-    pt(dx, dy, 5, 0, facing);
-    pt(dx, dy, -3, -2, facing);
-    pt(dx, dy, -1.5, 0, facing);
-    pt(dx, dy, -3, 2, facing);
-    s.stroke(scratch, { closed: true, color: sc, width: PX.sentryW, glow: 1.4 });
+    // A MIRV warhead is a smaller dart than the bus it split from, in the hot colour.
+    const z = sk.warhead ? 0.6 : 1;
+    pt(dx, dy, 5 * z, 0, facing);
+    pt(dx, dy, -3 * z, -2 * z, facing);
+    pt(dx, dy, -1.5 * z, 0, facing);
+    pt(dx, dy, -3 * z, 2 * z, facing);
+    s.stroke(scratch, { closed: true, color: sk.warhead ? p.hot : sc, width: PX.sentryW, glow: 1.4 });
     s.dot(dx - Math.cos(facing) * 4, dy - Math.sin(facing) * 4, 1, p.hot, 0.6 + 0.4 * Math.abs(Math.sin(st.t * 60)));
   }
 
@@ -505,7 +507,7 @@ function drawReadyTouch(s: Surface, opts: RenderOpts): void {
     ['<  >', 'TURN THE LAUNCHER'],
     ['FIRE', 'HOLD TO FIRE (WATCH THE HEAT)'],
     ['PULSE', 'CLEARS THE FIELD WHEN CHARGED'],
-    ['SEEK', 'A HOMING MISSILE'],
+    ['SEEK', 'HOMING MISSILE, SPLITS NEAR ITS TARGET'],
     ['SWARM', 'A SWARM OF SENTINEL DRONES'],
   ];
   const ks = Math.min(12, (12 * inner) / ((measureText('SWARM   HOLD TO FIRE (WATCH THE HEAT)', 12) + 20) * getTextScale()));
@@ -550,7 +552,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     ['<LEFT> <RIGHT>  OR  A / D', 'MOVE THE LAUNCHER'],
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
     ['<SHIFT>', `PULSE  (CLEARS THE FIELD, EARNED PER ${pulseKillsNeeded(1)} KILLS)`],
-    ['<  (COMMA)', `SEEKER MISSILE  (HOMES AND BLASTS, PER ${seekerHitsNeeded(1)} HITS; VOLLEYS FROM LEVEL ${MG.SEEKER_VOLLEY_LEVELS[0] ?? 10})`],
+    ['<  (COMMA)', `SEEKER MISSILE  (HOMES, SPLITS INTO A MIRV NEAR ITS TARGET, PER ${seekerHitsNeeded(1)} HITS; VOLLEYS FROM LEVEL ${MG.SEEKER_VOLLEY_LEVELS[0] ?? 10})`],
     ['>  (PERIOD)', `SWARM OF SENTINELS  (${sw.min}-${sw.max} DRONES, MORE EACH LEVEL, PER ${swarmKillsNeeded(1)} KILLS)`],
   ];
   const notes = [

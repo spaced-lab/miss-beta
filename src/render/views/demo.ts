@@ -32,7 +32,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { hash01 } from '../cinematics/pixel';
 import { dcPlanets, dinoImpact, dinoLaunch, earthHits, laserFleet, laserMap, merge, mothership, rockHits, salvo, solar, split16, split32, split4, ufo, wormhole, worldsSalvo } from '../demoFuture';
-import { hitsBy, impacts, racks, type DemoScene } from '../demoScenes';
+import { demoCaption, hitsBy, impacts, racks, type DemoScene } from '../demoScenes';
 import { uiColors, withAlpha } from '../palettes';
 import { hitStorm, stormHits } from '../pixelDust';
 import { drawText, wrapText } from '../vectorFont';
@@ -434,12 +434,9 @@ export class DemoScreen implements Screen {
       // Hits pile up over every scene as the montage heats up.
       hitStorm(s, this.stormT, this.stormHeat(), 4040);
       const cap = scene?.caption;
-      if (cap) {
-        drawText(s, cap[0], s.width / 2, 28, Math.min(22, s.width / 40), { align: 'center', color: ui.title, glow: 1.6 });
-        drawText(s, cap[1], s.width / 2, s.height - 48, 11, { align: 'center', color: ui.text, glow: 0.6 });
-      }
+      if (cap && scene) demoCaption(s, ui, cap[0], cap[1], scene.sound);
       const pass = this.sceneIdx < PASS0.length ? 0 : this.atFloor() ? 2 : 1;
-      drawText(s, `PASS ${pass + 1}   X${(pass === 0 ? 1 : 1 / KNOBS.DEMO_REEL.REPEAT_X / (pass === 1 ? 1 : 0.4)).toFixed(1)}   REALITIES ${this.worlds}`, s.width - 16, 10, 9, { align: 'right', color: ui.dim, glow: 0 });
+      drawText(s, `PASS ${pass + 1}   X${(pass === 0 ? 1 : 1 / KNOBS.DEMO_REEL.REPEAT_X / (pass === 1 ? 1 : 0.4)).toFixed(1)}   REALITIES ${this.worlds}`, s.width - 16, s.height - 18, 9, { align: 'right', color: ui.dim, glow: 0 });
       return;
     }
     // The finale window: big green terminal text, whatever the colour mode.

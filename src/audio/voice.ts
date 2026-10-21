@@ -74,14 +74,17 @@ export class Voice {
 
   constructor(private readonly synth: Synth) {}
 
-  /** Say a line now (newest wins). `force` skips the repeat guard (the OPTIONS sample); `then` follows it. */
-  say(id: VoiceId, force = false, then?: VoiceId): void {
+  /**
+   * Say a line now (newest wins). `force` skips the repeat guard (the OPTIONS sample); `then` follows it; `repeatS`
+   * replaces VOICE_REPEAT_S as the guard for this call (the demo's longer one).
+   */
+  say(id: VoiceId, force = false, then?: VoiceId, repeatS: number = KNOBS.VOICE_REPEAT_S): void {
     if (this.mode === 'OFF' || typeof fetch === 'undefined') return;
     const bus = this.synth.bus();
     if (!bus) return;
     const now = performance.now() / 1000;
     const last = this.lastSaid.get(id);
-    if (!force && last !== undefined && now - last < KNOBS.VOICE_REPEAT_S) return;
+    if (!force && last !== undefined && now - last < repeatS) return;
     this.lastSaid.set(id, now);
     const ticket = ++this.ticket;
     void this.load(bus.ctx, voiceUrl(this.mode, id)).then((buf) => {

@@ -311,6 +311,9 @@ export const KNOBS = {
   VOICE_STALE_S: 1.5,
   /** The same line is not repeated within this many real seconds (no spam during warp). */
   VOICE_REPEAT_S: 8,
+  /** The SUPER-DUPER-DEMO's repeat guard for the game's event and round-result lines, s (owner 2026-10-21: the same
+   *  "Partial deflection" clip every few seconds). */
+  DEMO_VOICE_REPEAT_S: 30,
   /** "IMPACT IMMINENT" once per round when the plan still hits and the impact is this close on the sim clock, s. */
   VOICE_IMMINENT_S: 90 * DAY,
   /** Fade applied when a newer line cuts a playing one off, s. */

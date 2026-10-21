@@ -70,6 +70,10 @@ SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster
 75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
 cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 replaced by BLUR_CUTS 12 (same blur).
 
+PERIMETER (owner 2026-10-21): HP_MULT_PER_LEVEL 0.3 -> 0.26, SPAWN_FLOOR_FACTOR 0.93 -> 0.94, AST_SPEED_LATE_PER_LEVEL
+0.1 -> 0.085; SWARM_KILLS_CAP 400 -> 380, SWARM_KILLS_EASE_FROM_LEVEL 20 -> 18, SWARM_KILLS_LATE_MIN 160 -> 150; new
+SEEKER_MIRV_* (R 1.3, N 3 + 1 per 10 levels to 6, fan 0.55, search 2.6, speed x1.3, turn x2, life 1.6 s, damage 3 in 0.6).
+
 SUPER-DUPER-DEMO third pass (owner 2026-10-20, "a little longer rumble part and mayhem"): DEMO_MONTAGE.BLUR_CUTS
 12 -> 18; the montage to the pause 35 -> 46 s (running 16, merge, second warp into 4 / 16 / 32, longer blur).
 
@@ -92,6 +96,10 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Decisions
 
+- 2026-10-21 (PERIMETER): the MIRV is on from level 1 (the owner said seekers were always meant to split). The swarm
+  ease stops at cap 380 from level 18: deeper cuts (320 from 15, 360 from 17) let the armed probe bot plateau on one
+  seed (73-95 hull at level 36), which the balance guard forbids; the probe is chaotic per seed, so the chosen set is
+  the one that passed all four seeds, not a smooth optimum.
 - 2026-10-20 (phones): touch screens are detected by a coarse pointer or the first touch (Input.touchUsed). PERIMETER's
   pad replaces the screen-thirds scheme on them; its difficulty and start level are changed in OPTIONS > PERIMETER
   (keys 9 and 0 need a keyboard), not on the touch ready panel. Every other screen gets a BACK button that presses Esc.

@@ -624,16 +624,61 @@ const SAURO_BODY = [-1.2, -0.62, -0.7, -0.66, -0.35, -0.88, 0.05, -0.92, 0.35, -
  * A wireframe tyrannosaur at (x, ground y), `h` px tall, facing `dir`. `look` tilts the head up (radians),
  * `cheer` waves the little arms, `walk` swings the legs; the tail sways with t.
  */
+/**
+ * Wireframe detail for a body outline in local units (owner 2026-10-21: "i like the wireframe but maybe a little
+ * enhanced"): vertical ribs where x = each of `xs` crosses the outline (from its highest to its lowest crossing), an
+ * inner contour at 0.72 scale about the outline's centre, and a flat shadow ellipse on the ground. Drawn dimmer than
+ * the outline, so the silhouette still reads first.
+ */
+function wireDetail(s: Surface, poly: readonly number[], xs: readonly number[], x: number, y: number, h: number, dir: number, col: string): void {
+  const n = poly.length / 2;
+  let cx = 0;
+  let cy = 0;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const px = poly[2 * i] ?? 0;
+    cx += px / n;
+    cy += (poly[2 * i + 1] ?? 0) / n;
+    minX = Math.min(minX, px);
+    maxX = Math.max(maxX, px);
+  }
+  for (const rx of xs) {
+    let top = Infinity;
+    let bot = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const ax = poly[2 * i] ?? 0;
+      const ay = poly[2 * i + 1] ?? 0;
+      const bx = poly[(2 * i + 2) % poly.length] ?? 0;
+      const by = poly[(2 * i + 3) % poly.length] ?? 0;
+      if ((ax - rx) * (bx - rx) > 0 || ax === bx) continue;
+      const yy = ay + ((rx - ax) / (bx - ax)) * (by - ay);
+      top = Math.min(top, yy);
+      bot = Math.max(bot, yy);
+    }
+    if (top < bot) s.stroke(xf([rx, top, rx, bot], x, y, h, 0, dir), { color: col, glow: 0.3, alpha: 0.4, width: 1 });
+  }
+  const inner = poly.map((v, i) => (i % 2 === 0 ? cx + (v - cx) * 0.72 : cy + (v - cy) * 0.72));
+  s.stroke(xf(inner, x, y, h, 0, dir), { closed: true, color: col, glow: 0.2, alpha: 0.3, width: 1 });
+  s.stroke(ell(x + dir * ((minX + maxX) / 2) * h, y + 2, ((maxX - minX) / 2) * h, h * 0.035, 0, 24), { closed: true, color: col, glow: 0, alpha: 0.25, width: 1 });
+}
+
 function trex(s: Surface, x: number, y: number, h: number, dir: number, t: number, look: number, cheer: number, walk: number, col: string): void {
   const body = REX_BODY.slice();
   body[1] = -0.5 + 0.05 * Math.sin(t * 3);
   s.stroke(xf(body, x, y, h, 0, dir), { closed: true, color: col, glow: 1 });
+  wireDetail(s, body, [-0.8, -0.6, -0.4, -0.2, 0, 0.18], x, y, h, dir, col);
   // Head about the neck pivot (0.38, -0.80); looking up turns the snout towards the sky.
   const px = x + dir * 0.38 * h;
   const py = y - 0.8 * h;
   const head = REX_HEAD.slice();
   head[13] = 0.05 + 0.04 * Math.max(0, Math.sin(t * 9)) * (look > 0.3 ? 1 : 0);
   s.stroke(xf(head, px, py, h, -look * dir, dir), { closed: true, color: col, glow: 1.2 });
+  // Teeth along the upper jaw, a nostril and a brow ridge.
+  s.stroke(xf([0.2, -0.06, 0.23, -0.035, 0.26, -0.06, 0.29, -0.035, 0.32, -0.06, 0.35, -0.035, 0.38, -0.055], px, py, h, -look * dir, dir), { color: '#FFFFFF', glow: 0.4, alpha: 0.8, width: 1 });
+  s.stroke(xf([0.24, -0.17, 0.33, -0.2], px, py, h, -look * dir, dir), { color: col, glow: 0.6 });
+  const nos = xf([0.41, -0.15], px, py, h, -look * dir, dir);
+  s.dot(nos[0] ?? px, nos[1] ?? py, 1.5, col, 0.9);
   const eye = xf([0.3, -0.13], px, py, h, -look * dir, dir);
   s.dot(eye[0] ?? px, eye[1] ?? py, 2.5, '#FFFFFF', 1);
   for (let l = 0; l < 2; l++) {
@@ -648,6 +693,7 @@ function trex(s: Surface, x: number, y: number, h: number, dir: number, t: numbe
 /** A wireframe sauropod at (x, ground y), `h` px tall (body), neck swaying, head at about 1.8 h. */
 function sauropod(s: Surface, x: number, y: number, h: number, dir: number, t: number, look: number, col: string): void {
   s.stroke(xf(SAURO_BODY, x, y, h, 0, dir), { closed: true, color: col, glow: 1 });
+  wireDetail(s, SAURO_BODY, [-1, -0.75, -0.5, -0.25, 0, 0.25], x, y, h, dir, col);
   const hx = 0.62 + 0.06 * Math.sin(t * 1.7) + look * 0.2;
   const hy = -1.8 - look * 0.15;
   for (const off of [0, 0.08]) {
@@ -671,6 +717,7 @@ const TRI_HEAD = [0.45, -0.56, 0.76, -0.46, 0.79, -0.36, 0.5, -0.3];
 function triceratops(s: Surface, x: number, y: number, h: number, dir: number, t: number, col: string): void {
   const nod = 0.06 * Math.sin(t * 3);
   s.stroke(xf(TRI_BODY, x, y, h, 0, dir), { closed: true, color: col, glow: 1 });
+  wireDetail(s, TRI_BODY, [-0.7, -0.45, -0.2, 0.05, 0.28], x, y, h, dir, col);
   s.stroke(xf(TRI_FRILL, x, y + nod * h, h, 0, dir), { color: col, glow: 1 });
   s.stroke(xf(TRI_HEAD, x, y + nod * h, h, 0, dir), { closed: true, color: col, glow: 1.1 });
   for (const hn of [[0.55, -0.6, 0.82, -0.76], [0.62, -0.56, 0.88, -0.68], [0.74, -0.44, 0.84, -0.53]]) s.stroke(xf(hn, x, y + nod * h, h, 0, dir), { color: col, glow: 1.2 });
@@ -823,8 +870,8 @@ function saucer(s: Surface, x: number, y: number, r: number, t: number, ui: Ui):
 
 /**
  * A classic gray's head, `hh` px tall, its crown at (x, top): a wide cranium tapering to a pointed chin, and two
- * large black almond eyes slanting up and out, each a crescent from a rounded inner end to a sharp outer point, with
- * a glint. `blink` 0..1 squeezes the eyes shut. Owner 2026-10-21: "more of the almond pointed oval eyes like
+ * large black eyes, each an oval pointed at the top and the bottom, leaning so the bottom point sits by the nose and
+ * the top point out at the temple, with a glint. `blink` 0..1 squeezes the eyes shut. Owner 2026-10-21: "more of the almond pointed oval eyes like
  * classic alien head".
  */
 function grayHead(s: Surface, x: number, top: number, hh: number, col: string, blink = 1): void {
@@ -856,36 +903,38 @@ function grayHead(s: Surface, x: number, top: number, hh: number, col: string, b
   ctx.globalAlpha = 1;
   s.stroke(head, { closed: true, color: col, glow: 1.2 });
   for (const sd of [-1, 1]) {
-    // Inner end low by the nose, outer point high at the temple.
-    const ix = x + sd * hh * 0.04;
-    const iy = cy + hh * 0.1;
-    const ox = x + sd * hh * 0.33;
-    const oy = cy - hh * 0.1;
-    const dx = ox - ix;
-    const dy = oy - iy;
+    // NOTE: owner 2026-10-21: "pointed oval eyes at top and bottom with bottom tilted towards nose". Each eye is a
+    // lens pointed at both ends whose long axis leans about 45 degrees: the bottom point sits low beside the nose, the
+    // top point high and out towards the temple; the eye is fullest just above its middle.
+    const bx = x + sd * hh * 0.055;
+    const by = cy + hh * 0.17;
+    const tx = x + sd * hh * 0.3;
+    const ty = cy - hh * 0.11;
+    const dx = tx - bx;
+    const dy = ty - by;
     const len = Math.hypot(dx, dy);
     const nx = -dy / len;
     const ny = dx / len;
-    const up = sd > 0 ? -1 : 1;
+    const half = hh * 0.1 * blink;
     const eye: number[] = [];
-    // Fullest a third of the way out (rounded inner end), thinning to the outer point.
-    for (let i = 0; i <= 16; i++) {
-      const u = i / 16;
-      const b = Math.sin(Math.PI * u ** 0.7) * hh * 0.13 * blink;
-      eye.push(ix + dx * u + nx * b * up, iy + dy * u + ny * b * up);
+    // Outer side, bottom point to top point, then the inner side back down.
+    for (let i = 0; i <= 18; i++) {
+      const u = i / 18;
+      const b = Math.sin(Math.PI * u ** 0.9) ** 0.85 * half * (sd > 0 ? -1 : 1);
+      eye.push(bx + dx * u + nx * b, by + dy * u + ny * b);
     }
-    for (let i = 15; i >= 1; i--) {
-      const u = i / 16;
-      const b = Math.sin(Math.PI * u ** 0.7) * hh * 0.06 * blink;
-      eye.push(ix + dx * u - nx * b * up, iy + dy * u - ny * b * up);
+    for (let i = 17; i >= 1; i--) {
+      const u = i / 18;
+      const b = Math.sin(Math.PI * u ** 0.9) ** 0.85 * half * 0.8 * (sd > 0 ? 1 : -1);
+      eye.push(bx + dx * u + nx * b, by + dy * u + ny * b);
     }
     ctx.fillStyle = '#05060A';
     ctx.beginPath();
-    for (let i = 0; i < eye.length; i += 2) ctx[i === 0 ? 'moveTo' : 'lineTo'](eye[i] ?? ix, eye[i + 1] ?? iy);
+    for (let i = 0; i < eye.length; i += 2) ctx[i === 0 ? 'moveTo' : 'lineTo'](eye[i] ?? bx, eye[i + 1] ?? by);
     ctx.closePath();
     ctx.fill();
     s.stroke(eye, { closed: true, color: col, glow: 0.5, width: 1.2 });
-    if (blink > 0.5) s.dot(ix + dx * 0.3 + nx * up * hh * 0.05, iy + dy * 0.3 + ny * up * hh * 0.05, Math.max(1, hh * 0.022), '#FFFFFF', 0.9);
+    if (blink > 0.5) s.dot(bx + dx * 0.62, by + dy * 0.62, Math.max(1, hh * 0.022), '#FFFFFF', 0.9);
   }
   // Two nose slits and a small mouth.
   s.stroke([x - hh * 0.02, cy + hh * 0.24, x - hh * 0.015, cy + hh * 0.27], { color: col, glow: 0.3, width: 1 });
@@ -1188,6 +1237,32 @@ export const mothership: DemoScene = (s, t, ui, k) => {
   s.stroke(ell(hx, hy, rx, ry, 0, 64), { closed: true, color: hull, glow: 1.3 });
   s.stroke(ell(hx, hy - ry * 0.4, rx * 0.55, ry * 1.1, 0, 40, Math.PI, TAU), { color: hull, glow: 1 });
   s.stroke(ell(hx, hy + ry * 0.35, rx * 0.8, ry * 0.4, 0, 48, 0, Math.PI), { color: hull, glow: 0.6, alpha: 0.7 });
+  // NOTE: owner 2026-10-21 ("mothership looks good maybe work on the graphics a little"): hull panel seams on the
+  // lower band, a second rim line, a stepped dome with a beacon, two antennae blinking out of step, engine glows
+  // under the rim and a belly bay whose rings pulse inward.
+  for (let i = 1; i < 18; i++) {
+    const u = (i / 18) * Math.PI;
+    s.stroke([hx + Math.cos(u) * rx, hy + Math.sin(u) * ry, hx + Math.cos(u) * rx * 0.8, hy + ry * 0.35 + Math.sin(u) * ry * 0.4], { color: hull, glow: 0, alpha: 0.35, width: 1 });
+  }
+  s.stroke(ell(hx, hy + ry * 0.05, rx * 0.97, ry * 0.86, 0, 64, 0, Math.PI), { color: hull, glow: 0.3, alpha: 0.45, width: 1 });
+  s.stroke(ell(hx, hy - ry * 1.15, rx * 0.3, ry * 0.5, 0, 32, Math.PI, TAU), { color: hull, glow: 0.8 });
+  s.stroke([hx - rx * 0.3, hy - ry * 1.15, hx + rx * 0.3, hy - ry * 1.15], { color: hull, glow: 0.5, alpha: 0.7 });
+  const beacon = 0.5 + 0.5 * Math.sin(t * 6);
+  s.dot(hx, hy - ry * 1.68, 3, cols[Math.floor(t * 2) % cols.length] ?? '#FFFFFF', 0.4 + 0.6 * beacon);
+  for (const sd of [-1, 1]) {
+    const ax = hx + sd * rx * 0.45;
+    const ay = hy - ry * 0.75;
+    s.stroke([ax, ay, ax + sd * rx * 0.05, ay - ry * 1.3], { color: hull, glow: 0.6 });
+    s.dot(ax + sd * rx * 0.05, ay - ry * 1.3, 2.5, sd < 0 ? '#FF3B6B' : '#7CFF4F', Math.sin(t * 5 + (sd > 0 ? Math.PI : 0)) > 0 ? 1 : 0.15);
+  }
+  for (let i = 0; i < 6; i++) {
+    const ex = hx + (i - 2.5) * rx * 0.28;
+    s.stroke(ell(ex, hy + ry * 0.92, rx * 0.06, ry * 0.18, 0, 16), { closed: true, color: tint(s, '#2EF2FF', ui.sub), glow: 1.4, alpha: 0.5 + 0.4 * Math.sin(t * 9 + i) });
+  }
+  for (let r = 0; r < 4; r++) {
+    const f = frac(r / 4 - t * 0.8);
+    s.stroke(ell(hx, hy + ry * 0.75, rx * 0.22 * f, ry * 0.3 * f, 0, 24), { closed: true, color: cols[(r + Math.floor(t * 3)) % cols.length] ?? '#FFFFFF', glow: 1, alpha: f });
+  }
   const nWin = 13;
   for (let i = 0; i < nWin; i++) {
     const wx = hx + (i - (nWin - 1) / 2) * rx * 0.13;

@@ -17,12 +17,37 @@
 import { Rng } from '../sim/rng';
 import type { Surface } from './canvas';
 import { uiColors } from './palettes';
-import { drawText } from './vectorFont';
+import { drawText, drawTextFit } from './vectorFont';
+import { withAlpha } from './palettes';
 import { dustBurst, dustColors, dustField } from './pixelDust';
 import { wireSphere } from './wire';
 
 export type Ui = ReturnType<typeof uiColors>;
 export type DemoScene = (s: Surface, t: number, ui: Ui, k: number) => void;
+
+/** What a demo shot is about, for its caption colour. */
+export type CaptionKind = 'blips' | 'hits' | 'launch' | 'laser' | 'warp' | 'none';
+
+/** Caption colour per kind on glowing modes: hits red, launches yellow, lasers cyan, warps violet, computers blue,
+ *  everything else (the aliens, the arrivals) green; the palette's title colour elsewhere. */
+const CAPTION_COLORS: Record<CaptionKind, string> = { hits: '#FF3B6B', launch: '#FFE14D', laser: '#2EF2FF', warp: '#B04DFF', blips: '#3D7BFF', none: '#7CFF4F' };
+
+/**
+ * A demo shot's main message (owner 2026-10-21: "size text for demo main messages and color them to stand out"):
+ * the headline large (up to 40 px, fitted to the width) on a dark band across the top, coloured by `kind`, and the
+ * status line fitted under it. Example: demoCaption(s, ui, 'HIT', 'AND AGAIN', 'hits') draws a red HIT.
+ */
+export function demoCaption(s: Surface, ui: Ui, head: string, sub: string, kind: CaptionKind): void {
+  const W = s.width;
+  const size = Math.max(14, Math.min(40, W / 24));
+  const subSize = Math.max(9, Math.min(15, W / 70));
+  const bandH = size + (sub ? subSize + 22 : 16);
+  s.ctx.fillStyle = withAlpha(s.palette.bg, 0.62);
+  s.ctx.fillRect(0, 10, W, bandH);
+  const col = s.palette.glow ? CAPTION_COLORS[kind] : ui.title;
+  drawTextFit(s, head, W / 2, 16, size, W - 32, { align: 'center', color: col, glow: 1.8, width: 2 });
+  if (sub) drawTextFit(s, sub, W / 2, 16 + size + 10, subSize, W - 32, { align: 'center', color: ui.text, glow: 0.6 });
+}
 
 /** Deterministic 0..1 hash of an integer triple (LED patterns, digit flips). Example: h3(0, 0, 0) is about 0.0. */
 function h3(a: number, b: number, c: number): number {
@@ -265,24 +290,66 @@ export const impacts: DemoScene = (s, t, ui, k) => {
   drawText(s, `IMPACTS ${String(landed).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, cy + R + 30, 11, { align: 'center', color: ui.text, glow: 0.6 });
 };
 
-/** Planning vignette: a porkchop dot field with a scan bar and a ranked list reshuffling on the right. */
+/** Heat ramps for the planning map, low to high (owner 2026-10-21: "same pink purple map used several times"). */
+const RAMPS: readonly (readonly string[])[] = [
+  ['#1B2A6B', '#2EF2FF', '#FFE14D', '#FF3B6B'],
+  ['#123D1A', '#7CFF4F', '#FFE14D', '#FFFFFF'],
+  ['#3B0A45', '#B04DFF', '#FF4FD8', '#FFE14D'],
+  ['#0A2540', '#3D7BFF', '#2EF2FF', '#FFFFFF'],
+  ['#40100A', '#FF8A1F', '#FFE14D', '#FFFFFF'],
+];
+
+/**
+ * Planning vignette, a new map every 2.6 s of local time: segment v alternates a porkchop grid with a scan bar and a
+ * radar sweep with blips, puts two to four peaks where hash(v) says, and colours by RAMPS[v mod 5] (the palette's
+ * own steps on DAYLIGHT). A ranked list reshuffles on the right.
+ */
 export const planning: DemoScene = (s, t, ui, k) => {
   const x0 = s.width * 0.08;
   const y0 = s.height * 0.16;
   const w = s.width * 0.5;
   const h = s.height * 0.62;
-  const n = 26;
-  const scan = (t * (0.9 + k)) % 1;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const u = i / (n - 1);
-      const v = j / (n - 1);
-      const e = Math.exp(-((u - 0.35) ** 2 + (v - 0.6) ** 2) * 18) + 0.7 * Math.exp(-((u - 0.72) ** 2 + (v - 0.3) ** 2) * 30);
-      const lit = u <= scan;
-      s.dot(x0 + u * w, y0 + (1 - v) * h, 3.2, e > 0.5 ? ui.title : e > 0.2 ? ui.sel : ui.dim, lit ? 0.35 + 0.65 * Math.min(1, e * 1.6) : 0.15);
+  const v = Math.floor(t / 2.6);
+  const ramp = s.palette.glow ? (RAMPS[v % RAMPS.length] ?? RAMPS[0] ?? []) : [ui.dim, ui.text, ui.sel, ui.title];
+  const col = (e: number): string => ramp[Math.min(ramp.length - 1, Math.floor(Math.min(0.999, e) * ramp.length))] ?? ui.text;
+  const np = 2 + Math.floor(h3(v, 1, 61) * 3);
+  const field = (u: number, w2: number): number => {
+    let e = 0;
+    for (let p = 0; p < np; p++) e += (1 - 0.3 * p) * Math.exp(-((u - (0.15 + 0.7 * h3(v, p, 62))) ** 2 + (w2 - (0.15 + 0.7 * h3(v, p, 63))) ** 2) * (14 + 20 * h3(v, p, 64)));
+    return Math.min(1, e);
+  };
+  if (v % 2 === 0) {
+    const n = 26;
+    const scan = (t * (0.9 + k)) % 1;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const u = i / (n - 1);
+        const q = j / (n - 1);
+        const e = field(u, q);
+        const lit = u <= scan;
+        s.dot(x0 + u * w, y0 + (1 - q) * h, 3.2, col(e), lit ? 0.3 + 0.7 * Math.min(1, e * 1.6) : 0.12);
+      }
     }
+    s.stroke([x0 + scan * w, y0, x0 + scan * w, y0 + h], { color: ui.head, glow: 1.2 });
+  } else {
+    // Radar: rings of dots in polar cells, lit as the sweep passes and fading behind it.
+    const cx = x0 + w / 2;
+    const cy = y0 + h / 2;
+    const R = Math.min(w, h) / 2;
+    const sweep = (t * (1.6 + k)) % (Math.PI * 2);
+    for (let ring = 1; ring <= 12; ring++) {
+      const r = (ring / 12) * R;
+      const m = 6 * ring;
+      for (let q = 0; q < m; q++) {
+        const a = (q / m) * Math.PI * 2;
+        const behind = (sweep - a + Math.PI * 4) % (Math.PI * 2);
+        const e = field(0.5 + (Math.cos(a) * r) / (2 * R), 0.5 + (Math.sin(a) * r) / (2 * R));
+        s.dot(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 2.6, col(Math.max(0.3, e)), (0.3 + 0.7 * Math.min(1, e * 1.6)) * Math.max(0.3, 1 - behind / 3));
+      }
+    }
+    s.circle(cx, cy, R, { color: ui.head, glow: 0.6, alpha: 0.6 });
+    s.stroke([cx, cy, cx + Math.cos(sweep) * R, cy + Math.sin(sweep) * R], { color: ui.head, glow: 1.4 });
   }
-  s.stroke([x0 + scan * w, y0, x0 + scan * w, y0 + h], { color: ui.head, glow: 1.2 });
   const step = Math.floor(t * (5 + 10 * k));
   for (let i = 0; i < 6; i++) {
     const m = (h3(step, i, 11) * 9).toFixed(2);

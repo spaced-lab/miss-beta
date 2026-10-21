@@ -23,7 +23,7 @@ import type { VoiceId } from '../../audio/voice';
 import { Rng } from '../../sim/rng';
 import type { Surface } from '../canvas';
 import { dcPlanets, earthHits, laserFleet, laserMap, rockHits, salvo, solar, wormhole, worldsSalvo } from '../demoFuture';
-import { clocks, dcGlobe, hitsBy, impacts, planning, racks, type DemoScene } from '../demoScenes';
+import { clocks, dcGlobe, demoCaption, hitsBy, impacts, planning, racks, type DemoScene } from '../demoScenes';
 import { hitStorm } from '../pixelDust';
 import { uiColors } from '../palettes';
 import { drawText } from '../vectorFont';
@@ -142,7 +142,7 @@ export class DemoCutaways {
     this.blipT = 0;
     // NOTE: owner 2026-10-20: impacts "seem to just keep reoccurring" and some "are replayed": every cut used to start
     // at local time 0 with the same storm seed, so each showing of a scene landed the same hits in the same places.
-    this.t0 = this.cur?.sound === 'hits' ? 0.1 + this.rng.next() * 30 : this.rng.next() * 2;
+    this.t0 = 0.1 + this.rng.next() * 30;
     this.seed = this.rng.int(1, 99999);
     const synth = this.sfx?.synth;
     if (synth && this.cur?.sound === 'launch') synth.rumble(46, 0.6, 0.3 * KNOBS.DEMO_REEL.BASS_X, 160);
@@ -178,7 +178,7 @@ export class DemoCutaways {
     const ui = uiColors(s.palette, true);
     cut.scene(s, this.t0 + this.t, ui, Math.min(1, 0.15 + this.f));
     hitStorm(s, this.stormT, this.f * 0.85, this.seed);
-    drawText(s, cut.caption, s.width / 2, 28, Math.min(20, s.width / 44), { align: 'center', color: ui.title, glow: 1.6 });
+    demoCaption(s, ui, cut.caption, '', cut.sound);
     drawText(s, header, s.width / 2, s.height - 30, 10, { align: 'center', color: ui.sub, glow: 0.5 });
   }
 }

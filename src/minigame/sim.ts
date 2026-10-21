@@ -136,6 +136,8 @@ export interface Seeker {
   trail: number[];
   /** Steps since the trail was last sampled. */
   trailTick: number;
+  /** A MIRV warhead split off a seeker (smaller, faster, sharper turning, a smaller blast); absent on a bus. */
+  warhead?: boolean;
 }
 
 /** A sentinel drone: hunts the nearest rock with weak fast bullets, burns out after SWARM_LIFE. */
@@ -372,7 +374,7 @@ export const seekerVolley = (level: number): number => 1 + MG.SEEKER_VOLLEY_LEVE
 export const seekerHitsNeeded = (level: number): number => Math.max(MG.SEEKER_HITS_MIN, MG.SEEKER_HITS - MG.SEEKER_HITS_EASE_PER_LEVEL * past(level, MG.SEEKER_HITS_EASE_FROM_LEVEL));
 /** Kills per pulse: PULSE_KILLS + PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (14 to level 6, then rising). */
 export const pulseKillsNeeded = (level: number): number => MG.PULSE_KILLS + MG.PULSE_KILLS_PER_LEVEL * past(level, MG.PULSE_KILLS_FROM_LEVEL);
-/** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL, capped at SWARM_KILLS_CAP (22 to level 6, 102 at 10, 302 at 20, 400 from 25). */
+/** Kills per swarm: SWARM_KILLS + SWARM_KILLS_PER_LEVEL per level past SWARM_KILLS_FROM_LEVEL, capped at SWARM_KILLS_CAP, easing back past SWARM_KILLS_EASE_FROM_LEVEL to SWARM_KILLS_LATE_MIN (22 to level 6, 102 at 10, 278 at 20, 296 at 25, 150 from 37). */
 export const swarmKillsNeeded = (level: number): number => {
   const rising = Math.min(MG.SWARM_KILLS_CAP, MG.SWARM_KILLS + MG.SWARM_KILLS_PER_LEVEL * past(level, MG.SWARM_KILLS_FROM_LEVEL));
   // The late floor only ever lowers the eased value: early levels keep their smaller price.
@@ -818,8 +820,32 @@ function closestThreat(st: MinigameState, x: number, y: number, passPenalty: num
   return best;
 }
 
-/** Area blast at (x, y): damage and an outward push on every rock within SEEKER_BLAST_R, then the kills. */
-function detonate(st: MinigameState, x: number, y: number): void {
+/** Warheads per MIRV split: SEEKER_MIRV_N + one per SEEKER_MIRV_LEVELS levels, capped (3 to level 9, 4 at 10, 5 at 20, 6 at 30). */
+export const mirvWarheads = (level: number): number => Math.min(MG.SEEKER_MIRV_CAP, MG.SEEKER_MIRV_N + Math.floor(level / MG.SEEKER_MIRV_LEVELS));
+
+/**
+ * Split seeker `s` (closing on `target`) into mirvWarheads(level) warheads: fanned SEEKER_MIRV_FAN apart around its
+ * heading, the first on `target`, the rest on the nearest other rocks within SEEKER_MIRV_SEARCH of it (sharing
+ * targets round-robin when there are fewer rocks than warheads).
+ */
+function splitMirv(st: MinigameState, s: Seeker, target: Asteroid): void {
+  const n = mirvWarheads(st.level);
+  const near = st.asteroids
+    .filter((a) => a.id !== target.id && Math.hypot(a.x - target.x, a.y - target.y) <= MG.SEEKER_MIRV_SEARCH)
+    .sort((p, q) => Math.hypot(p.x - target.x, p.y - target.y) - Math.hypot(q.x - target.x, q.y - target.y));
+  const ids = [target.id, ...near.map((a) => a.id)];
+  const head = Math.atan2(s.vy, s.vx);
+  const v = MG.SEEKER_SPEED * MG.SEEKER_MIRV_SPEED_X;
+  for (let k = 0; k < n; k++) {
+    const a = head + (k - (n - 1) / 2) * MG.SEEKER_MIRV_FAN;
+    st.seekers.push({ x: s.x, y: s.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: MG.SEEKER_MIRV_LIFE, targetId: ids[k % ids.length] ?? target.id, trail: [], trailTick: 0, warhead: true });
+  }
+  spawnParticles(st, s.x, s.y, 10, 2, -1);
+  emit(st, { type: 'seeker' });
+}
+
+/** Area blast at (x, y): damage and an outward push on every rock within `r`, then the kills (a seeker's by default). */
+function detonate(st: MinigameState, x: number, y: number, r: number = MG.SEEKER_BLAST_R, damage: number = MG.SEEKER_BLAST_DAMAGE): void {
   const dead: number[] = [];
   for (let j = 0; j < st.asteroids.length; j++) {
     const a = st.asteroids[j];
@@ -827,8 +853,8 @@ function detonate(st: MinigameState, x: number, y: number): void {
     const dx = a.x - x;
     const dy = a.y - y;
     const d = Math.hypot(dx, dy);
-    if (d - a.r > MG.SEEKER_BLAST_R) continue;
-    a.hp -= MG.SEEKER_BLAST_DAMAGE;
+    if (d - a.r > r) continue;
+    a.hp -= damage;
     const k = MG.SEEKER_BLAST_IMPULSE / rockMass(a);
     const ux = d > 1e-9 ? dx / d : 1;
     const uy = d > 1e-9 ? dy / d : 0;
@@ -843,7 +869,7 @@ function detonate(st: MinigameState, x: number, y: number): void {
   for (const j of dead) destroyAsteroid(st, j, 1, true);
 }
 
-/** Seekers: lead pursuit with a turn-rate cap, blast on contact, fizzle at end of life. */
+/** Seekers: lead pursuit with a turn-rate cap, a MIRV split within SEEKER_MIRV_R of the target, blast on contact, fizzle at end of life. */
 function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: number; y: number }): void {
   const zone: Zone | null = moonOn ? { x: moon.x, y: moon.y, r: MG.MOON_R + MG.SEEKER_MOON_MARGIN } : null;
   for (let i = st.seekers.length - 1; i >= 0; i--) {
@@ -861,7 +887,7 @@ function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: 
       s.targetId = target ? target.id : -1;
     }
     if (target) {
-      let want = leadAngle(s.x, s.y, target, MG.SEEKER_SPEED);
+      let want = leadAngle(s.x, s.y, target, s.warhead ? MG.SEEKER_SPEED * MG.SEEKER_MIRV_SPEED_X : MG.SEEKER_SPEED);
       // Moon avoidance: within 1.5 zone radii, blend an "away from the moon" direction into the pursuit,
       // stronger the closer; skipped when the target itself sits in the zone (then the rock is worth it).
       if (zone && !inZone(zone, target.x, target.y)) {
@@ -874,7 +900,14 @@ function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: 
           want = Math.atan2(Math.sin(want) + (ay / ad) * w, Math.cos(want) + (ax / ad) * w);
         }
       }
-      steer(s, want, MG.SEEKER_TURN * dt, MG.SEEKER_SPEED);
+      const speed = s.warhead ? MG.SEEKER_SPEED * MG.SEEKER_MIRV_SPEED_X : MG.SEEKER_SPEED;
+      steer(s, want, MG.SEEKER_TURN * (s.warhead ? MG.SEEKER_MIRV_TURN_X : 1) * dt, speed);
+      // MIRV: a bus closing on its target splits into warheads (the split happens before contact, so it always shows).
+      if (!s.warhead && Math.hypot(target.x - s.x, target.y - s.y) - target.r <= MG.SEEKER_MIRV_R) {
+        swapRemove(st.seekers, i);
+        splitMirv(st, s, target);
+        continue;
+      }
     }
     if (++s.trailTick >= 2) {
       s.trailTick = 0;
@@ -901,8 +934,10 @@ function stepSeekers(st: MinigameState, dt: number, moonOn: boolean, moon: { x: 
     if (contact) {
       const x = s.x;
       const y = s.y;
+      const warhead = s.warhead === true;
       swapRemove(st.seekers, i);
-      detonate(st, x, y);
+      if (warhead) detonate(st, x, y, MG.SEEKER_MIRV_BLAST_R, MG.SEEKER_MIRV_DAMAGE);
+      else detonate(st, x, y);
     }
   }
 }
@@ -1631,7 +1666,7 @@ const ASTEROID = shaped({ id: num, x: num, y: num, vx: num, vy: num, r: num, tie
 const BULLET = shaped({ x: num, y: num, vx: num, vy: num, life: num, r: num, damage: num, auto: bool });
 const PARTICLE = shaped({ x: num, y: num, vx: num, vy: num, life: num, max: num, tier: num });
 const TURRET = shaped({ kind: oneOf(...SENTRY_KINDS), angle: num, radius: num, home: num, phase: num, burst: num, life: num, maxLife: num, cooldown: num, targetId: num, tier: num, superb: bool, laserCd: opt(num) });
-const SEEKER = shaped({ x: num, y: num, vx: num, vy: num, life: num, targetId: num, trail: numArr, trailTick: num });
+const SEEKER = shaped({ x: num, y: num, vx: num, vy: num, life: num, targetId: num, trail: numArr, trailTick: num, warhead: opt(bool) });
 const DRONE = shaped({ x: num, y: num, vx: num, vy: num, life: num, maxLife: num, cooldown: num, targetId: num, slot: num, tier: opt(num) });
 const FLASH = shaped({ text: str, t: num });
 const BEAM = shaped({ angle: num, t: num, x: opt(num), y: opt(num), len: opt(num), tier: opt(num) });

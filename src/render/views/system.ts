@@ -523,7 +523,10 @@ export class SystemScreen implements Screen {
       return;
     }
     const line = voiceForEvents(passed);
-    if (line) this.sfx?.voice.say(line);
+    // NOTE: owner 2026-10-21 (the demo "has partial deflection replayed with same clip"): at the demo's speed a round
+    // passes in seconds and every short kinetic hit said "Partial deflection" again; the demo holds any event line back
+    // for DEMO_VOICE_REPEAT_S instead of VOICE_REPEAT_S.
+    if (line) this.sfx?.voice.say(line, false, undefined, this.auto?.demo ? KNOBS.DEMO_VOICE_REPEAT_S : undefined);
     const cas = passed.filter((e): e is Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }> => e.kind === 'CLOSE_APPROACH');
     for (const e of passed) {
       if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
@@ -657,7 +660,7 @@ export class SystemScreen implements Screen {
     const finalOutcome = survivable ? 'PARTIAL' : res.outcome;
     if (siteLost && th.targetId) this.loseSite(th.targetId);
     if (!this.approachSounded) this.sfx?.approach(finalOutcome === 'HIT');
-    this.sfx?.voice.say(finalOutcome === 'HIT' ? 'HIT' : finalOutcome === 'PARTIAL' ? 'PARTIAL' : 'MISS', true, finalOutcome === 'HIT' ? 'GAME_OVER' : undefined);
+    this.sfx?.voice.say(finalOutcome === 'HIT' ? 'HIT' : finalOutcome === 'PARTIAL' ? 'PARTIAL' : 'MISS', !this.auto?.demo, finalOutcome === 'HIT' ? 'GAME_OVER' : undefined, this.auto?.demo ? KNOBS.DEMO_VOICE_REPEAT_S : undefined);
     const plan = this.missions.length === 0 ? (this.run.evacuatedAt !== null ? 'EVACUATE' : 'NONE') : [...new Set(this.missions.map((m) => m.archetype))].join('+') + (this.run.evacuatedAt !== null ? '+EVAC' : '');
     this.run.history.push({ round: this.run.round, threat: th.name, type: th.type.id, D: th.D, lead: th.tImpact / YEAR, by: th.discoveredBy ?? 'NONE', plan, outcome: finalOutcome === 'MISS' ? `MISS ${res.ca.marginRadii.toFixed(1)} R` : finalOutcome, score: finalOutcome === 'HIT' ? 0 : this.score.roundScore });
     this.cine.clear();

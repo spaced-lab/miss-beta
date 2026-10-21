@@ -37,7 +37,9 @@ export const MG = {
    *  (tests/minigame.test.ts) showed this is the one axis that gets rocks through a full arsenal: faster or
    *  denser rocks were simply killed at the rate they spawned; tougher ones arrive. */
   HP_MULT_FROM_LEVEL: 10,
-  HP_MULT_PER_LEVEL: 0.3,
+  // NOTE: owner 2026-10-21 ("a little too difficult, ease up on that difficulty slope just a bit"): 0.3 -> 0.26
+  // (level 30: x4 -> x3.6), with the late speed slope and the spawn floor below eased a notch; levels 1-9 untouched.
+  HP_MULT_PER_LEVEL: 0.26,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -72,14 +74,14 @@ export const MG = {
   SPAWN_LEVEL_FACTOR: 0.75,
   SPAWN_MIN: 0.3,
   SPAWN_FLOOR_FROM_LEVEL: 9,
-  SPAWN_FLOOR_FACTOR: 0.93,
+  SPAWN_FLOOR_FACTOR: 0.94,
   SPAWN_FLOOR_ABS: 0.05,
   AST_SPEED_0: 0.45,
   AST_SPEED_PER_LEVEL: 0.14,
   /** A second slope joins past AST_SPEED_LATE_FROM_LEVEL ("minigame needs to get faster"): the ramp steepens by
    *  AST_SPEED_LATE_PER_LEVEL per level there, under the cap below. */
   AST_SPEED_LATE_FROM_LEVEL: 10,
-  AST_SPEED_LATE_PER_LEVEL: 0.1,
+  AST_SPEED_LATE_PER_LEVEL: 0.085,
   AST_SPEED_MAX: 2.2,
   AST_SPEED_CAP_FROM_LEVEL: 10,
   AST_SPEED_CAP_PER_LEVEL: 0.06,
@@ -256,6 +258,23 @@ export const MG = {
   SEEKER_BLAST_DAMAGE: 4,
   SEEKER_BLAST_IMPULSE: 1.4,
   SEEKER_TRAIL: 6,
+  /** MIRV (owner 2026-10-21: seekers "were originally intended to split when they get close into a MIRV and hit, but
+   *  never see that"): a seeker that closes within SEEKER_MIRV_R of its target's surface splits into
+   *  SEEKER_MIRV_N + one per SEEKER_MIRV_LEVELS levels (capped at SEEKER_MIRV_CAP) warheads fanned SEEKER_MIRV_FAN rad
+   *  apart: the first keeps the bus's target, the others take the nearest other rocks within SEEKER_MIRV_SEARCH of
+   *  it. Warheads fly SEEKER_MIRV_SPEED_X faster, turn SEEKER_MIRV_TURN_X sharper, live SEEKER_MIRV_LIFE s and
+   *  burst for SEEKER_MIRV_DAMAGE in SEEKER_MIRV_BLAST_R (the bus's own blast is 4 in 0.9). */
+  SEEKER_MIRV_R: 1.3,
+  SEEKER_MIRV_N: 3,
+  SEEKER_MIRV_LEVELS: 10,
+  SEEKER_MIRV_CAP: 6,
+  SEEKER_MIRV_FAN: 0.55,
+  SEEKER_MIRV_SEARCH: 2.6,
+  SEEKER_MIRV_SPEED_X: 1.3,
+  SEEKER_MIRV_TURN_X: 2,
+  SEEKER_MIRV_LIFE: 1.6,
+  SEEKER_MIRV_DAMAGE: 3,
+  SEEKER_MIRV_BLAST_R: 0.6,
 
   /** Swarm of sentinels (`>`): earned every SWARM_KILLS kills, stock capped at SWARM_MAX. Releases
    *  SWARM_COUNT_MIN..MAX drones from the player's launcher fanned over SWARM_FAN rad; each hunts the nearest
@@ -273,14 +292,19 @@ export const MG = {
    *  kills make swarms) and the probe took no hull damage at all from level 3 to 15 whatever the rocks did. */
   SWARM_KILLS_FROM_LEVEL: 6,
   SWARM_KILLS_PER_LEVEL: 20,
-  SWARM_KILLS_CAP: 400,
+  SWARM_KILLS_CAP: 380,
   /** v3.4 (owner, 2026-10-18: swarms "not so hard to acquire past level 20"): past SWARM_KILLS_EASE_FROM_LEVEL the
    *  kills needed ease back SWARM_KILLS_EASE_PER_LEVEL per level, never below SWARM_KILLS_LATE_MIN (302 at 20, 340 at
    *  25 where the cap and the ease cross, 280 at 30, 220 at 35, 160 from 40). The late rocks pay for it: the ramp
    *  knobs above (LEVEL_SECONDS, SPAWN_LEVEL_FACTOR, AST_SPEED_PER_LEVEL, HP_MULT_PER_LEVEL) tightened the same day. */
-  SWARM_KILLS_EASE_FROM_LEVEL: 20,
+  // 2026-10-21 (owner: swarm "still seems to take too long to earn in levels near 20 and up"): cap 400 -> 380, the
+  // easing from level 18 instead of 20, floor 160 -> 150: 278 at 20, 296 at 25, 236 at 30, 176 at 35, 150 from 37
+  // (was 302, 340, 280, 220, 160). Measured with the armed probe (seeds 1-4, 600 s, with the eased rock slope and
+  // the MIRV): cap 320 from 15 left seed 4 untouched after level 10 (95 hull at level 36) and 360 from 17 seed 2 (73);
+  // the swarm feeds itself (drones make kills, kills make swarms), so this is the biggest cut that keeps the ramp.
+  SWARM_KILLS_EASE_FROM_LEVEL: 18,
   SWARM_KILLS_EASE_PER_LEVEL: 12,
-  SWARM_KILLS_LATE_MIN: 160,
+  SWARM_KILLS_LATE_MIN: 150,
   /** v3.4 drone tiers: tier = min(SWARM_TIER_MAX, floor(past(level, SWARM_TIER_FROM_LEVEL) / SWARM_TIER_LEVELS)), so 1 at
    *  level 12, 2 at 18, 3 at 24; a release mixes the level's tier with the one below so a swarm shows two colours.
    *  Tier t drones fly SWARM_TIER_SPEED_MULT^t faster (IDEAS 10: late drones could not catch late rocks), hit for

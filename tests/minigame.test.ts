@@ -13,6 +13,7 @@ import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
   chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserFanOffsets, laserRange, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, pulseKillsNeeded, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmKillsNeeded, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  mirvWarheads,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -412,8 +413,31 @@ describe('seeker missiles', () => {
     expect(st.seekers.length).toBe(0);
     expect(st.asteroids.some((q) => q.id === id)).toBe(false);
     expect(st.events.some((e) => e.type === 'blast')).toBe(true);
-    expect(bystander.hp).toBe(1e9 - MG.SEEKER_BLAST_DAMAGE);
-    expect(bystander.vx).toBeGreaterThan(0); // pushed away from the blast
+    // The seeker split into a MIRV near the rock; the bystander is hit by a warhead or a blast and pushed away.
+    expect(bystander.hp).toBeLessThan(1e9);
+    expect(bystander.vx).toBeGreaterThan(0);
+  });
+  it('splits into a MIRV close to its target, one warhead per nearby rock', () => {
+    const st = createState(105);
+    start(st);
+    lane(st);
+    const a = rock(st, 0, 4, 0, 0, 0.3, 0);
+    const b = rock(st, 1.2, 4.4, 0, 0, 0.3, 1);
+    const c = rock(st, -1.2, 4.4, 0, 0, 0.3, 2);
+    for (const r of [a, b, c]) r.hp = r.maxHp = 1e9;
+    st.seekerStock = 1;
+    step(st, { ...NO_INPUT, seeker: true }, MG.DT);
+    let split = false;
+    for (let i = 0; i < 2 / MG.DT && !split; i++) {
+      step(st, NO_INPUT, MG.DT);
+      split = st.seekers.some((k) => k.warhead === true);
+    }
+    expect(split).toBe(true);
+    const heads = st.seekers.filter((k) => k.warhead === true);
+    expect(heads.length).toBe(mirvWarheads(st.level));
+    expect(new Set(heads.map((k) => k.targetId))).toEqual(new Set([a.id, b.id, c.id]));
+    for (let i = 0; i < 2 / MG.DT && st.seekers.length > 0; i++) step(st, NO_INPUT, MG.DT);
+    for (const r of [a, b, c]) expect(r.hp).toBeLessThan(1e9);
   });
   it('fizzles at the end of its life when there is nothing to chase', () => {
     const st = createState(104);
@@ -732,9 +756,10 @@ describe('weapons that scale with level', () => {
     // v3.3 (owner: "swarm not keeping up"): 102 at 10, 302 at 20, 400 from level 25 (v3.2: 142, 442, 742). The cap
     // is the knob that matters late; the slope is the biggest cut the balance probe below accepts.
     expect(swarmKillsNeeded(10)).toBe(102);
-    expect(swarmKillsNeeded(20)).toBe(302);
-    expect(swarmKillsNeeded(25)).toBe(MG.SWARM_KILLS_CAP - 5 * MG.SWARM_KILLS_EASE_PER_LEVEL);
-    expect(swarmKillsNeeded(30)).toBe(MG.SWARM_KILLS_CAP - 10 * MG.SWARM_KILLS_EASE_PER_LEVEL);
+    // 2026-10-21 (owner: "still seems to take too long to earn in levels near 20 and up"): 278 at 20, 296 at 25.
+    expect(swarmKillsNeeded(20)).toBe(302 - 2 * MG.SWARM_KILLS_EASE_PER_LEVEL);
+    expect(swarmKillsNeeded(25)).toBe(MG.SWARM_KILLS_CAP - 7 * MG.SWARM_KILLS_EASE_PER_LEVEL);
+    expect(swarmKillsNeeded(30)).toBe(MG.SWARM_KILLS_CAP - 12 * MG.SWARM_KILLS_EASE_PER_LEVEL);
     expect(swarmKillsNeeded(1000)).toBe(MG.SWARM_KILLS_LATE_MIN);
     expect(MG.SWARM_KILLS_CAP).toBeLessThanOrEqual(400);
     monotone(pulseKillsNeeded);
