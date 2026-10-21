@@ -2,6 +2,14 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-21: Learning Center on a phone held upright (IDEAS 39, part)
+
+- `render/views/center.ts` has three layouts by window size: FULL (desktop), WIDE (a phone held sideways: tree,
+  reading column at 9 px, arrow strip, button bar) and STACK (a phone held upright: one pane at a time, TOPICS /
+  READ / SIDE, 10 px text, switched by the button bar; a tapped topic opens for reading). The side pane cycles
+  the lab, the real-data panel and the rotating model (what the desktop's right pane shows), so the graphics
+  reach phones; lab sliders can be tapped or dragged. Level tabs are finger-sized; the quiz fits either way.
+
 ## Unreleased
 
 - LEARN on a phone held sideways (owner 2026-10-21): under 900 x 500 the Learning Center goes compact: a narrower topic tree with topic arrows under it, the reading column wrapped to the space left at 8 px, a tall arrow strip on the right edge that pages the text, drag to scroll either column, and a button bar (level down, level up, view, quiz, lab) at the bottom; LAB swaps the lab into the reading column at any level; the quiz and SIMPLE pictures are sized to fit.

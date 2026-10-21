@@ -3,7 +3,10 @@
 // WHY:  The whole EDUCATION.md at the player's level, with the demos that reuse the game's real physics.
 // HOW:  Three columns: tree (left), content (center), lab (right, when the topic has a built one). Focus
 //       cycles TREE -> CONTENT -> LAB with Tab. Search is the typed buffer after `/`. Everything reads the
-//       shared LoreStore; labs load through dynamic import on first open.
+//       shared LoreStore; labs load through dynamic import on first open. Three layouts by window size
+//       (`mode()`): FULL (desktop), WIDE (a phone held sideways: tree + column + arrow strip) and STACK (a phone
+//       held upright: one pane at a time, TOPICS / READ / SIDE, switched by the button bar). The side pane holds
+//       what the desktop's right pane would: the lab, else the real-data panel, else the rotating model.
 // LORE: G1, C2
 
 import type { Router, Screen, ScreenId } from '../../game/screen';
@@ -37,7 +40,11 @@ function panels(): typeof import('../../lore/data/panels') | null {
 }
 
 /** A compact-layout button's action. */
-type NavAct = 'UP' | 'DOWN' | 'TOPIC_UP' | 'TOPIC_DOWN' | 'LEVEL_DOWN' | 'LEVEL_UP' | 'VIEW' | 'QUIZ' | 'LAB';
+type NavAct = 'UP' | 'DOWN' | 'TOPIC_UP' | 'TOPIC_DOWN' | 'LEVEL_DOWN' | 'LEVEL_UP' | 'VIEW' | 'QUIZ' | 'SIDE' | 'TREE' | 'READ' | 'BOOKMARK' | 'BACK';
+/** The compact layouts' panes: the topic list, the reading column, the side pane (lab / data / model). */
+type Pane = 'TREE' | 'READ' | 'SIDE';
+type Mode = 'FULL' | 'WIDE' | 'STACK';
+type SideKind = 'LAB' | 'DATA' | 'MODEL';
 
 export class CenterScreen implements Screen {
   private index: LoreIndex | null = null;
@@ -62,8 +69,11 @@ export class CenterScreen implements Screen {
   private search = '';
   private searching = false;
   private token = 0;
-  /** Compact layout (phone held sideways): the lab replaces the reading column while this is on. */
-  private compactLab = false;
+  /** Lab slider tracks from the last frame (a tap or drag on one sets its value). */
+  private sliderHits: { i: number; x: number; y: number; w: number; h: number }[] = [];
+  /** Compact layouts: the pane shown in the column (WIDE: READ or SIDE; STACK: any of the three). */
+  private pane: Pane = 'READ';
+  private side: SideKind = 'LAB';
   /** Compact layout's touch buttons, rebuilt every frame by render(). */
   private navHits: { x: number; y: number; w: number; h: number; act: NavAct }[] = [];
   /** Vertical drag carried between frames, px (a drag scrolls the column under the finger). */
@@ -169,18 +179,43 @@ export class CenterScreen implements Screen {
    * LAB), 8 px text wrapped to the column, an arrow strip on the right edge, topic arrows under the tree and a button
    * bar at the bottom. The keys keep working the same way.
    */
-  private compact(): boolean {
-    return this.s.width < 900 || this.s.height < 500;
+  private mode(): Mode {
+    const { width: w, height: h } = this.s;
+    if (w < 560 || (w < h && w < 900)) return 'STACK';
+    return w < 900 || h < 500 ? 'WIDE' : 'FULL';
   }
-  /** Reading text size and line height. */
+  private compact(): boolean {
+    return this.mode() !== 'FULL';
+  }
+  private stack(): boolean {
+    return this.mode() === 'STACK';
+  }
+  /** Reading text size and line height. NOTE: 9 px sideways and 10 px upright (owner 2026-10-21: readable). */
   private fs(): number {
-    return this.compact() ? 8 : 9;
+    const m = this.mode();
+    return m === 'STACK' ? 10 : 9;
   }
   private lineH(): number {
-    return this.compact() ? 11 * getTextScale() : 13;
+    const m = this.mode();
+    return m === 'STACK' ? 14 * getTextScale() : m === 'WIDE' ? 12.5 * getTextScale() : 13;
   }
   private treeW(): number {
-    return this.compact() ? Math.max(130, this.s.width * 0.27) : Math.min(300, Math.max(200, this.s.width * 0.22));
+    return this.compact() ? Math.max(150, this.s.width * 0.3) : Math.min(300, Math.max(200, this.s.width * 0.22));
+  }
+  /** What the side pane can show for this topic in a compact layout, in the order the SIDE button cycles them. */
+  private sideKinds(): SideKind[] {
+    const out: SideKind[] = [];
+    const t = this.index?.topics.find((q) => q.id === this.topicId);
+    if (t?.demoId && labStatus(t.demoId) === 'BUILT') out.push('LAB');
+    const pm = panels();
+    if (pm && pm.panelForTopic(this.topicId)) out.push('DATA');
+    if (modelForTopic(this.topicId)) out.push('MODEL');
+    return out;
+  }
+  /** The side pane's content now (the first available kind when the stored one is not for this topic). */
+  private sideKind(): SideKind | null {
+    const kinds = this.sideKinds();
+    return kinds.includes(this.side) ? this.side : (kinds[0] ?? null);
   }
   private wantsLab(): boolean {
     if (this.compact()) return false;
@@ -191,8 +226,14 @@ export class CenterScreen implements Screen {
     return (cols * ADVANCE * size * getTextScale()) / GLYPH_H;
   }
   private layout(): { tw: number; cx0: number; cw: number; rx: number; rw: number } {
-    const m = 16;
+    const m = this.compact() ? 12 : 16;
     const tw = this.treeW();
+    if (this.stack()) {
+      // One pane at a time, as wide as the window less the arrow strip.
+      const cx0 = m;
+      const cw = Math.max(120, this.s.width - 2 * m - CenterScreen.STRIP - 8);
+      return { tw: cw, cx0, cw, rx: this.s.width, rw: 0 };
+    }
     if (this.compact()) {
       // Tree, reading column, then the arrow strip (CenterScreen.STRIP px) on the right edge; no right pane.
       const cx0 = m + tw + 12;
@@ -248,6 +289,18 @@ export class CenterScreen implements Screen {
     }
     // Mouse: click a topic row or a level tab; the wheel scrolls the reading column.
     const click = k.takeClick();
+    // A tap on a lab slider's track sets it there (the only way to work a lab without arrow keys).
+    const sl = click && this.lab ? this.sliderHits.find((h) => click.x >= h.x - 8 && click.x <= h.x + h.w + 8 && click.y >= h.y && click.y < h.y + h.h) : undefined;
+    if (sl && this.lab) {
+      const slider = this.lab.sliders[sl.i];
+      if (slider) {
+        const f = Math.max(0, Math.min(1, ((click as { x: number }).x - sl.x) / sl.w));
+        slider.value = slider.log ? slider.min * Math.pow(slider.max / slider.min, f) : slider.min + f * (slider.max - slider.min);
+        this.labSel = sl.i;
+        this.focus = 'LAB';
+      }
+      return;
+    }
     const nav = click && !this.searching ? this.navHits.find((b) => click.x >= b.x && click.x < b.x + b.w && click.y >= b.y && click.y < b.y + b.h) : undefined;
     if (nav) {
       this.navAct(nav.act);
@@ -261,22 +314,27 @@ export class CenterScreen implements Screen {
       while (Math.abs(this.dragY) >= step) {
         const dir = this.dragY > 0 ? -1 : 1;
         this.dragY -= -dir * step;
-        if ((k.mouse?.x ?? 0) < this.treeW() + 16) this.select(this.sel + dir);
+        const onTree = this.stack() ? this.pane === 'TREE' : (k.mouse?.x ?? 0) < this.treeW() + 16;
+        if (onTree) this.select(this.sel + dir);
         else this.scroll = Math.max(0, Math.min(Math.max(0, this.lines.length - 4), this.scroll + dir * 2));
       }
     }
     if (click && !this.searching) {
-      const tab = this.tabHits.find((t) => Math.abs(click.x - t.x - 5) < 10 && Math.abs(click.y - t.y - 7) < 12);
+      // The level tabs: a finger-sized box in the compact layouts, the glyph's box on the desktop.
+      const tab = this.tabHits.find((t) => (this.compact() ? click.x >= t.x - 6 && click.x < t.x + 22 && click.y >= t.y - 8 && click.y < t.y + 24 : Math.abs(click.x - t.x - 5) < 10 && Math.abs(click.y - t.y - 7) < 12));
       if (tab) {
         this.level = tab.level;
         const t = this.list()[this.sel];
         if (t) this.load(t);
         return;
       }
-      const row = this.rowHits.find((r) => click.x < this.treeW() + 16 && click.y >= r.y && click.y < r.y + r.h);
+      const treeRight = this.stack() ? this.s.width : this.treeW() + 16;
+      const row = this.rowHits.find((r) => click.x < treeRight && click.y >= r.y && click.y < r.y + r.h);
       if (row) {
         this.focus = 'TREE';
         this.select(row.idx);
+        // Upright phone: a tapped topic opens for reading (the list is the whole screen).
+        if (this.stack()) this.pane = 'READ';
         return;
       }
     }
@@ -360,11 +418,21 @@ export class CenterScreen implements Screen {
       this.sel = 0;
       this.select(0);
     } else if (a === 'QUIZ') this.quiz = startQuiz((this.topicId || 'T').charAt(0));
-    else if (a === 'LAB') {
-      this.compactLab = !this.compactLab;
+    else if (a === 'TREE') this.pane = 'TREE';
+    else if (a === 'READ') this.pane = 'READ';
+    else if (a === 'BOOKMARK') {
+      if (this.topicId) toggleBookmark(this.topicId);
+    } else if (a === 'BACK') this.router.go(this.returnTo);
+    else if (a === 'SIDE') {
+      // The button walks LAB -> DATA -> MODEL (those that exist) and back to the text.
+      const kinds = this.sideKinds();
+      const cur = this.pane === 'SIDE' ? kinds.indexOf(this.sideKind() ?? 'LAB') : -1;
+      const next = kinds[cur + 1];
+      this.pane = next ? 'SIDE' : 'READ';
+      if (next) this.side = next;
       // The three-pane layout loads a lab with the EXPERT text; here the button loads it at any level.
       const t = this.index?.topics.find((q) => q.id === this.topicId);
-      if (this.compactLab && !this.lab && t?.demoId && labStatus(t.demoId) === 'BUILT') {
+      if (this.pane === 'SIDE' && this.side === 'LAB' && !this.lab && t?.demoId && labStatus(t.demoId) === 'BUILT') {
         const token = this.token;
         void loadLab(t.demoId).then((l) => {
           if (token === this.token) this.lab = l;
@@ -391,27 +459,29 @@ export class CenterScreen implements Screen {
     const s = this.s;
     const p = s.palette;
     s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: on ? p.hot : p.dim, glow: on ? 0.8 : 0, alpha: 0.9 });
-    drawTextFit(s, label, x + w / 2, y + h / 2 - 4, 8, w - 6, { align: 'center', color: on ? p.hot : p.ink, glow: 0.4 });
+    drawTextFit(s, label, x + w / 2, y + h / 2 - 4.5, 9, w - 8, { align: 'center', color: on ? p.hot : p.ink, glow: 0.4 });
     this.navHits.push({ x, y, w, h, act });
   }
 
   render(): void {
     const s = this.s;
-    const p = s.palette;
     s.clear();
     this.navHits.length = 0;
-    const compact = this.compact();
-    // The reading column's text size and line height (smaller in the compact layout).
-    const fs = this.fs();
-    const clh = this.lineH();
-    // Room at the bottom: the compact layout's button bar, or the key-hint footer.
-    const foot = compact ? 34 : 40;
-    const m = 16;
     this.rowHits.length = 0;
     this.tabHits.length = 0;
+    this.sliderHits.length = 0;
     this.ensureLines();
+    if (this.compact()) {
+      this.renderCompact();
+      return;
+    }
+    const p = s.palette;
+    const fs = this.fs();
+    const clh = this.lineH();
+    const foot = 40;
+    const m = 16;
     const { tw, cx0, cw, rx, rw } = this.layout();
-    const lw = this.wantsLab() ? Math.min(rw, CenterScreen.LAB_MAX) : this.compact() && this.compactLab ? this.layout().cw : 0;
+    const lw = this.wantsLab() ? Math.min(rw, CenterScreen.LAB_MAX) : 0;
     // Without a lab the right pane shows the topic's 3-D model when there is room for one.
     // Real data first (it is the stronger evidence), then the device model.
     const pm = panels();
@@ -422,67 +492,26 @@ export class CenterScreen implements Screen {
     const ui = uiColors(p, s.spectrum);
     // The touch BACK tab sits in the top-left corner: the title starts right of it on a touch screen.
     const tx0 = this.keys.touchUsed ? m + 30 : m;
-    drawText(s, 'LEARNING CENTER', tx0, m, compact ? 12 : 16, { color: ui.title, glow: 1.5 });
-    let hx = tx0 + (compact ? 190 : 270);
-    if (compact) drawTextFit(s, `${readCount}/${this.index?.topics.length ?? 0} READ   LEVEL ${this.level}   VIEW ${this.view}`, hx, m + 2, 8, s.width - m - 130 - hx, { color: ui.dim, glow: 0 });
-    else {
-      hx += drawText(s, `${readCount} OF ${this.index?.topics.length ?? 0} TOPICS READ   `, hx, m + 3, 10, { color: ui.dim, glow: 0 });
-      hx += drawText(s, `LEVEL ${this.level}`, hx, m + 3, 10, { color: ui.sub, glow: 0.6 });
-      drawText(s, `   VIEW ${this.view}${this.search ? `   SEARCH "${this.search.toUpperCase()}"` : ''}`, hx, m + 3, 10, { color: ui.dim, glow: 0 });
-    }
-    let tx = s.width - m - 120;
-    for (const lv of LEVELS) {
-      const on = lv === this.level;
-      drawText(s, LEVEL_TABS[lv], tx, m + 2, 12, { color: on ? ui.head : ui.sub, glow: on ? 1.4 : 0.3 });
-      this.tabHits.push({ x: tx, y: m + 2, level: lv });
-      tx += 22;
-    }
+    drawText(s, 'LEARNING CENTER', tx0, m, 16, { color: ui.title, glow: 1.5 });
+    let hx = tx0 + 270;
+    hx += drawText(s, `${readCount} OF ${this.index?.topics.length ?? 0} TOPICS READ   `, hx, m + 3, 10, { color: ui.dim, glow: 0 });
+    hx += drawText(s, `LEVEL ${this.level}`, hx, m + 3, 10, { color: ui.sub, glow: 0.6 });
+    drawText(s, `   VIEW ${this.view}${this.search ? `   SEARCH "${this.search.toUpperCase()}"` : ''}`, hx, m + 3, 10, { color: ui.dim, glow: 0 });
+    this.drawLevelTabs(s.width - m - 120, m + 2, 12, 22);
     if (this.status) drawTextFit(s, this.status, m, m + 24, 10, s.width - 2 * m, { color: p.hot, glow: 0.5 });
     // Tree.
-    const top = compact ? m + 24 : m + 40;
-    const list = this.list();
-    const lineH = compact ? 12 * getTextScale() : 14;
-    const tfs = compact ? 8 : 9;
-    // In the compact layout the tree's bottom holds two topic arrows.
-    const treeBottom = compact ? s.height - foot - 34 : s.height - 60;
-    const rows = Math.floor((treeBottom - top + (compact ? 0 : 10)) / lineH);
-    const start = Math.max(0, Math.min(this.sel - Math.floor(rows / 2), list.length - rows));
-    let y = top;
-    let lastGroup = '';
-    const groups = this.index?.groups ?? {};
-    for (let i = start; i < Math.min(list.length, start + rows); i++) {
-      const t = list[i] as TopicMeta;
-      if (t.group !== lastGroup && this.view === 'TOPICS' && !this.search) {
-        drawText(s, cutWords(`${t.group}  ${groups[t.group] ?? ''}`, charsPerLine(tw - 8, tfs)), m, y, tfs, { color: ui.sub, glow: 0.3 });
-        lastGroup = t.group;
-        y += lineH;
-        if (y + lineH > treeBottom + 10) break;
-      }
-      if (y + lineH > treeBottom + 10) break; // group headers take rows too: stop above the footer
-      const on = i === this.sel;
-      this.rowHits.push({ y: y - 2, h: lineH, idx: i });
-      const read = progress[t.id];
-      const mark = bookmarks.includes(t.id) ? '*' : read ? (LEVEL_TABS[read as Level] ?? '.') : ' ';
-      drawText(s, cutWords(`${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`, charsPerLine(tw - 8, tfs)), m, y, tfs, { color: on ? ui.sel : ui.text, glow: on ? 1.6 : 0.2 });
-      y += lineH;
-    }
-    if (compact) {
-      const bw = (tw - 6) / 2;
-      this.arrowButton(m, treeBottom + 4, bw, 28, 'up', 'TOPIC_UP');
-      this.arrowButton(m + bw + 6, treeBottom + 4, bw, 28, 'down', 'TOPIC_DOWN');
-    }
+    const top = m + 40;
+    this.drawTree(m, top, tw, s.height - 60, 14, 9);
     // Content.
     s.stroke([cx0 - 8, top - 6, cx0 - 8, s.height - foot], { color: p.dim, glow: 0 });
     const c = this.chunk;
     let cy = top;
-    const showLab = compact && this.compactLab;
-    if (c && !showLab) {
-      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + free,  { color: this.focus === 'CONTENT' ? ui.title : ui.head, glow: 1.2 });
+    if (c) {
+      drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, 12, cw + free, { color: this.focus === 'CONTENT' ? ui.title : ui.head, glow: 1.2 });
       cy += 22;
       if (c.pictureId && c.level === 'SIMPLE') {
-        // The picture may spill into the empty right pane; the prose below stays at reading width. Compact: at most
-        // half the column's height, so some text shows under it.
-        const pw = compact ? Math.min(cw, ((s.height - foot - cy) * 0.5 * 480) / 320) : Math.min(cw + free, 560);
+        // The picture may spill into the empty right pane; the prose below stays at reading width.
+        const pw = Math.min(cw + free, 560);
         drawPicture(s, c.pictureId, cx0, cy, pw, (pw * 320) / 480);
         cy += (pw * 320) / 480 + 12;
         if (c.pictureCaption) {
@@ -490,84 +519,14 @@ export class CenterScreen implements Screen {
           cy += 16;
         }
       }
-      const maxLines = Math.floor((s.height - foot - (compact ? 14 : 10) - cy) / clh);
-      for (const l of this.lines.slice(this.scroll, this.scroll + maxLines)) {
-        const txt = substitute(l.text);
-        if (l.kind === 'head') drawTextFit(s, txt.toUpperCase(), cx0, cy, fs + 1, cw, { color: ui.head, glow: 0.9 });
-        // Code and tables are never re-wrapped (columns would break): they may use the empty right pane, else shrink.
-        else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, cx0 + 6, cy, compact ? 7 : 8, cw + free - 6, { color: ui.text, glow: 0.2, lower: true });
-        else drawText(s, txt, cx0, cy, fs, { color: ui.text, glow: 0.3, lower: true });
-        cy += clh;
-      }
-      if (this.lines.length > this.scroll + maxLines) drawTextFit(s, compact ? `... ${this.lines.length - this.scroll - maxLines} MORE` : `... ${this.lines.length - this.scroll - maxLines} MORE (TAB TO CONTENT, DOWN)`, cx0, cy, fs, cw, { color: p.dim, glow: 0 });
+      const maxLines = Math.floor((s.height - foot - 10 - cy) / clh);
+      this.drawLines(cx0, cy, cw, free, fs, clh, maxLines, 8);
+      cy += Math.min(maxLines, this.lines.length - this.scroll) * clh;
+      if (this.lines.length > this.scroll + maxLines) drawTextFit(s, `... ${this.lines.length - this.scroll - maxLines} MORE (TAB TO CONTENT, DOWN)`, cx0, cy, fs, cw, { color: p.dim, glow: 0 });
       const meta = this.index?.topics.find((t) => t.id === c.id);
-      if (meta && meta.related.length > 0 && !compact) drawText(s, cutWords(`RELATED ${meta.related.join(' ')}   IN GAME: ${meta.game.join(', ').toUpperCase()}`, charsPerLine(cw, 8)), cx0, s.height - 52, 8, { color: p.dim, glow: 0 });
-    } else if (!this.status && !showLab) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
-    if (compact) {
-      // The arrow strip on the right edge: the top half scrolls up a page, the bottom half down.
-      const sx = s.width - m - CenterScreen.STRIP;
-      const sh = (s.height - foot - top) / 2 - 4;
-      this.arrowButton(sx, top - 4, CenterScreen.STRIP, sh, 'up', 'UP');
-      this.arrowButton(sx, top + sh + 4, CenterScreen.STRIP, sh, 'down', 'DOWN');
-      // The bottom bar: level down / up, view, quiz, lab.
-      const by = s.height - foot + 6;
-      const bh = foot - 10;
-      const n = 5;
-      const gap = 6;
-      const bw = (s.width - 2 * m - gap * (n - 1)) / n;
-      this.barButton(m, by, bw, bh, `< ${LEVEL_TABS[LEVELS[(LEVELS.indexOf(this.level) + LEVELS.length - 1) % LEVELS.length] as Level]} LEVEL`, 'LEVEL_DOWN');
-      this.barButton(m + (bw + gap), by, bw, bh, `LEVEL ${LEVEL_TABS[LEVELS[(LEVELS.indexOf(this.level) + 1) % LEVELS.length] as Level]} >`, 'LEVEL_UP');
-      this.barButton(m + 2 * (bw + gap), by, bw, bh, `VIEW: ${this.view}`, 'VIEW');
-      this.barButton(m + 3 * (bw + gap), by, bw, bh, this.quiz ? 'CLOSE QUIZ' : 'QUIZ', 'QUIZ', this.quiz !== null);
-      const meta = this.index?.topics.find((t) => t.id === this.topicId);
-      this.barButton(m + 4 * (bw + gap), by, bw, bh, this.compactLab ? 'READ' : meta?.demoId ? 'LAB' : 'LAB (NONE)', 'LAB', this.compactLab);
-    }
-    if (this.quiz) {
-      // The quiz panel replaces the reading column while open.
-      const qz = this.quiz;
-      const q = quizCurrent(qz);
-      // Compact: 9 px text and tighter lines so a question and its answers fit a phone held sideways.
-      const qf = compact ? 8.5 : 11;
-      const ql = compact ? 12 : 17;
-      s.ctx.fillStyle = withAlpha(p.bg, 0.97);
-      s.ctx.fillRect(cx0 - 4, top - 4, cw + 8, s.height - top - foot);
-      this.quizHits = [];
-      if (q) {
-        let qy = top;
-        drawTextFit(s, `QUIZ   ${qz.right} RIGHT OF ${qz.asked}   QUESTION ON ${q.topic}`, cx0, qy, qf, cw, { color: p.hot, glow: 1 });
-        qy += ql + 8;
-        for (const l of wrapText(q.q, cw, qf)) {
-          drawText(s, l, cx0, qy, qf, { color: p.ink, glow: 0.5 });
-          qy += ql + 1;
-        }
-        qy += compact ? 6 : 10;
-        q.a.forEach((a, i) => {
-          const chosen = qz.chosen === i;
-          const reveal = qz.chosen >= 0;
-          const col = reveal && i === q.right ? s.role('planet') : reveal && chosen ? s.role('danger') : p.ink;
-          const lines = wrapText(`${i + 1}  ${a}`, cw - 20, qf);
-          const h = lines.length * ql + (compact ? 6 : 10);
-          s.stroke([cx0, qy - 4, cx0 + cw, qy - 4, cx0 + cw, qy - 4 + h, cx0, qy - 4 + h], { closed: true, color: col, glow: chosen || (reveal && i === q.right) ? 1 : 0.2, alpha: 0.8 });
-          this.quizHits.push({ y: qy - 4, h, choice: i });
-          let ay = qy;
-          for (const l of lines) {
-            drawText(s, l, cx0 + 10, ay, qf, { color: col, glow: 0.4 });
-            ay += ql;
-          }
-          qy += h + (compact ? 4 : 8);
-        });
-        if (qz.chosen >= 0) {
-          qy += 6;
-          drawText(s, qz.chosen === q.right ? 'RIGHT.' : 'NOT QUITE.', cx0, qy, 12, { color: qz.chosen === q.right ? s.role('planet') : s.role('danger'), glow: 1 });
-          qy += 20;
-          for (const l of wrapText(q.why, cw, 9)) {
-            drawText(s, l, cx0, qy, 9, { color: p.ink, glow: 0.3 });
-            qy += 14;
-          }
-          drawText(s, `N OR CLICK: NEXT QUESTION   READ ${q.topic} FOR MORE   Q CLOSES`, cx0, qy + 10, 9, { color: p.dim, glow: 0 });
-        } else drawText(s, '1, 2, 3 OR CLICK TO ANSWER   Q CLOSES', cx0, qy + 4, 9, { color: p.dim, glow: 0 });
-      }
-    }
+      if (meta && meta.related.length > 0) drawText(s, cutWords(`RELATED ${meta.related.join(' ')}   IN GAME: ${meta.game.join(', ').toUpperCase()}`, charsPerLine(cw, 8)), cx0, s.height - 52, 8, { color: p.dim, glow: 0 });
+    } else if (!this.status) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
+    if (this.quiz) this.drawQuiz(cx0, top, cw, s.height - top - foot, false);
     if (dataPanel) {
       s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
       pm?.drawPanel(s, dataPanel, { x: rx, y: top, w: Math.min(rw, CenterScreen.LAB_MAX), h: s.height - 46 - top }, this.settings.reduceMotion ? 60 : performance.now() / 1000);
@@ -576,55 +535,286 @@ export class CenterScreen implements Screen {
       s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
       drawModel(s, model, { x: rx, y: top, w: Math.min(rw, CenterScreen.LAB_MAX), h: s.height - 46 - top }, this.settings.reduceMotion ? 2 : performance.now() / 1000);
     }
-    // Lab.
     if (lw > 0) {
-      const lx = compact ? cx0 : rx;
-      if (!compact) s.stroke([lx - 8, top - 6, lx - 8, s.height - 40], { color: p.dim, glow: 0 });
-      const meta = this.index?.topics.find((t) => t.id === this.topicId);
-      const lab = this.lab;
-      if (!lab) drawText(s, `LAB ${meta?.demoId ?? ''}: ${labStatus(meta?.demoId ?? null) === 'BUILT' ? 'LOADING' : 'BACKLOG'}`, lx, top, 10, { color: p.dim, glow: 0 });
-      else {
-        drawText(s, lab.title, lx, top, 10, { color: this.focus === 'LAB' ? p.hot : p.ink, glow: 1 });
-        let ly = top + 20;
-        const v = values(lab.sliders);
-        lab.sliders.forEach((sl, i) => {
-          const on = this.focus === 'LAB' && i === this.labSel;
-          const frac = sl.log ? Math.log(sl.value / sl.min) / Math.log(sl.max / sl.min) : (sl.value - sl.min) / (sl.max - sl.min);
-          drawText(s, `${on ? '>' : ' '} ${sl.label}`, lx, ly, 8, { color: on ? p.hot : p.ink, glow: on ? 0.8 : 0.2 });
-          const bx = lx + Math.min(150, lw * 0.4);
-          const bw = Math.max(40, lw - (bx - lx) - 80);
-          s.stroke([bx, ly + 4, bx + bw, ly + 4], { color: p.dim, glow: 0 });
-          s.circle(bx + frac * bw, ly + 4, 3, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.3 });
-          drawText(s, `${sl.value === 0 ? '0' : Math.abs(sl.value) >= 1e5 || Math.abs(sl.value) < 0.01 ? sl.value.toExponential(2) : Number(sl.value.toPrecision(4))}`, bx + bw + 8, ly, 8, { color: p.dim, glow: 0, align: 'left' });
-          ly += 16;
-        });
-        // The plot takes the pane's height minus room for the formula lines and SHOW CODE.
-        const plotH = compact ? Math.max(60, Math.min(lw * 0.6, s.height - foot - ly - 70)) : Math.max(160, Math.min(lw * 0.9, s.height - ly - 170));
-        // Clip the plot to its frame: a curve that leaves the axes must not draw over the sliders or the text.
-        s.ctx.save();
-        s.ctx.beginPath();
-        s.ctx.rect(lx - 2, ly + 4, lw + 4, plotH + 4);
-        s.ctx.clip();
-        lab.draw(s, v, { x: lx, y: ly + 6, w: lw, h: plotH }, performance.now() / 1000);
-        s.ctx.restore();
-        ly += plotH + 14;
-        for (const line of lab.lines(v)) {
-          for (const w of wrapText(substitute(line), lw, 8)) {
-            drawText(s, w, lx, ly, 8, { color: p.ink, glow: 0.3, lower: true });
-            ly += 11;
-          }
-          ly += 2;
-        }
-        ly += 4;
-        drawText(s, 'SHOW CODE:', lx, ly, 8, { color: p.hot, glow: 0.5 });
-        ly += 12;
-        for (const cpath of lab.code) {
-          drawTextFit(s, cpath, lx, ly, 8, lw, { color: p.dim, glow: 0, lower: true });
-          ly += 11;
-        }
+      s.stroke([rx - 8, top - 6, rx - 8, s.height - 40], { color: p.dim, glow: 0 });
+      this.drawLab(rx, top, lw, s.height - 40);
+    }
+    drawTextFit(s, `Q QUIZ   CLICK A TOPIC OR TAB   WHEEL SCROLLS   UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF ${this.index?.labs.length ?? BUILT_LABS.length}`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
+  }
+
+  /**
+   * The phone layouts. WIDE (held sideways): tree on the left, one column (READ or SIDE) in the middle, the arrow
+   * strip on the right edge, a button bar at the bottom. STACK (held upright): one pane fills the window (TREE,
+   * READ or SIDE), the strip scrolls it, the bar switches panes. Buttons are finger-sized (at least 34 px tall).
+   */
+  private renderCompact(): void {
+    const s = this.s;
+    const p = s.palette;
+    const ui = uiColors(p, s.spectrum);
+    const stack = this.stack();
+    const fs = this.fs();
+    const clh = this.lineH();
+    const m = 12;
+    const foot = 44;
+    const { tw, cx0, cw } = this.layout();
+    const readCount = this.index ? this.index.topics.filter((t) => progress[t.id]).length : 0;
+    // Header: title, a short status, the level tabs (finger-sized hit boxes).
+    const tx0 = this.keys.touchUsed ? m + 30 : m;
+    const tabsW = 5 * 26;
+    const titleW = drawTextFit(s, stack ? 'LEARN' : 'LEARNING CENTER', tx0, m, 12, s.width - tabsW - tx0 - 2 * m, { color: ui.title, glow: 1.5 });
+    if (!stack) drawTextFit(s, `${readCount}/${this.index?.topics.length ?? 0} READ   LEVEL ${this.level}   VIEW ${this.view}${this.search ? `   "${this.search.toUpperCase()}"` : ''}`, tx0 + titleW + 16, m + 2, 8, Math.max(40, s.width - m - tabsW - tx0 - titleW - 26), { color: ui.dim, glow: 0 });
+    this.drawLevelTabs(s.width - m - tabsW + 6, m - 1, 14, 26);
+    if (this.status) drawTextFit(s, this.status, m, m + 22, 9, s.width - 2 * m, { color: p.hot, glow: 0.5 });
+    const top = m + 26;
+    const bottom = s.height - foot;
+    const sx = s.width - m - CenterScreen.STRIP;
+    const pane: Pane = stack ? this.pane : this.pane === 'SIDE' ? 'SIDE' : 'READ';
+    const side = this.sideKind();
+    // Tree (WIDE: always; STACK: as the TREE pane).
+    if (!stack || pane === 'TREE') {
+      const treeBottom = stack ? bottom - 4 : bottom - 36;
+      // STACK's tree pane carries a view row: VIEW cycles TOPICS / LABS / BOOKMARKS, then the bookmark toggle.
+      let ty = top;
+      if (stack) {
+        const bw = (tw - 6) / 2;
+        this.barButton(m, ty, bw, 28, `VIEW: ${this.view}`, 'VIEW');
+        this.barButton(m + bw + 6, ty, bw, 28, bookmarks.includes(this.topicId) ? 'UNMARK TOPIC' : 'BOOKMARK TOPIC', 'BOOKMARK', bookmarks.includes(this.topicId));
+        ty += 36;
+      }
+      this.drawTree(m, ty, tw, treeBottom, (stack ? 15 : 12.5) * getTextScale(), stack ? 9 : 8.5);
+      if (!stack) {
+        const bw = (tw - 6) / 2;
+        this.arrowButton(m, treeBottom + 4, bw, 30, 'up', 'TOPIC_UP');
+        this.arrowButton(m + bw + 6, treeBottom + 4, bw, 30, 'down', 'TOPIC_DOWN');
       }
     }
-    if (!compact) drawTextFit(s, `Q QUIZ   CLICK A TOPIC OR TAB   WHEEL SCROLLS   UP/DOWN ${this.focus === 'TREE' ? 'TOPIC' : this.focus === 'CONTENT' ? 'SCROLL' : 'SLIDER'}   LEFT/RIGHT ${this.focus === 'LAB' ? 'ADJUST' : 'LEVEL'}   1-5 LEVEL   TAB FOCUS (${this.focus})   V VIEW   B BOOKMARK   / SEARCH   ESC BACK TO ${this.returnTo.toUpperCase()}   LABS ${BUILT_LABS.length} OF ${this.index?.labs.length ?? BUILT_LABS.length}`.slice(0, charsPerLine(s.width - 2 * m, 9)), s.width / 2, s.height - m - 10, 9, s.width - 2 * m, { align: 'center', color: p.dim, glow: 0 });
+    // The column: READ or SIDE.
+    if (!stack) s.stroke([cx0 - 7, top - 4, cx0 - 7, bottom], { color: p.dim, glow: 0 });
+    const c = this.chunk;
+    if (pane === 'READ') {
+      let cy = top;
+      if (c) {
+        drawTextFit(s, `${c.id}  ${substitute(c.title).toUpperCase()}`, cx0, cy, stack ? 12 : 11, cw, { color: ui.head, glow: 1.2 });
+        cy += stack ? 22 : 20;
+        if (c.pictureId && c.level === 'SIMPLE') {
+          // At most half the column's height, so some text shows under the picture.
+          const pw = Math.min(cw, ((bottom - cy) * 0.5 * 480) / 320);
+          drawPicture(s, c.pictureId, cx0, cy, pw, (pw * 320) / 480);
+          cy += (pw * 320) / 480 + 10;
+          if (c.pictureCaption) {
+            drawTextFit(s, substitute(c.pictureCaption), cx0, cy, 8, pw, { color: p.dim, glow: 0, lower: true });
+            cy += 14;
+          }
+        }
+        const maxLines = Math.floor((bottom - 14 - cy) / clh);
+        this.drawLines(cx0, cy, cw, 0, fs, clh, maxLines, fs - 1.5);
+        cy += Math.min(maxLines, this.lines.length - this.scroll) * clh;
+        if (this.lines.length > this.scroll + maxLines) drawTextFit(s, `... ${this.lines.length - this.scroll - maxLines} MORE`, cx0, cy, fs, cw, { color: p.dim, glow: 0 });
+      } else if (!this.status) drawText(s, 'LOADING', cx0, cy, 10, { color: p.dim, glow: 0 });
+    } else if (pane === 'SIDE') {
+      const pm = panels();
+      const dataPanel = side === 'DATA' && pm ? pm.panelForTopic(this.topicId) : null;
+      const model = side === 'MODEL' ? modelForTopic(this.topicId) : null;
+      if (side === 'LAB') this.drawLab(cx0, top, cw, bottom);
+      else if (dataPanel) pm?.drawPanel(s, dataPanel, { x: cx0, y: top, w: cw, h: bottom - top - 6 }, this.settings.reduceMotion ? 60 : performance.now() / 1000);
+      else if (model) drawModel(s, model, { x: cx0, y: top, w: cw, h: bottom - top - 6 }, this.settings.reduceMotion ? 2 : performance.now() / 1000);
+      else drawTextFit(s, 'NO LAB, DATA OR MODEL FOR THIS TOPIC', cx0, top, 10, cw, { color: p.dim, glow: 0 });
+    }
+    if (this.quiz) this.drawQuiz(cx0, top, cw, bottom - top, true);
+    // The arrow strip on the right edge: the top half scrolls up a page, the bottom half down.
+    const sh = (bottom - top) / 2 - 4;
+    const scrollsTree = stack && pane === 'TREE';
+    this.arrowButton(sx, top - 2, CenterScreen.STRIP, sh, 'up', scrollsTree ? 'TOPIC_UP' : 'UP');
+    this.arrowButton(sx, top + sh + 6, CenterScreen.STRIP, sh, 'down', scrollsTree ? 'TOPIC_DOWN' : 'DOWN');
+    // The button bar.
+    const by = s.height - foot + 6;
+    const bh = foot - 12;
+    const gap = 6;
+    // The SIDE button names what it shows next: the first side kind from the text, the next one from a side pane, READ last.
+    const kinds = this.sideKinds();
+    const nextKind = pane === 'SIDE' ? kinds[kinds.indexOf(side ?? 'LAB') + 1] : kinds[0];
+    const sideLabel = nextKind ?? 'READ';
+    const buttons: { label: string; act: NavAct; on?: boolean }[] = stack
+      ? [
+          { label: pane === 'TREE' ? 'READ' : 'TOPICS', act: pane === 'TREE' ? 'READ' : 'TREE' },
+          { label: `< ${LEVEL_TABS[LEVELS[(LEVELS.indexOf(this.level) + LEVELS.length - 1) % LEVELS.length] as Level]}`, act: 'LEVEL_DOWN' },
+          { label: `${LEVEL_TABS[LEVELS[(LEVELS.indexOf(this.level) + 1) % LEVELS.length] as Level]} >`, act: 'LEVEL_UP' },
+          { label: this.quiz ? 'CLOSE' : 'QUIZ', act: 'QUIZ', on: this.quiz !== null },
+          { label: sideLabel, act: 'SIDE', on: pane === 'SIDE' },
+        ]
+      : [
+          { label: `< ${LEVEL_TABS[LEVELS[(LEVELS.indexOf(this.level) + LEVELS.length - 1) % LEVELS.length] as Level]} LEVEL`, act: 'LEVEL_DOWN' },
+          { label: `LEVEL ${LEVEL_TABS[LEVELS[(LEVELS.indexOf(this.level) + 1) % LEVELS.length] as Level]} >`, act: 'LEVEL_UP' },
+          { label: `VIEW: ${this.view}`, act: 'VIEW' },
+          { label: this.quiz ? 'CLOSE QUIZ' : 'QUIZ', act: 'QUIZ', on: this.quiz !== null },
+          { label: kinds.length === 0 ? 'LAB (NONE)' : sideLabel, act: 'SIDE', on: pane === 'SIDE' },
+        ];
+    const n = buttons.length;
+    const bw = (s.width - 2 * m - gap * (n - 1)) / n;
+    buttons.forEach((b, i) => this.barButton(m + i * (bw + gap), by, bw, bh, b.label, b.act, b.on ?? false));
+  }
+
+  /** The S B I A E level tabs at (x, y), `size` px, `step` px apart; hit boxes are recorded for update(). */
+  private drawLevelTabs(x: number, y: number, size: number, step: number): void {
+    const s = this.s;
+    const ui = uiColors(s.palette, s.spectrum);
+    let tx = x;
+    for (const lv of LEVELS) {
+      const on = lv === this.level;
+      drawText(s, LEVEL_TABS[lv], tx, y, size, { color: on ? ui.head : ui.sub, glow: on ? 1.4 : 0.3 });
+      if (on && this.compact()) s.stroke([tx - 2, y + size + 4, tx + size * 0.8, y + size + 4], { color: ui.head, glow: 0.6 });
+      this.tabHits.push({ x: tx, y, level: lv });
+      tx += step;
+    }
+  }
+
+  /** The topic tree in a box from `top` to `bottom` at x, `w` wide; rows `lineH` tall at `tfs` px. */
+  private drawTree(x: number, top: number, w: number, bottom: number, lineH: number, tfs: number): void {
+    const s = this.s;
+    const ui = uiColors(s.palette, s.spectrum);
+    const list = this.list();
+    const rows = Math.floor((bottom - top) / lineH);
+    const start = Math.max(0, Math.min(this.sel - Math.floor(rows / 2), list.length - rows));
+    let y = top;
+    let lastGroup = '';
+    const groups = this.index?.groups ?? {};
+    const cols = charsPerLine(w - 8, tfs);
+    for (let i = start; i < Math.min(list.length, start + rows); i++) {
+      const t = list[i] as TopicMeta;
+      if (t.group !== lastGroup && this.view === 'TOPICS' && !this.search) {
+        drawText(s, cutWords(`${t.group}  ${groups[t.group] ?? ''}`, cols), x, y, tfs, { color: ui.sub, glow: 0.3 });
+        lastGroup = t.group;
+        y += lineH;
+        if (y + lineH > bottom + 2) break;
+      }
+      if (y + lineH > bottom + 2) break; // group headers take rows too: stop above the footer
+      const on = i === this.sel;
+      this.rowHits.push({ y: y - 2, h: lineH, idx: i });
+      const read = progress[t.id];
+      const mark = bookmarks.includes(t.id) ? '*' : read ? (LEVEL_TABS[read as Level] ?? '.') : ' ';
+      drawText(s, cutWords(`${on ? '>' : ' '}${mark} ${t.id.padEnd(4)} ${substitute(t.title).toUpperCase()}`, cols), x, y, tfs, { color: on ? ui.sel : ui.text, glow: on ? 1.6 : 0.2 });
+      y += lineH;
+    }
+  }
+
+  /** The reading column's lines from `scroll`, at most `maxLines`; code and tables may use `free` extra px. */
+  private drawLines(x: number, y: number, w: number, free: number, fs: number, clh: number, maxLines: number, codeFs: number): void {
+    const s = this.s;
+    const ui = uiColors(s.palette, s.spectrum);
+    let cy = y;
+    for (const l of this.lines.slice(this.scroll, this.scroll + maxLines)) {
+      const txt = substitute(l.text);
+      if (l.kind === 'head') drawTextFit(s, txt.toUpperCase(), x, cy, fs + 1, w, { color: ui.head, glow: 0.9 });
+      // Code and tables are never re-wrapped (columns would break): they may use the empty right pane, else shrink.
+      else if (l.kind === 'code' || l.kind === 'table') drawTextFit(s, txt, x + 6, cy, codeFs, w + free - 6, { color: ui.text, glow: 0.2, lower: true });
+      else drawText(s, txt, x, cy, fs, { color: ui.text, glow: 0.3, lower: true });
+      cy += clh;
+    }
+  }
+
+  /** The quiz panel over the reading column's box. */
+  private drawQuiz(cx0: number, top: number, cw: number, h: number, compact: boolean): void {
+    const s = this.s;
+    const p = s.palette;
+    const qz = this.quiz;
+    if (!qz) return;
+    const q = quizCurrent(qz);
+    // Compact: 9 px text and tighter lines so a question and its answers fit a phone held sideways.
+    const qf = compact ? 9 : 11;
+    const ql = compact ? 13 : 17;
+    // Opaque: the reading column's bright text must not show through the questions.
+    s.ctx.fillStyle = compact ? p.bg : withAlpha(p.bg, 0.97);
+    s.ctx.fillRect(cx0 - 4, top - 4, cw + 8, h);
+    this.quizHits = [];
+    if (!q) return;
+    let qy = top;
+    drawTextFit(s, `QUIZ   ${qz.right} RIGHT OF ${qz.asked}   QUESTION ON ${q.topic}`, cx0, qy, qf, cw, { color: p.hot, glow: 1 });
+    qy += ql + 8;
+    for (const l of wrapText(q.q, cw, qf)) {
+      drawText(s, l, cx0, qy, qf, { color: p.ink, glow: 0.5 });
+      qy += ql + 1;
+    }
+    qy += compact ? 6 : 10;
+    q.a.forEach((a, i) => {
+      const chosen = qz.chosen === i;
+      const reveal = qz.chosen >= 0;
+      const col = reveal && i === q.right ? s.role('planet') : reveal && chosen ? s.role('danger') : p.ink;
+      const lines = wrapText(`${i + 1}  ${a}`, cw - 20, qf);
+      const hh = lines.length * ql + (compact ? 8 : 10);
+      s.stroke([cx0, qy - 4, cx0 + cw, qy - 4, cx0 + cw, qy - 4 + hh, cx0, qy - 4 + hh], { closed: true, color: col, glow: chosen || (reveal && i === q.right) ? 1 : 0.2, alpha: 0.8 });
+      this.quizHits.push({ y: qy - 4, h: hh, choice: i });
+      let ay = qy;
+      for (const l of lines) {
+        drawText(s, l, cx0 + 10, ay, qf, { color: col, glow: 0.4 });
+        ay += ql;
+      }
+      qy += hh + (compact ? 5 : 8);
+    });
+    if (qz.chosen >= 0) {
+      qy += 6;
+      drawText(s, qz.chosen === q.right ? 'RIGHT.' : 'NOT QUITE.', cx0, qy, 12, { color: qz.chosen === q.right ? s.role('planet') : s.role('danger'), glow: 1 });
+      qy += 20;
+      for (const l of wrapText(q.why, cw, 9)) {
+        drawText(s, l, cx0, qy, 9, { color: p.ink, glow: 0.3 });
+        qy += 14;
+      }
+      drawTextFit(s, compact ? 'TAP: NEXT QUESTION' : `N OR CLICK: NEXT QUESTION   READ ${q.topic} FOR MORE   Q CLOSES`, cx0, qy + 10, 9, cw, { color: p.dim, glow: 0 });
+    } else drawTextFit(s, compact ? 'TAP AN ANSWER' : '1, 2, 3 OR CLICK TO ANSWER   Q CLOSES', cx0, qy + 4, 9, cw, { color: p.dim, glow: 0 });
+  }
+
+  /** The lab pane: title, sliders, the plot (clipped), the formula lines and SHOW CODE paths. */
+  private drawLab(lx: number, top: number, lw: number, bottom: number): void {
+    const s = this.s;
+    const p = s.palette;
+    const compact = this.compact();
+    const meta = this.index?.topics.find((t) => t.id === this.topicId);
+    const lab = this.lab;
+    if (!lab) {
+      drawText(s, `LAB ${meta?.demoId ?? ''}: ${labStatus(meta?.demoId ?? null) === 'BUILT' ? 'LOADING' : 'BACKLOG'}`, lx, top, 10, { color: p.dim, glow: 0 });
+      return;
+    }
+    drawText(s, lab.title, lx, top, 10, { color: this.focus === 'LAB' ? p.hot : p.ink, glow: 1 });
+    let ly = top + 20;
+    const v = values(lab.sliders);
+    lab.sliders.forEach((sl, i) => {
+      const on = this.focus === 'LAB' && i === this.labSel;
+      const frac = sl.log ? Math.log(sl.value / sl.min) / Math.log(sl.max / sl.min) : (sl.value - sl.min) / (sl.max - sl.min);
+      drawText(s, `${on ? '>' : ' '} ${sl.label}`, lx, ly, 8, { color: on ? p.hot : p.ink, glow: on ? 0.8 : 0.2 });
+      const bx = lx + Math.min(150, lw * 0.4);
+      const bw = Math.max(40, lw - (bx - lx) - 80);
+      s.stroke([bx, ly + 4, bx + bw, ly + 4], { color: p.dim, glow: 0 });
+      s.circle(bx + frac * bw, ly + 4, compact ? 4 : 3, { color: on ? p.hot : p.ink, glow: on ? 1 : 0.3 });
+      drawText(s, `${sl.value === 0 ? '0' : Math.abs(sl.value) >= 1e5 || Math.abs(sl.value) < 0.01 ? sl.value.toExponential(2) : Number(sl.value.toPrecision(4))}`, bx + bw + 8, ly, 8, { color: p.dim, glow: 0, align: 'left' });
+      this.sliderHits.push({ i, x: bx, y: ly - 7, w: bw, h: 18 });
+      ly += compact ? 18 : 16;
+    });
+    // The plot takes the pane's height minus room for the formula lines and SHOW CODE.
+    const plotH = this.stack() ? Math.max(80, Math.min(lw * 0.9, bottom - ly - 120)) : compact ? Math.max(60, Math.min(lw * 0.6, bottom - ly - 70)) : Math.max(160, Math.min(lw * 0.9, bottom - ly - 130));
+    // Clip the plot to its frame: a curve that leaves the axes must not draw over the sliders or the text.
+    s.ctx.save();
+    s.ctx.beginPath();
+    s.ctx.rect(lx - 2, ly + 4, lw + 4, plotH + 4);
+    s.ctx.clip();
+    lab.draw(s, v, { x: lx, y: ly + 6, w: lw, h: plotH }, performance.now() / 1000);
+    s.ctx.restore();
+    ly += plotH + 14;
+    for (const line of lab.lines(v)) {
+      for (const w of wrapText(substitute(line), lw, 8)) {
+        if (ly > bottom - 12) break;
+        drawText(s, w, lx, ly, 8, { color: p.ink, glow: 0.3, lower: true });
+        ly += 11;
+      }
+      ly += 2;
+    }
+    ly += 4;
+    if (ly > bottom - 24) return;
+    drawText(s, 'SHOW CODE:', lx, ly, 8, { color: p.hot, glow: 0.5 });
+    ly += 12;
+    for (const cpath of lab.code) {
+      if (ly > bottom - 10) break;
+      drawTextFit(s, cpath, lx, ly, 8, lw, { color: p.dim, glow: 0, lower: true });
+      ly += 11;
+    }
   }
 }
 
