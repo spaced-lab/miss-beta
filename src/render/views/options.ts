@@ -13,7 +13,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors } from '../palettes';
 import { bind, bindableCode, codeLabel, defaultBindings, KEY_ACTIONS, loadBindings, remapFor, saveBindings, setBindings, type KeyBindings } from '../../game/keybinds';
-import { drawText, drawTextFit, wrapText } from '../vectorFont';
+import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 
 interface Row {
   /** Section heading drawn beside the first row of each group (LOOK, SOUND, PLAY, RUNS, AUTOPLAY). */
@@ -198,20 +198,27 @@ export class OptionsScreen implements Screen {
     const ui = uiColors(p, s.spectrum);
     drawText(s, 'OPTIONS', s.width / 2, m + 6, 20, { align: 'center', color: ui.title, glow: 1.5 });
     let y = m + 60;
-    const x = Math.max(m, s.width / 2 - 320);
+    // NOTE: owner 2026-10-20 (phones): on a window under 700 px the value column follows the widest label instead of
+    // sitting 300 px in, the text shrinks so a label takes at most 45 % of the width, values shrink to what is left,
+    // and the group headings (drawn left of the labels) are left out.
+    const narrow = s.width < 700;
+    const ts = getTextScale();
+    const widest = Math.max(...this.rows.map((r) => measureText(r.label, 14))) * ts;
+    const fs = narrow ? Math.max(8, Math.min(14, (14 * s.width * 0.45) / widest)) : 14;
+    const x = narrow ? 30 : Math.max(m, s.width / 2 - 320);
     this.rowYs = [];
-    this.valueX = x + 300;
+    this.valueX = narrow ? x + (widest * fs) / 14 + 14 : x + 300;
     const groups = new Set(this.rows.map((r) => r.group)).size;
-    const step = Math.max(22, Math.min(32, (s.height - 230 - groups * 8) / this.rows.length));
+    const step = Math.max(narrow ? fs * ts + 10 : 22, Math.min(32, (s.height - 230 - groups * 8) / this.rows.length));
     this.rows.forEach((r, i) => {
       // A small gap and a dim heading where a new group starts.
       if (i > 0 && this.rows[i - 1]?.group !== r.group) y += 8;
-      if (i === 0 || this.rows[i - 1]?.group !== r.group) drawText(s, r.group, x - 140, y + 2, 10, { color: ui.dim, glow: 0 });
+      if (!narrow && (i === 0 || this.rows[i - 1]?.group !== r.group)) drawText(s, r.group, x - 140, y + 2, 10, { color: ui.dim, glow: 0 });
       this.rowYs.push(y);
       const sel = i === this.sel;
-      if (sel) drawText(s, '>', x - 24, y, 14, { color: ui.sel, glow: 1.6 });
-      drawText(s, r.label, x, y, 14, { color: sel ? ui.sel : ui.text, glow: sel ? 1.6 : 0.8 });
-      drawText(s, `<  ${r.value()}  >`, x + 300, y, 14, { color: sel ? ui.sel : ui.sub, glow: sel ? 1.6 : 0.8 });
+      if (sel) drawText(s, '>', x - 24, y, fs, { color: ui.sel, glow: 1.6 });
+      drawText(s, r.label, x, y, fs, { color: sel ? ui.sel : ui.text, glow: sel ? 1.6 : 0.8 });
+      drawTextFit(s, `<  ${r.value()}  >`, this.valueX, y, fs, s.width - 8 - this.valueX, { color: sel ? ui.sel : ui.sub, glow: sel ? 1.6 : 0.8 });
       y += step;
     });
     const row = this.rows[this.sel];

@@ -31,6 +31,9 @@ export interface RenderOpts {
   options?: { difficulty: string; startLevel: number };
   /** Main OPTIONS > REDUCE MOTION: no screen shake. */
   reduceMotion?: boolean;
+  /** The on-screen touch pad is shown (touchPad.ts): the top of its highest button, CSS px. The left column starts
+   *  below its BACK button, the status line sits just above the buttons, and the key hints and sound line go. */
+  touchTop?: number | null;
 }
 
 /** Neon accents (SPECTRUM-style, GAME_PLAN 24.1). Index by tier / damage. */
@@ -383,12 +386,15 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   const H = s.height;
   const m = 16;
   const fs = 14;
+  // The left column's top: below the touch pad's BACK button when it is shown.
+  const touch = typeof opts.touchTop === 'number';
+  const lt = touch ? m + 40 : m;
 
-  drawText(s, `SCORE ${pad(st.score, 6)}`, m, m, fs);
-  drawText(s, opts.daily ? `DAILY ${opts.daily.date}  BEST ${pad(opts.daily.best, 6)}` : `BEST  ${pad(opts.best, 6)}`, m, m + fs * 1.7, fs, { color: opts.daily ? p.hot : p.dim, glow: 0 });
-  drawText(s, `LEVEL ${st.level}`, m, m + fs * 3.4, fs, { color: p.hot, glow: 1.2 });
+  drawText(s, `SCORE ${pad(st.score, 6)}`, m, lt, fs);
+  drawText(s, opts.daily ? `DAILY ${opts.daily.date}  BEST ${pad(opts.daily.best, 6)}` : `BEST  ${pad(opts.best, 6)}`, m, lt + fs * 1.7, fs, { color: opts.daily ? p.hot : p.dim, glow: 0 });
+  drawText(s, `LEVEL ${st.level}`, m, lt + fs * 3.4, fs, { color: p.hot, glow: 1.2 });
   const tags = [st.difficulty !== 'normal' ? st.difficulty.toUpperCase() : '', st.startLevel > 1 ? `FROM ${st.startLevel}` : ''].filter((t) => t).join('  ');
-  if (tags && st.status !== 'ready') drawText(s, tags, m, m + fs * 5.1, 11, { color: p.dim, glow: 0 });
+  if (tags && st.status !== 'ready') drawText(s, tags, m, lt + fs * 5.1, 11, { color: p.dim, glow: 0 });
 
   // Right column: HULL, HEAT, PULSE.
   const bw = 160;
@@ -434,18 +440,23 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   }
 
   // Stream strength ladder: one dot per stream coloured by damage.
-  const bottom = H - m - fs;
+  const bottom = touch ? (opts.touchTop ?? H) - fs - 12 : H - m - fs;
   const status = `T ${clock(st.t)}   LAUNCHERS X${st.launcherCount}   STREAMS X${st.streamCount}`;
-  drawText(s, status, m, bottom, fs);
-  const lx = m + measureText(status, fs) + 18;
+  // NOTE: above the touch pad the line shrinks to leave room for its stream dots on a phone's width.
+  const sfs = touch ? Math.min(fs, (fs * (W - 2 * m - st.streamCount * 12 - 70)) / (measureText(status, fs) * getTextScale())) : fs;
+  // On a touch screen the status line sits where the ready and game-over panels are; it shows only in play.
+  if (!touch || st.status === 'playing') drawText(s, status, m, bottom, sfs);
+  const lx = m + measureText(status, sfs) * getTextScale() + 18;
   for (let j = 0; j < st.streamCount; j++) {
     const d = streamDamage(st.streamCount, j);
-    s.dot(lx + j * 12, bottom + fs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
+    s.dot(lx + j * 12, bottom + sfs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
   }
-  drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, fs, { color: p.dim, glow: 0 });
-  if (st.status === 'playing') drawTextFit(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, W * 0.45, { align: 'right', color: p.dim, glow: 0 });
-  drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
-  if (st.cheats.assisted) drawText(s, 'ASSISTED', m, m + fs * 5.1, 11, { color: p.dim, glow: 0 });
+  drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, sfs, { color: p.dim, glow: 0 });
+  if (!touch) {
+    if (st.status === 'playing') drawTextFit(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, W * 0.45, { align: 'right', color: p.dim, glow: 0 });
+    drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });
+  }
+  if (st.cheats.assisted) drawText(s, 'ASSISTED', m, lt + fs * 5.1, 11, { color: p.dim, glow: 0 });
 
   let fy = s.height / 2 - MG.PLANET_R * (Math.min(W, H) / 2 / MG.VIEW_R) - 70;
   for (const f of st.flashes) {
@@ -481,7 +492,54 @@ function drawPanel(s: Surface, w: number, h: number): { x: number; y: number } {
   return { x, y };
 }
 
+/**
+ * The ready panel on a touch screen (owner 2026-10-20, on-screen controls on a phone): the pad's buttons named
+ * instead of keys, TAP TO START, and the difficulty and start level read out with where to change them (OPTIONS >
+ * PERIMETER; keys 9 and 0 need a keyboard). Text sizes shrink to the panel's width.
+ */
+function drawReadyTouch(s: Surface, opts: RenderOpts): void {
+  const p = s.palette;
+  const pw = Math.min(560, s.width - 24);
+  const inner = pw - 32;
+  const rows: Array<[string, string]> = [
+    ['<  >', 'TURN THE LAUNCHER'],
+    ['FIRE', 'HOLD TO FIRE (WATCH THE HEAT)'],
+    ['PULSE', 'CLEARS THE FIELD WHEN CHARGED'],
+    ['SEEK', 'A HOMING MISSILE'],
+    ['SWARM', 'A SWARM OF SENTINEL DRONES'],
+  ];
+  const ks = Math.min(12, (12 * inner) / ((measureText('SWARM   HOLD TO FIRE (WATCH THE HEAT)', 12) + 20) * getTextScale()));
+  const lh = ks * 1.7 * getTextScale();
+  const o = opts.options;
+  const h = 150 + rows.length * lh + (o ? 2 * lh + 24 : 0) + 70;
+  const { x, y } = drawPanel(s, pw, h);
+  const cx = s.width / 2;
+  drawTextFit(s, 'PERIMETER', cx, y + 22, 30, inner, { align: 'center', glow: 2, color: p.hot });
+  drawTextFit(s, 'BETA ARCADE MODE', cx, y + 64, 12, inner, { align: 'center', color: p.dim, glow: 0 });
+  drawTextFit(s, 'ROCKS ARE INBOUND. KEEP THE HULL ABOVE ZERO.', cx, y + 88, 12, inner, { align: 'center' });
+  let ly = y + 120;
+  const kw = measureText('SWARM', ks) * getTextScale() + 18;
+  for (const [key, what] of rows) {
+    drawText(s, key, x + 16, ly, ks, { color: p.hot, glow: 1 });
+    drawTextFit(s, what, x + 16 + kw, ly, ks, inner - kw, {});
+    ly += lh;
+  }
+  if (o) {
+    ly += 10;
+    drawTextFit(s, `DIFFICULTY ${o.difficulty.toUpperCase()}   START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, ly, ks, inner, { align: 'center', color: p.ink, glow: 0.6 });
+    drawTextFit(s, 'CHANGE THEM IN OPTIONS > PERIMETER', cx, ly + lh, ks * 0.9, inner, { align: 'center', color: p.dim, glow: 0 });
+    ly += 2 * lh;
+  }
+  const r = opts.resume;
+  if (r) drawTextFit(s, `SAVED GAME: LEVEL ${r.level}   SCORE ${r.score}`, cx, y + h - 64, 11, inner, { align: 'center', color: p.dim, glow: 0 });
+  if (Math.floor(performance.now() / 500) % 2 === 0) drawTextFit(s, r ? 'TAP TO RESUME' : 'TAP TO START', cx, y + h - 40, 18, inner, { align: 'center', color: p.hot, glow: 1.5 });
+}
+
 function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
+  if (typeof opts.touchTop === 'number') {
+    drawReadyTouch(s, opts);
+    return;
+  }
   // Laid out from its content: the key column is as wide as its widest label, descriptions wrap in the column
   // beside it, the notes wrap to the panel, and the panel grows to fit (owner screenshot, 2026-10-18).
   const p = s.palette;
@@ -567,15 +625,15 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
 function drawOver(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const { y } = drawPanel(s, Math.min(580, s.width - 32), opts.options ? 272 : 250);
   const cx = s.width / 2;
-  drawText(s, 'HOME LOST', cx, y + 28, 34, { align: 'center', glow: 2, color: s.palette.hot });
+  drawTextFit(s, 'HOME LOST', cx, y + 28, 34, Math.min(580, s.width - 32) - 32, { align: 'center', glow: 2, color: s.palette.hot });
   drawText(s, `SCORE ${st.score}`, cx, y + 86, 18, { align: 'center' });
   const isBest = st.score >= opts.best && !st.cheats.assisted && st.score > 0;
   drawText(s, isBest ? 'NEW BEST' : `BEST ${opts.best}`, cx, y + 116, 14, { align: 'center', color: isBest ? s.palette.hot : s.palette.dim, glow: isBest ? 1.5 : 0 });
-  drawText(s, `LEVEL ${st.level}   SURVIVED ${clock(st.t)}   ROCKS ${st.kills}`, cx, y + 146, 13, { align: 'center' });
+  drawTextFit(s, `LEVEL ${st.level}   SURVIVED ${clock(st.t)}   ROCKS ${st.kills}`, cx, y + 146, 13, Math.min(580, s.width - 32) - 32, { align: 'center' });
   if (st.cheats.assisted) drawText(s, 'ASSISTED RUN: NOT SAVED', cx, y + 172, 11, { align: 'center', color: s.palette.dim, glow: 0 });
   else if (st.startLevel > 1) drawText(s, `STARTED AT LEVEL ${st.startLevel}: NOT RANKED`, cx, y + 172, 11, { align: 'center', color: s.palette.dim, glow: 0 });
   if (st.difficulty !== 'normal') drawText(s, `${st.difficulty.toUpperCase()}`, cx, y + 188, 11, { align: 'center', color: s.palette.dim, glow: 0 });
-  drawText(s, 'SPACE RETRY    L SOUND LAB    ESC TITLE', cx, y + 212, 14, { align: 'center', color: s.palette.hot, glow: 1.5 });
+  drawTextFit(s, typeof opts.touchTop === 'number' ? 'TAP TO RETRY' : 'SPACE RETRY    L SOUND LAB    ESC TITLE', cx, y + 212, 14, Math.min(580, s.width - 32) - 32, { align: 'center', color: s.palette.hot, glow: 1.5 });
   const o = opts.options;
-  if (o) drawTextFit(s, `RETRY AS:  9 ${o.difficulty.toUpperCase()}   0 START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, y + 240, 11, Math.min(580, s.width - 32) - 32, { align: 'center', color: s.palette.ink, glow: 0.6 });
+  if (o && typeof opts.touchTop !== 'number') drawTextFit(s, `RETRY AS:  9 ${o.difficulty.toUpperCase()}   0 START LEVEL ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, cx, y + 240, 11, Math.min(580, s.width - 32) - 32, { align: 'center', color: s.palette.ink, glow: 0.6 });
 }

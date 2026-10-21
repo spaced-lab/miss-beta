@@ -92,6 +92,9 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Decisions
 
+- 2026-10-20 (phones): touch screens are detected by a coarse pointer or the first touch (Input.touchUsed). PERIMETER's
+  pad replaces the screen-thirds scheme on them; its difficulty and start level are changed in OPTIONS > PERIMETER
+  (keys 9 and 0 need a keyboard), not on the touch ready panel. Every other screen gets a BACK button that presses Esc.
 - 2026-10-20 (demo third pass): "keep running them in 16 little ones" was read as the 16-reality split staying on as
   running simulations for three shots on one clock, each cell cutting on its own, before the merge back to one. The
   32 split drops the two dearest cell scenes (racks, laser map) and the glow on its frames: 35 -> 25 ms a frame at

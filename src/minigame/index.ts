@@ -30,6 +30,7 @@ import { MG, type Difficulty } from './config';
 import { isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSettings } from './modes';
 import { loadMinigameSettings, saveMinigameSettings } from './prefs';
 import { renderMinigame } from './render';
+import { drawPad, padHeld, padLayout, type PadId } from './touchPad';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
 import { isSavedReplay, Player, Recorder, type SavedReplay } from './replay';
@@ -91,6 +92,8 @@ export class MinigameScreen implements Screen {
     // defaults apply; nothing is read from it piecemeal.
     const prefs = loadJson(SFX_KEY, isSfxPrefs, null);
     if (prefs) this.sfx.applyPrefs(prefs);
+    // NOTE: a phone only lets audio start inside a touch handler; the frame loop's key-press unlock never sees a tap.
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('touchend', () => this.sfx.unlock(), { passive: true });
   }
 
   /** The SOUND LAB state; read by tests. */
@@ -163,6 +166,9 @@ export class MinigameScreen implements Screen {
   private daily = false;
   /** A touch was down last frame (edge detection for tap-to-start). */
   private touchWas = false;
+  /** On-screen pad buttons held this frame and last frame (touchPad.ts; the edges fire pulse, seeker and swarm). */
+  private padNow = new Set<PadId>();
+  private padWas = new Set<PadId>();
   /** Recording of the current game (null when it cannot be replayed: resumed, or a cheat was used). */
   private rec: Recorder | null = null;
   /** Playing a saved replay instead of the keyboard. */
@@ -200,8 +206,17 @@ export class MinigameScreen implements Screen {
     const k = this.keys;
     const st = this.st;
 
-    // Any key counts as the user gesture browsers require before audio may start.
+    // Any key counts as the user gesture browsers require before audio may start (a touch unlocks it in its own
+    // handler, see the constructor).
     if (k.anyKeyPressed()) this.sfx.unlock();
+    this.padWas = this.padNow;
+    this.padNow = k.touchUsed ? padHeld(k.touchPoints ?? [], padLayout(this.s.width, this.s.height)) : new Set();
+    const padEdge = (id: PadId): boolean => this.padNow.has(id) && !this.padWas.has(id);
+    if (padEdge('back') && !this.labState.open) {
+      if (this.demo) this.stopDemo();
+      this.router.go('title');
+      return;
+    }
     if (this.demo) {
       this.updateDemo(dtMs);
       return;
@@ -275,7 +290,8 @@ export class MinigameScreen implements Screen {
       return;
     }
     const touches = k.touchPoints ?? [];
-    const touchStart = touches.length > 0 && !this.touchWas;
+    // NOTE: a finger on BACK (held) must not also start a game from the panel.
+    const touchStart = touches.length > 0 && !this.touchWas && !this.padNow.has('back');
     this.touchWas = touches.length > 0;
     if (this.player && st.status === 'over' && (touchStart || k.pressed('Space'))) {
       this.endReplay();
@@ -325,19 +341,23 @@ export class MinigameScreen implements Screen {
     // NOTE: Comma and Period are the `<` and `>` keys on a US layout; KeyboardEvent.code is layout independent.
     // Touch (IDEAS 2): left third turns left, right third turns right, the middle fires; a two-finger tap
     // pulses, and any touch starts or resumes a game from the panels.
+    // Owner 2026-10-20: on a touch screen the visible pad (touchPad.ts) replaces the thirds; the two-finger tap is
+    // dropped there, since turning and firing at once is two fingers.
     const W = this.s.width;
     const tp = k.touchPoints ?? [];
-    const tLeft = tp.some((t) => t.x < W / 3);
-    const tRight = tp.some((t) => t.x > (2 * W) / 3);
-    const tFire = tp.some((t) => t.x >= W / 3 && t.x <= (2 * W) / 3);
-    const tPulse = k.takeMultiTap?.() ?? false;
+    const pad = k.touchUsed;
+    const multi = k.takeMultiTap?.() ?? false;
+    const tLeft = pad ? this.padNow.has('left') : tp.some((t) => t.x < W / 3);
+    const tRight = pad ? this.padNow.has('right') : tp.some((t) => t.x > (2 * W) / 3);
+    const tFire = pad ? this.padNow.has('fire') : tp.some((t) => t.x >= W / 3 && t.x <= (2 * W) / 3);
+    const tPulse = pad ? padEdge('pulse') : multi;
     const input: Input = {
       left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft,
       right: k.anyHeld('ArrowRight', 'KeyD') || tRight,
       fire: k.held('Space') || tFire,
       pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight') || tPulse,
-      seeker: k.pressed('Comma'),
-      swarm: k.pressed('Period'),
+      seeker: k.pressed('Comma') || (pad && padEdge('seeker')),
+      swarm: k.pressed('Period') || (pad && padEdge('swarm')),
     };
 
     this.acc += Math.min(dtMs, 250) / 1000 * st.cheats.timeScale;
@@ -445,7 +465,9 @@ export class MinigameScreen implements Screen {
       demo: this.demo ? { speed: MG.DEMO_SPEED, restartIn: this.st.status === 'over' ? Math.max(0, MG.DEMO_RESTART_SECONDS - this.demoRestart) : null } : null,
       ...(this.player || this.demo ? {} : { options: this.settings }),
       reduceMotion: this.reduceMotion(),
+      touchTop: this.keys.touchUsed && !this.labState.open ? Math.min(...padLayout(this.s.width, this.s.height).map((b) => b.y - b.r)) : null,
     });
     if (this.labState.open) renderLab(this.s, this.labState, this.sfx);
+    else if (this.keys.touchUsed) drawPad(this.s, padLayout(this.s.width, this.s.height), this.padNow, this.st.status === 'playing' && !this.player && !this.demo);
   }
 }
