@@ -88,6 +88,12 @@ export class Input {
     target.addEventListener('touchstart', (e) => {
       const t = e.touches;
       this.setTouches(t);
+      this.touchUsed = true;
+      if (t.length === 1) {
+        const a = t[0] as Touch;
+        this.mouse = { x: a.clientX, y: a.clientY };
+        this.downAt = { x: a.clientX, y: a.clientY };
+      } else this.downAt = null;
       if (t.length >= 2) this.multiTap = true;
       if (t.length === 1) {
         this.dragging = true;
@@ -116,13 +122,33 @@ export class Input {
       this.setTouches(e.touches);
       if (e.touches.length === 0) this.dragging = false;
       pinch = 0;
-    });
+      // NOTE: a tap is a click, read from the touch itself. Phones (iOS Safari above all) do not send the emulated
+      // mouse events to a window listener over a plain canvas, so taps never reached the game and the first-boot
+      // photosensitivity notice could not be passed on a phone (owner 2026-10-20). preventDefault stops the
+      // emulated mouse events where a browser does send them, so one tap is never two clicks.
+      const a = e.changedTouches[0];
+      if (a && e.touches.length === 0 && this.downAt && Math.hypot(a.clientX - this.downAt.x, a.clientY - this.downAt.y) < 12) {
+        this.click = { x: a.clientX, y: a.clientY };
+        this.mouse = { x: a.clientX, y: a.clientY };
+        if (e.cancelable) e.preventDefault();
+      }
+      this.downAt = null;
+    }, { passive: false });
   }
+
+  /** True on a touch-first device (coarse pointer) or once the player has touched the screen: screens show touch
+   *  hints and on-screen controls. */
+  touchUsed = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
   /** Last pointer position in CSS px (the canvas fills the window), or null before the mouse moved. */
   mouse: { x: number; y: number } | null = null;
   private downAt: { x: number; y: number } | null = null;
   private click: { x: number; y: number } | null = null;
+
+  /** The click since the last takeClick, without clearing it. */
+  peekClick(): { x: number; y: number } | null {
+    return this.click;
+  }
 
   /** The click since the last call, or null. Clears it. */
   takeClick(): { x: number; y: number } | null {

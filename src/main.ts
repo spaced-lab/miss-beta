@@ -23,6 +23,9 @@ import type { CenterScreen } from './render/views/center';
 import { LazyScreen } from './game/lazyScreen';
 import { Input } from './ui/input';
 
+/** The touch BACK button, CSS px. */
+const BACK = { x: 8, y: 8, w: 78, h: 34 };
+
 function boot(): void {
   const canvas = document.getElementById('game');
   if (!(canvas instanceof HTMLCanvasElement)) throw new Error('#game canvas missing');
@@ -139,6 +142,11 @@ function boot(): void {
     });
   }
 
+  // NOTE: a phone only lets audio start inside a touch handler (iOS Safari above all); the frame loop's key-press
+  // unlock never sees a tap, so the sound and the voice stayed silent on phones.
+  window.addEventListener('touchend', () => sfx.unlock(), { passive: true });
+  window.addEventListener('pointerup', () => sfx.unlock(), { passive: true });
+
   let last = performance.now();
   let welcomed = false;
   let firstFrame = true;
@@ -165,9 +173,24 @@ function boot(): void {
       if (keys.anyPressed('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab')) sfx.move();
       if (keys.anyPressed('Enter')) sfx.select();
     }
+    // Touch screens have no Esc key: a BACK button top-left on every screen but the title presses it (each screen's
+    // Escape goes back, closes a panel or pauses) (owner 2026-10-20, "make sure the menu works on mobile").
+    const back = keys.touchUsed && currentId !== 'title' && currentId !== 'minigame';
+    const tap = back ? keys.peekClick() : null;
+    if (tap && tap.x < BACK.x + BACK.w + 6 && tap.y < BACK.y + BACK.h + 6) {
+      keys.takeClick();
+      keys.inject('Escape');
+    }
     current?.update(dt);
     keys.endFrame();
     current?.render();
+    if (back) {
+      const b = BACK;
+      surface.ctx.fillStyle = surface.palette.bg;
+      surface.ctx.fillRect(b.x, b.y, b.w, b.h);
+      surface.stroke([b.x, b.y, b.x + b.w, b.y, b.x + b.w, b.y + b.h, b.x, b.y + b.h], { closed: true, color: surface.palette.hot, glow: 1 });
+      drawText(surface, '< BACK', b.x + b.w / 2, b.y + b.h / 2 - 6, 12, { align: 'center', color: surface.palette.hot, glow: 0.8 });
+    }
     if (settings.crt) crtPass(surface, { scanlines: true, vignette: true, flicker: !settings.reduceMotion }, now / 1000);
     if (stats.stale) drawText(surface, 'NEW BUILD AVAILABLE: REFRESH TO LOAD IT', surface.width / 2, 4, 11, { align: 'center', color: surface.palette.hot, glow: 1 });
     const cpu = performance.now() - t0;

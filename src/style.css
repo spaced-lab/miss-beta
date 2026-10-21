@@ -1,5 +1,7 @@
 /* Page chrome: full-window canvas on black. A linked stylesheet (not an inline <style>), so the production CSP
    can say style-src 'self' without 'unsafe-inline'. */
 html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
-canvas#game { display: block; width: 100vw; height: 100vh; image-rendering: auto; }
+/* 100dvh: on phones 100vh runs under the browser's toolbars, which hid the bottom of the screen. touch-action: none
+   hands every touch to the game (no browser pan, zoom or double-tap zoom over the canvas). */
+canvas#game { display: block; width: 100vw; height: 100vh; height: 100dvh; image-rendering: auto; touch-action: none; }
 noscript { color: #33ff33; font-family: monospace; padding: 2rem; display: block; }
