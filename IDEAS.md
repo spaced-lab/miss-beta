@@ -214,3 +214,17 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     less dry signal as it rises. Bake a few levels per voice in scripts/gen_voice.py (the browser has no vocoder of its
     own), or apply bit crush and ring modulation at play time with Web Audio. Check each level with
     scripts/voice_check.py so that even the heaviest level stays intelligible.
+
+38. **Main game screen on a phone (L).** Owner 2026-10-21: "backlog anything not completed for mobile like main game
+    play". Done so far for phones: taps, the photosensitivity notice, the title menu, OPTIONS, the BACK tab, PERIMETER's
+    pad, the demo's panes and teletype, and LEARN held sideways. Left: the SYSTEM screen (the game itself and the
+    demo's game part) has no phone layout. Its top HUD readouts are large and a flashing hint line lands on them; the
+    bottom status lines crowd each other; the planner (porkchop, plan list), PROGRAMS, TECH, the lore panel, the sky
+    view and the debrief / RUN OVER panels are laid out for a keyboard and a wide window; most actions are keys
+    (warp, pause, plan, launch, evacuate) with no touch control. Needs: a compact HUD under 900 x 500, an on-screen
+    action bar (warp down / up, pause, plan, launch, programs, lore), touch targets in the planner and panels, and
+    pinch / drag already map to zoom / pan.
+39. **Other screens on a phone (M).** Owner 2026-10-21. Not yet checked or laid out for a phone: CODEX, LEADERBOARD,
+    HOW TO PLAY (help pages), OPTIONS > KEYS, the console (needs a soft keyboard: a hidden text input), LEARN held
+    upright (only sideways was done), LEARN's search (`/` needs a keyboard), and the SOUND LAB in PERIMETER. Also a
+    PERIMETER touch control for difficulty and start level on the ready panel (today: OPTIONS > PERIMETER).

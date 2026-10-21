@@ -315,6 +315,13 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Resume here (for a fresh session after a context clear)
 
+**STATE 2026-10-21 (restart point):** main is pushed and deployed (Pages from main). Since v26.4.0: three demo passes
+(the owner calls the finale ending perfect: keep it, and keep the tyrannosaur's fishbowl helmet), a phone pass (taps,
+title, OPTIONS, BACK tab, PERIMETER touch pad, demo dialogs, LEARN held sideways), PERIMETER MIRV seekers and a slightly
+cheaper late swarm with an eased late slope. Next per the owner: the mobile backlog, IDEAS 38 (main game screen on a
+phone) first, then IDEAS 39 (other screens). `npm run probe` was last started 2026-10-21 after the PERIMETER knob change;
+re-run it and record the result.
+
 **ON OR SOON AFTER 2026-10-19: re-run CI** (`gh workflow run ci -R spaced-lab/miss-beta`) and confirm it is green on the
 Ubuntu 26 `ubuntu-latest` runner; then tick it in docs/RELEASING.md "After the first publish".
 
