@@ -158,7 +158,10 @@ function boot(): void {
       sfx.voice.say('WELCOME');
     }
     // Menu sounds everywhere (owner 2026-10-18): a cursor move and a select; the arcade and the demo have their own.
-    if (currentId !== 'minigame' && currentId !== 'demo' && currentId !== 'title') {
+    // NOTE: not for the SUPER-DUPER-DEMO's injected keys: they speed up with the demo and the blips became a midrange
+    // clicking under the scenes (owner 2026-10-20).
+    const demoKeys = currentId === 'system' && (screens.get('system') as SystemScreen | undefined)?.demoRunning === true;
+    if (currentId !== 'minigame' && currentId !== 'demo' && currentId !== 'title' && !demoKeys) {
       if (keys.anyPressed('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab')) sfx.move();
       if (keys.anyPressed('Enter')) sfx.select();
     }

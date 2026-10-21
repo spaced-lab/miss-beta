@@ -28,10 +28,11 @@ function montage(reduceMotion = false): { toPause: number; cuts: number[] } {
 }
 
 describe('SUPER-DUPER-DEMO finale montage', () => {
-  it('never holds a scene over two seconds, reaches the pause in under 36 s and keeps the old blur', () => {
+  it('never holds a scene over two seconds, reaches the pause in under 38 s and keeps the old blur', () => {
     const { toPause, cuts } = montage();
-    // Owner 2026-10-20: a longer reel of stranger scenes, but "nothing should pause for more than a couple seconds".
-    expect(toPause).toBeLessThan(36);
+    // Owner 2026-10-20: a longer reel of stranger scenes, but "nothing should pause for more than a couple seconds";
+    // then "you can add a little time" for the 4- and 16-reality splits.
+    expect(toPause).toBeLessThan(38);
     expect(toPause).toBeGreaterThan(15);
     for (const c of cuts) expect(c).toBeLessThanOrEqual(2);
     // Never more than three cuts a second.

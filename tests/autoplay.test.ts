@@ -85,7 +85,11 @@ describe('SUPER-DUPER-DEMO timing', () => {
     const { KNOBS } = await import('../src/config/knobs');
     expect(demoSpeed(0, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_START, 9);
     expect(demoSpeed(300, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_END, 9);
-    expect(demoSpeed(150, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_START * Math.sqrt(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START), 9);
+    // Held at START for the first seconds, then climbing sooner than a plain exponential (owner 2026-10-20).
+    expect(demoSpeed(KNOBS.DEMO_SPEED_HOLD_S, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_START, 9);
+    const mid = KNOBS.DEMO_SPEED_HOLD_S + (300 - KNOBS.DEMO_SPEED_HOLD_S) / 2;
+    expect(demoSpeed(mid, 300)).toBeGreaterThan(KNOBS.DEMO_SPEED_START * Math.sqrt(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START));
+    expect(demoSpeed(mid, 300)).toBeLessThan(KNOBS.DEMO_SPEED_END);
     expect(demoSpeed(999, 300)).toBeCloseTo(KNOBS.DEMO_SPEED_END, 9);
   });
 });

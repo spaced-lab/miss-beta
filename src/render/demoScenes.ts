@@ -14,7 +14,6 @@
 //       small (LEDs, rings, dots), and cut pacing is the callers' job.
 // LORE: G1 (how to play), G8 (the look, and the sound)
 
-import coastline from '../config/coastline.json';
 import { Rng } from '../sim/rng';
 import type { Surface } from './canvas';
 import { uiColors } from './palettes';
@@ -147,70 +146,6 @@ export const dcGlobe: DemoScene = (s, t, ui, k) => {
   drawText(s, `SITES ONLINE ${String(lit * 1000 + Math.floor(t * 977) % 1000).padStart(6, '0')}`, cx, cy + R + 22, 11, { align: 'center', color: ui.text, glow: 0.6 });
 };
 
-/** Equirectangular coastlines with activation rings spreading from seeded points. */
-export const worldMap: DemoScene = (s, t, ui, k) => {
-  const mw = Math.min(s.width - 60, (s.height - 140) * 2);
-  const mh = mw / 2;
-  const x0 = (s.width - mw) / 2;
-  const y0 = (s.height - mh) / 2 + 10;
-  const px = (lon: number): number => x0 + ((lon + 180) / 360) * mw;
-  const py = (lat: number): number => y0 + ((90 - lat) / 180) * mh;
-  for (const line of (coastline as { lines: number[][] }).lines) {
-    const pts: number[] = [];
-    for (let i = 0; i + 1 < line.length; i += 2) pts.push(px(line[i] as number), py(line[i + 1] as number));
-    s.stroke(pts, { color: ui.sub, glow: 0.3 });
-  }
-  const rng = new Rng(2026);
-  const all = 60 + Math.round(60 * k);
-  const n = Math.min(all, Math.floor(t * (20 + 40 * k)) + 8);
-  for (let i = 0; i < all; i++) {
-    const lon = rng.float(-125, 145);
-    const lat = rng.float(-40, 60);
-    if (i >= n) continue;
-    const age = (t * (1.7 + 2 * k) + i * 0.37) % 1;
-    s.dot(px(lon), py(lat), 2.5, ui.title, 1);
-    s.circle(px(lon), py(lat), 3 + age * 22, { color: ui.text, glow: 0.8, alpha: 1 - age });
-  }
-};
-
-/** Region bars filling to 100 % and a flow arrow into SIM. */
-export const power: DemoScene = (s, t, ui, k) => {
-  const regions = ['NORTH AMERICA', 'SOUTH AMERICA', 'EUROPE', 'AFRICA', 'ASIA', 'OCEANIA', 'ANTARCTIC STATION 4'];
-  const x0 = s.width * 0.18;
-  const bw = s.width * 0.5;
-  const rate = 0.5 + k;
-  regions.forEach((r, i) => {
-    const y = 100 + i * ((s.height - 220) / regions.length);
-    const f = Math.min(1, t * rate + i * 0.08 - Math.floor(t * rate + i * 0.08) + 0.4);
-    drawText(s, r, x0 - 12, y, 11, { align: 'right', color: ui.text, glow: 0.4 });
-    s.stroke([x0, y + 5, x0 + bw, y + 5], { color: ui.dim, glow: 0 });
-    s.stroke([x0, y + 5, x0 + bw * f, y + 5], { color: ui.title, glow: 1.2, width: 4 });
-    drawText(s, `${Math.round(f * 100)}% -> SIM`, x0 + bw + 14, y, 11, { color: ui.sub, glow: 0.4 });
-  });
-};
-
-/** Earth, Moon and Mars with compute links and an orbital ring of nodes. */
-export const offWorld: DemoScene = (s, t, ui, k) => {
-  const cx = s.width / 2;
-  const cy = s.height / 2 + 10;
-  const R = Math.min(s.width, s.height) * 0.14;
-  const sp = 1 + 1.5 * k;
-  wireSphere(s, cx, cy, R, t * 0.6 * sp, 5, 8, ui.text);
-  for (let i = 0; i < 36; i++) {
-    const a = (i / 36) * Math.PI * 2 + t * 0.4 * sp;
-    s.dot(cx + Math.cos(a) * R * 1.6, cy + Math.sin(a) * R * 0.45, 2, ui.title, 0.9);
-  }
-  const moon = { x: cx + R * 3.2 * Math.cos(t * 0.3 * sp), y: cy - R * 1.9 };
-  const mars = { x: cx - R * 3.4, y: cy + R * 0.9 };
-  wireSphere(s, moon.x, moon.y, R * 0.3, t * sp, 3, 6, ui.sub);
-  wireSphere(s, mars.x, mars.y, R * 0.4, -t * 0.8 * sp, 3, 6, ui.head);
-  for (const b of [moon, mars]) {
-    const f = (t * 1.5 * sp) % 1;
-    s.stroke([cx, cy, b.x, b.y], { color: ui.dim, glow: 0 });
-    s.dot(cx + (b.x - cx) * f, cy + (b.y - cy) * f, 3, ui.sel, 1);
-  }
-};
-
 /**
  * Clocks and calendars being adjusted: a date readout whose year, month and day flip forwards and backwards at
  * random, three dials whose hands run at different speeds (one backwards), and a log of timeline corrections.
@@ -248,19 +183,6 @@ export const clocks: DemoScene = (s, t, ui, k) => {
     const dy = Math.round((h3(n, 5, 1) - 0.5) * 2000);
     drawText(s, `TIMELINE ADJUST ${dy >= 0 ? '+' : ''}${dy} D   DRIFT ${(h3(n, 6, 2) * 9).toFixed(3)} S   ${h3(n, 7, 3) > 0.5 ? 'ACCEPTED' : 'RE-RUN'}`, s.width / 2, s.height - 110 + i * 16, 10, { align: 'center', color: i === 0 ? ui.text : ui.dim, glow: i === 0 ? 0.6 : 0, alpha: 1 - i * 0.2 });
   }
-};
-
-/** Teaser lines for tech that is not in the game (FICTION). */
-const HINTS = ['STELLAR LIFTING', 'PLANETARY ENGINES', 'CAUSALITY FIREWALL', 'MATRIOSHKA BRAIN V0.1', 'VACUUM STABILITY INSURANCE', 'THE SECOND MOON PROTOCOL', 'KARDASHEV III PREVIEW', 'ORBITAL RING (BETA)'];
-
-/** Locked teasers scrolling past. */
-export const hints: DemoScene = (s, t, ui, k) => {
-  HINTS.forEach((h, i) => {
-    const y = 90 + i * ((s.height - 180) / HINTS.length);
-    const lit = Math.floor(t * (6 + 10 * k)) % HINTS.length === i;
-    drawText(s, `[LOCKED]  ${h}`, s.width / 2, y, 14, { align: 'center', color: lit ? ui.sel : ui.text, glow: lit ? 1.6 : 0.5 });
-    drawText(s, 'NOT IN THIS GAME', s.width / 2, y + 24, 8, { align: 'center', color: ui.dim, glow: 0 });
-  });
 };
 
 /**

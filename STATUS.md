@@ -70,6 +70,13 @@ SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster
 75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
 cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 replaced by BLUR_CUTS 12 (same blur).
 
+SUPER-DUPER-DEMO second pass (owner 2026-10-20, "cut length by 55 %", "start a bit slower, then ramp up"):
+DEMO_LENGTHS 75/150/300 -> 34/68/135 s (the games; the finale grew 30 -> 35 s for the 4- and 16-reality splits),
+DEMO_SPEED_START 8 -> 4 held DEMO_SPEED_HOLD_S 6, END 200 -> 260 on f^DEMO_SPEED_SHAPE 0.7; DEMO_CINE_S 1.4 -> 1.8, END 0.7
+-> 0.6; new DEMO_PANE_S 0.7; DEMO_CUT gaps 2/0.5 -> 3/0.8, cuts 1.1/0.4 -> 1.5/0.45, VOICE_P 0.55 -> 0.45, FIRST_S 1.2 ->
+1.5, new BURST_MAX 4; DEMO_REEL RUMBLE_S 0.22 -> 0.2, new RUMBLE_S0 0.5, RUMBLE_FROM 0.3, BASS_X 1.35; VOICE_GAIN 1.6 ->
+1.25. Scenes worldMap, power, offWorld, hints removed (unused).
+
 SUPER-DUPER-DEMO (owner 2026-10-20, "nothing should pause for more than a couple seconds"): DEMO_CUT gaps 4.5 / 1.1
 -> 2 / 0.5 s, cuts 0.9 -> 1.1 s at the start, VOICE_P 0.5 -> 0.55, new FIRST_S 1.2; new DEMO_CINE_END_S 0.7 (cinematic
 cut shrinks from DEMO_CINE_S); DEMO_MONTAGE SCENE_S0 / SHRINK removed (per-scene lengths in views/demo.ts); new
@@ -82,6 +89,10 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Decisions
 
+- 2026-10-20 (demo second pass): "cut length by 55 %" was read as the games part, which the owner called too long;
+  the finale (called good) keeps its length and gains about 5 s for the reality splits the owner asked for. The
+  16-reality split draws its cells without the glow pass and with the cheaper scenes (18 ms a frame at 1440 px; the
+  salvos and laser battle in it made 30 ms).
 - 2026-10-20 (SUPER-DUPER-DEMO overhaul): the demo's pixel dust uses the fixed bright DEMO_DUST_COLORS on every
   glowing colour mode, mono ones included (the owner asked for "way more colorful"; the demo is a FICTION showpiece);
   DAYLIGHT keeps its own ink steps so nothing vanishes on the light ground. The game's own LAUNCH cinematic is

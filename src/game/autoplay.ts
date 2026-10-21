@@ -57,12 +57,14 @@ export interface AutoOut {
 }
 
 /**
- * SUPER-DUPER-DEMO speed after `elapsed` of `length` real seconds: START x (END / START)^(elapsed / length), capped.
- * Example: START 4, END 120, half way -> 4 x 30^0.5 = 21.9.
+ * SUPER-DUPER-DEMO speed after `elapsed` of `length` real seconds: START for the first DEMO_SPEED_HOLD_S, then
+ * START x (END / START)^(f^DEMO_SPEED_SHAPE) with f the fraction of the rest of the length, capped.
+ * Example: START 4, END 256, SHAPE 0.5, hold 0, half way -> 4 x 64^0.707 = 75.4.
  */
 export function demoSpeed(elapsed: number, length: number): number {
-  const f = Math.max(0, Math.min(1, elapsed / Math.max(1, length)));
-  return Math.min(KNOBS.DEMO_SPEED_MAX, KNOBS.DEMO_SPEED_START * Math.pow(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START, f));
+  const hold = Math.min(KNOBS.DEMO_SPEED_HOLD_S, length * 0.5);
+  const f = Math.max(0, Math.min(1, (elapsed - hold) / Math.max(1, length - hold)));
+  return Math.min(KNOBS.DEMO_SPEED_MAX, KNOBS.DEMO_SPEED_START * Math.pow(KNOBS.DEMO_SPEED_END / KNOBS.DEMO_SPEED_START, Math.pow(f, KNOBS.DEMO_SPEED_SHAPE)));
 }
 
 
@@ -196,7 +198,9 @@ export class Autopilot {
     if (this.wait > 0) return out;
     const show = (p: Pane): AutoOut => {
       out.pane = p;
-      this.wait = p.hold;
+      // NOTE: the SUPER-DUPER-DEMO is not a lesson: a pane holds at most DEMO_PANE_S real seconds, so the planner never
+      // sits still while a paragraph is read (owner 2026-10-20, "nothing should pause").
+      this.wait = this.demo ? Math.min(p.hold, KNOBS.DEMO_PANE_S * this.speed) : p.hold;
       return out;
     };
     if (v.phase === 'planning' && v.round !== this.round && this.state !== 'intro') {

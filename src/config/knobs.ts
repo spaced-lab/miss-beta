@@ -305,7 +305,8 @@ export const KNOBS = {
   SEED_FLEET_MAX: 16,
 
   /** 13 / IDEAS 21: robot voice-overs. Clip gain into the shared master bus (the master sits at 0.5). */
-  VOICE_GAIN: 1.6,
+  // NOTE: owner 2026-10-20 "bring the voice volume down a touch" so the impact bass leads: 1.6 -> 1.25.
+  VOICE_GAIN: 1.25,
   /** A line whose clip finishes loading later than this after it was asked for is dropped (it would be stale), s. */
   VOICE_STALE_S: 1.5,
   /** The same line is not repeated within this many real seconds (no spam during warp). */
@@ -370,19 +371,28 @@ export const KNOBS = {
    *  10-12 minutes of real time at speed 1, so the counted MEDIUM run was heading for 15 minutes, not 5. */
   // NOTE: owner 2026-10-18 (after shipping): "reduce the super-duper-demo by 50 % time" and "look fast and faster":
   // lengths halved from 150 / 300 / 600 and the ramp starts and ends higher (was 4 to 120).
-  DEMO_LENGTHS: { SHORT: { seconds: 75 }, MEDIUM: { seconds: 150 }, LONG: { seconds: 300 } },
-  DEMO_SPEED_START: 8,
-  DEMO_SPEED_END: 200,
+  // NOTE: owner 2026-10-20 "too long and takes too long to speed up ... start a bit slower, then ramp up", "cut length
+  // by 55 %": lengths 75 / 150 / 300 -> 34 / 68 / 135 s; START 8 -> 4 held for DEMO_SPEED_HOLD_S, then the ramp runs on
+  // f^DEMO_SPEED_SHAPE (under 1 climbs sooner) to END 200 -> 260.
+  DEMO_LENGTHS: { SHORT: { seconds: 34 }, MEDIUM: { seconds: 68 }, LONG: { seconds: 135 } },
+  DEMO_SPEED_START: 4,
+  DEMO_SPEED_END: 260,
+  DEMO_SPEED_HOLD_S: 6,
+  DEMO_SPEED_SHAPE: 0.7,
   /** Real seconds a launch or strike cinematic plays in the demo before it is cut (was 3 demo seconds, under 0.3 s
    *  of real time once the demo sped up, so the animations were barely seen). */
-  DEMO_CINE_S: 1.4,
+  DEMO_CINE_S: 1.8,
   /** The cinematic cut shrinks to this many real seconds by the finale (owner 2026-10-20: nothing holds still). */
-  DEMO_CINE_END_S: 0.7,
+  DEMO_CINE_END_S: 0.6,
+  /** Real seconds an AUTOPLAY explanation pane holds the demo's games at most (they are read in full elsewhere). */
+  DEMO_PANE_S: 0.7,
   /** Demo cutaways (render/views/demoCut.ts): real seconds between cuts and per cut, start -> finale, and the
    *  chance a cut speaks a line. A cut never lasts under DEMO_MONTAGE.SAFE_MIN_S (photosensitive safety). */
   // NOTE: owner 2026-10-20 "briefly show things as it speeds up and sooner the better": gaps 4.5 / 1.1 -> 2 / 0.5 s,
   // the first cut at FIRST_S, and the planner's thinking time is always covered by cuts (no still planner).
-  DEMO_CUT: { GAP0_S: 2, GAP1_S: 0.5, LEN0_S: 1.1, LEN1_S: 0.4, VOICE_P: 0.55, FIRST_S: 1.2 },
+  // 2026-10-20 (second pass, "reuses scenes and toggles back and forth"): cuts come in bursts of 1 to BURST_MAX scenes
+  // dealt from a deck (no repeat until the pool is used up), gaps 2 / 0.5 -> 3 / 0.8 s, cuts 1.1 / 0.4 -> 1.5 / 0.45 s.
+  DEMO_CUT: { GAP0_S: 3, GAP1_S: 0.8, LEN0_S: 1.5, LEN1_S: 0.45, VOICE_P: 0.45, FIRST_S: 1.5, BURST_MAX: 4 },
   /** AUTOPLAY pace multipliers on panes, step waits and the sim clock (owner 2026-10-18: old pace = SLOW). */
   AUTO_SPEEDS: { SLOW: 1, NORMAL: 1.5, FAST: 2.25 },
   // NOTE: moved here from autoplay.ts, attract.ts, tips.ts and demo.ts so every tunable is in one file and the
@@ -418,7 +428,10 @@ export const KNOBS = {
   /** Owner 2026-10-20 ("go to town on this demo"): the finale is a reel of scenes played twice, the second time at
    *  REPEAT_X of each scene's length, then the blur. Hits pile up over it all (DEMO_STORM_MAX_HZ at full heat) and
    *  the bass rumbles every RUMBLE_S through the blur until the silent pause. */
-  DEMO_REEL: { REPEAT_X: 0.45, RUMBLE_S: 0.22 },
+  // 2026-10-20 (second pass, "warping and heavy bass rumble start earlier and get more and more intense"): the
+  // rumble bed starts at heat RUMBLE_FROM (the hit bursts, before the warp) every RUMBLE_S0 s, tightening to RUMBLE_S
+  // in the blur; BASS_X scales every demo bass hit ("make them louder").
+  DEMO_REEL: { REPEAT_X: 0.45, RUMBLE_S: 0.2, RUMBLE_S0: 0.5, RUMBLE_FROM: 0.3, BASS_X: 1.35 },
   /** Hits a second in the demo's hit storm at full heat (render/pixelDust.ts stormRate) [knob]. */
   DEMO_STORM_MAX_HZ: 16,
   /** Pixel-dust colours for the demo (owner 2026-10-20: "way more colorful pixel dust"), used on glowing modes. */

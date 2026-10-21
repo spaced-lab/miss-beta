@@ -3,21 +3,24 @@
 // WHY:  The demo's punchline. Every montage line is FICTION in character (GAME_PLAN 30 deadpan): nothing here is
 //       a claim about real computers, power grids or time travel, and none of it is a feature of the game.
 //       Owner notes after shipping: faster, more data centres with racks growing more complex and futuristic,
-//       blippy data-centre noises, clocks and dates being adjusted over and over, hit after hit with the bass
-//       rumbling, a shorter time portal; the ending (blur, pause, teletype) kept exactly as it was. Owner
-//       2026-10-20 ("go to town on this demo"): many more and stranger scenes (launch salvos, launches and data
-//       centres on other worlds, lasers from the map, steered solar eruptions, a wormhole instead of the spiral,
-//       dinosaurs, a saucer and its gray pilot), hits that grow far more frequent and intense towards the end,
-//       voice lines cut off by the next, the bass rumbling up to the silent pause.
-// HOW:  A reel of scenes (render/demoScenes.ts, render/demoFuture.ts) drawn as pure functions of local time and an
-//       intensity. Pass 0 plays each scene for its own length, pass 1 for DEMO_REEL.REPEAT_X of it (starting at the
-//       scene's `hot` moment so the impact or the year counter still shows), then BLUR_CUTS cuts at the floor
-//       (the blur), then PAUSE_S of black and silence, then the window types at TYPE_CPS with a synth click per
-//       character. `heat` (0..1 over the whole montage) drives the hit storm drawn over every scene
-//       (render/pixelDust.ts) with a thump per hit, and in the blur a bass rumble every DEMO_REEL.RUMBLE_S.
-//       Esc or any key after the text ends returns to the title.
+//       hit after hit with the bass rumbling; the ending (blur, pause, teletype) kept exactly as it was. Owner
+//       2026-10-20 ("go to town on this demo"): many more and stranger scenes, colour, hits growing far more frequent
+//       and intense, voice lines cut off by the next, the bass rumbling up to the silent pause. Second pass the same
+//       day: hit-hit-hit bursts on a rock and on HOME, then the warp; the rumble starting earlier and building; a
+//       bigger laser battle, the mothership, more dinosaurs and aliens; the time warp splitting the screen into 4
+//       realities and then 16; quiet low bleeps and bloops instead of high clicks; the voice a touch quieter.
+// HOW:  A reel of shots (render/demoScenes.ts, render/demoFuture.ts), each a pure function of local time and an
+//       intensity. A burst is one scene cut into several 0.36 s shots, each starting at a different local time so
+//       every shot lands a different hit. Pass 0 plays each shot for its length from `t0`, pass 1 for
+//       DEMO_REEL.REPEAT_X of it from `hot` (shots marked once are skipped), then BLUR_CUTS cuts at the floor (the
+//       blur), then PAUSE_S of black and silence, then the window types at TYPE_CPS with a synth click per
+//       character. `heat` is montage time over the planned total (0..1): it drives the scenes' intensity, the hit
+//       storm over every shot (render/pixelDust.ts) with a thump per hit, and from DEMO_REEL.RUMBLE_FROM a bass
+//       rumble bed that tightens from RUMBLE_S0 to RUMBLE_S and grows louder up to the pause. Esc or any key after
+//       the text ends returns to the title.
 // LORE: G1 (how to play)
 
+import { Bloops } from '../../audio/bloops';
 import { KNOBS } from '../../config/knobs';
 import type { UiSfx } from '../../audio/ui';
 import type { VoiceId } from '../../audio/voice';
@@ -25,8 +28,8 @@ import type { Router, Screen } from '../../game/screen';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { hash01 } from '../cinematics/pixel';
-import { dcPlanets, dinoImpact, dinoLaunch, laserMap, salvo, solar, ufo, wormhole, worldsSalvo } from '../demoFuture';
-import { clocks, dcGlobe, hints, hitsBy, impacts, offWorld, power, racks, type DemoScene } from '../demoScenes';
+import { dcPlanets, dinoImpact, dinoLaunch, earthHits, laserFleet, laserMap, mothership, rockHits, salvo, solar, split16, split4, ufo, wormhole, worldsSalvo } from '../demoFuture';
+import { hitsBy, racks, type DemoScene } from '../demoScenes';
 import { uiColors, withAlpha } from '../palettes';
 import { hitStorm, stormHits } from '../pixelDust';
 import { drawText, wrapText } from '../vectorFont';
@@ -44,27 +47,44 @@ interface MontageScene {
   /** Seconds on screen in pass 0. */
   len: number;
   sound: Sound;
-  /** Local time the scene starts from on later passes (its best moment comes into the shorter cut). */
+  /** Local time the shot starts from in pass 0. */
+  t0: number;
+  /** Local time the shot starts from on later passes (its best moment comes into the shorter cut). */
   hot: number;
+  /** Shown in pass 0 only (the tail of a burst). */
+  once?: boolean;
 }
 
+/** One shot of a scene. */
+function shot(draw: DemoScene, caption: readonly [string, string], len: number, sound: Sound, hot: number): MontageScene {
+  return { draw, caption, len, sound, t0: 0, hot };
+}
+
+/** A burst: `n` 0.36 s shots of one scene, 2.9 s of local time apart, so each lands a different hit. */
+function burst(draw: DemoScene, captions: readonly (readonly [string, string])[], n: number): MontageScene[] {
+  return Array.from({ length: n }, (_, j) => ({ draw, caption: captions[j % captions.length] ?? ['', ''], len: 0.36, sound: 'hits' as const, t0: 0.12 + j * 2.9, hot: 0.12 + j * 2.9, once: j >= 2 }));
+}
+
+const HIT_CAPS = [['HIT', 'KINETIC IMPACTOR ON TARGET'], ['HIT', 'AND AGAIN'], ['HIT', 'AND AGAIN'], ['HIT', 'IT IS STILL THERE']] as const;
+const HOME_CAPS = [['HOME: HIT', 'SIMULATION 1 OF MANY'], ['HOME: HIT', 'SIMULATION 2'], ['HOME: HIT', 'SIMULATION 3'], ['HOME: HIT', 'SIMULATION 4'], ['HOME: HIT', 'WE NEED ANOTHER WAY']] as const;
+
 const SCENES: readonly MontageScene[] = [
-  { draw: racks, caption: ['DATA CENTRES: ALL OF THEM', 'RACKS ONLINE  ##########  INFERENCE AT FULL LOAD'], len: 0.8, sound: 'blips', hot: 0 },
-  { draw: dcGlobe, caption: ['MORE DATA CENTRES', 'ONE EVERY FEW MINUTES  /  COOLING: OPTIMISTIC'], len: 0.7, sound: 'blips', hot: 0.6 },
-  { draw: dcPlanets, caption: ['DATA CENTRES: OFF-WORLD', 'LUNAR FARM  /  OLYMPUS RACKS  /  EUROPA COLD STORE  /  JOVIAN RING'], len: 1.1, sound: 'blips', hot: 0.4 },
-  { draw: salvo, caption: ['LAUNCH CADENCE: CONTINUOUS', 'EVERY PAD  /  EVERY DESIGN  /  NO WAITING FOR WEATHER'], len: 1.3, sound: 'launch', hot: 0.5 },
-  { draw: worldsSalvo, caption: ['LAUNCHES FROM EVERY WORLD WE HAVE', 'LUNA  /  MARS  /  EUROPA'], len: 1.2, sound: 'launch', hot: 0.3 },
-  { draw: clocks, caption: ['TIMELINE ADJUSTMENTS', 'CALENDARS RE-RUN  /  CLOCKS RE-SYNCED  /  DATES UNDER REVIEW'], len: 0.6, sound: 'blips', hot: 0.4 },
-  { draw: power, caption: ['ALL POWER ROUTED TO SIMULATION', 'GRIDS REASSIGNED  /  STREETLIGHTS DIMMED  /  KETTLES ON HOLD'], len: 0.5, sound: 'none', hot: 0.3 },
-  { draw: laserMap, caption: ['PLANETARY LASER GRID: ARMED', 'FIRING FROM THE MAP  /  AIMING: AUTOMATIC'], len: 1.1, sound: 'laser', hot: 0.6 },
-  { draw: solar, caption: ['SOLAR ERUPTIONS: STEERED', 'GUIDE SATELLITES ALIGNED  /  PLASMA ON TARGET'], len: 1.2, sound: 'laser', hot: 0.5 },
-  { draw: impacts, caption: ['EVERY ROCK WE EVER MISSED', 'REPLAYED UNTIL NONE GET THROUGH'], len: 1.2, sound: 'hits', hot: 0 },
-  { draw: offWorld, caption: ['GLOBAL AND OFF-WORLD CPU DEDICATED TO INFERENCE AND LEARNING', 'LUNAR FARM  /  MARS RELAY  /  ORBITAL RING'], len: 0.5, sound: 'none', hot: 0 },
-  { draw: wormhole, caption: ['TIME WARP: WORMHOLE OPEN', 'NANOBOTS PUSHED BACK THROUGH THE THROAT TO BUILD TOMORROW\'S TECH IN THE PAST'], len: 1.4, sound: 'warp', hot: 1 },
-  { draw: dinoImpact, caption: ['ARRIVAL: 66 MILLION YEARS AGO', 'WRONG WINDOW  /  OBSERVERS ON SITE'], len: 1.8, sound: 'hits', hot: 0.7 },
-  { draw: dinoLaunch, caption: ['TECHNOLOGY TRANSFER: EARLY', 'THE PAD CREW HAS QUESTIONS'], len: 1.4, sound: 'launch', hot: 0.3 },
-  { draw: ufo, caption: ['OUTSIDE HELP HAS ARRIVED', 'CONTRACTOR: GRAY  /  REFERENCES: NONE  /  RESULTS: EXCELLENT'], len: 1.8, sound: 'none', hot: 0.8 },
-  { draw: hints, caption: ['UNLOCKING', 'FEATURES NOT IN THIS GAME'], len: 0.7, sound: 'none', hot: 0 },
+  shot(racks, ['DATA CENTRES: ALL OF THEM', 'RACKS ONLINE  ##########  INFERENCE AT FULL LOAD'], 0.6, 'blips', 0),
+  shot(dcPlanets, ['DATA CENTRES: OFF-WORLD', 'LUNAR FARM  /  OLYMPUS RACKS  /  EUROPA COLD STORE  /  JOVIAN RING'], 0.9, 'blips', 0.4),
+  shot(salvo, ['LAUNCH CADENCE: CONTINUOUS', 'EVERY PAD  /  EVERY DESIGN  /  NO WAITING FOR WEATHER'], 1, 'launch', 0.5),
+  shot(worldsSalvo, ['LAUNCHES FROM EVERY WORLD WE HAVE', 'LUNA  /  MARS  /  EUROPA'], 0.9, 'launch', 0.3),
+  shot(laserMap, ['PLANETARY LASER GRID: ARMED', 'FIRING FROM THE MAP  /  AIMING: AUTOMATIC'], 0.9, 'laser', 0.6),
+  shot(laserFleet, ['EVERY LASER WE OWN', 'PLANETS  /  MOON  /  SATELLITES  /  STATION  /  ALL FIRING'], 1.5, 'laser', 1),
+  shot(solar, ['SOLAR ERUPTIONS: STEERED', 'GUIDE SATELLITES ALIGNED  /  PLASMA ON TARGET'], 0.9, 'laser', 0.5),
+  ...burst(rockHits, HIT_CAPS, 4),
+  ...burst(earthHits, HOME_CAPS, 5),
+  shot(wormhole, ['TIME WARP: WORMHOLE OPEN', 'NANOBOTS PUSHED BACK THROUGH THE THROAT TO BUILD TOMORROW\'S TECH IN THE PAST'], 1.2, 'warp', 1),
+  shot(split4, ['REALITIES: 4', 'ONE WORMHOLE  /  FOUR TIMELINES  /  ALL DIFFERENT'], 1.8, 'warp', 0),
+  shot(split16, ['REALITIES: 16', 'EVERY TIMELINE SPLITS AGAIN  /  SIXTEEN SIMULATIONS RUNNING'], 1.95, 'warp', 0),
+  shot(dinoImpact, ['ARRIVAL: 66 MILLION YEARS AGO', 'WRONG WINDOW  /  OBSERVERS ON SITE'], 1.7, 'hits', 0.7),
+  shot(dinoLaunch, ['TECHNOLOGY TRANSFER: EARLY', 'THE PAD CREW HAS QUESTIONS  /  ONE OF THEM IS SUITED UP'], 1.3, 'launch', 0.3),
+  shot(ufo, ['OUTSIDE HELP HAS ARRIVED', 'CONTRACTOR: GRAY  /  REFERENCES: NONE  /  RESULTS: EXCELLENT  /  COW: UNEXPLAINED'], 1.6, 'none', 0.8),
+  shot(mothership, ['THE NEIGHBOURS BROUGHT THE BIG ONE', 'MOTHERSHIP ON STATION  /  EVERY WINDOW WAVING'], 1.5, 'laser', 0.6),
 ];
 
 /** Lines the montage throws in; each new one cuts the last one off (the voice plays the newest). */
@@ -81,12 +101,12 @@ export class DemoScreen implements Screen {
   private stageT = 0;
   private blipT = 0;
   private hitsHeard = 0;
-  private blipN = 0;
   private stormHeard = 0;
   private stormT = 0;
   private thumpT = 0;
   private rumbleT = 0;
   private opened = false;
+  private bloops = new Bloops();
 
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router, private readonly sfx: UiSfx | null = null, private readonly settings: { reduceMotion: boolean } = { reduceMotion: false }) {}
 
@@ -117,91 +137,95 @@ export class DemoScreen implements Screen {
    * NOTE: photosensitive safety (WCAG 2.3.1, docs/WARNINGS.md): a full-screen cut is a flash, so the montage never
    * cuts more than three times a second (SAFE_MIN_S), and once a second with REDUCE MOTION.
    */
+  private lenOf(pass: number, sc: MontageScene | undefined): number {
+    if (pass >= 2) return this.floor();
+    const len = sc?.len ?? 1;
+    return Math.max(this.floor(), pass === 0 ? len : len * KNOBS.DEMO_REEL.REPEAT_X);
+  }
   private sceneLen(): number {
-    if (this.atFloor()) return this.floor();
-    const len = SCENES[this.sceneIdx]?.len ?? 1;
-    return Math.max(this.floor(), this.pass === 0 ? len : len * KNOBS.DEMO_REEL.REPEAT_X);
+    return this.lenOf(this.pass, SCENES[this.sceneIdx]);
   }
   /** Pass 2 on is the blur. */
   private atFloor(): boolean {
     return this.pass >= 2;
   }
 
-  /** How far into the montage, 0..1: pass 0 to 0.45, pass 1 to 0.8, the blur to 1. Drives the hit storm. */
+  /** The planned montage length to the pause, s (passes 0 and 1 plus the blur). */
+  private plan(): number {
+    let sum = KNOBS.DEMO_MONTAGE.BLUR_CUTS * this.floor();
+    for (const sc of SCENES) sum += this.lenOf(0, sc) + (sc.once ? 0 : this.lenOf(1, sc));
+    return sum;
+  }
+
+  /** How far into the montage, 0..1, by the clock. Drives the intensity, the hit storm and the rumble bed. */
   private heat(): number {
-    const f = this.sceneIdx / SCENES.length;
-    if (this.pass === 0) return 0.45 * f;
-    if (this.pass === 1) return 0.45 + 0.35 * f;
-    return Math.min(1, 0.8 + (0.2 * this.blurCuts) / KNOBS.DEMO_MONTAGE.BLUR_CUTS);
+    return Math.min(1, this.stormT / this.plan());
   }
 
-  /** Intensity 0..1 for the scenes: 0.3 at the start, full by the repeat pass. */
+  /** Intensity 0..1 for the scenes: 0.35 at the start, full by the warp. */
   private intensity(): number {
-    return Math.min(1, 0.3 + this.heat() * 1.6);
+    return Math.min(1, 0.35 + this.heat() * 1.4);
   }
 
-  /** Scene-local time: later passes start at the scene's best moment, hits restart with the scene. */
+  /** Scene-local time: pass 0 from the shot's t0, later passes from its best moment. */
   private localT(): number {
     const sc = SCENES[this.sceneIdx];
-    return this.pass === 0 || !sc ? this.sceneT : this.sceneT + sc.hot;
+    if (!sc) return this.sceneT;
+    return this.sceneT + (this.pass === 0 ? sc.t0 : sc.hot);
   }
 
-  /** Per-scene sound, a thump per storm hit (at most one every 0.11 s), and the rumbling bass in the blur. */
+  /** Per-scene sound, a thump per storm hit (at most one every 0.11 s), and the rumble bed from RUMBLE_FROM on. */
   private sounds(dt: number): void {
     const synth = this.sfx?.synth;
     const sc = SCENES[this.sceneIdx];
     if (!synth || !sc) return;
+    const heat = this.heat();
     const k = this.intensity();
     const lt = this.localT();
-    if (sc.sound === 'blips') {
+    const bx = KNOBS.DEMO_REEL.BASS_X;
+    if (sc.sound === 'blips') this.bloops.step(synth, dt, k);
+    else if (sc.sound === 'laser') {
       this.blipT -= dt;
       while (this.blipT <= 0) {
-        this.blipT += 1 / (14 + 22 * k);
-        this.blipN++;
-        synth.tick({ freq: 880 + ((this.blipN * 7) % 9) * 150, dur: 0.012, wave: 'square', gain: 0.018 });
-      }
-    } else if (sc.sound === 'laser') {
-      this.blipT -= dt;
-      while (this.blipT <= 0) {
-        this.blipT += 1 / (4 + 7 * k);
-        this.blipN++;
-        synth.sweep({ freq: 1700 + (this.blipN % 4) * 200, freqEnd: 260, dur: 0.07, wave: 'square', gain: 0.02 });
+        this.blipT += 1 / (3 + 6 * k);
+        synth.sweep({ freq: 620, freqEnd: 140, dur: 0.11, wave: 'triangle', gain: 0.03 });
       }
     } else if (sc.sound === 'hits') {
-      const n = sc.draw === dinoImpact ? Math.floor((lt - 0.9) / 2.4) + 1 : hitsBy(lt, k);
+      const n = sc.draw === dinoImpact ? Math.floor((lt - 0.9) / 2.4) + 1 : sc.draw === rockHits || sc.draw === earthHits ? Math.floor((lt - 0.1) / 0.3) + 1 : hitsBy(lt, k);
       if (n > this.hitsHeard) {
+        if (this.hitsHeard > 0 || this.sceneT > 0.02) synth.rumble(34 + (n % 4) * 3, 0.55 + 0.3 * k, Math.min(0.9, (0.34 + 0.03 * n) * bx), 100);
         this.hitsHeard = n;
-        synth.rumble(34 + (n % 4) * 3, 0.5 + 0.3 * k, Math.min(0.6, 0.3 + 0.03 * n), 100);
       }
     }
-    this.stormT += dt;
-    const sh = stormHits(this.stormT, this.heat());
+    const sh = stormHits(this.stormT, heat);
     this.thumpT -= dt;
     if (sh > this.stormHeard) {
       this.stormHeard = sh;
       if (this.thumpT <= 0) {
         this.thumpT = 0.11;
-        synth.bassStatic(0.08 + 0.1 * this.heat(), 0.07);
+        synth.bassStatic((0.08 + 0.12 * heat) * bx, 0.07);
       }
     }
-    if (this.atFloor()) {
+    const from = KNOBS.DEMO_REEL.RUMBLE_FROM;
+    if (heat >= from) {
+      const g = (heat - from) / (1 - from);
       this.rumbleT -= dt;
       if (this.rumbleT <= 0) {
-        this.rumbleT = KNOBS.DEMO_REEL.RUMBLE_S;
-        synth.rumble(30 + (this.blurCuts % 3) * 2, 0.5, Math.min(0.65, 0.35 + 0.025 * this.blurCuts), 110);
+        this.rumbleT = KNOBS.DEMO_REEL.RUMBLE_S0 + (KNOBS.DEMO_REEL.RUMBLE_S - KNOBS.DEMO_REEL.RUMBLE_S0) * g;
+        synth.rumble(30 + (Math.floor(this.stormT * 5) % 3) * 2, 0.6, Math.min(0.9, (0.25 + 0.45 * g) * bx), 110);
       }
     }
   }
 
-  /** On every cut: a blip a little higher each pass, the scene's opening sound, and sometimes a voice line. */
+  /** On every cut: a soft low pulse, the scene's opening sound, and sometimes a voice line. */
   private onCut(): void {
     const sc = SCENES[this.sceneIdx];
     const sfx = this.sfx;
     if (!sc || !sfx) return;
-    sfx.synth.tick({ freq: 180 + 60 * this.pass, dur: 0.03, wave: 'square', gain: 0.03 });
-    if (sc.sound === 'launch') sfx.synth.rumble(46, 0.7, 0.3, 160);
-    if (sc.sound === 'warp') sfx.synth.sweep({ freq: 90, freqEnd: 900, cutoff: 400, cutoffEnd: 3000, dur: 1.2, wave: 'sawtooth', gain: 0.04 });
-    if (!this.atFloor() && hash01(this.pass, this.sceneIdx, 77) < 0.6) sfx.voice.say(VOICES[Math.floor(hash01(this.pass, this.sceneIdx, 78) * VOICES.length)] ?? 'WARP', true);
+    sfx.synth.softPulse(62, 0.1, 0.05, 0.01);
+    if (sc.sound === 'launch') sfx.synth.rumble(46, 0.7, 0.3 * KNOBS.DEMO_REEL.BASS_X, 160);
+    if (sc.sound === 'warp' && sc.draw === wormhole) sfx.synth.sweep({ freq: 60, freqEnd: 420, cutoff: 300, cutoffEnd: 1400, dur: 1.2, wave: 'sawtooth', gain: 0.04 });
+    if (!this.atFloor() && hash01(this.pass, this.sceneIdx, 77) < 0.55) sfx.voice.say(VOICES[Math.floor(hash01(this.pass, this.sceneIdx, 78) * VOICES.length)] ?? 'WARP', true);
   }
 
   update(dtMs: number): void {
@@ -219,6 +243,7 @@ export class DemoScreen implements Screen {
         this.onCut();
       }
       this.sceneT += dt;
+      this.stormT += dt;
       this.sounds(dt);
       if (this.sceneT >= this.sceneLen()) {
         this.sceneT = 0;
@@ -230,11 +255,7 @@ export class DemoScreen implements Screen {
           this.sfx?.voice.hush();
           return;
         }
-        this.sceneIdx++;
-        if (this.sceneIdx >= SCENES.length) {
-          this.sceneIdx = 0;
-          this.pass++;
-        }
+        this.advance();
         this.onCut();
       }
     } else if (this.stage === 'pause') {
@@ -254,6 +275,17 @@ export class DemoScreen implements Screen {
     }
   }
 
+  /** Next shot; pass 1 skips the shots marked `once`, and passing the end of the reel starts the next pass. */
+  private advance(): void {
+    do {
+      this.sceneIdx++;
+      if (this.sceneIdx >= SCENES.length) {
+        this.sceneIdx = 0;
+        this.pass++;
+      }
+    } while (this.pass === 1 && SCENES[this.sceneIdx]?.once);
+  }
+
   render(): void {
     const s = this.s;
     s.clear();
@@ -268,7 +300,7 @@ export class DemoScreen implements Screen {
         drawText(s, cap[0], s.width / 2, 28, Math.min(22, s.width / 40), { align: 'center', color: ui.title, glow: 1.6 });
         drawText(s, cap[1], s.width / 2, s.height - 48, 11, { align: 'center', color: ui.text, glow: 0.6 });
       }
-      drawText(s, `PASS ${this.pass + 1}   X${(this.pass === 0 ? 1 : 1 / KNOBS.DEMO_REEL.REPEAT_X / (this.pass === 1 ? 1 : 0.4)).toFixed(1)}`, s.width - 16, 10, 9, { align: 'right', color: ui.dim, glow: 0 });
+      drawText(s, `PASS ${this.pass + 1}   X${(this.pass === 0 ? 1 : 1 / KNOBS.DEMO_REEL.REPEAT_X / (this.pass === 1 ? 1 : 0.4)).toFixed(1)}   REALITIES ${this.pass === 0 && this.sceneIdx < SCENES.findIndex((x) => x.draw === split4) ? 1 : 16}`, s.width - 16, 10, 9, { align: 'right', color: ui.dim, glow: 0 });
       return;
     }
     // The finale window: big green terminal text, whatever the colour mode.

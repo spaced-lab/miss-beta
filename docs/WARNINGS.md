@@ -81,6 +81,8 @@ it lives, what it can do, and what to do about it. Add an entry whenever a conve
   0 red. Re-measured 2026-10-20 after the demo overhaul (hit storm up to 16 small bursts a second over the montage,
   launch salvos, wormhole, cutaways chained over the planner): the montage's second pass, the blur, the pause and the
   teletype 0 general, 0 red; in 37 s of the demo's games no frame stayed still for 1 s or more (was five stretches of 1-1.5 s on the empty planner).
+  Re-measured the same day after the second pass (hit-hit-hit bursts cut every 0.36 s, the 4- and 16-reality splits,
+  the louder rumble bed): the whole finale from the first scene to the pause, four 9 s windows, 0 general, 0 red.
 - **Do:** keep any new full-screen change at or under three per second, route it through `reduceMotion`, and
   list it here and in the notice.
 

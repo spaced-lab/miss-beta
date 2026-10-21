@@ -133,6 +133,10 @@ export class SystemScreen implements Screen {
   autoplayNext = false;
   /** SUPER-DUPER-DEMO (IDEAS 20): AUTOPLAY that speeds up every game, then hands over to the montage. */
   demoNext = false;
+  /** True while the SUPER-DUPER-DEMO is playing the games (main.ts mutes the menu blips of its injected keys). */
+  get demoRunning(): boolean {
+    return this.auto?.demo === true;
+  }
   private auto: Autopilot | null = null;
   private autoFresh = false;
   private autoPane: { pane: Pane; t: number } | null = null;
