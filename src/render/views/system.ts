@@ -45,6 +45,7 @@ import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import { Autopilot, chooseProgram, chooseTech, demoSpeed, type AutoView, type Pane } from '../../game/autoplay';
 import { DemoCutaways } from './demoCut';
+import { salvo } from '../demoFuture';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../vectorFont';
 import { PlanetOverlay } from './planet';
 import { PlannerOverlay } from './planner';
@@ -531,6 +532,7 @@ export class SystemScreen implements Screen {
     }
     const ctx = this.cineContext(passed);
     if (ctx) this.cine.enqueue(passed, ctx);
+    if (this.auto?.demo && this.cine.current?.kind === 'LAUNCH') this.cine.dropQueued('LAUNCH');
   }
 
   private plannerSession() {
@@ -1006,7 +1008,8 @@ export class SystemScreen implements Screen {
     if (this.auto.demo) {
       this.demoT += dtMs / 1000;
       this.auto.speed = pace * demoSpeed(this.demoT, demoLen);
-      this.demoCut.update(dtMs / 1000, this.demoT / demoLen, this.cine.isOpen);
+      this.auto.demoF = this.demoT / demoLen;
+      this.demoCut.update(dtMs / 1000, this.demoT / demoLen, this.cine.isOpen, this.auto.thinking);
       if (this.demoT >= demoLen) {
         this.auto = null;
         this.autoPane = null;
@@ -1128,6 +1131,19 @@ export class SystemScreen implements Screen {
       return;
     }
     if (this.cine.isOpen) {
+      const cur = this.cine.current;
+      if (this.auto?.demo && cur?.kind === 'LAUNCH') {
+        // SUPER-DUPER-DEMO (owner 2026-10-20, "multiple launches at once and different rockets"): every launch of
+        // the round as one salvo that grows busier and more advanced as the demo runs (render/demoFuture.ts).
+        s.clear();
+        const ui = uiColors(p, true);
+        const f = this.demoT / KNOBS.DEMO_LENGTHS[this.settings.demoLength ?? 'MEDIUM'].seconds;
+        salvo(s, this.cine.elapsedS + 0.4, ui, Math.min(1, 0.2 + f));
+        drawText(s, cur.title, s.width / 2, 28, Math.min(20, s.width / 44), { align: 'center', color: ui.title, glow: 1.6 });
+        drawText(s, cur.subtitle, s.width / 2, 54, 10, { align: 'center', color: ui.text, glow: 0.5 });
+        this.drawAutoPane();
+        return;
+      }
       this.cine.render(formatCountdown((w.threat?.tImpact ?? 0) - w.t));
       this.drawAutoPane();
       return;

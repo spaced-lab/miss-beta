@@ -70,6 +70,11 @@ SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster
 75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
 cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 replaced by BLUR_CUTS 12 (same blur).
 
+SUPER-DUPER-DEMO (owner 2026-10-20, "nothing should pause for more than a couple seconds"): DEMO_CUT gaps 4.5 / 1.1
+-> 2 / 0.5 s, cuts 0.9 -> 1.1 s at the start, VOICE_P 0.5 -> 0.55, new FIRST_S 1.2; new DEMO_CINE_END_S 0.7 (cinematic
+cut shrinks from DEMO_CINE_S); DEMO_MONTAGE SCENE_S0 / SHRINK removed (per-scene lengths in views/demo.ts); new
+DEMO_REEL {REPEAT_X 0.45, RUMBLE_S 0.22}, DEMO_STORM_MAX_HZ 16, DEMO_DUST_COLORS. Montage to the pause 25 -> 30 s.
+
 PERIMETER (IDEAS 31, 2026-10-18): new START_PRESSURE_FRAC 0.95, START_MOON_FRAC {10: 0.9, 20: 0.1, 30: 0, 40: 0},
 START_GRACE_S 3 (a skipped start used PRESSURE_START and a full moon).
 
@@ -77,6 +82,10 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Decisions
 
+- 2026-10-20 (SUPER-DUPER-DEMO overhaul): the demo's pixel dust uses the fixed bright DEMO_DUST_COLORS on every
+  glowing colour mode, mono ones included (the owner asked for "way more colorful"; the demo is a FICTION showpiece);
+  DAYLIGHT keeps its own ink steps so nothing vanishes on the light ground. The game's own LAUNCH cinematic is
+  replaced by the salvo only inside the demo; normal play and AUTOPLAY are unchanged.
 - 2026-10-18 (code review finding 27): Lambert closes in on the y = 0 edge by bisection when the 0.1 walk-up passes
   the root, and extends the lower bracket by doubling to Z_FLOOR = -1e5 when y > 0 already held at -4 pi^2. Cells and
   retargets that used to read infeasible for fast transfers are now solved, so a few rounds can offer plans they did

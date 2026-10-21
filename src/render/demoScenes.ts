@@ -1,7 +1,8 @@
 // WHAT: The SUPER-DUPER-DEMO's animated scenes, shared by the finale montage (views/demo.ts) and the quick
 //       cutaways that interrupt the self-playing games (views/demoCut.ts): data-centre racks that grow more
 //       complex, a globe filling with data centres, clocks and calendars being adjusted, hit after hit on a
-//       planet, a time portal, and short planning / launch / strike vignettes.
+//       planet, and short planning / strike vignettes (launches, the wormhole and the stranger scenes are in
+//       render/demoFuture.ts).
 // WHY:  Owner 2026-10-18: the demo should look fast and keep getting faster, switching back and forth between
 //       the game and animated summaries. Every caption is FICTION in character (GAME_PLAN 30 deadpan); nothing here
 //       is a claim about real computers, power grids or time travel, and none of it is a feature of the game.
@@ -18,6 +19,7 @@ import { Rng } from '../sim/rng';
 import type { Surface } from './canvas';
 import { uiColors } from './palettes';
 import { drawText } from './vectorFont';
+import { dustBurst, dustColors, dustField } from './pixelDust';
 import { wireSphere } from './wire';
 
 export type Ui = ReturnType<typeof uiColors>;
@@ -43,6 +45,7 @@ export const racks: DemoScene = (s, t, ui, k) => {
   const rw = (s.width - 80) / cols;
   const rh = (s.height - 150) / rows;
   const step = Math.floor(t * (12 + 18 * k));
+  const leds = dustColors(s);
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const x0 = 40 + c * rw + 5;
@@ -57,7 +60,7 @@ export const racks: DemoScene = (s, t, ui, k) => {
           const on = h3(c * 31 + r * 17, i, step) > 0.4;
           const lx = x0 + 6 + (i % perRow) * (w - 12) / (perRow - 1);
           const ly = y0 + 8 + Math.floor(i / perRow) * (h - 16) / Math.max(1, n / perRow - 1);
-          if (on) s.circle(lx, ly, 2.2, { color: i % 5 === 0 ? ui.title : i % 7 === 0 ? ui.head : ui.sel, glow: 1.6 });
+          if (on) s.circle(lx, ly, 2.2, { color: i % 3 === 0 ? (leds[(i + c + r) % leds.length] ?? ui.title) : i % 7 === 0 ? ui.head : ui.sel, glow: 1.6 });
           else s.dot(lx, ly, 1.1, ui.dim, 0.8);
         }
         if (tier === 1) {
@@ -79,7 +82,7 @@ export const racks: DemoScene = (s, t, ui, k) => {
         // Inner ring of twelve compute cells blinking around the core, three status pips under it.
         for (let i = 0; i < 12; i++) {
           const a = (i / 12) * Math.PI * 2 + t * 0.6;
-          if (h3(c * 13 + i, r, step) > 0.45) s.dot(cx + Math.cos(a) * R * 0.66, cy + Math.sin(a) * R * 0.66, 2.4, i % 4 === 0 ? ui.title : ui.sel, 1);
+          if (h3(c * 13 + i, r, step) > 0.45) s.dot(cx + Math.cos(a) * R * 0.66, cy + Math.sin(a) * R * 0.66, 2.4, leds[(i + c) % leds.length] ?? ui.sel, 1);
         }
         for (let i = 0; i < 3; i++) {
           if (h3(c + 9, r + i, step) > 0.35) s.dot(cx - R * 0.3 + i * R * 0.3, cy + R * 0.86, 2.2, ui.head, 1);
@@ -121,7 +124,7 @@ export const dcGlobe: DemoScene = (s, t, ui, k) => {
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
     if (!p || p.z < 0) continue;
-    s.dot(p.x, p.y, 3.2, i % 6 === 0 ? ui.title : ui.sel, 0.5 + 0.5 * p.z);
+    s.dot(p.x, p.y, 3.2, i % 2 === 0 ? (dustColors(s)[i % 9] ?? ui.title) : ui.sel, 0.5 + 0.5 * p.z);
     if (i % 9 === 0) s.circle(p.x, p.y, 4 + ((t * 2 + i * 0.3) % 1) * 12, { color: ui.text, glow: 0.6, alpha: 0.6 * p.z });
     // Link to the nearest lit site in front (short hops, not chords across the globe).
     let q: (typeof pts)[number] | undefined;
@@ -247,27 +250,6 @@ export const clocks: DemoScene = (s, t, ui, k) => {
   }
 };
 
-/** A wormhole of nested ellipses with nanobots streaming into its throat; spins faster with k. */
-export const portal: DemoScene = (s, t, ui, k) => {
-  const cx = s.width / 2;
-  const cy = s.height / 2 + 10;
-  const R = Math.min(s.width, s.height) * 0.36;
-  const sp = 1.6 + 2 * k;
-  for (let i = 0; i < 14; i++) {
-    const f = ((i / 14 + t * 0.35 * sp) % 1) ** 1.6;
-    const r = R * (1 - f);
-    s.circle(cx, cy, Math.max(2, r), { color: i % 2 ? ui.sub : ui.title, glow: 1, alpha: 0.3 + 0.7 * f });
-  }
-  const rng = new Rng(7);
-  for (let i = 0; i < 80; i++) {
-    const a0 = rng.float(0, Math.PI * 2);
-    const f = (rng.next() + t * 0.6 * sp) % 1;
-    const a = a0 + f * 3;
-    const r = R * 1.3 * (1 - f);
-    s.dot(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.8, 1.8, ui.text, 1 - f * 0.5);
-  }
-};
-
 /** Teaser lines for tech that is not in the game (FICTION). */
 const HINTS = ['STELLAR LIFTING', 'PLANETARY ENGINES', 'CAUSALITY FIREWALL', 'MATRIOSHKA BRAIN V0.1', 'VACUUM STABILITY INSURANCE', 'THE SECOND MOON PROTOCOL', 'KARDASHEV III PREVIEW', 'ORBITAL RING (BETA)'];
 
@@ -297,38 +279,50 @@ export function hitsBy(t: number, k: number): number {
   return n;
 }
 
-/** Hit after hit: rocks streak in from every side, each ends in an expanding ring and a scar that stays. */
+/**
+ * Hit after hit: rocks streak in from every side, each ends in a burst of coloured pixel dust, a ring and a scar
+ * that stays. From k = 0.5 a hit can bring two or three rocks at once, and the bursts grow with k.
+ */
 export const impacts: DemoScene = (s, t, ui, k) => {
   const cx = s.width / 2;
   const cy = s.height / 2 + 10;
   const R = Math.min(s.width, s.height) * 0.22;
   const n = hitsBy(t, k);
-  // The planet shakes a little with every hit, a few px, decaying.
-  const shake = Math.min(6, n * 0.4) * Math.sin(t * 60);
+  dustField(s, t, 90, 19);
+  // The planet shakes with every hit, a few px.
+  const shake = Math.min(6 + 6 * k, n * 0.5) * Math.sin(t * 60);
   wireSphere(s, cx + shake, cy, R, t * 0.5, 6, 10, ui.text);
+  const cols = dustColors(s);
   const rng = new Rng(4242);
   let at = 0.3;
   let gap = 0.6 / (1 + k);
+  let landed = 0;
   for (let i = 0; i < n + 2; i++) {
-    const a = rng.float(0, Math.PI * 2);
-    const hx = cx + shake + Math.cos(a) * R * 0.9;
-    const hy = cy + Math.sin(a) * R * 0.9;
-    const dt = t - at;
-    if (dt < 0) {
-      // Inbound: a streak closing on the hit point over the last 0.35 s.
-      const f = Math.max(0, 1 + dt / 0.35);
-      const sx = hx + Math.cos(a) * R * 2.5 * (1 - f);
-      const sy = hy + Math.sin(a) * R * 2.5 * (1 - f);
-      if (f > 0) s.stroke([sx + Math.cos(a) * 30, sy + Math.sin(a) * 30, sx, sy], { color: ui.title, glow: 1.4, width: 2 });
-    } else {
-      const ring = Math.min(1, dt / 0.5);
-      if (ring < 1) s.circle(hx, hy, 4 + ring * R * 0.6, { color: ui.head, glow: 1.4, alpha: 1 - ring });
-      s.dot(hx, hy, 3, ui.sel, 0.9);
+    const rocks = k >= 0.5 ? 1 + Math.floor(rng.next() * 3 * k) : 1;
+    for (let r = 0; r < rocks; r++) {
+      const a = rng.float(0, Math.PI * 2);
+      const hx = cx + shake + Math.cos(a) * R * 0.9;
+      const hy = cy + Math.sin(a) * R * 0.9;
+      const dt = t - at - r * 0.05;
+      const col = cols[(i * 3 + r) % cols.length] ?? ui.title;
+      if (dt < 0) {
+        // Inbound: a streak closing on the hit point over the last 0.35 s.
+        const f = Math.max(0, 1 + dt / 0.35);
+        const sx = hx + Math.cos(a) * R * 2.5 * (1 - f);
+        const sy = hy + Math.sin(a) * R * 2.5 * (1 - f);
+        if (f > 0) s.stroke([sx + Math.cos(a) * 30, sy + Math.sin(a) * 30, sx, sy], { color: col, glow: 1.4, width: 2 });
+      } else {
+        landed++;
+        dustBurst(s, hx, hy, dt, i * 31 + r, { n: 40 + Math.round(90 * k), speed: 160 + 260 * k, life: 0.8, size: 1.5, from: a - 1.3, to: a + 1.3 });
+        const ring = Math.min(1, dt / 0.5);
+        if (ring < 1) s.circle(hx, hy, 4 + ring * R * (0.5 + 0.4 * k), { color: col, glow: 1.4, alpha: 1 - ring });
+        s.dot(hx, hy, 3, col, 0.9);
+      }
     }
     at += gap;
     gap = Math.max(0.09, gap * 0.82);
   }
-  drawText(s, `IMPACTS ${String(n).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, cy + R + 30, 11, { align: 'center', color: ui.text, glow: 0.6 });
+  drawText(s, `IMPACTS ${String(landed).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, cy + R + 30, 11, { align: 'center', color: ui.text, glow: 0.6 });
 };
 
 /** Planning vignette: a porkchop dot field with a scan bar and a ranked list reshuffling on the right. */
@@ -356,33 +350,6 @@ export const planning: DemoScene = (s, t, ui, k) => {
   }
 };
 
-/** Launch vignette: a pad, a rocket climbing on an exhaust plume, and the transfer arc reaching out to the rock. */
-export const launch: DemoScene = (s, t, ui, k) => {
-  const gx = s.width * 0.3;
-  const gy = s.height * 0.8;
-  s.stroke([gx - 120, gy, gx + 120, gy], { color: ui.sub, glow: 0.4 });
-  s.stroke([gx - 30, gy, gx - 30, gy - 80, gx - 12, gy - 80], { color: ui.dim, glow: 0 });
-  const f = Math.min(1, (t * (0.9 + k)) % 1.6);
-  const y = gy - 10 - f * f * s.height * 0.6;
-  const x = gx + f * f * 40;
-  s.stroke([x - 6, y + 30, x - 6, y, x, y - 14, x + 6, y, x + 6, y + 30], { closed: true, color: ui.text, glow: 1.2 });
-  const rng = new Rng(99);
-  for (let i = 0; i < 40; i++) {
-    const age = (rng.next() + t * 3) % 1;
-    s.dot(x + rng.float(-6, 6) * (1 + age * 3), y + 32 + age * 70, 2, age < 0.3 ? ui.title : ui.head, 1 - age);
-  }
-  const tx = s.width * 0.82;
-  const ty = s.height * 0.22;
-  const pts: number[] = [];
-  const reach = Math.max(0, (f - 0.4) / 0.6);
-  for (let i = 0; i <= 30 * reach; i++) {
-    const u = i / 30;
-    pts.push(x + (tx - x) * u, y + (ty - y) * u - Math.sin(u * Math.PI) * s.height * 0.18);
-  }
-  if (pts.length >= 4) s.stroke(pts, { color: ui.sel, glow: 0.8, dash: [6, 4] });
-  s.circle(tx, ty, 10, { color: ui.head, glow: 1 });
-};
-
 /** Strike vignette: an impactor closing on a tumbling rock, then a ring, flying debris and the bent orbit. */
 export const strike: DemoScene = (s, t, ui, k) => {
   const cx = s.width * 0.55;
@@ -406,12 +373,8 @@ export const strike: DemoScene = (s, t, ui, k) => {
   } else {
     const f = (ph - 0.55) / 0.45;
     s.circle(cx - R, cy, 6 + f * R * 1.2, { color: ui.head, glow: 1.4, alpha: 1 - f });
-    const d = new Rng(77);
-    for (let i = 0; i < 24; i++) {
-      const a = d.float(Math.PI * 0.5, Math.PI * 1.5);
-      const v = d.float(0.4, 1);
-      s.dot(cx - R + Math.cos(a) * f * R * 2 * v, cy + Math.sin(a) * f * R * 2 * v, 2, ui.sel, 1 - f);
-    }
+    // Ejecta: a cone of coloured pixel dust thrown back towards the impactor.
+    dustBurst(s, cx - R, cy, f * cyc * 0.45, Math.floor(t / cyc), { n: 90 + Math.round(60 * k), speed: 380, life: cyc * 0.5, from: Math.PI * 0.55, to: Math.PI * 1.45 });
   }
   // Old path straight on, new path bending away: the deflection.
   s.stroke([cx, cy, cx + s.width * 0.35, cy], { color: ui.dim, glow: 0, dash: [4, 4] });

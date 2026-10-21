@@ -11,7 +11,7 @@ import { KNOBS } from '../../config/knobs';
 import type { SimEventRecord } from '../../sim/eventLog';
 import type { Surface } from '../canvas';
 import { renderScene } from './draw';
-import { buildScene, groupEvents, type CineContext, type Scene } from './scene';
+import { buildScene, groupEvents, type CineContext, type CineKind, type Scene } from './scene';
 
 export class Cinematics {
   private queue: Scene[] = [];
@@ -34,6 +34,16 @@ export class Cinematics {
 
   get current(): Scene | null {
     return this.cur;
+  }
+
+  /** Seconds the current scene has played. */
+  get elapsedS(): number {
+    return this.elapsed;
+  }
+
+  /** Drop queued scenes of one kind (the SUPER-DUPER-DEMO shows a round's launches at once, as one salvo). */
+  dropQueued(kind: CineKind): void {
+    this.queue = this.queue.filter((q) => q.kind !== kind);
   }
 
   clear(): void {

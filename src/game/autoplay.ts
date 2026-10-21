@@ -159,8 +159,15 @@ export class Autopilot {
   rounds = 0;
   /** SUPER-DUPER-DEMO: cinematics are cut short and `speed` climbs every game. */
   demo = false;
+  /** SUPER-DUPER-DEMO progress 0..1 (set by the system view): cinematics are cut shorter as it rises. */
+  demoF = 0;
   private cineT = 0;
   private invested = 0;
+
+  /** True while the planner is computing its grid: nothing on screen moves, so the demo covers it with cutaways. */
+  get thinking(): boolean {
+    return this.state === 'waitGrid';
+  }
 
   step(v: AutoView, dtS: number): AutoOut {
     const out: AutoOut = { keys: [], pane: null };
@@ -170,7 +177,7 @@ export class Autopilot {
     if (v.cine) {
       // NOTE: real seconds in the demo, so launches and strikes stay on screen however fast the games run.
       this.cineT += this.demo ? dtS : dt;
-      if (this.demo && this.cineT > KNOBS.DEMO_CINE_S) {
+      if (this.demo && this.cineT > KNOBS.DEMO_CINE_S + (KNOBS.DEMO_CINE_END_S - KNOBS.DEMO_CINE_S) * Math.min(1, this.demoF)) {
         out.keys.push('Space');
         this.cineT = 0;
       }

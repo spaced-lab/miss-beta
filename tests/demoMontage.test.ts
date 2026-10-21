@@ -28,11 +28,12 @@ function montage(reduceMotion = false): { toPause: number; cuts: number[] } {
 }
 
 describe('SUPER-DUPER-DEMO finale montage', () => {
-  it('reaches the blur in about half the old time and keeps the old blur', () => {
+  it('never holds a scene over two seconds, reaches the pause in under 36 s and keeps the old blur', () => {
     const { toPause, cuts } = montage();
-    // The old montage took about 50 s to the pause; the owner asked for half.
-    expect(toPause).toBeLessThan(32);
+    // Owner 2026-10-20: a longer reel of stranger scenes, but "nothing should pause for more than a couple seconds".
+    expect(toPause).toBeLessThan(36);
     expect(toPause).toBeGreaterThan(15);
+    for (const c of cuts) expect(c).toBeLessThanOrEqual(2);
     // Never more than three cuts a second.
     for (const c of cuts) expect(c).toBeGreaterThanOrEqual(KNOBS.DEMO_MONTAGE.SAFE_MIN_S - 1 / 60);
     // The blur at the end: BLUR_CUTS cuts at the floor, as before (12 x 0.34 s).

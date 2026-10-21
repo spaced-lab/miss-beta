@@ -376,9 +376,13 @@ export const KNOBS = {
   /** Real seconds a launch or strike cinematic plays in the demo before it is cut (was 3 demo seconds, under 0.3 s
    *  of real time once the demo sped up, so the animations were barely seen). */
   DEMO_CINE_S: 1.4,
+  /** The cinematic cut shrinks to this many real seconds by the finale (owner 2026-10-20: nothing holds still). */
+  DEMO_CINE_END_S: 0.7,
   /** Demo cutaways (render/views/demoCut.ts): real seconds between cuts and per cut, start -> finale, and the
    *  chance a cut speaks a line. A cut never lasts under DEMO_MONTAGE.SAFE_MIN_S (photosensitive safety). */
-  DEMO_CUT: { GAP0_S: 4.5, GAP1_S: 1.1, LEN0_S: 0.9, LEN1_S: 0.4, VOICE_P: 0.5 },
+  // NOTE: owner 2026-10-20 "briefly show things as it speeds up and sooner the better": gaps 4.5 / 1.1 -> 2 / 0.5 s,
+  // the first cut at FIRST_S, and the planner's thinking time is always covered by cuts (no still planner).
+  DEMO_CUT: { GAP0_S: 2, GAP1_S: 0.5, LEN0_S: 1.1, LEN1_S: 0.4, VOICE_P: 0.55, FIRST_S: 1.2 },
   /** AUTOPLAY pace multipliers on panes, step waits and the sim clock (owner 2026-10-18: old pace = SLOW). */
   AUTO_SPEEDS: { SLOW: 1, NORMAL: 1.5, FAST: 2.25 },
   // NOTE: moved here from autoplay.ts, attract.ts, tips.ts and demo.ts so every tunable is in one file and the
@@ -407,11 +411,18 @@ export const KNOBS = {
   ATTRACT_RATE: 1.2,
   /** Seconds a tip stays before the next one. [knob] */
   TIP_SECONDS: 12,
-  /** Montage pacing [knob]: first scene length (s), shrink per pass, the blur floor, cuts at the floor before the
-   *  pause, the pause, typing speed. NOTE: owner 2026-10-18 "faster, the ending is perfect": SCENE_S0 3.2 -> 1.2 so
-   *  the passes reach the blur sooner; the blur is counted in cuts (BLUR_CUTS 12 = the old two floor passes of six
-   *  scenes, so it lasts as long as before with nine scenes), PAUSE_S and TYPE_CPS unchanged. */
-  DEMO_MONTAGE: { SCENE_S0: 1.2, SHRINK: 0.62, MIN_S: 0.09, BLUR_CUTS: 12, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
+  /** Montage pacing [knob]: the blur floor, cuts at the floor before the pause, the pause, typing speed. NOTE: owner
+   *  2026-10-18 "faster, the ending is perfect": the blur is counted in cuts (BLUR_CUTS 12), PAUSE_S and TYPE_CPS
+   *  unchanged. 2026-10-20: SCENE_S0 / SHRINK replaced by per-scene lengths in views/demo.ts and DEMO_REEL. */
+  DEMO_MONTAGE: { MIN_S: 0.09, BLUR_CUTS: 12, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
+  /** Owner 2026-10-20 ("go to town on this demo"): the finale is a reel of scenes played twice, the second time at
+   *  REPEAT_X of each scene's length, then the blur. Hits pile up over it all (DEMO_STORM_MAX_HZ at full heat) and
+   *  the bass rumbles every RUMBLE_S through the blur until the silent pause. */
+  DEMO_REEL: { REPEAT_X: 0.45, RUMBLE_S: 0.22 },
+  /** Hits a second in the demo's hit storm at full heat (render/pixelDust.ts stormRate) [knob]. */
+  DEMO_STORM_MAX_HZ: 16,
+  /** Pixel-dust colours for the demo (owner 2026-10-20: "way more colorful pixel dust"), used on glowing modes. */
+  DEMO_DUST_COLORS: ['#FF3B6B', '#FF8A1F', '#FFE14D', '#7CFF4F', '#2EF2FF', '#3D7BFF', '#B04DFF', '#FF4FD8', '#FFFFFF'] as readonly string[],
   DEMO_SPEED_MAX: 400,
   /** Owner 2026-10-18: "finer pixels" in the LAUNCH cinematic. Cell size of the launch pixel art in px at scale 1
    *  (was 3 for the pad and 2.5 + 0.5 x tier for the rocket); the sprites are drawn at about twice the old

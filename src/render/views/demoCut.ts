@@ -7,7 +7,11 @@
 //       LEN1_S at the finale (progress f in 0..1); a cut never lasts under DEMO_MONTAGE.SAFE_MIN_S, so the screen
 //       changes at most three times a second (photosensitive safety, docs/WARNINGS.md), and REDUCE MOTION turns
 //       cutaways off. Scene order is a seeded Rng, so a demo run is the same every time. The system view skips
-//       cutaways while a cinematic plays (launches and strikes are the game's own animation).
+//       cutaways while a cinematic plays (launches and strikes are the game's own animation). Owner 2026-10-20
+//       ("seems to pause on lots of screens ... things not rendering"): the first cut comes at DEMO_CUT.FIRST_S,
+//       and while `cover` is set (the planner is still computing its grid) cuts follow each other with no gap, so
+//       the empty planner is never on screen. Later scenes join the pool as the demo runs (worlds, lasers, solar
+//       eruptions) and from f = 0.3 the hit storm (render/pixelDust.ts) lands over every cut.
 // LORE: G1 (how to play), G8 (the look, and the sound)
 
 import { KNOBS } from '../../config/knobs';
@@ -15,7 +19,9 @@ import type { UiSfx } from '../../audio/ui';
 import type { VoiceId } from '../../audio/voice';
 import { Rng } from '../../sim/rng';
 import type { Surface } from '../canvas';
-import { clocks, dcGlobe, hitsBy, impacts, launch, planning, racks, strike, worldMap, type DemoScene } from '../demoScenes';
+import { dcPlanets, laserMap, salvo, solar, worldsSalvo } from '../demoFuture';
+import { clocks, dcGlobe, hitsBy, impacts, planning, racks, strike, worldMap, type DemoScene } from '../demoScenes';
+import { hitStorm } from '../pixelDust';
 import { uiColors } from '../palettes';
 import { drawText } from '../vectorFont';
 
@@ -25,16 +31,20 @@ interface Cut {
   sound: 'blips' | 'hits' | 'none';
 }
 
-/** Every caption is FICTION in character (GAME_PLAN 30). */
-const CUTS: readonly Cut[] = [
-  { scene: planning, caption: 'PLANNING: EVERY WINDOW, EVERY ORBIT', sound: 'none' },
-  { scene: launch, caption: 'LAUNCH WINDOW OPEN', sound: 'none' },
-  { scene: strike, caption: 'KINETIC STRIKE: CONFIRMED', sound: 'hits' },
-  { scene: racks, caption: 'DATA CENTRE CAPACITY: DOUBLED AGAIN', sound: 'blips' },
-  { scene: dcGlobe, caption: 'GLOBAL DATA CENTRES: MORE OF THEM', sound: 'blips' },
-  { scene: clocks, caption: 'TIMELINE ADJUSTMENT IN PROGRESS', sound: 'blips' },
-  { scene: impacts, caption: 'REPLAYING EVERY ROCK WE MISSED', sound: 'hits' },
-  { scene: worldMap, caption: 'TRACKING NETWORK: ALL STATIONS', sound: 'none' },
+/** Every caption is FICTION in character (GAME_PLAN 30). `from` is the demo progress at which a cut joins the pool. */
+const CUTS: readonly (Cut & { from: number })[] = [
+  { scene: planning, caption: 'PLANNING: EVERY WINDOW, EVERY ORBIT', sound: 'blips', from: 0 },
+  { scene: salvo, caption: 'LAUNCH WINDOW OPEN', sound: 'none', from: 0 },
+  { scene: strike, caption: 'KINETIC STRIKE: CONFIRMED', sound: 'hits', from: 0 },
+  { scene: racks, caption: 'DATA CENTRE CAPACITY: DOUBLED AGAIN', sound: 'blips', from: 0 },
+  { scene: dcGlobe, caption: 'GLOBAL DATA CENTRES: MORE OF THEM', sound: 'blips', from: 0 },
+  { scene: clocks, caption: 'TIMELINE ADJUSTMENT IN PROGRESS', sound: 'blips', from: 0.1 },
+  { scene: impacts, caption: 'REPLAYING EVERY ROCK WE MISSED', sound: 'hits', from: 0.1 },
+  { scene: worldMap, caption: 'TRACKING NETWORK: ALL STATIONS', sound: 'none', from: 0 },
+  { scene: dcPlanets, caption: 'DATA CENTRES: OFF-WORLD', sound: 'blips', from: 0.25 },
+  { scene: worldsSalvo, caption: 'LAUNCHING FROM LUNA, MARS AND EUROPA', sound: 'none', from: 0.35 },
+  { scene: laserMap, caption: 'PLANETARY LASER GRID: TEST FIRE', sound: 'none', from: 0.45 },
+  { scene: solar, caption: 'SOLAR ERUPTION: STEERED', sound: 'none', from: 0.55 },
 ];
 
 const VOICES: readonly VoiceId[] = ['LAUNCHING', 'INTERCEPT', 'DEFLECTED', 'BUILDING', 'RESEARCHING', 'WARP', 'THREAT_DETECTED', 'PLAN_COMMITTED', 'FRAGMENTS', 'IMPACT_IMMINENT'];
@@ -46,8 +56,9 @@ function lerp(a: number, b: number, f: number): number {
 
 export class DemoCutaways {
   private rng = new Rng(20261018);
-  private until: number = KNOBS.DEMO_CUT.GAP0_S;
+  private until: number = KNOBS.DEMO_CUT.FIRST_S;
   private cur: Cut | null = null;
+  private last: Cut | null = null;
   private t = 0;
   private len = 0;
   private f = 0;
@@ -62,12 +73,15 @@ export class DemoCutaways {
 
   reset(): void {
     this.rng = new Rng(20261018);
-    this.until = KNOBS.DEMO_CUT.GAP0_S;
+    this.until = KNOBS.DEMO_CUT.FIRST_S;
     this.cur = null;
   }
 
-  /** Advance by dt real seconds at demo progress f (0 start, 1 finale); `blocked` holds a pending cut (cinematic). */
-  update(dt: number, f: number, blocked: boolean): void {
+  /**
+   * Advance by dt real seconds at demo progress f (0 start, 1 finale); `blocked` holds a pending cut (cinematic);
+   * `cover` cuts at once and chains cuts with no gap (the game screen would be still).
+   */
+  update(dt: number, f: number, blocked: boolean, cover = false): void {
     this.f = f;
     if (this.reduceMotion()) {
       this.cur = null;
@@ -81,11 +95,16 @@ export class DemoCutaways {
         this.cur = null;
         this.until = lerp(c.GAP0_S, c.GAP1_S, f);
       }
-      return;
+      if (!cover || blocked) return;
     }
     this.until -= dt;
-    if (this.until > 0 || blocked) return;
-    this.cur = CUTS[this.rng.int(0, CUTS.length - 1)] ?? null;
+    if ((this.until > 0 && !cover) || blocked) return;
+    const pool = CUTS.filter((x) => x.from <= f);
+    let next = pool[this.rng.int(0, pool.length - 1)] ?? null;
+    // Never the same cut twice in a row when chaining.
+    if (next && next === this.last && pool.length > 1) next = pool[(pool.indexOf(next) + 1) % pool.length] ?? next;
+    this.cur = next;
+    this.last = next;
     this.t = 0;
     this.len = Math.max(KNOBS.DEMO_MONTAGE.SAFE_MIN_S, lerp(c.LEN0_S, c.LEN1_S, f));
     this.hitsHeard = 0;
@@ -119,7 +138,8 @@ export class DemoCutaways {
     if (!cut) return;
     s.clear();
     const ui = uiColors(s.palette, true);
-    cut.scene(s, this.t, ui, this.f);
+    cut.scene(s, this.t, ui, Math.min(1, 0.15 + this.f));
+    hitStorm(s, this.t, this.f * 0.85, 7070);
     drawText(s, cut.caption, s.width / 2, 28, Math.min(20, s.width / 44), { align: 'center', color: ui.title, glow: 1.6 });
     drawText(s, header, s.width / 2, s.height - 30, 10, { align: 'center', color: ui.sub, glow: 0.5 });
   }
