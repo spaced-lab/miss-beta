@@ -60,6 +60,7 @@ import { budgetScale } from '../../game/modes';
 import { branchSurvives, earliestEnd, forkMultiverse, resolveBranch, survivalFraction, tickMultiverse, wormhole, type Branch, type Multiverse } from '../../game/multiverse';
 import { ambientPeel, glitchPass, peelPass } from '../glitch';
 import { drawMiniSystem } from '../miniSystem';
+import { dustBurst, dustTrail } from '../pixelDust';
 import { CAMERA_PITCHES, polyhedron, tilt, type Camera } from '../camera3d';
 import { Materialize, StarField } from '../wire';
 import { ROLE_STYLE } from '../palettes';
@@ -188,6 +189,12 @@ export class SystemScreen implements Screen {
     return null;
   }
   private approachSounded = false;
+  /**
+   * Pixel-dust bursts on the map (owner 2026-10-21: the demo's graphics in play; render/pixelDust.ts): each is a pure
+   * function of its age, placed at a world position so pan and zoom move it with the map. A launch bursts from HOME,
+   * an impact or breakup from the body, a close approach rings HOME; they fade within two seconds.
+   */
+  private bursts: { at: number; kind: 'LAUNCH' | 'IMPACT' | 'BREAKUP' | 'NUKE' | 'APPROACH'; x: number; y: number; z: number; seed: number }[] = [];
   /** The ACTION BAR (ui/actionBar.ts): last frame's boxes, the height it takes along the bottom, the MORE menu. */
   private barBoxes: BarBox[] = [];
   private barH = 36;
@@ -476,6 +483,7 @@ export class SystemScreen implements Screen {
     this.boundarySave = renderSave(this.run, this.world);
     if (!this.run.tutorial && !this.autoFresh) storeSave(this.boundarySave);
     this.missions = [];
+    this.bursts = [];
     this.result = resolveRound(this.world, this.missions, this.resolveOpts());
     this.requestMc();
     this.planetOpen = false;
@@ -521,6 +529,79 @@ export class SystemScreen implements Screen {
     return { name: th.name, typeId: th.type.id, D: th.D, shape: th.shape, betaHidden, energyMt: res.energy.energyMt };
   }
 
+  /** A dust burst per event that has a place on the map: HOME for launches and approaches, the body for the rest. */
+  private queueBursts(passed: readonly SimEventRecord[]): void {
+    if (this.settings.reduceMotion) return;
+    const w = this.world;
+    const res = this.result;
+    for (const e of passed) {
+      let kind: (typeof this.bursts)[number]['kind'] | null = null;
+      if (e.kind === 'LAUNCH') kind = 'LAUNCH';
+      else if (e.kind === 'IMPACT' || e.kind === 'PI') kind = 'IMPACT';
+      else if (e.kind === 'FRAGMENTATION') kind = 'BREAKUP';
+      else if (e.kind === 'NUKE') kind = 'NUKE';
+      else if (e.kind === 'CLOSE_APPROACH') kind = 'APPROACH';
+      if (!kind) continue;
+      let r: { x: number; y: number; z?: number };
+      if (kind === 'LAUNCH' || kind === 'APPROACH') r = planetState(w, planetById(w, 'HOME'), e.t).r;
+      else {
+        if (!res) continue;
+        const targetId = 'targetId' in e ? e.targetId : undefined;
+        const body = res.bodies.find((b) => b.id === targetId) ?? res.bodies[0];
+        if (!body) continue;
+        r = stateAt(elementsAt(body.segments, e.t), w.star.mu, e.t).r;
+      }
+      // NOTE: at -1 = pending: a burst starts when the map is back on screen, not under the event's cinematic.
+      this.bursts.push({ at: -1, kind, x: r.x, y: r.y, z: r.z ?? 0, seed: (hashSeed(`${e.kind}${e.t}`) % 1000) + 1 });
+    }
+    if (this.bursts.length > 12) this.bursts.splice(0, this.bursts.length - 12);
+  }
+
+  /** Draw the live bursts and the exhaust trails of craft in flight (nothing under REDUCE MOTION). */
+  private drawDust(): void {
+    if (this.settings.reduceMotion) return;
+    const s = this.s;
+    const now = performance.now();
+    for (const b of this.bursts) if (b.at < 0) b.at = now;
+    this.bursts = this.bursts.filter((b) => now - b.at < 2200);
+    for (const b of this.bursts) {
+      const age = (now - b.at) / 1000;
+      const [x, y] = this.threat3(b.x, b.y, b.z);
+      if (b.kind === 'LAUNCH') dustBurst(s, x, y, age, b.seed, { n: 36, speed: 110, life: 0.8, size: 1.4, from: -Math.PI * 0.85, to: -Math.PI * 0.15, gravity: 60 });
+      else if (b.kind === 'IMPACT') dustBurst(s, x, y, age, b.seed, { n: 80, speed: 200, life: 1 });
+      else if (b.kind === 'BREAKUP') dustBurst(s, x, y, age, b.seed, { n: 140, speed: 240, life: 1.4, size: 1.8 });
+      else if (b.kind === 'NUKE') {
+        dustBurst(s, x, y, age, b.seed, { n: 160, speed: 320, life: 1.2, size: 1.6 });
+        if (age < 0.6) s.circle(x, y, 4 + age * 160, { color: s.palette.hot, glow: 1.4, alpha: 1 - age / 0.6 });
+      } else if (age < 0.9) s.circle(x, y, 6 + age * 60, { color: s.spectrum ? s.role('planet') : s.palette.ink, glow: 1, alpha: 0.8 * (1 - age / 0.9) });
+    }
+    // Exhaust trails: a puff every 22 ms for the last 1.1 s of real time, placed where the craft was then.
+    const w = this.world;
+    const rate = (KNOBS.WARP_LEVELS[w.warp] ?? 0) * (this.auto?.speed ?? 1);
+    if (rate <= 0) return;
+    const home = planetById(w, 'HOME');
+    const t = now / 1000;
+    for (const m of this.result?.missionsResolved ?? this.missions) {
+      if (w.t < m.launchTime || w.t >= m.arrivalTime) continue;
+      const el = this.craftCache.get(m.id);
+      const pos = (te: number): { x: number; y: number } | null => {
+        const ts = Math.max(m.launchTime, w.t - (t - te) * rate);
+        if (m.legs) {
+          const q = craftPosition(m, w.star.mu, ts);
+          if (!q) return null;
+          const [px, py] = this.project(q.x, q.y, q.z ?? 0);
+          return { x: px, y: py };
+        }
+        if (!el) return null;
+        const st = stateAt(el, w.star.mu, ts);
+        const [px, py] = this.project(st.r.x, st.r.y, st.r.z ?? 0);
+        return { x: px, y: py };
+      };
+      void home;
+      dustTrail(s, t, pos, hashSeed(m.id) % 977, 0.9, 0.03, 5, 0, 1.3);
+    }
+  }
+
   /** Events whose time passed this frame: a brief each, and a cinematic for the kinds that have one. */
   private onEventsPassed(passed: readonly SimEventRecord[]): void {
     const th = this.world.threat;
@@ -534,6 +615,7 @@ export class SystemScreen implements Screen {
       }
       return;
     }
+    this.queueBursts(passed);
     const line = voiceForEvents(passed);
     // NOTE: owner 2026-10-21 (the demo "has partial deflection replayed with same clip"): at the demo's speed a round
     // passes in seconds and every short kinetic hit said "Partial deflection" again; the demo holds any event line back
@@ -1290,6 +1372,7 @@ export class SystemScreen implements Screen {
     else {
       this.drawCraft();
       this.drawThreat();
+      this.drawDust();
       this.drawFictionProps();
     }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen && !this.sky.isOpen) this.drawHud();

@@ -8,7 +8,8 @@ import { openSupport } from '../../game/support';
 import type { Router, Screen, ScreenId } from '../../game/screen';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
-import { drawText, drawTextFit } from '../vectorFont';
+import { ScreenBar } from '../../ui/actionBar';
+import { drawText, drawTextFit, wrapText } from '../vectorFont';
 
 export interface HelpPage {
   section: 'BASIC' | 'STRATEGY' | 'ADVANCED';
@@ -194,6 +195,12 @@ export class HelpScreen implements Screen {
   returnTo: ScreenId = 'title';
   /** Set by main: open the Learning Center (L), Esc there returns to this page. */
   openCenter: ((id: string) => void) | null = null;
+  /** The action bar (ui/actionBar.ts): page, section, scroll, learn, back. */
+  private readonly bar = new ScreenBar();
+  /** Phone layout (IDEAS 39): lines re-wrapped to the width at 9 px instead of shrunk. */
+  private compact(): boolean {
+    return this.s.width < 700;
+  }
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {}
   enter(): void {
     this.scroll = 0;
@@ -203,6 +210,7 @@ export class HelpScreen implements Screen {
     const k = this.keys;
     // CREDITS: C or a click on the support lines opens the coffee fund (src/game/support.ts).
     const onCredits = HELP_PAGES[this.page]?.title.startsWith('CREDITS') === true;
+    this.bar.tap(k);
     const click = k.takeClick();
     if (onCredits && (k.pressed('KeyC') || (click && this.supportY !== null && click.y >= this.supportY - 4 && click.y <= this.supportY + 34))) {
       openSupport();
@@ -229,7 +237,8 @@ export class HelpScreen implements Screen {
       this.page = Math.max(0, HELP_PAGES.findIndex((pg) => pg.section === next));
       this.scroll = 0;
     }
-    if (k.pressed('ArrowDown')) this.scroll = Math.min(this.scroll + 1, Math.max(0, (HELP_PAGES[this.page]?.lines.length ?? 0) - 5));
+    // On a phone the wrapped page is longer than its source lines: scroll runs to three times their count.
+    if (k.pressed('ArrowDown')) this.scroll = Math.min(this.scroll + (this.compact() ? 4 : 1), Math.max(0, (HELP_PAGES[this.page]?.lines.length ?? 0) * (this.compact() ? 3 : 1) - 5));
     if (k.pressed('ArrowUp')) this.scroll = Math.max(0, this.scroll - 1);
   }
   render(): void {
@@ -239,24 +248,38 @@ export class HelpScreen implements Screen {
     const m = 16;
     const page = HELP_PAGES[this.page];
     if (!page) return;
-    let tx = m;
+    const compact = this.compact();
+    let tx = this.keys.touchUsed ? m + 30 : m;
     for (const sec of SECTIONS) {
-      drawText(s, sec, tx, m, 12, { color: sec === page.section ? p.hot : p.dim, glow: sec === page.section ? 1.2 : 0 });
-      tx += 110;
+      drawText(s, sec, tx, m, compact ? 10 : 12, { color: sec === page.section ? p.hot : p.dim, glow: sec === page.section ? 1.2 : 0 });
+      tx += compact ? 90 : 110;
     }
-    drawTextFit(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, s.width - m - tx - 20, { color: p.ink, glow: 0.5 });
-    const size = Math.max(9, Math.min(12, (s.width - 2 * m) / 105 / (5.5 / 6)));
-    const lineH = size * 1.7;
-    let y = m + 36;
+    if (compact) drawTextFit(s, `${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, m, m + 16, 9, s.width - 2 * m, { color: p.ink, glow: 0.5 });
+    else drawTextFit(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, s.width - m - tx - 20, { color: p.ink, glow: 0.5 });
+    const size = compact ? 9 : Math.max(9, Math.min(12, (s.width - 2 * m) / 105 / (5.5 / 6)));
+    const lineH = size * (compact ? 1.45 : 1.7);
+    let y = m + (compact ? 34 : 36);
     this.supportY = null;
-    for (let i = this.scroll; i < page.lines.length; i++) {
-      if (y > s.height - 60) break;
-      const line = page.lines[i] as string;
-      if (line.startsWith('SUPPORT:')) this.supportY = y;
-      // Hand-aligned lines (key tables): never re-wrapped, shrunk to the window instead.
-      drawTextFit(s, line, m, y, size, s.width - 2 * m, { color: line.startsWith(' ') ? p.dim : p.ink, glow: 0.2 });
+    const bottom = s.height - this.bar.height - (compact ? 8 : 24);
+    // Hand-aligned lines (key tables) are never re-wrapped on a desktop, shrunk to the window instead; a phone
+    // wraps each line at 9 px (a continuation keeps its indent and dim colour).
+    const shown: { text: string; dim: boolean; support: boolean }[] = [];
+    for (const line of page.lines) {
+      if (!compact) shown.push({ text: line, dim: line.startsWith(' '), support: line.startsWith('SUPPORT:') });
+      else {
+        const parts = wrapText(line.trim(), s.width - 2 * m - (line.startsWith(' ') ? 12 : 0), size);
+        if (parts.length === 0) shown.push({ text: '', dim: false, support: false });
+        parts.forEach((t, j) => shown.push({ text: (line.startsWith(' ') ? '  ' : '') + t, dim: line.startsWith(' '), support: j === 0 && line.startsWith('SUPPORT:') }));
+      }
+    }
+    for (let i = this.scroll; i < shown.length; i++) {
+      if (y > bottom - lineH) break;
+      const line = shown[i] as { text: string; dim: boolean; support: boolean };
+      if (line.support) this.supportY = y;
+      drawTextFit(s, line.text, m, y, size, s.width - 2 * m, { color: line.dim ? p.dim : p.ink, glow: 0.2 });
       y += lineH;
     }
-    drawTextFit(s, 'LEFT / RIGHT PAGE    <TAB> SECTION (BASIC, STRATEGY, ADVANCED)    UP / DOWN SCROLL    <L> LEARNING CENTER    <ESC> BACK      FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    if (!compact) drawTextFit(s, 'FULL MANUAL: DOCS/HOW_TO_PLAY.MD', s.width - m, bottom - 12, 9, s.width / 2, { align: 'right', color: p.dim, glow: 0 });
+    this.bar.draw(s, [{ label: '< PAGE', code: 'ArrowLeft' }, { label: 'PAGE >', code: 'ArrowRight' }, { label: 'SECTION', code: 'Tab', key: 'TAB' }, { label: 'UP', code: 'ArrowUp' }, { label: 'DOWN', code: 'ArrowDown' }, { label: 'LEARNING CENTER', code: 'KeyL', key: 'L' }, { label: 'BACK', code: 'Escape', key: 'ESC' }], this.keys.touchUsed || compact);
   }
 }

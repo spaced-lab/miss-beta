@@ -14,6 +14,7 @@
 import type { Surface } from '../render/canvas';
 import { uiColors, withAlpha } from '../render/palettes';
 import { drawText, drawTextFit } from '../render/vectorFont';
+import type { Input } from './input';
 
 export interface BarItem {
   /** The button's text. */
@@ -120,4 +121,30 @@ export function drawMenu(s: Surface, boxes: readonly BarBox[], title: string, to
   const top = boxes.reduce((a, b) => Math.min(a, b.y), s.height);
   drawTextFit(s, title, s.width / 2, Math.max(10, top - 26), 12, s.width - 32, { align: 'center', color: ui.title, glow: 1.2 });
   drawBar(s, boxes, touch);
+}
+
+/**
+ * A screen's bar in one object: `tap(keys)` turns a tap on a button into that button's key press (call it in
+ * update), `draw(s, items, touch)` lays the bar out and draws it (call it last in render); `height` is what it
+ * takes along the bottom, for the content above it.
+ */
+export class ScreenBar {
+  boxes: BarBox[] = [];
+  height = 0;
+
+  tap(keys: Input): boolean {
+    const c = keys.peekClick();
+    if (!c) return false;
+    const it = barHit(c.x, c.y, this.boxes);
+    if (!it) return false;
+    keys.takeClick();
+    keys.inject(it.code, true);
+    return true;
+  }
+
+  draw(s: Surface, items: readonly BarItem[], touch: boolean): void {
+    this.boxes = barLayout(s.width, s.height, items, touch);
+    this.height = barHeight(this.boxes, s.height);
+    drawBar(s, this.boxes, touch);
+  }
 }

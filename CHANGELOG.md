@@ -2,6 +2,17 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-21: HELP, CODEX and LEADERBOARD on a phone; the demo's pixel dust in play
+
+- `ScreenBar` (ui/actionBar.ts) gives HELP (< PAGE, PAGE >, SECTION, UP, DOWN, LEARNING CENTER, BACK), CODEX (tabs, UP,
+  DOWN, LORE, LEARN, TITLE; a tap on a row selects it, a second tap opens its lore) and LEADERBOARD (< MODE, MODE >,
+  TITLE) their bars. Under 700 px HELP re-wraps every line at 9 px instead of shrinking it, CODEX shows the tag's first
+  letter and cuts names to the width with a two-line note, LEADERBOARD shows rank, handle, rounds and score.
+- The SYSTEM map now carries the SUPER-DUPER-DEMO's pixel dust (render/pixelDust.ts): a launch bursts up from HOME, an
+  impact or PI bursts from the body, a breakup bursts wider, a nuclear burst adds a ring, a close approach rings HOME;
+  craft in flight leave a short exhaust trail along their path. Bursts wait under an event's cinematic and start when
+  the map returns; nothing is drawn under REDUCE MOTION.
+
 ### 2026-10-21: the main game on a phone (IDEAS 38), PERIMETER held sideways
 
 - `ui/actionBar.ts`: an ACTION BAR along the bottom of the SYSTEM screen (PAUSE / RUN, WARP -, WARP +, PLANNER, MORE on a
