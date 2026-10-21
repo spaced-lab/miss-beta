@@ -1,5 +1,5 @@
 // WHAT: PERIMETER's on-screen controls for phones and tablets: turn left and right on the left thumb, fire, pulse,
-//       seeker and swarm on the right thumb, and a BACK button top-left.
+//       seeker and swarm on the right thumb, and the BACK tab top-left (ui/touchBack.ts).
 // WHY:  Owner 2026-10-20: "give on screen controls to minigame if on a phone however it makes sense". The old touch
 //       scheme (IDEAS 2: screen thirds, a two-finger tap to pulse) had no visible buttons and no way to fire a seeker
 //       or a swarm, or to leave the screen without a keyboard.
@@ -13,6 +13,7 @@
 
 import type { Surface } from '../render/canvas';
 import { drawText } from '../render/vectorFont';
+import { drawBackTab, onBackTab } from '../ui/touchBack';
 
 export type PadId = 'left' | 'right' | 'fire' | 'pulse' | 'seeker' | 'swarm' | 'back';
 
@@ -45,8 +46,6 @@ export function padLayout(W: number, H: number): PadButton[] {
   ];
 }
 
-/** The BACK button's box, CSS px (a box like the other screens' BACK, not a circle; `padHeld` reports it as 'back'). */
-export const BACK_BOX = { x: 8, y: 8, w: 78, h: 34 };
 
 /**
  * The buttons under any of `points`. Example: a finger on FIRE's centre holds 'fire'; one far from every button
@@ -55,7 +54,7 @@ export const BACK_BOX = { x: 8, y: 8, w: 78, h: 34 };
 export function padHeld(points: readonly { x: number; y: number }[], layout: readonly PadButton[]): Set<PadId> {
   const held = new Set<PadId>();
   for (const p of points) {
-    if (p.x >= BACK_BOX.x && p.x <= BACK_BOX.x + BACK_BOX.w + 6 && p.y >= BACK_BOX.y && p.y <= BACK_BOX.y + BACK_BOX.h + 6) {
+    if (onBackTab(p.x, p.y)) {
       held.add('back');
       continue;
     }
@@ -76,11 +75,7 @@ export function padHeld(points: readonly { x: number; y: number }[], layout: rea
 /** Draw the pad: outlined circles, filled faintly while held. `playing` false shows only BACK (the panels). */
 export function drawPad(s: Surface, layout: readonly PadButton[], held: ReadonlySet<PadId>, playing: boolean): void {
   const p = s.palette;
-  const b = BACK_BOX;
-  s.ctx.fillStyle = p.bg;
-  s.ctx.fillRect(b.x, b.y, b.w, b.h);
-  s.stroke([b.x, b.y, b.x + b.w, b.y, b.x + b.w, b.y + b.h, b.x, b.y + b.h], { closed: true, color: p.hot, glow: 1 });
-  drawText(s, '< BACK', b.x + b.w / 2, b.y + b.h / 2 - 6, 12, { align: 'center', color: p.hot, glow: 0.8 });
+  drawBackTab(s);
   if (!playing) return;
   for (const btn of layout) {
     const on = held.has(btn.id);

@@ -821,25 +821,82 @@ function saucer(s: Surface, x: number, y: number, r: number, t: number, ui: Ui):
   }
 }
 
+/**
+ * A classic gray's head, `hh` px tall, its crown at (x, top): a wide cranium tapering to a pointed chin, and two
+ * large black almond eyes slanting up and out, each a crescent from a rounded inner end to a sharp outer point, with
+ * a glint. `blink` 0..1 squeezes the eyes shut. Owner 2026-10-21: "more of the almond pointed oval eyes like
+ * classic alien head".
+ */
+function grayHead(s: Surface, x: number, top: number, hh: number, col: string, blink = 1): void {
+  const cy = top + hh * 0.42;
+  const w = hh * 0.36;
+  const head: number[] = [];
+  // The cranium (upper half ellipse), then the jaw tapering to a point: x = w cos(q pi/2)^1.5, y = 0.58 hh sin(q pi/2)^0.9.
+  for (let i = 0; i <= 24; i++) {
+    const a = Math.PI + (i / 24) * Math.PI;
+    head.push(x + Math.cos(a) * w, cy + Math.sin(a) * hh * 0.42);
+  }
+  for (let i = 1; i <= 24; i++) {
+    const u = (i / 24) * 2 - 1;
+    const v = Math.abs(u);
+    const side = u < 0 ? 1 : -1;
+    const q = 1 - v;
+    head.push(x + side * w * Math.cos((q * Math.PI) / 2) ** 1.5, cy + hh * 0.58 * Math.sin((q * Math.PI) / 2) ** 0.9);
+  }
+  const ctx = s.ctx;
+  // A faint gray face, so the black eyes read against it.
+  ctx.fillStyle = s.palette.bg;
+  ctx.beginPath();
+  for (let i = 0; i < head.length; i += 2) ctx[i === 0 ? 'moveTo' : 'lineTo'](head[i] ?? x, head[i + 1] ?? cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = col;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  s.stroke(head, { closed: true, color: col, glow: 1.2 });
+  for (const sd of [-1, 1]) {
+    // Inner end low by the nose, outer point high at the temple.
+    const ix = x + sd * hh * 0.04;
+    const iy = cy + hh * 0.1;
+    const ox = x + sd * hh * 0.33;
+    const oy = cy - hh * 0.1;
+    const dx = ox - ix;
+    const dy = oy - iy;
+    const len = Math.hypot(dx, dy);
+    const nx = -dy / len;
+    const ny = dx / len;
+    const up = sd > 0 ? -1 : 1;
+    const eye: number[] = [];
+    // Fullest a third of the way out (rounded inner end), thinning to the outer point.
+    for (let i = 0; i <= 16; i++) {
+      const u = i / 16;
+      const b = Math.sin(Math.PI * u ** 0.7) * hh * 0.13 * blink;
+      eye.push(ix + dx * u + nx * b * up, iy + dy * u + ny * b * up);
+    }
+    for (let i = 15; i >= 1; i--) {
+      const u = i / 16;
+      const b = Math.sin(Math.PI * u ** 0.7) * hh * 0.06 * blink;
+      eye.push(ix + dx * u - nx * b * up, iy + dy * u - ny * b * up);
+    }
+    ctx.fillStyle = '#05060A';
+    ctx.beginPath();
+    for (let i = 0; i < eye.length; i += 2) ctx[i === 0 ? 'moveTo' : 'lineTo'](eye[i] ?? ix, eye[i + 1] ?? iy);
+    ctx.closePath();
+    ctx.fill();
+    s.stroke(eye, { closed: true, color: col, glow: 0.5, width: 1.2 });
+    if (blink > 0.5) s.dot(ix + dx * 0.3 + nx * up * hh * 0.05, iy + dy * 0.3 + ny * up * hh * 0.05, Math.max(1, hh * 0.022), '#FFFFFF', 0.9);
+  }
+  // Two nose slits and a small mouth.
+  s.stroke([x - hh * 0.02, cy + hh * 0.24, x - hh * 0.015, cy + hh * 0.27], { color: col, glow: 0.3, width: 1 });
+  s.stroke([x + hh * 0.02, cy + hh * 0.24, x + hh * 0.015, cy + hh * 0.27], { color: col, glow: 0.3, width: 1 });
+  s.stroke([x - hh * 0.045, cy + hh * 0.37, x + hh * 0.045, cy + hh * 0.37], { color: col, glow: 0.4, width: 1 });
+}
+
 /** A gray alien, `h` px tall, standing at (x, y): big head, almond eyes, one hand waving, one on a tablet. */
 function grayAlien(s: Surface, x: number, y: number, h: number, t: number, ui: Ui): void {
   const col = tint(s, '#C9D6E8', ui.text);
-  const hy = y - 0.8 * h;
-  const head: number[] = [];
-  for (let i = 0; i <= 40; i++) {
-    const a = (i / 40) * TAU;
-    const narrow = 1 - 0.45 * Math.max(0, Math.sin(a));
-    head.push(x + Math.cos(a) * 0.17 * h * narrow, hy + Math.sin(a) * 0.17 * h);
-  }
-  s.stroke(head, { closed: true, color: col, glow: 1.2 });
-  const blink = frac(t / 2.3) > 0.95 ? 0.2 : 1;
-  for (const sd of [-1, 1]) {
-    const ex = x + sd * 0.065 * h;
-    const ey = hy + 0.02 * h;
-    for (const f of [1, 0.65, 0.3]) s.stroke(ell(ex, ey, 0.055 * h * f, 0.022 * h * f * blink, sd * 0.45, 18), { closed: true, color: tint(s, '#5A6270', ui.dim), glow: 0, width: 2 });
-    s.dot(ex - sd * 0.015 * h, ey - 0.006 * h, 2, '#FFFFFF', 0.9);
-  }
-  s.stroke([x - 0.02 * h, hy + 0.11 * h, x + 0.02 * h, hy + 0.11 * h], { color: col, glow: 0.4 });
+  grayHead(s, x, y - 1.0 * h, 0.4 * h, col, frac(t / 2.3) > 0.95 ? 0.15 : 1);
   s.stroke([x - 0.02 * h, y - 0.63 * h, x - 0.02 * h, y - 0.57 * h], { color: col, glow: 0.6 });
   s.stroke([x + 0.02 * h, y - 0.63 * h, x + 0.02 * h, y - 0.57 * h], { color: col, glow: 0.6 });
   s.stroke([x - 0.09 * h, y - 0.56 * h, x + 0.09 * h, y - 0.56 * h, x + 0.06 * h, y - 0.32 * h, x + 0.08 * h, y - 0.27 * h, x - 0.08 * h, y - 0.27 * h, x - 0.06 * h, y - 0.32 * h], { closed: true, color: col, glow: 1 });
@@ -937,16 +994,28 @@ export const rockHits: DemoScene = (s, t, ui, k) => {
   const since = t - (cur * HIT_P + 0.1);
   const jolt = since >= 0 && since < 0.2 ? Math.sin(t * 90) * 7 * (1 - since / 0.2) : 0;
   const body: number[] = [];
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * TAU + t * 0.4;
-    const r = R * (0.78 + 0.3 * hash01(i, 3, 31));
+  // A lumpy outline: two octaves of fixed noise on the radius (24 points).
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * TAU + t * 0.4;
+    const r = R * (0.8 + 0.18 * hash01(Math.floor(i / 3), 3, 31) + 0.1 * hash01(i, 4, 31));
     body.push(cx + jolt + Math.cos(a) * r, cy + Math.sin(a) * r * 0.85);
   }
   const rockCol = tint(s, '#FFB000', ui.text);
   s.stroke(body, { closed: true, color: rockCol, glow: 1.2 });
-  for (let i = 0; i < 5; i++) {
-    const a = hash01(i, 1, 32) * TAU + t * 0.4;
-    s.stroke(ell(cx + jolt + Math.cos(a) * R * 0.45, cy + Math.sin(a) * R * 0.35, R * 0.12, R * 0.06, a, 14), { closed: true, color: rockCol, glow: 0.3, alpha: 0.6 });
+  // NOTE: owner 2026-10-21: the rock "looks like a weird fruit slice with seeds in it ... almost like a nut": its
+  // craters were five small closed ellipses bunched at one radius. Craters are now open rims of different sizes spread
+  // over the face: a lit arc on the side away from the light (upper left) and a short shadow lip inside it, squashed
+  // towards the limb, turning with the rock.
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU + hash01(i, 1, 32) * 0.8 + t * 0.4;
+    const d = R * (0.15 + 0.5 * hash01(i, 2, 32));
+    const ccx = cx + jolt + Math.cos(a) * d;
+    const ccy = cy + Math.sin(a) * d * 0.85;
+    const cr = R * (0.07 + 0.12 * hash01(i, 3, 32));
+    const sq = Math.sqrt(Math.max(0.2, 1 - (d / R) ** 2));
+    const tilt = a + Math.PI / 2;
+    s.stroke(ell(ccx, ccy, cr, cr * sq, tilt, 18, Math.PI * 0.1, Math.PI * 1.25), { color: rockCol, glow: 0.4, alpha: 0.8 });
+    s.stroke(ell(ccx, ccy, cr * 0.75, cr * 0.75 * sq, tilt, 12, Math.PI * 1.3, Math.PI * 1.9), { color: rockCol, glow: 0, alpha: 0.45 });
   }
   const cols = dustColors(s);
   for (let i = Math.max(0, cur - 3); i <= cur + 1; i++) {
@@ -1125,9 +1194,7 @@ export const mothership: DemoScene = (s, t, ui, k) => {
     const wy = hy - ry * 0.1;
     s.stroke([wx - 9, wy - 7, wx + 9, wy - 7, wx + 9, wy + 7, wx - 9, wy + 7], { closed: true, color: tint(s, '#2EF2FF', ui.sub), glow: 0.6 });
     const bob = Math.sin(t * 5 + i) * 1.5;
-    s.stroke(ell(wx, wy - 1 + bob, 4, 5, 0, 12), { closed: true, color: hull, glow: 0.6 });
-    s.dot(wx - 1.6, wy - 1 + bob, 1.6, '#000000', 1);
-    s.dot(wx + 1.6, wy - 1 + bob, 1.6, '#000000', 1);
+    grayHead(s, wx, wy - 7 + bob, 15, hull, frac(t / 1.9 + i * 0.37) > 0.94 ? 0.15 : 1);
   }
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * TAU + t * 3;

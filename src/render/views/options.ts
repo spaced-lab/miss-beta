@@ -209,11 +209,18 @@ export class OptionsScreen implements Screen {
     this.rowYs = [];
     this.valueX = narrow ? x + (widest * fs) / 14 + 14 : x + 300;
     const groups = new Set(this.rows.map((r) => r.group)).size;
-    const step = Math.max(narrow ? fs * ts + 10 : 22, Math.min(32, (s.height - 230 - groups * 8) / this.rows.length));
+    // On a narrow window each group's heading gets a line of its own above the group (owner 2026-10-21: the two
+    // PERIMETER rows read as the game's own DIFFICULTY and START LEVEL without it).
+    const headH = narrow ? 13 : 0;
+    const step = Math.max(narrow ? fs * ts + 8 : 22, Math.min(32, (s.height - 230 - groups * (8 + headH)) / this.rows.length));
     this.rows.forEach((r, i) => {
       // A small gap and a dim heading where a new group starts.
-      if (i > 0 && this.rows[i - 1]?.group !== r.group) y += 8;
-      if (!narrow && (i === 0 || this.rows[i - 1]?.group !== r.group)) drawText(s, r.group, x - 140, y + 2, 10, { color: ui.dim, glow: 0 });
+      const first = i === 0 || this.rows[i - 1]?.group !== r.group;
+      if (i > 0 && first) y += 8;
+      if (first && narrow) {
+        drawText(s, r.group, x, y, 8, { color: ui.head, glow: 0.3 });
+        y += headH;
+      } else if (first) drawText(s, r.group, x - 140, y + 2, 10, { color: ui.dim, glow: 0 });
       this.rowYs.push(y);
       const sel = i === this.sel;
       if (sel) drawText(s, '>', x - 24, y, fs, { color: ui.sel, glow: 1.6 });

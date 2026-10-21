@@ -22,9 +22,7 @@ import { UiSfx } from './audio/ui';
 import type { CenterScreen } from './render/views/center';
 import { LazyScreen } from './game/lazyScreen';
 import { Input } from './ui/input';
-
-/** The touch BACK button, CSS px. */
-const BACK = { x: 8, y: 8, w: 78, h: 34 };
+import { drawBackTab, onBackTab } from './ui/touchBack';
 
 function boot(): void {
   const canvas = document.getElementById('game');
@@ -173,24 +171,18 @@ function boot(): void {
       if (keys.anyPressed('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab')) sfx.move();
       if (keys.anyPressed('Enter')) sfx.select();
     }
-    // Touch screens have no Esc key: a BACK button top-left on every screen but the title presses it (each screen's
+    // Touch screens have no Esc key: a BACK tab in the top-left corner on every screen but the title presses it (each screen's
     // Escape goes back, closes a panel or pauses) (owner 2026-10-20, "make sure the menu works on mobile").
     const back = keys.touchUsed && currentId !== 'title' && currentId !== 'minigame';
     const tap = back ? keys.peekClick() : null;
-    if (tap && tap.x < BACK.x + BACK.w + 6 && tap.y < BACK.y + BACK.h + 6) {
+    if (tap && onBackTab(tap.x, tap.y)) {
       keys.takeClick();
       keys.inject('Escape');
     }
     current?.update(dt);
     keys.endFrame();
     current?.render();
-    if (back) {
-      const b = BACK;
-      surface.ctx.fillStyle = surface.palette.bg;
-      surface.ctx.fillRect(b.x, b.y, b.w, b.h);
-      surface.stroke([b.x, b.y, b.x + b.w, b.y, b.x + b.w, b.y + b.h, b.x, b.y + b.h], { closed: true, color: surface.palette.hot, glow: 1 });
-      drawText(surface, '< BACK', b.x + b.w / 2, b.y + b.h / 2 - 6, 12, { align: 'center', color: surface.palette.hot, glow: 0.8 });
-    }
+    if (back) drawBackTab(surface);
     if (settings.crt) crtPass(surface, { scanlines: true, vignette: true, flicker: !settings.reduceMotion }, now / 1000);
     if (stats.stale) drawText(surface, 'NEW BUILD AVAILABLE: REFRESH TO LOAD IT', surface.width / 2, 4, 11, { align: 'center', color: surface.palette.hot, glow: 1 });
     const cpu = performance.now() - t0;

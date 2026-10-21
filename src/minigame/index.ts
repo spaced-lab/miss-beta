@@ -31,6 +31,7 @@ import { isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSetting
 import { loadMinigameSettings, saveMinigameSettings } from './prefs';
 import { renderMinigame } from './render';
 import { drawPad, padHeld, padLayout, type PadId } from './touchPad';
+import { onBackTab } from '../ui/touchBack';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
 import { isSavedReplay, Player, Recorder, type SavedReplay } from './replay';
@@ -169,6 +170,8 @@ export class MinigameScreen implements Screen {
   /** On-screen pad buttons held this frame and last frame (touchPad.ts; the edges fire pulse, seeker and swarm). */
   private padNow = new Set<PadId>();
   private padWas = new Set<PadId>();
+  /** A finger has been seen down since the last click (see update). */
+  private sawTouch = false;
   /** Recording of the current game (null when it cannot be replayed: resumed, or a cheat was used). */
   private rec: Recorder | null = null;
   /** Playing a saved replay instead of the keyboard. */
@@ -212,7 +215,16 @@ export class MinigameScreen implements Screen {
     this.padWas = this.padNow;
     this.padNow = k.touchUsed ? padHeld(k.touchPoints ?? [], padLayout(this.s.width, this.s.height)) : new Set();
     const padEdge = (id: PadId): boolean => this.padNow.has(id) && !this.padWas.has(id);
-    if (padEdge('back') && !this.labState.open) {
+    // NOTE: a tap shorter than a frame never shows in touchPoints; its click still arrives, so it counts too.
+    // Only a tap the frame loop never saw as a held finger counts: releasing a held FIRE finger is also a "click"
+    // and must not restart a game from the game-over panel.
+    const seen = this.sawTouch;
+    const rawClick = k.takeClick?.() ?? null;
+    if (rawClick) this.sawTouch = false;
+    if ((k.touchPoints ?? []).length > 0) this.sawTouch = true;
+    const tapClick = rawClick && !seen ? rawClick : null;
+    const tapBack = tapClick !== null && k.touchUsed && onBackTab(tapClick.x, tapClick.y);
+    if ((padEdge('back') || tapBack) && !this.labState.open) {
       if (this.demo) this.stopDemo();
       this.router.go('title');
       return;
@@ -291,7 +303,7 @@ export class MinigameScreen implements Screen {
     }
     const touches = k.touchPoints ?? [];
     // NOTE: a finger on BACK (held) must not also start a game from the panel.
-    const touchStart = touches.length > 0 && !this.touchWas && !this.padNow.has('back');
+    const touchStart = (touches.length > 0 && !this.touchWas && !this.padNow.has('back')) || (tapClick !== null && !tapBack);
     this.touchWas = touches.length > 0;
     if (this.player && st.status === 'over' && (touchStart || k.pressed('Space'))) {
       this.endReplay();

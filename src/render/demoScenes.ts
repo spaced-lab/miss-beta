@@ -222,23 +222,41 @@ export const impacts: DemoScene = (s, t, ui, k) => {
   for (let i = 0; i < n + 2; i++) {
     const rocks = k >= 0.5 ? 1 + Math.floor(rng.next() * 3 * k) : 1;
     for (let r = 0; r < rocks; r++) {
+      // NOTE: owner 2026-10-21 ("globe with dots all over the edge ... different colors is weird"): every hit used to
+      // land on the rim (0.9 R) and leave a permanent coloured dot there, a flat ring of dots around a 3-D globe.
+      // Hits now land anywhere on the visible face (uniform over the disc), their shock rings are flattened by the
+      // tilt of the surface there (minor axis x sqrt(1 - (d / R)^2)), and the scar cools away over 3 s.
       const a = rng.float(0, Math.PI * 2);
-      const hx = cx + shake + Math.cos(a) * R * 0.9;
-      const hy = cy + Math.sin(a) * R * 0.9;
+      const d = R * 0.88 * Math.sqrt(rng.next());
+      const hx = cx + shake + Math.cos(a) * d;
+      const hy = cy + Math.sin(a) * d;
+      const flat = Math.max(0.25, Math.sqrt(Math.max(0, 1 - (d / R) ** 2)));
+      // Inbound from the upper left, steeply.
+      const ia = -Math.PI * (0.62 + 0.2 * rng.next());
       const dt = t - at - r * 0.05;
       const col = cols[(i * 3 + r) % cols.length] ?? ui.title;
       if (dt < 0) {
         // Inbound: a streak closing on the hit point over the last 0.35 s.
         const f = Math.max(0, 1 + dt / 0.35);
-        const sx = hx + Math.cos(a) * R * 2.5 * (1 - f);
-        const sy = hy + Math.sin(a) * R * 2.5 * (1 - f);
-        if (f > 0) s.stroke([sx + Math.cos(a) * 30, sy + Math.sin(a) * 30, sx, sy], { color: col, glow: 1.4, width: 2 });
+        const sx = hx + Math.cos(ia) * R * 2.5 * (1 - f);
+        const sy = hy + Math.sin(ia) * R * 2.5 * (1 - f);
+        if (f > 0) s.stroke([sx + Math.cos(ia) * 30, sy + Math.sin(ia) * 30, sx, sy], { color: col, glow: 1.4, width: 2 });
       } else {
         landed++;
-        dustBurst(s, hx, hy, dt, i * 31 + r, { n: 40 + Math.round(90 * k), speed: 160 + 260 * k, life: 0.8, size: 1.5, from: a - 1.3, to: a + 1.3 });
+        if (dt < 1.2) dustBurst(s, hx, hy, dt, i * 31 + r, { n: 40 + Math.round(90 * k), speed: 160 + 260 * k, life: 0.8, size: 1.5, from: ia + Math.PI - 1.1, to: ia + Math.PI + 1.1 });
         const ring = Math.min(1, dt / 0.5);
-        if (ring < 1) s.circle(hx, hy, 4 + ring * R * (0.5 + 0.4 * k), { color: col, glow: 1.4, alpha: 1 - ring });
-        s.dot(hx, hy, 3, col, 0.9);
+        if (ring < 1) {
+          const rr = 4 + ring * R * (0.22 + 0.18 * k);
+          const pts: number[] = [];
+          for (let q = 0; q <= 28; q++) {
+            const u = (q / 28) * Math.PI * 2;
+            const ex = Math.cos(u) * rr * flat;
+            const ey = Math.sin(u) * rr;
+            pts.push(hx + ex * Math.cos(a) - ey * Math.sin(a), hy + ex * Math.sin(a) + ey * Math.cos(a));
+          }
+          s.stroke(pts, { closed: true, color: col, glow: 1.4, alpha: 1 - ring });
+        }
+        if (dt < 3) s.dot(hx, hy, 2.5, col, 0.9 * (1 - dt / 3));
       }
     }
     at += gap;

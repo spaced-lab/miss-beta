@@ -11,7 +11,7 @@ import { KNOBS } from '../../config/knobs';
 import { narrativeLength, type Narrative, type NarrativeLine } from '../../game/narrative';
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
-import { charsPerLine, drawText } from '../vectorFont';
+import { charsPerLine, drawText, getTextScale, measureText } from '../vectorFont';
 
 interface Queued {
   n: Narrative;
@@ -106,12 +106,17 @@ export class Teletype {
     if (!c) return;
     const s = this.s;
     const p = s.palette;
-    const size = anchor === 'center' ? 11 : 10;
-    const headSize = anchor === 'center' ? 15 : 12;
-    const panelW = anchor === 'center' ? Math.min(760, s.width - 32) : Math.min(660, Math.max(320, Math.floor(s.width * 0.5)));
+    // NOTE: owner 2026-10-21 (phones): under 700 px the panel takes the full width with smaller text, the header
+    // shrinks to fit on one line, and a docked brief sits a third of the way down instead of at the bottom, where the
+    // autopilot's pane and the status lines are.
+    const narrow = s.width < 700;
+    const size = narrow ? 8.5 : anchor === 'center' ? 11 : 10;
+    const panelW = narrow ? s.width - 32 : anchor === 'center' ? Math.min(760, s.width - 32) : Math.min(660, Math.max(320, Math.floor(s.width * 0.5)));
+    const head0 = anchor === 'center' ? 15 : 12;
+    const headSize = narrow ? Math.min(head0, (head0 * (panelW - 24)) / Math.max(1, measureText(c.n.header.text, head0) * getTextScale())) : head0;
     const cols = charsPerLine(panelW - 24, size);
     const lines = c.n.lines.flatMap((l) => Teletype.wrap(l, cols));
-    const lineH = size * 1.5;
+    const lineH = size * 1.5 * (narrow ? getTextScale() : 1);
     const panelH = 14 + headSize + 10 + lines.length * lineH + 10;
     let x: number;
     let y: number;
@@ -122,7 +127,7 @@ export class Teletype {
       s.ctx.fillRect(0, 0, s.width, s.height);
     } else {
       x = s.width - 16 - panelW;
-      y = s.height - 16 - 56 - panelH;
+      y = narrow ? Math.round(s.height * 0.3) : s.height - 16 - 56 - panelH;
     }
     s.ctx.fillStyle = withAlpha(p.bg, 0.78);
     s.ctx.fillRect(x, y, panelW, panelH);

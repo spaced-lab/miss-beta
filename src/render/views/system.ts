@@ -1068,28 +1068,35 @@ export class SystemScreen implements Screen {
     const right = this.planner.isOpen;
     const hx = right ? s.width - 16 : 16;
     const align = right ? 'right' : 'left';
-    drawText(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, s.height - 64, 10, { align, color: ui.title, glow: 1 });
+    drawTextFit(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, s.height - 64, 10, s.width - 32, { align, color: ui.title, glow: 1 });
     // How to change the pace, always on screen while the game plays itself.
     const lv = this.settings.autoSpeed ?? 'NORMAL';
     const pace = AUTO_SPEED_LEVELS.map((l) => (l === lv ? `[${l}]` : l)).join(' ');
-    drawText(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, s.height - 50, 9, { align, color: ui.sub, glow: 0.5 });
+    // On a phone the pace keys do not exist and the line ran into the HUD's bottom line.
+    if (s.width >= 700) drawTextFit(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, s.height - 50, 9, s.width - 32, { align, color: ui.sub, glow: 0.5 });
     const ap = this.autoPane;
     if (!ap) return;
     // Bottom left: the teletype docks bottom right and the HUD owns the top.
-    const w = Math.min(560, s.width * 0.42, s.width - 32);
-    const lines = wrapText(ap.pane.body, w - 28, 11);
-    const h = 44 + lines.length * 16 + 10;
+    // NOTE: owner 2026-10-21 (phones): under 700 px the pane takes the full width with smaller text (title 10,
+    // body 8.5) instead of 42 % of the width at 11, which wrapped to a tall box over most of a phone's screen.
+    const narrow = s.width < 700;
+    const w = narrow ? s.width - 32 : Math.min(560, s.width * 0.42, s.width - 32);
+    const bfs = narrow ? 8.5 : 11;
+    const tfs = narrow ? 10 : 13;
+    const lh = bfs * 1.45 * getTextScale();
+    const lines = wrapText(ap.pane.body, w - 28, bfs);
+    const h = tfs * 2 + 18 + lines.length * lh + 10;
     const x = right ? s.width - 16 - w : 16;
     const y = s.height - 74 - h;
     const fade = Math.min(1, ap.t * 4, (ap.pane.hold - ap.t) * 3);
     s.ctx.fillStyle = withAlpha(s.palette.bg, 0.88 * fade);
     s.ctx.fillRect(x, y, w, h);
     s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: ui.sub, glow: 1, alpha: fade });
-    drawText(s, ap.pane.title, x + 14, y + 12, 13, { color: ui.title, glow: 1.2, alpha: fade });
-    let ly = y + 36;
+    drawText(s, ap.pane.title, x + 14, y + 12, tfs, { color: ui.title, glow: 1.2, alpha: fade });
+    let ly = y + tfs * 2 + 10;
     for (const l of lines) {
-      drawText(s, l, x + 14, ly, 11, { color: ui.text, glow: 0.4, alpha: fade, lower: true });
-      ly += 16;
+      drawText(s, l, x + 14, ly, bfs, { color: ui.text, glow: 0.4, alpha: fade, lower: true });
+      ly += lh;
     }
     // Time left on this pane, so the viewer knows the next step is coming.
     const frac = 1 - ap.t / ap.pane.hold;

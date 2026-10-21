@@ -386,9 +386,9 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   const H = s.height;
   const m = 16;
   const fs = 14;
-  // The left column's top: below the touch pad's BACK button when it is shown.
+  // The left column's top: below the touch BACK tab when it is shown.
   const touch = typeof opts.touchTop === 'number';
-  const lt = touch ? m + 40 : m;
+  const lt = touch ? 36 : m;
 
   drawText(s, `SCORE ${pad(st.score, 6)}`, m, lt, fs);
   drawText(s, opts.daily ? `DAILY ${opts.daily.date}  BEST ${pad(opts.daily.best, 6)}` : `BEST  ${pad(opts.best, 6)}`, m, lt + fs * 1.7, fs, { color: opts.daily ? p.hot : p.dim, glow: 0 });
