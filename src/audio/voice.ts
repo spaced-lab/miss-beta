@@ -69,6 +69,8 @@ export class Voice {
   private lastSaid = new Map<VoiceId, number>();
   /** Bumped on every request so an older, slower load never plays over a newer line. */
   private ticket = 0;
+  /** The line last started and when (performance.now() s), for a caller that follows it (the demo's teletype). */
+  current: { id: VoiceId; at: number } | null = null;
 
   constructor(private readonly synth: Synth) {}
 
@@ -85,13 +87,21 @@ export class Voice {
     void this.load(bus.ctx, voiceUrl(this.mode, id)).then((buf) => {
       if (!buf || ticket !== this.ticket || performance.now() / 1000 - now > KNOBS.VOICE_STALE_S) return;
       const live = this.synth.bus();
-      if (live) this.play(live.ctx, live.master, buf, then);
+      if (live) this.play(live.ctx, live.master, buf, then, id);
     });
+  }
+
+  /** Fetch and decode a line now without playing it, so a later `say` starts on time. */
+  preload(id: VoiceId): void {
+    const bus = this.synth.bus();
+    if (this.mode === 'OFF' || typeof fetch === 'undefined' || !bus) return;
+    void this.load(bus.ctx, voiceUrl(this.mode, id));
   }
 
   /** Stop whatever is playing (screen change, pause of the audio). */
   hush(): void {
     this.ticket++;
+    this.current = null;
     const p = this.synth.bus();
     if (this.playing && p) this.fadeOut(p.ctx, this.playing);
     this.playing = null;
@@ -118,7 +128,7 @@ export class Voice {
     p.src.stop(t + KNOBS.VOICE_CUT_S);
   }
 
-  private play(ctx: AudioContext, master: GainNode, buf: AudioBuffer, then: VoiceId | undefined): void {
+  private play(ctx: AudioContext, master: GainNode, buf: AudioBuffer, then: VoiceId | undefined, id: VoiceId): void {
     if (this.playing) this.fadeOut(ctx, this.playing);
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -132,6 +142,7 @@ export class Voice {
       if (then) this.say(then, true);
     };
     this.playing = cur;
+    this.current = { id, at: performance.now() / 1000 };
     src.start();
   }
 }

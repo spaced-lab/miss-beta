@@ -109,8 +109,9 @@ export function dustTrail(s: Surface, t: number, pos: (te: number) => { x: numbe
 }
 
 /**
- * Hit-storm rate, hits a second, at heat h in 0..1: nothing below 0.3, then up to KNOBS.DEMO_STORM_MAX_HZ.
- * Example: stormRate(0.2) = 0; stormRate(1) = DEMO_STORM_MAX_HZ.
+ * Hit-storm rate, hits a second, at heat h: nothing below 0.3, then DEMO_STORM_MAX_HZ x ((h - 0.3) / 0.7)^2, which
+ * keeps rising past h = 1 (the finale's blur pushes heat to 1.45). Example: stormRate(0.2) = 0; stormRate(1) =
+ * DEMO_STORM_MAX_HZ.
  */
 export function stormRate(h: number): number {
   const x = Math.max(0, (h - 0.3) / 0.7);
@@ -133,6 +134,8 @@ export function hitStorm(s: Surface, t: number, h: number, seed: number): void {
   const last = Math.floor(t * r) + 2;
   const first = Math.max(0, last - Math.ceil(r * 1.3) - 2);
   const cols = dustColors(s);
+  // Past heat 1 (the finale's blur) only the rate keeps rising; each hit stays the size it was at 1.
+  const hc = Math.min(1, h);
   for (let i = first; i <= last; i++) {
     const at = i / r;
     const x = s.width * (0.06 + 0.88 * hash01(i, seed, 1));
@@ -145,8 +148,8 @@ export function hitStorm(s: Surface, t: number, h: number, seed: number): void {
       const sy = y - Math.sin(ang) * 260 * (1 - f);
       s.stroke([sx - Math.cos(ang) * 26, sy - Math.sin(ang) * 26, sx, sy], { color: cols[i % cols.length] ?? '#FFFFFF', glow: 1.2, width: 2 });
     } else if (dt >= 0) {
-      dustBurst(s, x, y, dt, i * 7 + seed, { n: 40 + Math.round(60 * h), speed: 170 + 260 * h, life: 0.7, size: 1.5 });
-      if (dt < 0.45) s.circle(x, y, 3 + dt * (90 + 120 * h), { color: cols[(i + 3) % cols.length] ?? '#FFFFFF', glow: 1.2, alpha: 1 - dt / 0.45 });
+      dustBurst(s, x, y, dt, i * 7 + seed, { n: 40 + Math.round(60 * hc), speed: 170 + 260 * hc, life: 0.7, size: 1.5 });
+      if (dt < 0.45) s.circle(x, y, 3 + dt * (90 + 120 * hc), { color: cols[(i + 3) % cols.length] ?? '#FFFFFF', glow: 1.2, alpha: 1 - dt / 0.45 });
     }
   }
 }

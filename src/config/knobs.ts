@@ -423,8 +423,9 @@ export const KNOBS = {
   TIP_SECONDS: 12,
   /** Montage pacing [knob]: the blur floor, cuts at the floor before the pause, the pause, typing speed. NOTE: owner
    *  2026-10-18 "faster, the ending is perfect": the blur is counted in cuts (BLUR_CUTS 12), PAUSE_S and TYPE_CPS
-   *  unchanged. 2026-10-20: SCENE_S0 / SHRINK replaced by per-scene lengths in views/demo.ts and DEMO_REEL. */
-  DEMO_MONTAGE: { MIN_S: 0.09, BLUR_CUTS: 12, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
+   *  unchanged. 2026-10-20: SCENE_S0 / SHRINK replaced by per-scene lengths in views/demo.ts and DEMO_REEL.
+   *  2026-10-20 (third pass, "a little longer rumble part and mayhem"): BLUR_CUTS 12 -> 18. */
+  DEMO_MONTAGE: { MIN_S: 0.09, BLUR_CUTS: 18, PAUSE_S: 2.4, TYPE_CPS: 16, SAFE_MIN_S: 0.34, CALM_MIN_S: 1 },
   /** Owner 2026-10-20 ("go to town on this demo"): the finale is a reel of scenes played twice, the second time at
    *  REPEAT_X of each scene's length, then the blur. Hits pile up over it all (DEMO_STORM_MAX_HZ at full heat) and
    *  the bass rumbles every RUMBLE_S through the blur until the silent pause. */

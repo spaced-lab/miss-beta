@@ -70,6 +70,9 @@ SUPER-DUPER-DEMO (owner 2026-10-18 after shipping, "50 % time", "fast and faster
 75/150/300 s, DEMO_SPEED_START 4 -> 8, DEMO_SPEED_END 120 -> 200; new DEMO_CINE_S 1.4 and DEMO_CUT (gaps 4.5 -> 1.1 s,
 cuts 0.9 -> 0.4 s, voice 50 %); DEMO_MONTAGE.SCENE_S0 3.2 -> 1.2, BLUR_PASSES 2 replaced by BLUR_CUTS 12 (same blur).
 
+SUPER-DUPER-DEMO third pass (owner 2026-10-20, "a little longer rumble part and mayhem"): DEMO_MONTAGE.BLUR_CUTS
+12 -> 18; the montage to the pause 35 -> 46 s (running 16, merge, second warp into 4 / 16 / 32, longer blur).
+
 SUPER-DUPER-DEMO second pass (owner 2026-10-20, "cut length by 55 %", "start a bit slower, then ramp up"):
 DEMO_LENGTHS 75/150/300 -> 34/68/135 s (the games; the finale grew 30 -> 35 s for the 4- and 16-reality splits),
 DEMO_SPEED_START 8 -> 4 held DEMO_SPEED_HOLD_S 6, END 200 -> 260 on f^DEMO_SPEED_SHAPE 0.7; DEMO_CINE_S 1.4 -> 1.8, END 0.7
@@ -89,6 +92,11 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Decisions
 
+- 2026-10-20 (demo third pass): "keep running them in 16 little ones" was read as the 16-reality split staying on as
+  running simulations for three shots on one clock, each cell cutting on its own, before the merge back to one. The
+  32 split drops the two dearest cell scenes (racks, laser map) and the glow on its frames: 35 -> 25 ms a frame at
+  1410 px. The teletype's timing comes from per-voice sentence cues measured with ffmpeg silencedetect; a new voice
+  without cues types at TYPE_CPS as before.
 - 2026-10-20 (demo second pass): "cut length by 55 %" was read as the games part, which the owner called too long;
   the finale (called good) keeps its length and gains about 5 s for the reality splits the owner asked for. The
   16-reality split draws its cells without the glow pass and with the cheaper scenes (18 ms a frame at 1440 px; the

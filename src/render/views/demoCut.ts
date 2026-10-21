@@ -73,6 +73,11 @@ export class DemoCutaways {
   private f = 0;
   private hitsHeard = 0;
   private blipT = 0;
+  /** This cut's local start time and hit-storm seed, drawn per cut so no two showings land the same hits. */
+  private t0 = 0;
+  private seed = 1;
+  /** Seconds of cutaways shown, the hit storm's clock (it runs on across cuts instead of restarting). */
+  private stormT = 0;
   private bloops = new Bloops();
 
   constructor(private readonly sfx: UiSfx | null, private readonly reduceMotion: () => boolean) {}
@@ -88,6 +93,7 @@ export class DemoCutaways {
     this.last = null;
     this.used.clear();
     this.burstLeft = 0;
+    this.stormT = 0;
   }
 
   /** The next cut from the deck: an unlocked scene not shown since the deck was last reshuffled, never the last one. */
@@ -116,6 +122,7 @@ export class DemoCutaways {
     const c = KNOBS.DEMO_CUT;
     if (this.cur) {
       this.t += dt;
+      this.stormT += dt;
       this.sounds(dt);
       if (this.t < this.len) return;
       this.cur = null;
@@ -133,6 +140,10 @@ export class DemoCutaways {
     this.len = Math.max(KNOBS.DEMO_MONTAGE.SAFE_MIN_S, lerp(c.LEN0_S, c.LEN1_S, f));
     this.hitsHeard = 0;
     this.blipT = 0;
+    // NOTE: owner 2026-10-20: impacts "seem to just keep reoccurring" and some "are replayed": every cut used to start
+    // at local time 0 with the same storm seed, so each showing of a scene landed the same hits in the same places.
+    this.t0 = this.cur?.sound === 'hits' ? 0.1 + this.rng.next() * 30 : this.rng.next() * 2;
+    this.seed = this.rng.int(1, 99999);
     const synth = this.sfx?.synth;
     if (synth && this.cur?.sound === 'launch') synth.rumble(46, 0.6, 0.3 * KNOBS.DEMO_REEL.BASS_X, 160);
     if (this.rng.next() < c.VOICE_P) this.sfx?.voice.say(VOICES[this.rng.int(0, VOICES.length - 1)] ?? 'WARP');
@@ -151,7 +162,8 @@ export class DemoCutaways {
         synth.sweep({ freq: 620, freqEnd: 140, dur: 0.11, wave: 'triangle', gain: 0.03 });
       }
     } else if (cut.sound === 'hits') {
-      const n = cut.scene === rockHits || cut.scene === earthHits ? Math.floor((this.t - 0.1) / 0.3) + 1 : hitsBy(this.t, this.f);
+      const lt = this.t0 + this.t;
+      const n = cut.scene === rockHits || cut.scene === earthHits ? Math.floor((lt - 0.1) / 0.3) + 1 : hitsBy(lt, this.f);
       if (n > this.hitsHeard) {
         this.hitsHeard = n;
         synth.rumble(36 + this.rng.int(0, 6), 0.5, Math.min(0.85, 0.36 * KNOBS.DEMO_REEL.BASS_X * (1 + 0.4 * this.f)), 110);
@@ -164,8 +176,8 @@ export class DemoCutaways {
     if (!cut) return;
     s.clear();
     const ui = uiColors(s.palette, true);
-    cut.scene(s, this.t, ui, Math.min(1, 0.15 + this.f));
-    hitStorm(s, this.t, this.f * 0.85, 7070);
+    cut.scene(s, this.t0 + this.t, ui, Math.min(1, 0.15 + this.f));
+    hitStorm(s, this.stormT, this.f * 0.85, this.seed);
     drawText(s, cut.caption, s.width / 2, 28, Math.min(20, s.width / 44), { align: 'center', color: ui.title, glow: 1.6 });
     drawText(s, header, s.width / 2, s.height - 30, 10, { align: 'center', color: ui.sub, glow: 0.5 });
   }

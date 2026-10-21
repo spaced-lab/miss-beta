@@ -1,7 +1,8 @@
 // WHAT: The SUPER-DUPER-DEMO's "future" scenes: launch salvos that grow from one small rocket to six pads of mixed
 //       craft, launches from the Moon, Mars and Europa, data centres on other worlds, lasers fired from the world
 //       map at falling rocks, steered solar eruptions, a wormhole flight back in time, dinosaurs watching an impact
-//       and a launch, and a flying saucer whose gray pilot helps out.
+//       and a launch, a flying saucer whose gray pilot helps out, and the screen split into 4, 16 and 32 running
+//       realities that later fall back into one wormhole.
 // WHY:  Owner 2026-10-20: "launches are kind of boring ... multiple launches at once and different rockets", "data
 //       centers on other planets, launches from other planets, stuff that's not even in the game yet, like lasers
 //       shooting from the large map at asteroids, guided solar eruptions", "the time warp needs to be more of a worm
@@ -1189,7 +1190,7 @@ function inCell(s: Surface, x: number, y: number, w: number, h: number, scene: D
 }
 
 /** A small wormhole throat at a cell junction: coloured rings shrinking into it, turning. */
-function throat(s: Surface, x: number, y: number, r: number, t: number, seed: number): void {
+function throat(s: Surface, x: number, y: number, r: number, t: number, seed: number, glow = 1): void {
   const cols = dustColors(s);
   for (let i = 0; i < 7; i++) {
     const d = frac(i / 7 + t * 0.9);
@@ -1199,62 +1200,117 @@ function throat(s: Surface, x: number, y: number, r: number, t: number, seed: nu
       const a = (v / 10) * TAU + (1 - d) * 2 + t + seed;
       pts.push(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.85);
     }
-    s.stroke(pts, { closed: true, color: cols[(i + seed) % cols.length] ?? '#FFFFFF', glow: 1, alpha: 0.2 + 0.8 * d });
+    s.stroke(pts, { closed: true, color: cols[(i + seed) % cols.length] ?? '#FFFFFF', glow, alpha: 0.2 + 0.8 * d });
   }
 }
 
+interface RealityOpts {
+  /** The grid the cells split out of (1 x 1 for the first split): each cell grows from its parent cell's centre. */
+  parent: readonly [number, number];
+  /** Each cell cuts to another simulation every 1.3 to 2.5 s, at its own moment, and keeps running. */
+  cycle?: boolean;
+  /** 0..1: the cells fall back into one wormhole at the centre (the merge back to one reality). */
+  collapse?: number;
+}
+
 /**
- * Lay out an n x n grid of realities. During the first OPEN_S seconds each cell grows out of its parent's centre
- * (the split); borders are drawn in the dust colours, wormhole throats sit on the inner junctions, and each cell
- * carries a REALITY label.
+ * Lay out a cols x rows grid of realities. During the first OPEN_S seconds each cell grows out of its parent cell's
+ * centre (the split); borders are drawn in the dust colours, wormhole throats sit on the inner junctions, and each
+ * cell carries a label. With `cycle` a cell's simulation changes on its own clock: cell i shows
+ * cast[(5i + 7 seg) mod n] in segment seg = floor((t + phase_i) / period_i), its local time pushed on by 2.3 s a
+ * segment, so no two cells cut together and none restarts from the same moment.
  */
-function realities(s: Surface, t: number, ui: Ui, k: number, n: number, cast: readonly (readonly [DemoScene, number])[], prefix: string): void {
+function realities(s: Surface, t: number, ui: Ui, k: number, cols: number, rows: number, cast: readonly (readonly [DemoScene, number])[], prefix: string, o: RealityOpts): void {
   const OPEN_S = 0.35;
   const W = s.width;
   const H = s.height;
-  const cols = dustColors(s);
+  const cols0 = dustColors(s);
   const open = Math.min(1, t / OPEN_S);
-  const e = 1 - (1 - open) ** 3;
-  const cw = W / n;
-  const ch = H / n;
-  for (let r = 0; r < n; r++) {
-    for (let c = 0; c < n; c++) {
-      const i = r * n + c;
-      const entry = cast[i % cast.length];
+  const e = o.collapse !== undefined ? 1 - o.collapse * o.collapse * (3 - 2 * o.collapse) : 1 - (1 - open) ** 3;
+  const cw = W / cols;
+  const ch = H / rows;
+  const [pcols, prows] = o.parent;
+  const small = cols * rows > 4;
+  // NOTE: at 32 cells the frame (Chrome, 1410 px) took 35 ms; the frames, labels and throats lose their glow there.
+  const lg = cols * rows > 16 ? 0 : 1;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c;
+      let idx = i;
+      let lt = t;
+      if (o.cycle) {
+        const per = 1.3 + 1.2 * hash01(i, 2, 48);
+        const seg = Math.floor((t + per * hash01(i, 3, 48)) / per);
+        // The second sixteen of 32 are shifted in cast and time, so no cell copies the one sixteen places back.
+        idx = i * 5 + seg * 7 + Math.floor(i / 16) * 3;
+        lt = t + seg * 2.3 + Math.floor(i / 16) * 1.9;
+      }
+      const entry = cast[idx % cast.length];
       if (!entry) continue;
-      // Grow from the centre of the parent cell (the half grid) into place.
-      const pc = Math.floor(c / 2) * 2 + 1;
-      const pr = Math.floor(r / 2) * 2 + 1;
-      const fx = n === 2 ? W / 2 : pc * cw;
-      const fy = n === 2 ? H / 2 : pr * ch;
+      // Grow from the centre of the parent cell into place (or fall back into the screen's centre).
+      const fx = o.collapse !== undefined ? W / 2 : (Math.floor((c * pcols) / cols) + 0.5) * (W / pcols);
+      const fy = o.collapse !== undefined ? H / 2 : (Math.floor((r * prows) / rows) + 0.5) * (H / prows);
       const x = fx + (c * cw - fx) * e;
       const y = fy + (r * ch - fy) * e;
       const w = cw * e;
       const h = ch * e;
       if (w < 4 || h < 4) continue;
-      inCell(s, x, y, w, h, entry[0], t + entry[1], ui, Math.min(1, k * (0.7 + 0.3 * hash01(i, 1, 47)) + 0.1), n > 2);
-      s.stroke([x + 1, y + 1, x + w - 1, y + 1, x + w - 1, y + h - 1, x + 1, y + h - 1], { closed: true, color: cols[(i + Math.floor(t * 3)) % cols.length] ?? '#FFFFFF', glow: 1, width: 1.5 });
-      drawText(s, `${prefix} ${String(i + 1).padStart(2, '0')}`, x + 8, y + 8, n > 2 ? 7 : 9, { color: ui.sel, glow: 0.6 });
+      inCell(s, x, y, w, h, entry[0], lt + entry[1], ui, Math.min(1, k * (0.7 + 0.3 * hash01(i, 1, 47)) + 0.1), small);
+      s.stroke([x + 1, y + 1, x + w - 1, y + 1, x + w - 1, y + h - 1, x + 1, y + h - 1], { closed: true, color: cols0[(i + Math.floor(t * 3)) % cols0.length] ?? '#FFFFFF', glow: lg, width: 1.5 });
+      drawText(s, `${prefix} ${String(i + 1).padStart(2, '0')}`, x + 6, y + 6, cols * rows > 16 ? 6 : small ? 7 : 9, { color: ui.sel, glow: 0.6 * lg });
     }
   }
-  for (let r = 1; r < n; r++) for (let c = 1; c < n; c++) throat(s, c * cw, r * ch, Math.min(cw, ch) * (r === n / 2 && c === n / 2 ? 0.22 : 0.12) * e, t, r * 3 + c);
+  const tr = Math.min(cw, ch);
+  const jx = (x: number): number => (o.collapse !== undefined ? W / 2 + (x - W / 2) * e : x);
+  const jy = (y: number): number => (o.collapse !== undefined ? H / 2 + (y - H / 2) * e : y);
+  for (let r = 1; r < rows; r++) for (let c = 1; c < cols; c++) throat(s, jx(c * cw), jy(r * ch), tr * (r * 2 === rows && c * 2 === cols ? 0.22 : 0.12) * e, t, r * 3 + c, lg);
+  if (o.collapse !== undefined) throat(s, W / 2, H / 2, Math.min(W, H) * 0.3 * Math.sin(Math.PI * Math.min(1, o.collapse * 1.3)), t * 1.6, 9);
 }
 
 /** Four realities, each a different simulation, opening out of one wormhole. */
 export const split4: DemoScene = (s, t, ui, k) => {
-  realities(s, t, ui, k, 2, [[earthHits, 0.4], [dinoImpact, 0.6], [laserFleet, 1.2], [ufo, 0.8]], 'REALITY');
+  realities(s, t, ui, k, 2, 2, [[earthHits, 0.4], [dinoImpact, 0.6], [laserFleet, 1.2], [ufo, 0.8]], 'REALITY', { parent: [1, 1] });
 };
 
 /**
- * Sixteen realities: every one of the four splits again, all different, wormholes at every junction.
+ * Sixteen cheap simulations for the 16 and 32 splits.
  * NOTE: cast chosen for cost (measured 2026-10-20, Chrome, 1440 px, glow off in the cells): the launch salvos and
  * the laser battle are 2-3 ms each at this size, the rest 0.3-1.5 ms; with them in, sixteen cells took 30 ms a frame.
  */
+const SIMS: readonly (readonly [DemoScene, number])[] = [
+  [racks, 0.5], [rockHits, 0.2], [laserMap, 0.7], [dinoLaunch, 0.4],
+  [mothership, 0.9], [earthHits, 1.1], [solar, 0.6], [strike, 0.3],
+  [dcPlanets, 0.3], [wormhole, 1], [ufo, 1.5], [impacts, 1.2],
+  [dinoImpact, 0.75], [dcGlobe, 0.4], [planning, 0.8], [rockHits, 2.3],
+];
+
+/**
+ * Sixteen realities: every one of the four splits again, all different, wormholes at every junction. After the split
+ * every cell keeps running and cuts to other simulations on its own clock (owner 2026-10-20: "16 simulations all
+ * still running"); the montage plays it as several shots on one continuous local clock.
+ */
 export const split16: DemoScene = (s, t, ui, k) => {
-  realities(s, t, ui, k, 4, [
-    [racks, 0.5], [rockHits, 0.2], [laserMap, 0.7], [dinoLaunch, 0.4],
-    [mothership, 0.9], [earthHits, 1.1], [solar, 0.6], [strike, 0.3],
-    [dcPlanets, 0.3], [wormhole, 1], [ufo, 1.5], [impacts, 1.2],
-    [dinoImpact, 0.75], [dcGlobe, 0.4], [planning, 0.8], [rockHits, 2.3],
-  ], 'SIM');
+  realities(s, t, ui, k, 4, 4, SIMS, 'SIM', { parent: [2, 2], cycle: t > 0.6 });
+};
+
+/**
+ * The 32 split's cast: SIMS without the two dearest at cell size (racks 2 ms, the laser map 1.3 ms; measured
+ * 2026-10-20, the rest 0.05-0.9 ms).
+ */
+const SIMS32 = SIMS.map((e) => (e[0] === racks ? ([dcGlobe, 1.3] as const) : e[0] === laserMap ? ([impacts, 2.1] as const) : e));
+
+/** Thirty-two: each of the sixteen splits side by side again (owner 2026-10-20: "then 16 again, maybe 32"). */
+export const split32: DemoScene = (s, t, ui, k) => {
+  realities(s, t, ui, Math.min(k, 0.5), 8, 4, SIMS32, 'SIM', { parent: [4, 4], cycle: t > 0.6 });
+};
+
+/** Back to one: the sixteen running simulations fall into a wormhole at the centre over 0.65 s and it closes. */
+export const merge: DemoScene = (s, t, ui, k) => {
+  const f = Math.min(1, t / 0.65);
+  if (f < 1) realities(s, t + 5, ui, k, 4, 4, SIMS, 'SIM', { parent: [1, 1], cycle: true, collapse: f });
+  else {
+    dustField(s, t, 140, 51, 20);
+    throat(s, s.width / 2, s.height / 2, Math.min(s.width, s.height) * 0.3 * Math.max(0, 1 - (t - 0.65) * 3), t * 1.6, 9);
+    dustBurst(s, s.width / 2, s.height / 2, t - 0.65, 52, { n: 220, speed: 520, life: 0.8, size: 1.8 });
+  }
 };
