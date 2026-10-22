@@ -388,11 +388,11 @@ export class TitleScreen implements Screen {
 
     if (this.noteT > 0) drawText(s, this.note, cx, s.height - 90, 12, { align: 'center', color: p.hot, alpha: Math.min(1, this.noteT) });
     if (this.pendingRun && this.pendingRun.cheatsUsed.length > 0) drawText(s, `CODES FOR THE NEXT RUN: ${this.pendingRun.cheatsUsed.join(' ')}   MODE ${this.pendingRun.mode}`, cx, s.height - 64, 11, { align: 'center', color: p.hot, glow: 0.8 });
-    const foot = this.keys.touchUsed ? `MISS β V${VERSION}   CREATED BY SPACED   TAP AN ITEM TO START` : `MISS β V${VERSION}   CREATED BY SPACED   ARROWS OR MOUSE SELECT   ENTER OR CLICK START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)`;
-    const coffee = 'SELF-FUNDED AND RUNS ON COFFEE: DONATIONS FOR COFFEE ARE WELCOME (HOW TO PLAY > CREDITS)';
+    const foot = this.keys.touchUsed ? `MISS β V${VERSION}   TAP AN ITEM TO START` : `MISS β V${VERSION}   ARROWS OR MOUSE SELECT   ENTER OR CLICK START   BACKQUOTE KEY: CONSOLE (CHEAT CODES)`;
+    const credit = 'CREATED BY SPACED   (HOW TO PLAY > CREDITS)';
     const fit = (t: string, size: number): number => Math.max(5 / tsc, Math.min(size, (size * (s.width - 16)) / (measureText(t, size) * tsc)));
     drawText(s, foot, cx, s.height - 40, fit(foot, 11), { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, coffee, cx, s.height - 22, fit(coffee, 9), { align: 'center', color: ui.sub, glow: 0 });
+    drawText(s, credit, cx, s.height - 22, fit(credit, 9), { align: 'center', color: ui.sub, glow: 0 });
     this.console.render({ run: this.pendingRun ?? this.placeholderRun, round: null });
   }
 }
