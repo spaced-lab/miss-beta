@@ -24,7 +24,7 @@ import type { Surface } from './canvas';
 import { drawSprite, hash01, ROCKETS, SPENT_STAGE } from './cinematics/pixel';
 import { dcGlobe, impacts, planning, racks, strike, type DemoScene, type Ui } from './demoScenes';
 import { dustBurst, dustColors, dustField, dustTrail } from './pixelDust';
-import { drawText } from './vectorFont';
+import { drawText, drawTextFit } from './vectorFont';
 import { wireSphere } from './wire';
 
 const TAU = Math.PI * 2;
@@ -1134,7 +1134,7 @@ export const earthHits: DemoScene = (s, t, ui, k) => {
       }
     }
   }
-  drawText(s, `HOME  HIT ${String(Math.max(0, cur + 1)).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, H - 70, 11, { align: 'center', color: ui.text, glow: 0.6 });
+  drawTextFit(s, `HOME  HIT ${String(Math.max(0, cur + 1)).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, H - 70, 11, s.width - 24, { align: 'center', color: ui.text, glow: 0.6 });
 };
 
 // ---------------------------------------------------------------------------------------------------------------

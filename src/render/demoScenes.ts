@@ -15,6 +15,7 @@
 // LORE: G1 (how to play), G8 (the look, and the sound)
 
 import { Rng } from '../sim/rng';
+import { cornerInset } from '../ui/touchBack';
 import type { Surface } from './canvas';
 import { uiColors } from './palettes';
 import { drawText, drawTextFit } from './vectorFont';
@@ -45,8 +46,11 @@ export function demoCaption(s: Surface, ui: Ui, head: string, sub: string, kind:
   s.ctx.fillStyle = withAlpha(s.palette.bg, 0.62);
   s.ctx.fillRect(0, 10, W, bandH);
   const col = s.palette.glow ? CAPTION_COLORS[kind] : ui.title;
-  drawTextFit(s, head, W / 2, 16, size, W - 32, { align: 'center', color: col, glow: 1.8, width: 2 });
-  if (sub) drawTextFit(s, sub, W / 2, 16 + size + 10, subSize, W - 32, { align: 'center', color: ui.text, glow: 0.6 });
+  // Centred between the corner tabs (BACK, GEAR) when they are shown.
+  const ci = cornerInset();
+  const room = W - 32 - 2 * Math.max(ci.left, ci.right);
+  drawTextFit(s, head, W / 2, 16, size, room, { align: 'center', color: col, glow: 1.8, width: 2 });
+  if (sub) drawTextFit(s, sub, W / 2, 16 + size + 10, subSize, room, { align: 'center', color: ui.text, glow: 0.6 });
 }
 
 /** Deterministic 0..1 hash of an integer triple (LED patterns, digit flips). Example: h3(0, 0, 0) is about 0.0. */
@@ -206,7 +210,7 @@ export const clocks: DemoScene = (s, t, ui, k) => {
   for (let i = 0; i < 4; i++) {
     const n = step - i;
     const dy = Math.round((h3(n, 5, 1) - 0.5) * 2000);
-    drawText(s, `TIMELINE ADJUST ${dy >= 0 ? '+' : ''}${dy} D   DRIFT ${(h3(n, 6, 2) * 9).toFixed(3)} S   ${h3(n, 7, 3) > 0.5 ? 'ACCEPTED' : 'RE-RUN'}`, s.width / 2, s.height - 110 + i * 16, 10, { align: 'center', color: i === 0 ? ui.text : ui.dim, glow: i === 0 ? 0.6 : 0, alpha: 1 - i * 0.2 });
+    drawTextFit(s, `TIMELINE ADJUST ${dy >= 0 ? '+' : ''}${dy} D   DRIFT ${(h3(n, 6, 2) * 9).toFixed(3)} S   ${h3(n, 7, 3) > 0.5 ? 'ACCEPTED' : 'RE-RUN'}`, s.width / 2, s.height - 110 + i * 16, 10, s.width - 24, { align: 'center', color: i === 0 ? ui.text : ui.dim, glow: i === 0 ? 0.6 : 0, alpha: 1 - i * 0.2 });
   }
 };
 
@@ -287,7 +291,7 @@ export const impacts: DemoScene = (s, t, ui, k) => {
     at += gap;
     gap = Math.max(0.09, gap * 0.82);
   }
-  drawText(s, `IMPACTS ${String(landed).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, cy + R + 30, 11, { align: 'center', color: ui.text, glow: 0.6 });
+  drawTextFit(s, `IMPACTS ${String(landed).padStart(3, '0')}   SIMULATED, NOT SURVIVED`, cx, cy + R + 30, 11, s.width - 24, { align: 'center', color: ui.text, glow: 0.6 });
 };
 
 /** Heat ramps for the planning map, low to high (owner 2026-10-21: "same pink purple map used several times"). */
@@ -305,10 +309,12 @@ const RAMPS: readonly (readonly string[])[] = [
  * own steps on DAYLIGHT). A ranked list reshuffles on the right.
  */
 export const planning: DemoScene = (s, t, ui, k) => {
+  // An upright phone stacks the plan list under the plot instead of beside it (it ran off the right edge).
+  const upright = s.width < s.height;
   const x0 = s.width * 0.08;
   const y0 = s.height * 0.16;
-  const w = s.width * 0.5;
-  const h = s.height * 0.62;
+  const w = s.width * (upright ? 0.84 : 0.5);
+  const h = s.height * (upright ? 0.42 : 0.62);
   const v = Math.floor(t / 2.6);
   const ramp = s.palette.glow ? (RAMPS[v % RAMPS.length] ?? RAMPS[0] ?? []) : [ui.dim, ui.text, ui.sel, ui.title];
   const col = (e: number): string => ramp[Math.min(ramp.length - 1, Math.floor(Math.min(0.999, e) * ramp.length))] ?? ui.text;
@@ -353,7 +359,7 @@ export const planning: DemoScene = (s, t, ui, k) => {
   const step = Math.floor(t * (5 + 10 * k));
   for (let i = 0; i < 6; i++) {
     const m = (h3(step, i, 11) * 9).toFixed(2);
-    drawText(s, `PLAN ${i + 1}  ${['KINETIC', 'SWARM X3', 'KINETIC-FLYBY', 'SLOW PUSH', 'SAIL-KINETIC', 'SPLIT BUS'][(step + i) % 6]}  MISS +${m} R`, x0 + w + 30, y0 + 10 + i * 22, 11, { color: i === 0 ? ui.sel : ui.text, glow: i === 0 ? 1.2 : 0.4 });
+    drawTextFit(s, `PLAN ${i + 1}  ${['KINETIC', 'SWARM X3', 'KINETIC-FLYBY', 'SLOW PUSH', 'SAIL-KINETIC', 'SPLIT BUS'][(step + i) % 6]}  MISS +${m} R`, upright ? x0 : x0 + w + 30, upright ? y0 + h + 24 + i * 22 : y0 + 10 + i * 22, 11, upright ? w : s.width - x0 - w - 46, { color: i === 0 ? ui.sel : ui.text, glow: i === 0 ? 1.2 : 0.4 });
   }
 };
 

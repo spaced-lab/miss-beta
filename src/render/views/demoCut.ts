@@ -26,7 +26,7 @@ import { dcPlanets, earthHits, laserFleet, laserMap, rockHits, salvo, solar, wor
 import { clocks, dcGlobe, demoCaption, hitsBy, impacts, planning, racks, type DemoScene } from '../demoScenes';
 import { hitStorm } from '../pixelDust';
 import { uiColors } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawTextFit } from '../vectorFont';
 
 interface Cut {
   scene: DemoScene;
@@ -179,6 +179,6 @@ export class DemoCutaways {
     cut.scene(s, this.t0 + this.t, ui, Math.min(1, 0.15 + this.f));
     hitStorm(s, this.stormT, this.f * 0.85, this.seed);
     demoCaption(s, ui, cut.caption, '', cut.sound);
-    drawText(s, header, s.width / 2, s.height - 30, 10, { align: 'center', color: ui.sub, glow: 0.5 });
+    drawTextFit(s, header, s.width / 2, s.height - 30, 10, s.width - 24, { align: 'center', color: ui.sub, glow: 0.5 });
   }
 }

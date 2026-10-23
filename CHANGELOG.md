@@ -13,6 +13,8 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
 - RUN OVER on an upright phone puts RUN OVER on its own line above the tally (one line had shrunk unreadably).
   PERIMETER: a finger on the gear tab no longer ends the SUPER DEMO (STOP DEMO is in the menu); the laser / mesh
   label fits beside HEAT in the narrow sideways column.
+- The SUPER-DUPER-DEMO on a phone: captions sit between the corner tabs, the reel's footer line fits, the planning
+  shot stacks its plan list under the plot when upright, and the long counter lines of two scenes fit the width.
 - PERIMETER in a small window without touch uses the compact panels (the keyboard panel did not fit under 700 x 500);
   the ready panel's option buttons sit below their label at any TEXT SIZE.
 
