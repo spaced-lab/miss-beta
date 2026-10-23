@@ -150,7 +150,13 @@ export class LorePanel {
     if (rel.length > 0) drawText(s, `RELATED  ${rel.map((r, i) => `F${i + 1}:${r}`).join('  ')}`, x + 12, by, 9, { color: p.dim, glow: 0 });
     const demo = this.meta?.demoId ?? null;
     const lab = labStatus(demo);
-    drawText(s, `1-5 LEVEL  TAB NEXT  UP/DOWN SCROLL  L CENTER${lab === 'BUILT' ? `  (LAB ${demo})` : lab === 'BACKLOG' ? '  (LAB BACKLOG)' : ''}`.slice(0, charsPerLine(PW - 24, 8)), x + 12, by + 16, 8, { color: p.dim, glow: 0 });
-    drawText(s, 'ESC CLOSE', x + 12, by + 30, 8, { color: p.dim, glow: 0 });
+    // On a touch screen the bar holds LEVEL, LEARN MORE and CLOSE: only the lab note stays.
+    const labNote = lab === 'BUILT' ? `LAB ${demo}` : lab === 'BACKLOG' ? 'LAB BACKLOG' : '';
+    if (this.keys.touchUsed) {
+      if (labNote) drawText(s, labNote, x + 12, by + 16, 8, { color: p.dim, glow: 0 });
+    } else {
+      drawText(s, `1-5 LEVEL  TAB NEXT  UP/DOWN SCROLL  L CENTER${labNote ? `  (${labNote})` : ''}`.slice(0, charsPerLine(PW - 24, 8)), x + 12, by + 16, 8, { color: p.dim, glow: 0 });
+      drawText(s, 'ESC CLOSE', x + 12, by + 30, 8, { color: p.dim, glow: 0 });
+    }
   }
 }

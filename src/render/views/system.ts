@@ -67,7 +67,7 @@ import { Materialize, StarField } from '../wire';
 import { ROLE_STYLE } from '../palettes';
 import type { UiSfx } from '../../audio/ui';
 import { voiceForEvents } from '../../audio/voice';
-import { advanceTutorial, createTutorial, stepsOf, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, type TutorialFacts, type TutorialState } from '../../game/tutorial';
+import { advanceTutorial, createTutorial, stepsOf, touchText, TUTORIAL_SEED, TUTORIAL_SEEN_KEY, type TutorialFacts, type TutorialState } from '../../game/tutorial';
 import { saveJson } from '../../game/persistence';
 import { AUTO_SPEED_LEVELS, DEFAULT_SETTINGS, saveSettings, type Settings } from '../../game/settings';
 import { scenarioById, spawnScenario } from '../../sim/scenarios';
@@ -403,6 +403,8 @@ export class SystemScreen implements Screen {
   private drawTutorial(): void {
     const t = this.tut;
     if (!t) return;
+    // On a phone the event brief docks where the box is: the box waits until the brief is tapped away.
+    if (this.compact() && this.tele.isOpen) return;
     const steps = stepsOf(t);
     const step = steps[t.step];
     if (!step) return;
@@ -413,12 +415,16 @@ export class SystemScreen implements Screen {
     const y = this.compact() ? this.hudBottom + 6 : 96;
     const inner = w - 24;
     // Re-wrap the step text to the panel's width at draw time (TEXT SIZE and window width both change it).
-    const body = wrapText(step.lines.join(' '), inner, 9);
+    const touch = this.keys.touchUsed;
+    const body = wrapText(touch ? touchText(step.lines.join(' ')) : step.lines.join(' '), inner, 9);
     const lineH = 15 * getTextScale();
     const h = 58 + body.length * lineH;
     // At the debrief or RUN OVER the centred panel comes first: the tutorial box only draws if it fits above it.
     if (this.phase !== 'planning' && !this.panelHidden && y + h > this.panelTop - 8) return;
     const alpha = Math.min(1, t.shownFor * 2);
+    // A backing so the orbits under the box do not cross its words (a phone's map is small and busy).
+    s.ctx.fillStyle = withAlpha(p.bg, 0.85 * alpha);
+    s.ctx.fillRect(x, y, w, h);
     s.stroke([x, y, x + w, y, x + w, y + h, x, y + h], { closed: true, color: p.hot, glow: 0.8, alpha });
     drawTextFit(s, `${t.script === 'DART' ? 'DART REPLAY' : 'TUTORIAL'} ${t.step + 1} / ${steps.length}   ${step.title}`, x + 12, y + 10, 12, inner, { color: p.hot, glow: 1, alpha });
     let ly = y + 32;
@@ -426,7 +432,7 @@ export class SystemScreen implements Screen {
       drawText(s, line, x + 12, ly, 9, { color: p.ink, glow: 0.3, alpha });
       ly += lineH;
     }
-    drawTextFit(s, `<TAB> SKIP TUTORIAL   <?> LORE ${step.lore.join(' ')}   <${keyName('LEARN')}> LEARNING CENTER   <${keyName('MANUAL')}> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.ink, glow: 0.3, alpha });
+    drawTextFit(s, touch ? `GEAR MENU: SKIP TUTORIAL, LORE ${step.lore.join(' ')}, LEARNING CENTER, MANUAL` : `<TAB> SKIP TUTORIAL   <?> LORE ${step.lore.join(' ')}   <${keyName('LEARN')}> LEARNING CENTER   <${keyName('MANUAL')}> MANUAL`, x + 12, y + h - 16, 9, inner, { color: p.ink, glow: 0.3, alpha });
   }
 
   /** The next NEW RUN is a sandbox (set by the title before routing here). */
@@ -1197,12 +1203,13 @@ export class SystemScreen implements Screen {
     const hx = right ? s.width - 16 : 16;
     const align = right ? 'right' : 'left';
     const base = s.height - this.barH;
-    drawTextFit(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, base - 28, 10, s.width - 32, { align, color: ui.title, glow: 1 });
+    drawTextFit(s, `${a.demo ? `SUPER-DUPER-DEMO  GAME ${a.rounds + 1}  FINALE IN ${clock}  SPEED X${a.speed.toFixed(a.speed < 10 ? 1 : 0)}` : 'AUTOPLAY'}  ${this.keys.touchUsed ? 'TAP TAKE OVER' : `${keyName('AUTOPLAY')} TAKES OVER  ESC TITLE`}${this.autoFresh ? '  (NOT SAVED)' : ''}`, hx, base - 28, 10, s.width - 32, { align, color: ui.title, glow: 1 });
     // How to change the pace, always on screen while the game plays itself.
     const lv = this.settings.autoSpeed ?? 'NORMAL';
     const pace = AUTO_SPEED_LEVELS.map((l) => (l === lv ? `[${l}]` : l)).join(' ');
     // On a phone the pace keys do not exist and the line ran into the HUD's bottom line.
-    if (s.width >= 700) drawTextFit(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, base - 14, 9, s.width - 32, { align, color: ui.sub, glow: 0.5 });
+    // On a touch screen the GEAR menu holds PACE SLOWER / FASTER; the line would name keys it does not have.
+    if (s.width >= 700 && !this.keys.touchUsed) drawTextFit(s, `PACE ${pace}   ${keyName('AUTO_SLOWER')} SLOWER  ${keyName('AUTO_FASTER')} FASTER`, hx, base - 14, 9, s.width - 32, { align, color: ui.sub, glow: 0.5 });
     const ap = this.autoPane;
     if (!ap) return;
     // Bottom left: the teletype docks bottom right and the HUD owns the top.
@@ -1391,12 +1398,14 @@ export class SystemScreen implements Screen {
       if (this.phase === 'debrief') this.drawDebrief();
       if (this.phase === 'over') this.drawOver();
     } else if (this.phase !== 'planning' && !overlay) {
-      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE`, this.s.width / 2, this.s.height - this.barH - 26, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
+      drawTextFit(this.s, `REPLAY  ${formatCountdown((this.world.threat?.tImpact ?? 0) - this.world.t)}${this.keys.touchUsed ? '   < EVENT / EVENT > STEP' : '   LEFT / RIGHT STEP EVENTS   <H> PANEL   <V> PLANET   <SPACE> CONTINUE'}`, this.s.width / 2, this.s.height - this.barH - 26, 12, this.s.width - 32, { align: 'center', color: this.s.palette.hot, glow: 1 });
     }
     this.planner.render();
     if (this.planner.isOpen && this.tut) {
       // The tutorial box is hidden under the planner, so the step it asks for is repeated in one line here.
-      const hint = this.tut.step <= 3 ? 'TUTORIAL: UP / DOWN PICKS A PLAN, ENTER COMMITS THE TOP KINETIC PLAN. ESC CLOSES THE PLANNER.' : 'TUTORIAL: COMMITTED. ESC CLOSES THE PLANNER, THEN ] RUNS THE CLOCK.';
+      const hint = this.keys.touchUsed
+        ? this.tut.step <= 3 ? 'TUTORIAL: UP / DOWN PICKS A PLAN, COMMIT COMMITS IT. CLOSE CLOSES THE PLANNER.' : 'TUTORIAL: COMMITTED. CLOSE THE PLANNER, THEN WARP + RUNS THE CLOCK.'
+        : this.tut.step <= 3 ? 'TUTORIAL: UP / DOWN PICKS A PLAN, ENTER COMMITS THE TOP KINETIC PLAN. ESC CLOSES THE PLANNER.' : 'TUTORIAL: COMMITTED. ESC CLOSES THE PLANNER, THEN ] RUNS THE CLOCK.';
       drawTextFit(s, hint, s.width / 2, s.height - 50, 11, s.width - 32, { align: 'center', color: s.spectrum ? s.role('program') : p.hot, glow: 1 });
     }
     if (!this.planner.isOpen && !this.programs.isOpen && !this.tech.isOpen) this.drawTutorial();
@@ -2088,6 +2097,11 @@ export class SystemScreen implements Screen {
       seen.add(it.code);
       // Warp and the list arrows are steps: the menu stays open to take the next one.
       items.push({ ...it, stay: ['BracketLeft', 'BracketRight', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(it.code) });
+    }
+    // AUTOPLAY's pace keys (- and =) have no button elsewhere: a phone changes the pace here.
+    if (this.auto) {
+      const lv = this.settings.autoSpeed ?? 'NORMAL';
+      items.unshift({ label: `PACE SLOWER (${lv})`, code: 'Minus', stay: true }, { label: `PACE FASTER (${lv})`, code: 'Equal', stay: true });
     }
     return { title: this.phase === 'planning' ? 'ACTIONS' : this.phase === 'debrief' ? 'DEBRIEF ACTIONS' : 'RUN OVER', items };
   }

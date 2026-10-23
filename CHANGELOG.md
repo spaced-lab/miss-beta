@@ -2,6 +2,17 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-23: the tutorial, cinematics and AUTOPLAY by touch
+
+- Played the tutorial, AUTOPLAY and a normal round on a phone held both ways with taps only. On a touch screen the
+  tutorial names the buttons instead of keys (`touchText` in game/tutorial.ts: TAP RUN, WARP +, TAP PLANNER, ...), its
+  box has a backing and waits while an event brief is up on a phone, and the planner's tutorial hint does the same.
+  Cinematic titles fit the width (under the clock when the space beside it is short) and the clock steps right of the
+  BACK tab; TAP TO SKIP on touch. The PROGRAMS footer, the lore panel's key line, the replay line and AUTOPLAY's pace
+  line show key names only with a keyboard; AUTOPLAY's PACE SLOWER / FASTER are in the gear menu.
+- PERIMETER in a small window without touch uses the compact panels (the keyboard panel did not fit under 700 x 500);
+  the ready panel's option buttons sit below their label at any TEXT SIZE.
+
 ### 2026-10-23: a GEAR menu on every screen, TILT STEER and NEW GAME in PERIMETER (IDEAS 40)
 
 - `ui/gearMenu.ts`: a gear tab in the top-right corner on a touch screen or a small window opens every action of the

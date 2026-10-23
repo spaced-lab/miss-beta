@@ -327,10 +327,12 @@ export class ProgramsOverlay {
     const burn = programBurn(run.programs);
     const sBurn = studyBurn(run.studies);
     drawText(s, `${this.tab}   BUDGET ${budget.toFixed(1)}  (+${run.economy.perYear}/Y  -${burn.toFixed(2)}/Y PROGRAMS  -${sBurn.toFixed(2)}/Y STUDIES)`, m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
-    drawText(s, this.tab === 'PROGRAMS' ? '<TAB> STUDIES' : '<TAB> PROGRAMS', s.width - m, m, 11, { align: 'right', color: uiColors(p, s.spectrum).sub, glow: 0.6 });
+    // NOTE: key hints only with a keyboard: on a touch screen the bar has STUDIES / PROGRAMS, LEARN and CLOSE.
+    const keysShown = !this.keys.touchUsed;
+    if (keysShown) drawText(s, this.tab === 'PROGRAMS' ? '<TAB> STUDIES' : '<TAB> PROGRAMS', s.width - m, m, 11, { align: 'right', color: uiColors(p, s.spectrum).sub, glow: 0.6 });
     if (this.tab === 'STUDIES') {
       this.renderStudies(run, experimental);
-      drawTextFit(s, 'UP / DOWN OR CLICK SELECT    <ENTER> START / RETRY / CANCEL    LEFT / RIGHT FUNDING    <TAB> PROGRAMS    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+      if (keysShown) drawTextFit(s, 'UP / DOWN OR CLICK SELECT    <ENTER> START / RETRY / CANCEL    LEFT / RIGHT FUNDING    <TAB> PROGRAMS    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
       return;
     }
     // Columns are placed by x, not by padding, so a long tag (SPECULATIVE) never runs into YEARS.
@@ -392,6 +394,6 @@ export class ProgramsOverlay {
       if (ny > listBottom) break;
     }
     void t;
-    drawTextFit(s, 'UP / DOWN OR CLICK SELECT    LEFT / RIGHT OR CLICK FUNDING    <ENTER> FULL / NONE    <TAB> STUDIES    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
+    if (!this.keys.touchUsed) drawTextFit(s, 'UP / DOWN OR CLICK SELECT    LEFT / RIGHT OR CLICK FUNDING    <ENTER> FULL / NONE    <TAB> STUDIES    <L> LEARN    <G> OR <ESC> CLOSE', s.width / 2, s.height - m - 12, 12, s.width - 32, { align: 'center', color: p.dim, glow: 0 });
   }
 }

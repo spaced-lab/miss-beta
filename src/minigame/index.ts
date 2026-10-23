@@ -591,7 +591,9 @@ export class MinigameScreen implements Screen {
       demo: this.demo ? { speed: MG.DEMO_SPEED, restartIn: this.st.status === 'over' ? Math.max(0, MG.DEMO_RESTART_SECONDS - this.demoRestart) : null } : null,
       ...(this.player || this.demo ? {} : { options: this.settings }),
       reduceMotion: this.reduceMotion(),
-      touchTop: this.keys.touchUsed && !this.labState.open ? Math.min(...padLayout(this.s.width, this.s.height).map((b) => b.y - b.r)) : null,
+      // A small window without touch takes the compact panels too (no pad: the line sits at the bottom); the desktop
+      // panel of key hints did not fit under 700 x 500.
+      touchTop: this.labState.open ? null : this.keys.touchUsed ? Math.min(...padLayout(this.s.width, this.s.height).map((b) => b.y - b.r)) : this.s.width < 700 || this.s.height < 500 ? this.s.height : null,
     });
     if (this.labState.open) {
       renderLab(this.s, this.labState, this.sfx);

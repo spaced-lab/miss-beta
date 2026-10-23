@@ -199,3 +199,32 @@ export function advanceTutorial(st: TutorialState, facts: TutorialFacts, dtSecon
 }
 
 export const TUTORIAL_SEEN_KEY = 'tutorial.seen';
+
+/**
+ * Key words in a step's text, as the buttons a touch screen shows (owner 2026-10-23: every action by touch). Applied
+ * to the joined text of a step before it is wrapped; phrases not listed stay as written.
+ */
+const TOUCH_WORDS: readonly (readonly [string, string])[] = [
+  ['PRESS SPACE TO START THE CLOCK', 'TAP RUN TO START THE CLOCK'],
+  ['DRAG TO PAN, WHEEL TO ZOOM, Z RESETS, S SWITCHES TRUE / COMPRESSED DISTANCES.', 'DRAG TO PAN, PINCH TO ZOOM; RESET VIEW AND SCALE ARE IN THE GEAR MENU.'],
+  ['] SPEEDS THE CLOCK UP, [ SLOWS IT, SPACE PAUSES.', 'WARP + SPEEDS THE CLOCK UP, WARP - SLOWS IT, PAUSE PAUSES.'],
+  ['PRESS P.', 'TAP PLANNER.'],
+  ['(UP / DOWN, ENTER)', '(UP / DOWN, COMMIT)'],
+  ['ESC CLOSES.', 'CLOSE CLOSES.'],
+  ['PRESS V FOR THE PLANET VIEW', 'TAP PLANET VIEW (GEAR MENU)'],
+  ['PRESS G AND FUND', 'TAP PROGRAMS AND FUND'],
+  ['T SPENDS RESEARCH', 'TECH SPENDS RESEARCH'],
+  ['SPACE STARTS ROUND 1', 'TAP ROUND 1 TO START IT'],
+  ['PRESS P AND COMMIT', 'TAP PLANNER AND COMMIT'],
+  ['RUN THE CLOCK (] ).', 'RUN THE CLOCK (WARP +).'],
+  ['SPACE CONTINUES', 'NEXT ROUND CONTINUES'],
+];
+
+/**
+ * A step's text for a touch screen. Example: touchText('PRESS P. THE PLANNER') = 'TAP PLANNER. THE PLANNER'.
+ */
+export function touchText(text: string): string {
+  let out = text;
+  for (const [from, to] of TOUCH_WORDS) out = out.split(from).join(to);
+  return out;
+}

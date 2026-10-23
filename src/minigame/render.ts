@@ -572,7 +572,8 @@ function drawReadyTouch(s: Surface, opts: RenderOpts): void {
     // Owner 2026-10-21 (IDEAS 39): the options as buttons, not a note pointing at OPTIONS.
     ly += short ? 4 : 8;
     drawTextFit(s, `DIFFICULTY   START LEVEL${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, x + 16, ly, ks * 0.8, inner, { color: p.dim, glow: 0 });
-    optionButtons(s, x + 16, ly + 12, inner, o);
+    // NOTE: below the label's drawn height (it grows with OPTIONS > TEXT SIZE), not a fixed 12 px.
+    optionButtons(s, x + 16, ly + Math.max(12, ks * 0.8 * getTextScale() + 5), inner, o);
     ly += short ? 54 : 62;
   }
   const r = opts.resume;

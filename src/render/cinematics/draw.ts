@@ -9,7 +9,8 @@
 
 import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
-import { drawText } from '../vectorFont';
+import { drawText, drawTextFit, getTextScale, measureText } from '../vectorFont';
+import { cornerInset } from '../../ui/touchBack';
 import { wireSphere } from '../wire';
 import { KNOBS } from '../../config/knobs';
 import { drawLaunchStage, drawLaunchVehicle, launchCell } from './launch';
@@ -224,12 +225,20 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
   }
 
   // Labels.
+  // NOTE: on a phone the title goes under the clock and both shrink to the width, and the clock steps
+  // right of the BACK tab; they ran off both edges of an upright phone (2026-10-23 phone pass).
   const m = 16;
-  drawText(s, countdown, m, m, 14, { color: p.hot, glow: 1.2 });
-  drawText(s, 'CLOCK PAUSED FOR THE EVENT', m, m + 22, 9, { color: p.dim, glow: 0 });
-  drawText(s, sc.title, s.width / 2, m + 6, 18, { align: 'center', color: s.role(sc.titleRole), glow: 1.8 });
-  drawText(s, sc.subtitle, s.width / 2, m + 34, 11, { align: 'center', color: p.ink, glow: 0.6 });
-  drawText(s, 'ANY KEY SKIPS', s.width - m, s.height - m - 12, 9, { align: 'right', color: p.dim, glow: 0 });
+  const ci = cornerInset();
+  // The title sits between the clock block and its mirror on the right; when that leaves under 300 px it moves under it.
+  const clockW = m + ci.left + Math.max(measureText(countdown, 14), measureText('CLOCK PAUSED FOR THE EVENT', 9)) * getTextScale() + 12;
+  const narrow = s.width - 2 * clockW < 300;
+  drawText(s, countdown, m + ci.left, m, 14, { color: p.hot, glow: 1.2 });
+  drawText(s, 'CLOCK PAUSED FOR THE EVENT', m + ci.left, m + 22, 9, { color: p.dim, glow: 0 });
+  const ty = narrow ? m + 44 : m + 6;
+  const tw = narrow ? s.width - 2 * m : s.width - 2 * clockW;
+  drawTextFit(s, sc.title, s.width / 2, ty, 18, tw, { align: 'center', color: s.role(sc.titleRole), glow: 1.8 });
+  drawTextFit(s, sc.subtitle, s.width / 2, ty + 28, 11, tw, { align: 'center', color: p.ink, glow: 0.6 });
+  drawText(s, ci.left > 0 ? 'TAP TO SKIP' : 'ANY KEY SKIPS', s.width - m, s.height - m - 12, 9, { align: 'right', color: p.dim, glow: 0 });
   const f = Math.min(1, elapsed / sc.duration);
   s.ctx.fillStyle = withAlpha(p.dim, 0.5);
   s.ctx.fillRect(0, s.height - 2, s.width * f, 2);
