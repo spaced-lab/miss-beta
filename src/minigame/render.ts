@@ -414,7 +414,8 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   // Right column: HULL, HEAT, PULSE.
   const bw = wide ? 120 : 160;
   const bh = 12;
-  const bx = W - m - bw;
+  // NOTE: on a touch screen the column steps left of the GEAR tab in the top-right corner (ui/gearMenu.ts).
+  const bx = W - m - bw - (touch ? 30 : 0);
   const rowGap = wide ? 18 : 28;
   // The first label sits above its bar: leave it room so it is never clipped by the top edge.
   let by = m + fs + 8;
@@ -461,8 +462,10 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   const status = `T ${clock(st.t)}   LAUNCHERS X${st.launcherCount}   STREAMS X${st.streamCount}`;
   // NOTE: above the touch pad the line shrinks to leave room for its stream dots on a phone's width.
   // Sideways it must also end before the bar column (bx) with room for its stream dots.
-  const room = wide ? bx - (m + 150) - st.streamCount * 12 - 70 : W - 2 * m - st.streamCount * 12 - 70;
-  const sfs = touch ? Math.min(fs, (fs * room) / (measureText(status, fs) * getTextScale())) : fs;
+  // The STR label scales with the line, so both widths are counted (sideways the line used to run under the column).
+  const strText = `STR ${strengthLevel(st.streamCount)}`;
+  const room = (wide ? bx - (m + 150) - 12 : W - 2 * m) - st.streamCount * 12 - 18 - 8;
+  const sfs = touch ? Math.min(fs, (fs * room) / ((measureText(status, fs) + measureText(strText, fs)) * getTextScale())) : fs;
   // On a touch screen the status line sits where the ready and game-over panels are; it shows only in play.
   const sx = wide ? m + 150 : m;
   if (!touch || st.status === 'playing') drawText(s, status, sx, bottom, sfs);
@@ -471,7 +474,7 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
     const d = streamDamage(st.streamCount, j);
     s.dot(lx + j * 12, bottom + sfs / 2, 3 + d * 1.2, bulletColor(s, d, stage));
   }
-  drawText(s, `STR ${strengthLevel(st.streamCount)}`, lx + st.streamCount * 12 + 8, bottom, sfs, { color: p.dim, glow: 0 });
+  drawText(s, strText, lx + st.streamCount * 12 + 8, bottom, sfs, { color: p.dim, glow: 0 });
   if (!touch) {
     if (st.status === 'playing') drawTextFit(s, '<ARROWS> MOVE  <SPACE> FIRE  <SHIFT> PULSE  < SEEKER  > SWARM', W - m, bottom, fs, W * 0.45, { align: 'right', color: p.dim, glow: 0 });
     drawText(s, opts.sound, W - m, bottom - fs * 1.5, 11, { align: 'right', color: p.dim, glow: 0 });

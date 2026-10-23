@@ -2,6 +2,25 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-23: a GEAR menu on every screen, TILT STEER and NEW GAME in PERIMETER (IDEAS 40)
+
+- `ui/gearMenu.ts`: a gear tab in the top-right corner on a touch screen or a small window opens every action of the
+  screen as a finger-sized grid; the screen waits while it is open. Screens offer their list through `gear()`: the
+  title's menu and the console, SYSTEM's bar plus its MORE grid (planner, programs, tech, sky, lore, debrief and run
+  over each give their own), OPTIONS (each option a button that steps it), HOW TO PLAY, CODEX, LEADERBOARD, LEARN
+  (levels, panes, list, bookmark, FIND, quiz answers).
+- PERIMETER: the gear holds NEW GAME (with the chosen start level and difficulty), START LEVEL, DIFFICULTY, TILT STEER,
+  SOUND, SOUND KIT, SOUND LAB, SUPER DEMO, WATCH BEST, DAILY and TITLE; a game in progress pauses under it. Start levels
+  now 1, 5, 10, 15, 20, 25, 30, 40, 50 and 60.
+- TILT STEER (`minigame/tilt.ts`): the phone's roll about the screen's vertical axis turns the launchers, nothing within
+  6 degrees of level, a full turn from 24 (part turns spread over frames); LEVEL IS HERE recentres, REVERSED flips it.
+  iOS asks for motion access on the tap after it is switched on.
+- Phone fixes found by rendering every screen at 780 x 360 and 390 x 740: OPTIONS scrolls when the list is taller
+  than the window; the discovery brief's header shrinks to its panel (it ran off a sideways screen); titles of the
+  planet view, the sky view, the lore panel, the planner, HELP and CODEX keep clear of the BACK and GEAR tabs; the
+  SYSTEM HUD's WARP line and PERIMETER's bar column step left of the gear; PERIMETER's sideways status line no longer
+  runs under the bar column; a six-button bar on an upright phone wraps to two rows (MIN_W 64).
+
 ### 2026-10-21: typing on a phone, PERIMETER's panels by touch (IDEAS 39 closed)
 
 - `Input.softKeyboard(on)`: a hidden text field raises the phone's keyboard; what is typed in it reaches the same

@@ -94,8 +94,18 @@ START_GRACE_S 3 (a skipped start used PRESSURE_START and a full moon).
 
 IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} on the SCI-FI visitor's lead.
 
+- 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
+  higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24; `ui/actionBar.ts` MIN_W 58 -> 64.
+
 ## Decisions
 
+- 2026-10-23 (phones, IDEAS 40): one GEAR tab (`ui/gearMenu.ts`) top-right on every screen on a touch screen or a
+  window under 700 x 500, owned by main.ts; each screen lists its actions through an optional `gear()`. The menu holds
+  the frame while open (the screen is not updated, so PERIMETER and the SYSTEM clock pause), items press key codes like
+  the bars or run `act`, and stepping items (`stay`) keep it open. TILT STEER in PERIMETER is opt-in (off by default)
+  through the gear menu; iOS asks for motion permission on the next tap after it is switched on (the frame loop is not
+  a user gesture); TILT: REVERSED is there because the roll sign per screen angle could not be checked on a device here.
+  The tilt readings never leave the page. PERIMETER's START_LEVELS gained 5, 15, 25, 50, 60.
 - 2026-10-21 (phones, IDEAS 38): on-screen actions are buttons that inject logical key codes (`Input.inject(code,
   real)`), not a second input path per overlay; the SYSTEM screen picks the bar's items from its state each frame and
   the MORE menu holds the rest. The bar shows on the desktop too (it replaced the unreadable footer of key hints; the
@@ -320,6 +330,12 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
   re-planning against fragment bodies (Tab in the planner) after the breakup. Autonomy (M6) will automate the sweep.
 
 ## Resume here (for a fresh session after a context clear)
+
+**STATE 2026-10-23 (phones, gear):** IDEAS 40 done: the GEAR menu on every screen (title, SYSTEM in every phase and
+overlay, OPTIONS with every option as a button, HELP, CODEX, LEADERBOARD, LEARN incl. quiz and FIND, PERIMETER), TILT
+STEER (`minigame/tilt.ts`, knobs TILT_DEAD_DEG 6 / TILT_FULL_DEG 24), PERIMETER NEW GAME / START LEVEL / DIFFICULTY
+from the gear, OPTIONS scrolls on a short window, corner tabs kept clear by `cornerInset()` (ui/touchBack.ts). Tilt was
+driven with synthetic deviceorientation events only: the owner's phone is the check for the real sensor and its sign.
 
 **STATE 2026-10-21 (later, phones):** IDEAS 38 done (SYSTEM screen on a phone: `ui/actionBar.ts` bar + MORE menu, compact
 HUD, planner / PROGRAMS / TECH / lore / debrief compact layouts); IDEAS 39 mostly done (LEARN upright with a side pane

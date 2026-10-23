@@ -423,7 +423,7 @@ export class PlannerOverlay {
     // Sideways on a phone the plot takes 38 % of the width; upright it takes the top third and the plans the rest.
     const leftW = stack ? W - m : compact ? W * 0.38 : Math.min(W * 0.46, 600);
     const hx = m + (this.keys.touchUsed && compact ? 34 : 0);
-    drawTextFit(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 && !compact ? '  <TAB> NEXT TARGET' : ''}`, hx, m, compact ? 11 : 14, W - hx - m, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+    drawTextFit(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 && !compact ? '  <TAB> NEXT TARGET' : ''}`, hx, m, compact ? 11 : 14, W - hx - m - (compact ? 36 : 0), { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     drawTextFit(s, this.status, hx, m + (compact ? 15 : 20), compact ? 8 : 11, W - hx - m, { color: p.dim, glow: 0 });
 
     const px0 = m;

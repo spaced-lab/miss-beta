@@ -208,6 +208,11 @@ export class Input {
   /** The physical code of the latest key-down (OPTIONS > KEYS listens to this while waiting for a key). */
   lastRaw = '';
 
+  /** Forget a key's press for this frame (the GEAR menu's Esc closes the menu and must not reach the screen). */
+  drop(code: string): void {
+    this.edge.delete(code);
+  }
+
   /** True on the first frame a key is down. */
   pressed(code: string): boolean {
     return this.edge.has(code);

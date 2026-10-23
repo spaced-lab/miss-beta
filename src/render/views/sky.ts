@@ -14,6 +14,7 @@
 // LORE: F12 (visitors from other stars), F3 (the sunward blind spot), F5 (today's surveys), F11 (the gauge)
 
 import { Materialize } from '../wire';
+import { cornerInset } from '../../ui/touchBack';
 import { NETWORKS } from '../../sim/detection';
 import { is3D, lift, stateAt } from '../../sim/orbit3';
 import { coverageAll, eclipticLatitude, nodeLine, tiltAboutNode } from '../../sim/sky';
@@ -88,7 +89,8 @@ export class SkyOverlay {
       const z2 = y1 * Math.sin(pitch) + z1 * Math.cos(pitch);
       return [cx + R * x1, cy - R * z2, y2];
     };
-    drawText(s, 'SKY FROM HOME   NIGHTLY COVERAGE BY DIRECTION', 16, 16, 14, { color: ui.title, glow: 1.2 });
+    const ci = cornerInset();
+    drawTextFit(s, 'SKY FROM HOME   NIGHTLY COVERAGE BY DIRECTION', 16 + ci.left, 16, 14, s.width - 32 - ci.left - ci.right, { color: ui.title, glow: 1.2 });
     drawTextFit(s, 'DOT: LOOKED AT MOST NIGHTS.  RING: SOME NIGHTS.  DIAMOND: RARELY OR NEVER.  BRIGHTNESS OF THE ROCK IGNORED: THIS IS WHERE THE SURVEYS LOOK, NOT HOW DEEP.', 16, 36, 10, s.width - 32, { color: ui.sub, glow: 0.3 });
     // Grid: the ecliptic, latitude circles every 30 deg, meridians every 30 deg; far side dimmer.
     const grid = (pts: [number, number, number][], strong: boolean): void => {

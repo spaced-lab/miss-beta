@@ -6,6 +6,7 @@
 // LORE: G2, C1
 
 import { lore, recordRead } from '../../lore/store';
+import { cornerInset } from '../../ui/touchBack';
 import { LEVELS, LEVEL_TABS, markdownToLines, type Chunk, type Level, type LoreLine, type TopicMeta } from '../../lore/index';
 import { labStatus } from '../../lore/labs/index';
 import type { Input } from '../../ui/input';
@@ -112,9 +113,13 @@ export class LorePanel {
     s.ctx.globalAlpha = 1;
     s.stroke([x, y, x + PW, y, x + PW, y + h, x, y + h], { closed: true, color: p.hot, glow: 0.8 });
     const title = this.chunk?.title ?? this.meta?.title ?? this.id;
-    drawText(s, `${this.id}  ${substitute(title).toUpperCase()}`.slice(0, charsPerLine(PW - 24, 11)), x + 12, y + 12, 11, { color: p.hot, glow: 1 });
+    // NOTE: the title and the level tabs step clear of a corner tab the panel reaches (a phone: full width).
+    const ci = cornerInset();
+    const tl = x < 40 ? ci.left : 0;
+    const tr = x + PW > s.width - 40 ? ci.right : 0;
+    drawText(s, `${this.id}  ${substitute(title).toUpperCase()}`.slice(0, charsPerLine(PW - 24 - tl - tr, 11)), x + 12 + tl, y + 12, 11, { color: p.hot, glow: 1 });
     // Level tabs.
-    let tx = x + 12;
+    let tx = x + 12 + tl;
     for (const lv of LEVELS) {
       const on = lv === this.level;
       const has = this.meta ? this.meta.levels.includes(lv) : true;

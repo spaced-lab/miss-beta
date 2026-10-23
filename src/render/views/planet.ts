@@ -9,6 +9,7 @@
 // LORE: O12 (close approach), D4 (fragmentation), T2 (size ladder)
 
 import { generateContinents, type Continent } from '../../minigame/planet';
+import { cornerInset } from '../../ui/touchBack';
 import { propagate } from '../../physics/kepler';
 import { is3D, lift, stateAt, vsub } from '../../sim/orbit3';
 import type { RoundResult } from '../../sim/resolver';
@@ -113,7 +114,7 @@ export class PlanetOverlay {
     }
 
     const m = 16;
-    drawText(s, 'PLANET VIEW  HOME', m, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
+    drawText(s, 'PLANET VIEW  HOME', m + cornerInset().left, m, 14, { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     if (res) {
       const hits = res.outcomes.filter((o) => o.hits).length;
       const bodies = res.outcomes.length;

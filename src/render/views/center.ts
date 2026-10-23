@@ -10,6 +10,7 @@
 // LORE: G1, C2
 
 import type { Router, Screen, ScreenId } from '../../game/screen';
+import type { GearSpec } from '../../ui/gearMenu';
 import type { Settings } from '../../game/settings';
 import { LEVELS, LEVEL_TABS, markdownToLines, type Chunk, type Level, type LoreIndex, type LoreLine, type TopicMeta } from '../../lore/index';
 import { BUILT_LABS, labStatus, loadLab } from '../../lore/labs/index';
@@ -403,6 +404,27 @@ export class CenterScreen implements Screen {
     if (this.lab && k.held('ShiftLeft')) {
       // Shift + Left/Right handled above by nudge; Shift alone does nothing.
     }
+  }
+
+  /** GEAR menu: every action of the Learning Center (the quiz and the search have their own short lists). */
+  gear(): GearSpec {
+    if (this.quiz) return { title: 'QUIZ', items: [{ label: 'ANSWER 1', code: 'Digit1' }, { label: 'ANSWER 2', code: 'Digit2' }, { label: 'ANSWER 3', code: 'Digit3' }, { label: 'NEXT QUESTION', code: 'KeyN' }, { label: 'CLOSE QUIZ', code: 'KeyQ' }] };
+    if (this.searching) return { title: 'FIND', items: [{ label: 'DONE', code: 'Enter' }, { label: 'CLEAR AND CLOSE', code: 'Escape' }] };
+    return {
+      title: 'LEARNING CENTER',
+      items: [
+        { label: 'UP', code: 'ArrowUp', stay: true },
+        { label: 'DOWN', code: 'ArrowDown', stay: true },
+        { label: 'READ IT', code: 'Enter' },
+        { label: `PANE: ${this.focus}`, code: 'Tab', stay: true },
+        ...LEVELS.map((lv, i) => ({ label: `${lv === this.level ? '> ' : ''}LEVEL ${lv}`, code: `Digit${i + 1}`, stay: true })),
+        { label: `LIST: ${this.view}`, code: 'KeyV', stay: true },
+        { label: 'BOOKMARK', code: 'KeyB', off: !this.topicId },
+        { label: 'FIND', code: 'Slash' },
+        { label: 'QUIZ', code: 'KeyQ' },
+        { label: 'BACK', code: 'Escape' },
+      ],
+    };
   }
 
   /** A compact-layout button. */

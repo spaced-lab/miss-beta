@@ -31,6 +31,9 @@ import { isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSetting
 import { loadMinigameSettings, saveMinigameSettings } from './prefs';
 import { renderMinigame } from './render';
 import { drawPad, padHeld, padLayout, type PadId } from './touchPad';
+import { loadTiltPrefs, saveTiltPrefs, tiltAmount, tiltPwm, TiltSensor } from './tilt';
+import { onGearTab, type GearItem, type GearSpec } from '../ui/gearMenu';
+import { drawTextFit } from '../render/vectorFont';
 import { onBackTab } from '../ui/touchBack';
 import { isSfxPrefs, SfxPlayer } from './sfx';
 import { createLab, LAB_KEY, renderLab, updateLab, type LabState } from './soundLab';
@@ -86,6 +89,13 @@ export class MinigameScreen implements Screen {
   private readonly cheats = new CheatRegistry<MinigameState>(MINIGAME_CHEATS);
   private readonly sfx = new SfxPlayer();
   private readonly labState = createLab();
+  /** TILT STEER (tilt.ts): the sensor, the saved choice, the part-turn accumulator, a status line and its timer. */
+  private readonly tilt = new TiltSensor();
+  private tiltPrefs = loadTiltPrefs();
+  private tiltAcc = 0;
+  private tiltOnAt = 0;
+  private note = '';
+  private noteT = 0;
 
   constructor(private readonly s: Surface, private readonly keys: Keys, private readonly router: Router, private readonly reduceMotion: () => boolean = () => false) {
     this.st = createState(this.newSeed(), 'auto', this.settings.difficulty);
@@ -204,6 +214,79 @@ export class MinigameScreen implements Screen {
     this.acc = 0;
     this.sinceSave = 0;
     this.keys.clearTyped();
+    if (this.tiltPrefs.on) this.startTilt();
+  }
+
+  private say(text: string, seconds = 3): void {
+    this.note = text;
+    this.noteT = seconds;
+  }
+
+  private startTilt(): void {
+    const r = this.tilt.start();
+    this.tiltOnAt = performance.now();
+    if (r === 'waiting') this.say('TAP THE SCREEN ONCE TO ALLOW MOTION', 6);
+    else if (r === 'denied') this.say('MOTION NOT ALLOWED: CHECK THE BROWSER SETTINGS', 5);
+    else if (r === 'none') this.say('NO TILT SENSOR IN THIS BROWSER', 4);
+  }
+
+  /** Difficulty or start level changed (the panel keys or the gear menu): save, and redo the ready panel's field. */
+  private applyOptions(next: MinigameSettings): void {
+    this.settings = next;
+    saveMinigameSettings(next);
+    if (this.st.status === 'ready' && !this.demo && !this.player) {
+      this.best = loadNumber(bestKey(next.difficulty), 0);
+      this.st = createState(this.st.seed, this.st.collision, next.difficulty);
+    }
+  }
+
+  /** NEW GAME from the gear menu: any demo, replay or saved game is dropped and a fresh run starts with the options. */
+  private resetGame(): void {
+    if (this.demo) this.stopDemo();
+    this.player = null;
+    this.saved = null;
+    removeSessionJson(SAVE_KEY);
+    this.begin(this.newSeed());
+    this.acc = 0;
+  }
+
+  /** GEAR menu (ui/gearMenu.ts): reset, start level, difficulty, tilt, sound and the panel's extras, by touch. */
+  gear(): GearSpec {
+    const st = this.st;
+    const o = this.settings;
+    const ready = st.status === 'ready' && !this.demo && !this.player;
+    const items: GearItem[] = [];
+    if (this.demo) items.push({ label: 'STOP DEMO', code: '', act: () => this.stopDemo() });
+    if (ready && this.saved) items.push({ label: 'RESUME SAVED GAME', code: 'Space', hot: true });
+    items.push({ label: `NEW GAME: LEVEL ${o.startLevel} ${o.difficulty.toUpperCase()}`, code: '', hot: !this.saved, act: () => this.resetGame() });
+    items.push({ label: `START LEVEL: ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, code: '', stay: true, act: () => this.applyOptions({ ...o, startLevel: nextStartLevel(o.startLevel) }) });
+    items.push({ label: `DIFFICULTY: ${o.difficulty.toUpperCase()}`, code: '', stay: true, act: () => this.applyOptions({ ...o, difficulty: nextDifficulty(o.difficulty) }) });
+    const noSensor = this.tilt.state === 'none';
+    items.push({
+      label: noSensor ? 'TILT STEER: NO SENSOR' : `TILT STEER: ${this.tiltPrefs.on ? 'ON' : 'OFF'}`,
+      code: '',
+      stay: true,
+      off: noSensor,
+      act: () => {
+        this.tiltPrefs = { ...this.tiltPrefs, on: !this.tiltPrefs.on };
+        saveTiltPrefs(this.tiltPrefs);
+        if (this.tiltPrefs.on) this.startTilt();
+      },
+    });
+    if (this.tiltPrefs.on && !noSensor) {
+      items.push({ label: 'TILT: LEVEL IS HERE', code: '', act: () => { this.tilt.calibrate(); this.say('TILT LEVELLED', 2); } });
+      items.push({ label: `TILT: ${this.tiltPrefs.invert ? 'REVERSED' : 'NORMAL'}`, code: '', stay: true, act: () => { this.tiltPrefs = { ...this.tiltPrefs, invert: !this.tiltPrefs.invert }; saveTiltPrefs(this.tiltPrefs); } });
+    }
+    items.push({ label: `SOUND: ${this.sfx.enabled ? 'ON' : 'OFF'}`, code: '', stay: true, act: () => { this.sfx.enabled = !this.sfx.enabled; saveJson(SOUND_KEY, this.sfx.enabled); } });
+    items.push({ label: `SOUND KIT: ${this.sfx.kit.name}`, code: '', stay: true, act: () => { this.sfx.cycleKit(); saveJson(KIT_KEY, this.sfx.kitIndex); } });
+    if ((st.status === 'ready' || st.status === 'over') && !this.demo) items.push({ label: 'SOUND LAB', code: '', act: () => { this.labState.open = true; } });
+    if (ready) {
+      items.push({ label: 'SUPER DEMO', code: 'Digit8' });
+      items.push({ label: 'WATCH BEST GAME', code: 'Digit7' });
+      items.push({ label: `DAILY FIELD: ${this.daily ? 'ON' : 'OFF'}`, code: 'Digit6', stay: true });
+    }
+    items.push({ label: 'TITLE', code: '', act: () => { if (this.demo) this.stopDemo(); this.router.go('title'); } });
+    return { title: st.status === 'playing' && !this.demo ? 'PAUSED' : 'PERIMETER', items };
   }
 
   exit(): void {
@@ -214,6 +297,12 @@ export class MinigameScreen implements Screen {
   update(dtMs: number): void {
     const k = this.keys;
     const st = this.st;
+    this.noteT = Math.max(0, this.noteT - dtMs / 1000);
+    // Tilt switched on but nothing has come from the sensor (a laptop, a blocked sensor): say so once.
+    if (this.tiltPrefs.on && this.tilt.state === 'granted' && this.tilt.roll === null && this.tiltOnAt > 0 && performance.now() - this.tiltOnAt > 2500) {
+      this.tiltOnAt = 0;
+      this.say('NO TILT READINGS: THIS DEVICE MAY HAVE NO MOTION SENSOR', 4);
+    }
 
     // Any key counts as the user gesture browsers require before audio may start (a touch unlocks it in its own
     // handler, see the constructor).
@@ -283,14 +372,12 @@ export class MinigameScreen implements Screen {
     if ((st.status === 'ready' || (st.status === 'over' && !this.player)) && k.anyPressed('Digit9', 'Digit0')) {
       // NOTE: options apply to the next new game; a saved game keeps the options it was started with. On the
       // game-over panel they set up the retry (owner 2026-10-18: the level skip was hard to find).
-      if (k.pressed('Digit9')) this.settings = { ...this.settings, difficulty: nextDifficulty(this.settings.difficulty) };
-      if (k.pressed('Digit0')) this.settings = { ...this.settings, startLevel: nextStartLevel(this.settings.startLevel) };
-      saveMinigameSettings(this.settings);
-      // The game-over panel keeps comparing the finished game with its own difficulty's best.
-      if (st.status === 'ready') {
-        this.best = loadNumber(bestKey(this.settings.difficulty), 0);
-        this.st = createState(st.seed, st.collision, this.settings.difficulty);
-      }
+      // The game-over panel keeps comparing the finished game with its own difficulty's best (applyOptions redoes
+      // only the ready panel).
+      let next = this.settings;
+      if (k.pressed('Digit9')) next = { ...next, difficulty: nextDifficulty(next.difficulty) };
+      if (k.pressed('Digit0')) next = { ...next, startLevel: nextStartLevel(next.startLevel) };
+      this.applyOptions(next);
       return;
     }
     if (st.status === 'ready' && k.pressed('Digit7')) {
@@ -318,7 +405,9 @@ export class MinigameScreen implements Screen {
     const touches = k.touchPoints ?? [];
     // NOTE: a finger on BACK (held) must not also start a game from the panel.
     const first = touches[0];
-    const touchStart = (touches.length > 0 && !this.touchWas && !this.padNow.has('back') && !(first && onBtn(first))) || (tapClick !== null && !tapBack && !panelBtn);
+    // NOTE: nor a finger on the GEAR tab (main.ts takes its tap; the finger going down is still seen here).
+    const onGear = (pt: { x: number; y: number }): boolean => onGearTab(pt.x, pt.y, this.s.width);
+    const touchStart = (touches.length > 0 && !this.touchWas && !this.padNow.has('back') && !(first && (onBtn(first) || onGear(first)))) || (tapClick !== null && !tapBack && !panelBtn && !onGear(tapClick));
     this.touchWas = touches.length > 0;
     if (this.player && st.status === 'over' && (touchStart || k.pressed('Space'))) {
       this.endReplay();
@@ -378,9 +467,19 @@ export class MinigameScreen implements Screen {
     const tRight = pad ? this.padNow.has('right') : tp.some((t) => t.x > (2 * W) / 3);
     const tFire = pad ? this.padNow.has('fire') : tp.some((t) => t.x >= W / 3 && t.x <= (2 * W) / 3);
     const tPulse = pad ? padEdge('pulse') : multi;
+    // TILT STEER (tilt.ts): the phone's roll turns the launchers, a part turn spread over frames.
+    let tiltL = false;
+    let tiltR = false;
+    if (this.tiltPrefs.on && this.tilt.roll !== null && st.status === 'playing') {
+      const amt = tiltAmount(this.tilt.roll, this.tilt.neutral, this.tiltPrefs.invert);
+      const pw = tiltPwm(this.tiltAcc, amt);
+      this.tiltAcc = pw.acc;
+      tiltL = pw.on && amt < 0;
+      tiltR = pw.on && amt > 0;
+    }
     const input: Input = {
-      left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft,
-      right: k.anyHeld('ArrowRight', 'KeyD') || tRight,
+      left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft || tiltL,
+      right: k.anyHeld('ArrowRight', 'KeyD') || tRight || tiltR,
       fire: k.held('Space') || tFire,
       pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight') || tPulse,
       seeker: k.pressed('Comma') || (pad && padEdge('seeker')),
@@ -499,5 +598,9 @@ export class MinigameScreen implements Screen {
       if (this.keys.touchUsed) this.labBar.draw(this.s, [{ label: 'UP', code: 'ArrowUp' }, { label: 'DOWN', code: 'ArrowDown' }, { label: '< PICK', code: 'ArrowLeft' }, { label: 'PICK >', code: 'ArrowRight' }, { label: 'PLAY', code: 'Enter' }, { label: 'REVIEW ALL', code: 'KeyA' }, { label: 'DEFAULTS', code: 'Digit0' }, { label: 'CLOSE', code: 'Escape' }], true);
     }
     else if (this.keys.touchUsed) drawPad(this.s, padLayout(this.s.width, this.s.height), this.padNow, this.st.status === 'playing' && !this.player && !this.demo);
+    const s = this.s;
+    if (this.tiltPrefs.on && this.st.status === 'playing' && !this.demo) drawTextFit(s, this.tilt.roll === null ? 'TILT: NO READING' : 'TILT STEER', s.width / 2, s.height - 14, 8, 120, { align: 'center', color: s.palette.dim, glow: 0 });
+    // The note sits under the planet, clear of the HUD columns and the pad.
+    if (this.noteT > 0) drawTextFit(s, this.note, s.width / 2, Math.round(s.height * (s.width > s.height * 1.3 ? 0.8 : 0.66)), 10, Math.min(s.width - 24, s.width > s.height * 1.3 ? s.width * 0.5 : s.width), { align: 'center', color: s.palette.hot, glow: 1, alpha: Math.min(1, this.noteT / 0.4) });
   }
 }

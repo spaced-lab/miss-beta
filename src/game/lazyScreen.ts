@@ -13,6 +13,7 @@
 import type { Router, Screen, ScreenId } from './screen';
 import type { Surface } from '../render/canvas';
 import { drawText } from '../render/vectorFont';
+import type { GearSpec } from '../ui/gearMenu';
 import type { Input } from '../ui/input';
 
 export class LazyScreen<T extends Screen> implements Screen {
@@ -83,6 +84,10 @@ export class LazyScreen<T extends Screen> implements Screen {
   update(dtMs: number): void {
     if (this.target) this.target.update(dtMs);
     else if (this.failed && this.keys.pressed('Escape')) this.router.go(this.fallback);
+  }
+
+  gear(): GearSpec | null {
+    return this.target?.gear?.() ?? null;
   }
 
   render(): void {

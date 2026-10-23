@@ -5,6 +5,7 @@
 // LORE: G8 (the look), G2 (screens and HUD)
 
 import type { Router, Screen } from '../../game/screen';
+import type { GearItem, GearSpec } from '../../ui/gearMenu';
 import { topicForOption } from '../../game/loreLinks';
 import { loadMinigameSettings, saveMinigameSettings, stepDifficulty, stepStartLevel, type MinigameSettings } from '../../minigame/prefs';
 import { applySettings, AUTO_SPEED_LEVELS, INTERSTELLAR_RATES, COLOR_MODES, DEMO_LENGTH_LEVELS, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, SOUND_STYLES, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
@@ -62,7 +63,7 @@ export class OptionsScreen implements Screen {
       { group: 'AUTOPLAY', label: 'AUTOPLAY SPEED', value: () => st.autoSpeed ?? 'NORMAL', change: (d) => (st.autoSpeed = cycle(AUTO_SPEED_LEVELS, st.autoSpeed ?? 'NORMAL', d)), note: 'HOW FAST AUTOPLAY READS ITS PANES AND RUNS THE CLOCK. SLOW IS THE FIRST PACE, NORMAL 1.5X, FAST 2.25X. - AND = CHANGE IT WHILE IT PLAYS.' },
       { group: 'AUTOPLAY', label: 'DEMO LENGTH', value: () => ({ SHORT: 'SHORT (35 S)', MEDIUM: 'MEDIUM (70 S)', LONG: 'LONG (2:15)' })[st.demoLength ?? 'MEDIUM'], change: (d) => (st.demoLength = cycle(DEMO_LENGTH_LEVELS, st.demoLength ?? 'MEDIUM', d)), note: 'SUPER-DUPER-DEMO: HOW LONG THE FASTER-AND-FASTER GAMES RUN BEFORE THE FINALE (TIMED BY THE CLOCK).' },
       { group: 'PERIMETER', label: 'DIFFICULTY', value: () => this.mg.difficulty.toUpperCase(), change: (d) => this.setMg({ ...this.mg, difficulty: stepDifficulty(this.mg.difficulty, d) }), note: 'THE ARCADE MODE (PERIMETER). EASY, NORMAL OR HARD: RATE, TOUGHNESS AND SPEED OF THE ROCKS AND HULL DAMAGE. ALSO KEY 9 ON ITS START PANEL. EACH HAS ITS OWN BEST SCORE.' },
-      { group: 'PERIMETER', label: 'START LEVEL', value: () => `${this.mg.startLevel}${this.mg.startLevel > 1 ? ' (NOT RANKED)' : ''}`, change: (d) => this.setMg({ ...this.mg, startLevel: stepStartLevel(this.mg.startLevel, d) }), note: 'SKIP AHEAD: START PERIMETER AT LEVEL 1, 10, 20, 30 OR 40 WITH THE KIT A RUN USUALLY HAS BY THEN. ALSO KEY 0 ON ITS START PANEL. A LATER START IS NOT RANKED.' },
+      { group: 'PERIMETER', label: 'START LEVEL', value: () => `${this.mg.startLevel}${this.mg.startLevel > 1 ? ' (NOT RANKED)' : ''}`, change: (d) => this.setMg({ ...this.mg, startLevel: stepStartLevel(this.mg.startLevel, d) }), note: 'SKIP AHEAD: START PERIMETER AT LEVEL 1 TO 60 WITH THE KIT A RUN USUALLY HAS BY THEN. ALSO KEY 0 ON ITS START PANEL, OR ITS GEAR MENU. A LATER START IS NOT RANKED.' },
     ];
   }
   /** PERIMETER's own saved options (minigame/prefs.ts): read on entry, saved on every change. */
@@ -141,6 +142,23 @@ export class OptionsScreen implements Screen {
     drawTextFit(s, 'UP / DOWN SELECT    ENTER OR CLICK THEN PRESS A KEY    BACKSPACE DEFAULT    DELETE RESET ALL    ESC BACK    A KEY ALREADY IN USE SWAPS', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: ui.dim, glow: 0 });
   }
 
+  /** GEAR menu: every option as a button that steps it (the menu stays open to show the new value). */
+  gear(): GearSpec {
+    if (this.keysOpen) return { title: 'OPTIONS  KEYS', items: [{ label: 'UP', code: 'ArrowUp', stay: true }, { label: 'DOWN', code: 'ArrowDown', stay: true }, { label: 'DEFAULT KEY', code: 'Backspace' }, { label: 'RESET ALL KEYS', code: 'Delete' }, { label: 'BACK', code: 'Escape' }] };
+    const items: GearItem[] = this.rows.map((r, i) => ({
+      label: `${r.label}: ${r.value()}`,
+      code: '',
+      stay: r.label !== 'KEYS',
+      act: () => {
+        this.sel = i;
+        r.change(1);
+        applySettings(this.settings, this.s);
+        saveSettings(this.settings);
+      },
+    }));
+    return { title: 'OPTIONS', items: [...items, { label: 'LEARN ABOUT IT', code: 'KeyL' }, { label: 'TITLE', code: 'Escape' }] };
+  }
+
   update(): void {
     const k = this.keys;
     if (this.keysOpen) {
@@ -213,21 +231,42 @@ export class OptionsScreen implements Screen {
     // PERIMETER rows read as the game's own DIFFICULTY and START LEVEL without it).
     const headH = narrow ? 13 : 0;
     const step = Math.max(narrow ? fs * ts + 8 : 22, Math.min(32, (s.height - 230 - groups * (8 + headH)) / this.rows.length));
+    // A window too short for the whole list (a phone held sideways) scrolls it: the rows are placed first, then the
+    // list is shifted so the selected row stays in the middle of the room between the title and the note lines.
+    const ys: number[] = [];
+    const heads: (number | null)[] = [];
+    let vy = y;
+    this.rows.forEach((r, i) => {
+      const first = i === 0 || this.rows[i - 1]?.group !== r.group;
+      if (i > 0 && first) vy += 8;
+      heads.push(first ? vy : null);
+      if (first && narrow) vy += headH;
+      ys.push(vy);
+      vy += step;
+    });
+    const roomTop = y;
+    const roomBottom = s.height - m - 12 - 16 - 3 * 14 - 8;
+    const selY = ys[this.sel] ?? y;
+    const shift = vy - y <= roomBottom - roomTop ? 0 : Math.max(0, Math.min(vy - roomBottom, selY - (roomTop + roomBottom) / 2));
+    const clipped = shift > 0 || vy > roomBottom;
     this.rows.forEach((r, i) => {
       // A small gap and a dim heading where a new group starts.
-      const first = i === 0 || this.rows[i - 1]?.group !== r.group;
-      if (i > 0 && first) y += 8;
-      if (first && narrow) {
-        drawText(s, r.group, x, y, 8, { color: ui.head, glow: 0.3 });
-        y += headH;
-      } else if (first) drawText(s, r.group, x - 140, y + 2, 10, { color: ui.dim, glow: 0 });
-      this.rowYs.push(y);
+      const hy = (heads[i] ?? -1) - shift;
+      y = (ys[i] ?? 0) - shift;
+      const shown = y >= roomTop - 2 && y <= roomBottom;
+      if (heads[i] !== null && hy >= roomTop - 2 && hy <= roomBottom) {
+        if (narrow) drawText(s, r.group, x, hy, 8, { color: ui.head, glow: 0.3 });
+        else drawText(s, r.group, x - 140, y + 2, 10, { color: ui.dim, glow: 0 });
+      }
+      this.rowYs.push(shown ? y : -1000);
+      if (!shown) return;
       const sel = i === this.sel;
       if (sel) drawText(s, '>', x - 24, y, fs, { color: ui.sel, glow: 1.6 });
       drawText(s, r.label, x, y, fs, { color: sel ? ui.sel : ui.text, glow: sel ? 1.6 : 0.8 });
       drawTextFit(s, `<  ${r.value()}  >`, this.valueX, y, fs, s.width - 8 - this.valueX, { color: sel ? ui.sel : ui.sub, glow: sel ? 1.6 : 0.8 });
-      y += step;
     });
+    y = Math.min(vy - shift, roomBottom) + (clipped ? 4 : 0);
+    if (clipped) drawText(s, shift > 0 ? (vy - shift > roomBottom ? '^ MORE ABOVE AND BELOW v' : '^ MORE ABOVE') : 'MORE BELOW v', s.width / 2, roomTop - 16, 8, { align: 'center', color: ui.dim, glow: 0 });
     const row = this.rows[this.sel];
     if (row) wrapText(row.note, Math.min(900, s.width - 64), 10).slice(0, 3).forEach((l, i) => drawText(s, l, s.width / 2, y + 16 + i * 14, 10, { align: 'center', color: ui.head, glow: 0 }));
     drawTextFit(s, 'UP / DOWN SELECT    LEFT / RIGHT OR CLICK CHANGE    <L> LEARN ABOUT THIS    <ESC> BACK    SAVED AUTOMATICALLY', s.width / 2, s.height - m - 12, 11, s.width - 32, { align: 'center', color: p.dim, glow: 0 });

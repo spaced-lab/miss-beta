@@ -9,6 +9,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawText, drawTextFit } from '../vectorFont';
 import { ScreenBar } from '../../ui/actionBar';
+import type { GearSpec } from '../../ui/gearMenu';
 
 const MODES: readonly Mode[] = ['REALISTIC', 'SCIFI', 'FICTION'];
 
@@ -18,6 +19,9 @@ export class LeaderboardScreen implements Screen {
   constructor(private readonly s: Surface, private readonly keys: Input, private readonly router: Router) {}
   enter(): void {}
   exit(): void {}
+  gear(): GearSpec {
+    return { title: 'LEADERBOARD', items: [...this.bar.items] };
+  }
   update(): void {
     this.bar.tap(this.keys);
     if (this.keys.pressed('Escape') || this.keys.pressed('Enter') || this.keys.pressed('Space')) this.router.go('title');

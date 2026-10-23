@@ -231,3 +231,10 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     PERIMETER touch control for difficulty and start level on the ready panel (today: OPTIONS > PERIMETER). Status: 2026-10-21 LEARN upright (STACK layout, side pane for labs / data /
     models), HELP, CODEX and LEADERBOARD done; later the same day the console and search (soft keyboard), KEYS
     note, SOUND LAB bar and the PERIMETER ready-panel buttons. DONE.
+
+40. **Gear menu everywhere, PERIMETER tilt and reset (M).** Owner 2026-10-23: "see if you can do anything for minigame
+    to work with gryroscope ... make gear icon for game reset and to start at higher minigame level ... all interactions
+    being able to be done by a gear icon as well and menus. test render all screens to be on small screen." Status:
+    DONE 2026-10-23 (ui/gearMenu.ts, minigame/tilt.ts, start levels to 60, phone renders of every screen checked at
+    780 x 360 and 390 x 740). Left: the real motion sensor on a phone (only synthetic events were tested here), and
+    PERIMETER in a small desktop window without touch still draws its keyboard panel, which crowds under 700 px.

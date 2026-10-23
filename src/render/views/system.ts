@@ -12,6 +12,7 @@
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
 import { targetOf, type TargetId } from '../../sim/targets';
+import type { GearItem, GearSpec } from '../../ui/gearMenu';
 import { canUnlock, TECH, unlock } from '../../game/tech';
 import { SkyOverlay } from './sky';
 import { nodeLine, tiltAboutNode } from '../../sim/sky';
@@ -1982,9 +1983,11 @@ export class SystemScreen implements Screen {
     let y = 8;
     drawText(s, formatCountdown(th.tImpact - w.t), x0, y, 12, { color: p.hot, glow: 1.2 });
     this.hit(x0, y, 120, 16, 'G2', 'CLOCK AND WARP');
-    drawText(s, `WARP ${warpLabel(w)}`, W - m, y, 12, { align: 'right', color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
+    // NOTE: the first two lines end left of the GEAR tab in the top-right corner (ui/gearMenu.ts).
+    const gx = W - 44;
+    drawText(s, `WARP ${warpLabel(w)}`, gx, y, 12, { align: 'right', color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     y += 18;
-    drawTextFit(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)} (+${this.run.economy.perYear}/Y)   SCORE ${this.run.score}   RES ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX' : ''}${this.run.tutorial ? '   TUTORIAL' : ''}`, x0, y, 8, W - m - x0, { color: this.run.sandbox ? p.hot : ui.dim, glow: 0 });
+    drawTextFit(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)} (+${this.run.economy.perYear}/Y)   SCORE ${this.run.score}   RES ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX' : ''}${this.run.tutorial ? '   TUTORIAL' : ''}`, x0, y, 8, gx - x0, { color: this.run.sandbox ? p.hot : ui.dim, glow: 0 });
     this.hit(x0, y, W - m - x0, 12, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
     y += 14;
     const kms = (res.ca.vInf / 1000).toFixed(1);
@@ -2073,6 +2076,20 @@ export class SystemScreen implements Screen {
     if (this.auto && !this.auto.demo) base.unshift({ label: 'TAKE OVER', code: 'KeyA', key: keyName('AUTOPLAY'), hot: true });
     if (compact) return [...base, more];
     return [...base, { label: 'PROGRAMS', code: 'KeyG', key: keyName('PROGRAMS') }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }, { label: 'PLANET', code: 'KeyV', key: keyName('PLANET') }, { label: 'EVACUATE', code: 'KeyE', key: keyName('EVACUATE'), off: this.run.evacuatedAt !== null }, { label: 'LORE', code: 'Slash', key: keyName('LORE') }, more];
+  }
+
+  /** GEAR menu (ui/gearMenu.ts): the bar and the MORE grid in one list. None while the demo plays it by itself. */
+  gear(): GearSpec | null {
+    if (this.auto?.demo) return null;
+    const seen = new Set<string>();
+    const items: GearItem[] = [];
+    for (const it of [...this.barItems(), ...(this.lore.isOpen || this.planner.isOpen || this.programs.isOpen || this.tech.isOpen || this.sky.isOpen || this.console.isOpen ? [] : this.menuItems())]) {
+      if (it.code === 'MORE' || it.code === 'MENU_CLOSE' || seen.has(it.code)) continue;
+      seen.add(it.code);
+      // Warp and the list arrows are steps: the menu stays open to take the next one.
+      items.push({ ...it, stay: ['BracketLeft', 'BracketRight', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(it.code) });
+    }
+    return { title: this.phase === 'planning' ? 'ACTIONS' : this.phase === 'debrief' ? 'DEBRIEF ACTIONS' : 'RUN OVER', items };
   }
 
   /** The MORE menu's grid: everything the bar left out. */

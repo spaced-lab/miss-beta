@@ -4,11 +4,15 @@
 // HOW:  `update` runs with real elapsed milliseconds; screens with fixed-step sims accumulate internally.
 // LORE: C1 (how the game is built)
 
+import type { GearSpec } from '../ui/gearMenu';
+
 export interface Screen {
   enter(): void;
   exit(): void;
   update(dtMs: number): void;
   render(): void;
+  /** Every action of the screen for the GEAR menu (ui/gearMenu.ts), or null for no gear this frame. */
+  gear?(): GearSpec | null;
 }
 
 export type ScreenId = 'title' | 'minigame' | 'system' | 'leaderboard' | 'codex' | 'help' | 'options' | 'center' | 'demo';

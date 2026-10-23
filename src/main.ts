@@ -22,7 +22,8 @@ import { UiSfx } from './audio/ui';
 import type { CenterScreen } from './render/views/center';
 import { LazyScreen } from './game/lazyScreen';
 import { Input } from './ui/input';
-import { drawBackTab, onBackTab } from './ui/touchBack';
+import { cornerTabs, drawBackTab, onBackTab } from './ui/touchBack';
+import { GearMenu } from './ui/gearMenu';
 
 function boot(): void {
   const canvas = document.getElementById('game');
@@ -40,8 +41,10 @@ function boot(): void {
   let current: Screen | null = null;
   const screens = new Map<ScreenId, Screen>();
   let currentId: ScreenId = 'title';
+  const gear = new GearMenu();
   const router: Router = {
     go(id) {
+      gear.open = false;
       const next = screens.get(id);
       if (!next) throw new Error(`unknown screen ${id}`);
       // The manual remembers where it was opened from.
@@ -126,10 +129,11 @@ function boot(): void {
 
   // Dev diagnostics: CPU time per frame (update + render), smoothed, readable from the console as
   // window.__miss.cpuMs. The rAF interval is vsync-bound and says nothing about our cost; this does.
-  // `screens` is exposed too so an automated visual check can read a screen's state (dev only).
+  // `screens` is exposed too so an automated visual check can read a screen's state (dev only), and `gear` so it
+  // can find the GEAR menu's buttons.
   // A lazy screen unwraps to the real one once loaded (null until then), so console checks read the same state.
   const devScreens = { get: (id: ScreenId): Screen | null | undefined => { const sc = screens.get(id); return sc instanceof LazyScreen ? (sc.target as Screen | null) : sc; } };
-  const stats = { cpuMs: 0, frameMs: 0, stale: false, screens: devScreens };
+  const stats = { cpuMs: 0, frameMs: 0, stale: false, screens: devScreens, gear };
   if (import.meta.env.DEV) (window as unknown as { __miss: typeof stats }).__miss = stats;
   // NOTE: accept hot updates here without re-booting, so a source save on the dev server never reloads
   // the page under a running game. The running code is simply stale until the player refreshes; a notice
@@ -174,15 +178,23 @@ function boot(): void {
     // Touch screens have no Esc key: a BACK tab in the top-left corner on every screen but the title presses it (each screen's
     // Escape goes back, closes a panel or pauses) (owner 2026-10-20, "make sure the menu works on mobile").
     const back = keys.touchUsed && currentId !== 'title' && currentId !== 'minigame';
-    const tap = back ? keys.peekClick() : null;
+    // The GEAR menu (owner 2026-10-23): every action of the screen in one list, top-right, on a touch screen or a
+    // small window. It takes the taps first; while it is open the screen waits.
+    const small = surface.width < 700 || surface.height < 500;
+    const spec = keys.touchUsed || small ? (current?.gear?.() ?? null) : null;
+    const held = gear.update(keys, spec, surface.width);
+    cornerTabs.back = back;
+    cornerTabs.gear = spec !== null;
+    const tap = back && !gear.open ? keys.peekClick() : null;
     if (tap && onBackTab(tap.x, tap.y)) {
       keys.takeClick();
       keys.inject('Escape');
     }
-    current?.update(dt);
+    if (!held) current?.update(dt);
     keys.endFrame();
     current?.render();
-    if (back) drawBackTab(surface);
+    if (back && !gear.open) drawBackTab(surface);
+    gear.draw(surface, spec);
     if (settings.crt) crtPass(surface, { scanlines: true, vignette: true, flicker: !settings.reduceMotion }, now / 1000);
     if (stats.stale) drawText(surface, 'NEW BUILD AVAILABLE: REFRESH TO LOAD IT', surface.width / 2, 4, 11, { align: 'center', color: surface.palette.hot, glow: 1 });
     const cpu = performance.now() - t0;

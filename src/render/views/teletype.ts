@@ -123,7 +123,9 @@ export class Teletype {
     const size = narrow ? 8.5 : anchor === 'center' ? 11 : 10;
     const panelW = narrow ? s.width - 32 : anchor === 'center' ? Math.min(760, s.width - 32) : Math.min(660, Math.max(320, Math.floor(s.width * 0.5)));
     const head0 = anchor === 'center' ? 15 : 12;
-    const headSize = narrow ? Math.min(head0, (head0 * (panelW - 24)) / Math.max(1, measureText(c.n.header.text, head0) * getTextScale())) : head0;
+    // NOTE: the header always shrinks to the panel (a phone held sideways is wider than 700 px but its 390 px panel
+    // still cut a long discovery header off at the screen's edge).
+    const headSize = Math.min(head0, (head0 * (panelW - 24)) / Math.max(1, measureText(c.n.header.text, head0) * getTextScale()));
     const cols = charsPerLine(panelW - 24, size);
     const lines = c.n.lines.flatMap((l) => Teletype.wrap(l, cols));
     const lineH = size * 1.5 * (narrow ? getTextScale() : 1);

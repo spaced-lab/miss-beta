@@ -10,6 +10,15 @@
 import type { Surface } from '../render/canvas';
 import { drawText } from '../render/vectorFont';
 
+/** Which corner tabs main.ts draws this frame (BACK top-left, GEAR top-right, ui/gearMenu.ts); views that put a title
+ *  in a top corner read `cornerInset` instead of guessing from the window size. */
+export const cornerTabs = { back: false, gear: false };
+
+/** Px to keep clear at the top-left and top-right for the corner tabs. Example: both shown -> { left: 36, right: 36 }. */
+export function cornerInset(): { left: number; right: number } {
+  return { left: cornerTabs.back ? 36 : 0, right: cornerTabs.gear ? 36 : 0 };
+}
+
 /** The drawn tab, CSS px. */
 export const BACK_TAB = { x: 3, y: 3, w: 30, h: 26 };
 

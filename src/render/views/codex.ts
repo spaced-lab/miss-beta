@@ -13,6 +13,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { drawText, drawTextFit, wrapText } from '../vectorFont';
 import { ScreenBar } from '../../ui/actionBar';
+import type { GearSpec } from '../../ui/gearMenu';
 import { LorePanel } from './lorePanel';
 
 interface Method {
@@ -67,6 +68,9 @@ export class CodexScreen implements Screen {
   private compact(): boolean {
     return this.s.width < 700;
   }
+  gear(): GearSpec {
+    return { title: 'CODEX', items: [...this.bar.items] };
+  }
   update(): void {
     const k = this.keys;
     this.bar.tap(k);
@@ -113,7 +117,8 @@ export class CodexScreen implements Screen {
     const m = 16;
     const compact = this.compact();
     let x = this.keys.touchUsed ? m + 30 : m;
-    const tabStep = compact ? (s.width - x - m) / TABS.length : 140;
+    // NOTE: the tabs end left of the GEAR tab on a touch screen (ui/gearMenu.ts).
+    const tabStep = compact ? (s.width - x - m - (this.keys.touchUsed ? 30 : 0)) / TABS.length : 140;
     TABS.forEach((t, i) => {
       drawTextFit(s, t, x, m, compact ? 11 : 14, tabStep - 8, { color: i === this.tab ? p.hot : p.dim, glow: i === this.tab ? 1.5 : 0 });
       x += tabStep;

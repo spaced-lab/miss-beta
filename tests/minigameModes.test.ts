@@ -181,14 +181,14 @@ describe('settings guard', () => {
     expect(isMinigameSettings(DEFAULT_SETTINGS)).toBe(true);
   });
   it('rejects anything else', () => {
-    for (const bad of [null, undefined, 'normal', 3, [], {}, { difficulty: 'normal' }, { startLevel: 1 }, { difficulty: 'NORMAL', startLevel: 1 }, { difficulty: 'normal', startLevel: 15 }, { difficulty: 'normal', startLevel: '10' }, { difficulty: 'normal', startLevel: Number.NaN }]) {
+    for (const bad of [null, undefined, 'normal', 3, [], {}, { difficulty: 'normal' }, { startLevel: 1 }, { difficulty: 'NORMAL', startLevel: 1 }, { difficulty: 'normal', startLevel: 17 }, { difficulty: 'normal', startLevel: '10' }, { difficulty: 'normal', startLevel: Number.NaN }]) {
       expect(isMinigameSettings(bad), JSON.stringify(bad)).toBe(false);
     }
   });
   it('cycling wraps and recovers from an unknown value', () => {
     expect(nextDifficulty('easy')).toBe('normal');
     expect(nextDifficulty('hard')).toBe('easy');
-    expect(MG.START_LEVELS.map(nextStartLevel)).toEqual([10, 20, 30, 40, 1]);
+    expect(MG.START_LEVELS.map(nextStartLevel)).toEqual([5, 10, 15, 20, 25, 30, 40, 50, 60, 1]);
     expect(nextStartLevel(7)).toBe(1);
   });
   it('replays carry an optional, guarded difficulty', () => {
@@ -264,16 +264,16 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
       screen.enter();
       expect(screen.options).toEqual(DEFAULT_SETTINGS);
       tap(keys, screen, 'Digit9'); // normal -> hard
-      tap(keys, screen, 'Digit0'); // 1 -> 10
-      expect(screen.options).toEqual({ difficulty: 'hard', startLevel: 10 });
-      expect(JSON.parse(local.getItem(`missb.${SETTINGS_KEY}`) ?? 'null')).toEqual({ difficulty: 'hard', startLevel: 10 });
+      tap(keys, screen, 'Digit0'); // 1 -> 5
+      expect(screen.options).toEqual({ difficulty: 'hard', startLevel: 5 });
+      expect(JSON.parse(local.getItem(`missb.${SETTINGS_KEY}`) ?? 'null')).toEqual({ difficulty: 'hard', startLevel: 5 });
       tap(keys, screen, 'Space');
       expect(screen.state.status).toBe('playing');
       expect(screen.state.difficulty).toBe('hard');
-      expect(screen.state.level).toBe(10);
+      expect(screen.state.level).toBe(5);
       // A new screen reads the stored options back through the guard; a corrupt value falls back to the default.
       const again = new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} });
-      expect(again.options).toEqual({ difficulty: 'hard', startLevel: 10 });
+      expect(again.options).toEqual({ difficulty: 'hard', startLevel: 5 });
       local.setItem(`missb.${SETTINGS_KEY}`, JSON.stringify({ difficulty: 'hard', startLevel: 99 }));
       expect(new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} }).options).toEqual(DEFAULT_SETTINGS);
       expect(bestKey('normal')).toBe('minigame.best');
@@ -294,11 +294,11 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
       screen.enter();
       tap(keys, screen, 'Space');
       (screen.state as { status: string }).status = 'over';
-      tap(keys, screen, 'Digit0'); // 1 -> 10, for the retry
+      tap(keys, screen, 'Digit0'); // 1 -> 5, for the retry
       expect(screen.state.status).toBe('over');
       tap(keys, screen, 'Space');
       expect(screen.state.status).toBe('playing');
-      expect(screen.state.level).toBe(10);
+      expect(screen.state.level).toBe(5);
       // OPTIONS > PERIMETER writes the same key; the screen reads it again when it is entered.
       saveMinigameSettings({ difficulty: 'easy', startLevel: 20 });
       screen.enter();
@@ -311,8 +311,8 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
   });
 
   it('OPTIONS steps wrap both ways', () => {
-    expect(stepStartLevel(1, -1)).toBe(40);
-    expect(stepStartLevel(40, 1)).toBe(1);
+    expect(stepStartLevel(1, -1)).toBe(60);
+    expect(stepStartLevel(60, 1)).toBe(1);
     expect(stepDifficulty('easy', -1)).toBe('hard');
     expect(stepDifficulty('normal', 1)).toBe('hard');
   });

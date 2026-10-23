@@ -37,8 +37,8 @@ export interface BarBox {
   item: BarItem;
 }
 
-/** Narrowest button before the bar wraps to a second row, px. */
-export const MIN_W = 58;
+/** Narrowest button before the bar wraps to a second row, px (64: six buttons on a 390 px phone wrap, their labels were too small). */
+export const MIN_W = 64;
 export const ROW_H_TOUCH = 38;
 export const ROW_H_MOUSE = 24;
 
@@ -97,12 +97,15 @@ export function drawBar(s: Surface, boxes: readonly BarBox[], touch: boolean): v
 
 /**
  * The MORE menu: `items` in a centred grid, 3 columns when the window is 520 px or wider, else 2; rows 44 px on
- * touch screens and 30 px with a mouse. Example: menuLayout(390, 740, 12 items, true) -> 2 columns x 6 rows.
+ * touch screens and 30 px with a mouse (4 columns and shorter rows when a long list would not fit). Example: menuLayout(390, 740, 12 items, true) -> 2 columns x 6 rows.
  */
 export function menuLayout(W: number, H: number, items: readonly BarItem[], touch: boolean): BarBox[] {
-  const cols = W >= 520 ? 3 : 2;
-  const rowH = touch ? 44 : 30;
+  // NOTE: a long list in a short window (a phone held sideways) takes a fourth column, then shorter rows (28 px at
+  // least, still a finger), so the grid never runs off the bottom.
+  const cols = W >= 520 ? (W >= 700 && items.length > 12 ? 4 : 3) : 2;
   const gap = 8;
+  const fitH = (H - 56 - (Math.ceil(items.length / cols) - 1) * gap) / Math.ceil(items.length / cols);
+  const rowH = Math.max(28, Math.min(touch ? 44 : 30, fitH));
   const gw = Math.min(W - 24, cols * 190 + (cols - 1) * gap);
   const bw = (gw - (cols - 1) * gap) / cols;
   const rows = Math.ceil(items.length / cols);
@@ -131,6 +134,8 @@ export function drawMenu(s: Surface, boxes: readonly BarBox[], title: string, to
 export class ScreenBar {
   boxes: BarBox[] = [];
   height = 0;
+  /** The items drawn last frame (the screen's GEAR menu lists them, ui/gearMenu.ts). */
+  items: readonly BarItem[] = [];
 
   tap(keys: Input): boolean {
     // NOTE: optional call: the minigame's tests drive the screen with a bare key stub that has no pointer.
@@ -144,6 +149,7 @@ export class ScreenBar {
   }
 
   draw(s: Surface, items: readonly BarItem[], touch: boolean): void {
+    this.items = items;
     this.boxes = barLayout(s.width, s.height, items, touch);
     this.height = barHeight(this.boxes, s.height);
     drawBar(s, this.boxes, touch);

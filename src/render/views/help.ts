@@ -9,6 +9,7 @@ import type { Router, Screen, ScreenId } from '../../game/screen';
 import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { ScreenBar } from '../../ui/actionBar';
+import type { GearSpec } from '../../ui/gearMenu';
 import { drawText, drawTextFit, wrapText } from '../vectorFont';
 
 export interface HelpPage {
@@ -206,6 +207,10 @@ export class HelpScreen implements Screen {
     this.scroll = 0;
   }
   exit(): void {}
+  gear(): GearSpec {
+    const onCredits = HELP_PAGES[this.page]?.title.startsWith('CREDITS') === true;
+    return { title: 'HOW TO PLAY', items: [...this.bar.items, ...(onCredits ? [{ label: 'COFFEE FUND', code: 'KeyC', key: 'C' }] : [])] };
+  }
   update(): void {
     const k = this.keys;
     // CREDITS: C or a click on the support lines opens the coffee fund (src/game/support.ts).
@@ -255,7 +260,8 @@ export class HelpScreen implements Screen {
       tx += compact ? 90 : 110;
     }
     if (compact) drawTextFit(s, `${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, m, m + 16, 9, s.width - 2 * m, { color: p.ink, glow: 0.5 });
-    else drawTextFit(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, s.width - m - tx - 20, { color: p.ink, glow: 0.5 });
+    // NOTE: the title line ends left of the GEAR tab in a short window (ui/gearMenu.ts).
+    else drawTextFit(s, `HOW TO PLAY   ${this.page + 1} / ${HELP_PAGES.length}   ${page.title}`, tx + 20, m, 12, s.width - m - tx - 20 - (this.keys.touchUsed || s.height < 500 ? 34 : 0), { color: p.ink, glow: 0.5 });
     const size = compact ? 9 : Math.max(9, Math.min(12, (s.width - 2 * m) / 105 / (5.5 / 6)));
     const lineH = size * (compact ? 1.45 : 1.7);
     let y = m + (compact ? 34 : 36);

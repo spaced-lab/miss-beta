@@ -6,6 +6,7 @@
 // LORE: G2 (screens and HUD), G8 (the look)
 
 import { VERSION } from '../../game/version';
+import type { GearItem, GearSpec } from '../../ui/gearMenu';
 import { hasSavedRun, loadRun } from '../../game/savegame';
 import { createRun, type RunState } from '../../game/run';
 import { ConsoleOverlay } from './console';
@@ -169,6 +170,14 @@ export class TitleScreen implements Screen {
     this.router.go('system');
   }
   exit(): void {}
+
+  /** GEAR menu: the title's own list, the short names, plus the console. None while the notice is up. */
+  gear(): GearSpec | null {
+    if (this.settings && !this.settings.photoAck) return null;
+    if (this.console.isOpen) return { title: 'CONSOLE', items: [{ label: 'CLOSE CONSOLE', code: 'Escape' }] };
+    const items: GearItem[] = this.items.map((it) => ({ label: it.label.split('  ')[0] ?? it.label, code: '', off: !it.action, ...(it.action ? { act: it.action } : {}) }));
+    return { title: 'MISS BETA', items: [...items, { label: 'CONSOLE (CODES)', code: 'Backquote' }] };
+  }
 
   update(dtMs: number): void {
     this.t += dtMs / 1000;

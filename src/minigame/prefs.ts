@@ -35,7 +35,7 @@ function stepOf<T>(list: readonly T[], cur: T, dir: number): T {
 
 /** Example: stepDifficulty('hard', 1) = 'easy'; stepDifficulty('normal', -1) = 'easy'. */
 export const stepDifficulty = (d: Difficulty, dir: number): Difficulty => stepOf(MG.DIFFICULTY_ORDER, d, dir);
-/** Example: stepStartLevel(40, 1) = 1; stepStartLevel(1, -1) = 40. */
+/** Example: stepStartLevel(60, 1) = 1; stepStartLevel(1, -1) = 60. */
 export const stepStartLevel = (level: number, dir: number): number => stepOf(MG.START_LEVELS, level, dir);
 export const nextDifficulty = (d: Difficulty): Difficulty => stepDifficulty(d, 1);
 export const nextStartLevel = (level: number): number => stepStartLevel(level, 1);
