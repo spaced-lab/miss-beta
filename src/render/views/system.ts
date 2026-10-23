@@ -2223,7 +2223,12 @@ export class SystemScreen implements Screen {
       const moved = res.ca.marginRadii - cf.margin;
       drawTextFit(s, `YOUR MISSIONS MOVED IT ${moved >= 0 ? '+' : ''}${moved.toFixed(2)} R. IT NEEDED ${(-res.ca.marginRadii).toFixed(2)} R MORE: EARLIER, OR A SECOND IMPACTOR.`, cx, y + 156, 11, fitW, { align: 'center', color: s.spectrum ? s.role('craft') : p.ink, glow: 0.6 });
     }
-    drawTextFit(s, `RUN OVER   ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`, cx, y + 184, 12, fitW, { align: 'center' });
+    const tally = `ROUNDS SURVIVED ${this.run.roundsSurvived}   RUN SCORE ${this.run.score}${this.rank > 0 ? `   LEADERBOARD RANK ${this.rank}` : this.run.sandbox ? '   SANDBOX: NOT RECORDED' : ''}`;
+    // On a phone the one line shrank to unreadable: RUN OVER gets a line of its own above the tally.
+    if (pw < 520) {
+      drawTextFit(s, 'RUN OVER', cx, y + 180, 16, fitW, { align: 'center', color: p.hot, glow: 1.2 });
+      drawTextFit(s, tally, cx, y + 204, 11, fitW, { align: 'center' });
+    } else drawTextFit(s, `RUN OVER   ${tally}`, cx, y + 184, 12, fitW, { align: 'center' });
     if (!this.keys.touchUsed) drawTextFit(s, '<SPACE> NEW RUN   LEFT/RIGHT SCRUB   <H> HIDE PANEL   <V> PLANET   <ESC> TITLE', cx, y + 230, 13, fitW, { align: 'center', color: p.hot, glow: 1.5 });
   }
 }

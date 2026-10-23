@@ -542,7 +542,8 @@ export class MinigameScreen implements Screen {
       return;
     }
     const toggled = DEMO_KEEP_KEYS.some((c) => k.pressed(c));
-    const touched = (k.touchPoints ?? []).length > 0;
+    // A finger on the GEAR tab opens the menu (main.ts) and must not also end the demo.
+    const touched = (k.touchPoints ?? []).some((t) => !onGearTab(t.x, t.y, this.s.width));
     if ((k.anyKeyPressed() && !toggled) || touched) {
       this.stopDemo();
       k.clearTyped();

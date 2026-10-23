@@ -431,7 +431,8 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   if (lstage > 0) {
     const armed = laserArmed(st);
     const name = lstage >= 3 ? 'MESH' : 'LASER';
-    drawText(s, armed ? `${name} READY` : name, bx + bw, by - fs - 6, 11, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
+    // Fitted to the room right of the HEAT label: the narrow sideways column put MESH READY over it.
+    drawTextFit(s, armed ? `${name} READY` : name, bx + bw, by - fs - 6, 11, bw - measureText(st.overheated ? 'HEAT  OVERHEAT' : 'HEAT', fs) * getTextScale() - 8, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
   }
 
   // Earned weapons: stock diamonds plus a charge bar, one row each.

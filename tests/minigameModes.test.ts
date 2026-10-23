@@ -347,4 +347,58 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
       delete g.sessionStorage;
     }
   });
+
+  it('a finger on the GEAR tab keeps the demo running; a finger anywhere else ends it', () => {
+    g.sessionStorage = fakeStorage();
+    g.localStorage = fakeStorage();
+    try {
+      const keys = new FakeKeys() as FakeKeys & { touchPoints: { x: number; y: number }[] };
+      keys.touchPoints = [];
+      const screen = new MinigameScreen({ width: 390, height: 740 } as Surface, keys as unknown as Keys, { go() {} });
+      screen.enter();
+      tap(keys, screen, 'Digit8');
+      expect(screen.demoOn).toBe(true);
+      keys.touchPoints = [{ x: 378, y: 14 }];
+      screen.update(16);
+      expect(screen.demoOn).toBe(true);
+      keys.touchPoints = [{ x: 200, y: 400 }];
+      screen.update(16);
+      expect(screen.demoOn).toBe(false);
+    } finally {
+      delete g.localStorage;
+      delete g.sessionStorage;
+    }
+  });
+
+  it('the GEAR menu steps the start level and starts a NEW GAME with it, dropping a saved game', () => {
+    const session = fakeStorage();
+    g.sessionStorage = session;
+    g.localStorage = fakeStorage();
+    try {
+      const keys = new FakeKeys();
+      const screen = new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} });
+      screen.enter();
+      const item = (prefix: string) => {
+        const it = screen.gear().items.find((i) => i.label.startsWith(prefix));
+        if (!it?.act) throw new Error(`no ${prefix}`);
+        return it;
+      };
+      item('START LEVEL').act?.();
+      expect(screen.options.startLevel).toBe(5);
+      expect(item('START LEVEL').stay).toBe(true);
+      item('NEW GAME').act?.();
+      expect(screen.state.status).toBe('playing');
+      expect(screen.state.level).toBe(5);
+      expect(screen.gear().title).toBe('PAUSED');
+      screen.exit(); // autosaves the game in progress
+      expect(session.m.size).toBe(1);
+      screen.enter();
+      item('NEW GAME').act?.();
+      expect(session.m.size).toBe(0);
+      expect(screen.state.status).toBe('playing');
+    } finally {
+      delete g.localStorage;
+      delete g.sessionStorage;
+    }
+  });
 });

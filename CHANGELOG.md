@@ -10,6 +10,9 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   Cinematic titles fit the width (under the clock when the space beside it is short) and the clock steps right of the
   BACK tab; TAP TO SKIP on touch. The PROGRAMS footer, the lore panel's key line, the replay line and AUTOPLAY's pace
   line show key names only with a keyboard; AUTOPLAY's PACE SLOWER / FASTER are in the gear menu.
+- RUN OVER on an upright phone puts RUN OVER on its own line above the tally (one line had shrunk unreadably).
+  PERIMETER: a finger on the gear tab no longer ends the SUPER DEMO (STOP DEMO is in the menu); the laser / mesh
+  label fits beside HEAT in the narrow sideways column.
 - PERIMETER in a small window without touch uses the compact panels (the keyboard panel did not fit under 700 x 500);
   the ready panel's option buttons sit below their label at any TEXT SIZE.
 
