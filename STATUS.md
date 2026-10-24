@@ -346,7 +346,9 @@ the second stage `SEEKER_MIRV_STAGE2_*` (level 16, 2-4 sub-warheads, 1 damage in
 **STATE 2026-10-23 (tilt rounds):** motion controls are tuned in rounds the owner tests on a phone (`docs/TILT_EXPERIMENTS.md`,
 one commit per round, main pushed so Pages carries it). Round 1: analog turn in the sim (`Input.turn`), TILT RANGE
 12/18/24/36 (`TILT_RANGES_DEG`, `TILT_RANGE_DEFAULT` 2; `TILT_FULL_DEG` gone), TILT AUTO LEVEL, the HUD readout. On
-resume: read the owner's report, write it under the round's **Owner feedback**, then build round 2 from the **Next** list.
+resume: read the owner's report, write it under the round's **Owner feedback**, then build the next round from the **Next** list.
+Round 1 report 2026-10-24: "tilt works". Round 2 the same day: SHAKE TO PULSE (`shakeStep`, devicemotion, `SHAKE_ACCEL` 14,
+`SHAKE_COOLDOWN_S` 0.8, readout `A <peak>`); waiting on the owner's report.
 
 **STATE 2026-10-23 (phones, gear):** IDEAS 40 done: the GEAR menu on every screen (title, SYSTEM in every phase and
 overlay, OPTIONS with every option as a button, HELP, CODEX, LEADERBOARD, LEARN incl. quiz and FIND, PERIMETER), TILT

@@ -429,6 +429,11 @@ export const MG = {
   TILT_DEAD_DEG: 6,
   TILT_RANGES_DEG: [12, 18, 24, 36] as readonly number[],
   TILT_RANGE_DEFAULT: 2,
+  /** SHAKE TO PULSE (tilt.ts, round 2): a jerk whose acceleration without gravity exceeds SHAKE_ACCEL m/s^2 fires a
+   *  pulse, then nothing for SHAKE_COOLDOWN_S so one shake is one pulse. A brisk flick reads about 15-30 m/s^2 on a
+   *  phone; walking reads 2-4. The readout's A value shows the last second's peak, for tuning. */
+  SHAKE_ACCEL: 14,
+  SHAKE_COOLDOWN_S: 0.8,
   START_SEEKERS: 1,
   START_SWARMS: 1,
   START_SENTRIES_SHORT: 1,

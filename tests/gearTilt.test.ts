@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { menuLayout, type BarItem } from '../src/ui/actionBar';
 import { GearMenu, gearPoints, onGearTab, type GearSpec } from '../src/ui/gearMenu';
-import { screenRoll, tiltAmount, tiltReadout } from '../src/minigame/tilt';
+import { screenRoll, shakeStep, tiltAmount, tiltReadout } from '../src/minigame/tilt';
 import { createState, NO_INPUT, start, step } from '../src/minigame/sim';
 import { MG } from '../src/minigame/config';
 import type { Input } from '../src/ui/input';
@@ -118,6 +118,22 @@ describe('tilt steer', () => {
     expect(tiltReadout(14.2, 0, 0.42, 24, 90)).toBe('TILT +14  R 0.42  /24  SIDE');
     expect(tiltReadout(-3, 5, -0.5, 18, 0)).toBe('TILT -8  L 0.50  /18  UP');
     expect(tiltReadout(2, 0, 0, 24, 0)).toBe('TILT +2  - 0.00  /24  UP');
+    expect(tiltReadout(2, 0, 0, 24, 0, 3.2)).toBe('TILT +2  - 0.00  /24  UP  A 3');
+  });
+
+  it('a shake fires once over the threshold, then waits out the cooldown', () => {
+    const th = MG.SHAKE_ACCEL;
+    const cd = MG.SHAKE_COOLDOWN_S;
+    let st = { until: 0 };
+    const fired: number[] = [];
+    // Walking (3), a flick (th + 6) held over three readings, quiet, another flick after the cooldown.
+    const stream: [number, number][] = [[0.1, 3], [1.0, th + 6], [1.02, th + 10], [1.04, th + 2], [1.5, 2], [1.0 + cd - 0.01, th + 5], [1.0 + cd + 0.01, th + 5]];
+    for (const [t, m] of stream) {
+      const r = shakeStep(st, m, t, th, cd);
+      st = { until: r.until };
+      if (r.fire) fired.push(t);
+    }
+    expect(fired).toEqual([1.0, 1.0 + cd + 0.01]);
   });
 });
 

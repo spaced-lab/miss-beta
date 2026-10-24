@@ -2,6 +2,13 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-24: TILT STEER round 2, shake to pulse
+
+- Owner on round 1: "tilt works", then "can a shake activate pulse?". SHAKE TO PULSE in PERIMETER's gear (on while
+  TILT STEER is on): a jerk over `SHAKE_ACCEL` 14 m/s^2 (gravity removed, from devicemotion) fires one pulse, with a
+  `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
+  acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
+
 ### 2026-10-23: PERIMETER seekers split and divide (MIRV), balance re-measured
 
 - Owner: "make the seekers split and divide into multiple warheads, more as the game progresses". The MIRV split

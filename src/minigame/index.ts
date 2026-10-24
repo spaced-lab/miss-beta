@@ -286,6 +286,7 @@ export class MinigameScreen implements Screen {
       items.push({ label: `TILT RANGE: ${tiltFullDeg(this.tiltPrefs)} DEG`, code: '', stay: true, act: () => setTilt({ range: (this.tiltPrefs.range + 1) % MG.TILT_RANGES_DEG.length }) });
       items.push({ label: `TILT: ${this.tiltPrefs.invert ? 'REVERSED' : 'NORMAL'}`, code: '', stay: true, act: () => setTilt({ invert: !this.tiltPrefs.invert }) });
       items.push({ label: `TILT AUTO LEVEL: ${this.tiltPrefs.autoLevel ? 'ON' : 'OFF'}`, code: '', stay: true, act: () => setTilt({ autoLevel: !this.tiltPrefs.autoLevel }) });
+      items.push({ label: `SHAKE TO PULSE: ${this.tiltPrefs.shake ? 'ON' : 'OFF'}`, code: '', stay: true, act: () => setTilt({ shake: !this.tiltPrefs.shake }) });
     }
     items.push({ label: `SOUND: ${this.sfx.enabled ? 'ON' : 'OFF'}`, code: '', stay: true, act: () => { this.sfx.enabled = !this.sfx.enabled; saveJson(SOUND_KEY, this.sfx.enabled); } });
     items.push({ label: `SOUND KIT: ${this.sfx.kit.name}`, code: '', stay: true, act: () => { this.sfx.cycleKit(); saveJson(KIT_KEY, this.sfx.kitIndex); } });
@@ -482,12 +483,15 @@ export class MinigameScreen implements Screen {
     this.tiltAmt = this.tiltPrefs.on && this.tilt.roll !== null ? tiltAmount(this.tilt.roll, this.tilt.neutral, this.tiltPrefs.invert, tiltFullDeg(this.tiltPrefs)) : 0;
     // NOTE: the replay stream holds key bits only, so a game the tilt has turned cannot be replayed from its seed.
     if (this.tiltAmt !== 0 && st.status === 'playing') this.rec = null;
+    // SHAKE TO PULSE (tilt.ts, round 2): a jerk of the phone is a pulse edge; the sensor's count is drained every
+    // frame so a shake during a panel cannot fire later.
+    const shook = this.tilt.takeShake() && this.tiltPrefs.on && this.tiltPrefs.shake && st.status === 'playing';
     const input: Input = {
       left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft,
       right: k.anyHeld('ArrowRight', 'KeyD') || tRight,
       turn: this.tiltAmt,
       fire: k.held('Space') || tFire,
-      pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight') || tPulse,
+      pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight') || tPulse || shook,
       seeker: k.pressed('Comma') || (pad && padEdge('seeker')),
       swarm: k.pressed('Period') || (pad && padEdge('swarm')),
     };
@@ -609,7 +613,7 @@ export class MinigameScreen implements Screen {
     else if (this.keys.touchUsed) drawPad(this.s, padLayout(this.s.width, this.s.height), this.padNow, this.st.status === 'playing' && !this.player && !this.demo);
     const s = this.s;
     // The tilt readout: what the sensor says and what the game makes of it, so a tester can quote it (docs/TILT_EXPERIMENTS.md).
-    if (this.tiltPrefs.on && this.st.status === 'playing' && !this.demo) drawTextFit(s, this.tilt.roll === null ? 'TILT: NO READING' : tiltReadout(this.tilt.roll, this.tilt.neutral, this.tiltAmt, tiltFullDeg(this.tiltPrefs), this.tilt.angle), s.width / 2, s.height - 14, 8, Math.min(260, s.width * 0.4), { align: 'center', color: s.palette.dim, glow: 0 });
+    if (this.tiltPrefs.on && this.st.status === 'playing' && !this.demo) drawTextFit(s, this.tilt.roll === null ? 'TILT: NO READING' : tiltReadout(this.tilt.roll, this.tilt.neutral, this.tiltAmt, tiltFullDeg(this.tiltPrefs), this.tilt.angle, this.tiltPrefs.shake ? this.tilt.peak : undefined), s.width / 2, s.height - 14, 8, Math.min(300, s.width * 0.45), { align: 'center', color: s.palette.dim, glow: 0 });
     // The note sits under the planet, clear of the HUD columns and the pad.
     if (this.noteT > 0) drawTextFit(s, this.note, s.width / 2, Math.round(s.height * (s.width > s.height * 1.3 ? 0.8 : 0.66)), 10, Math.min(s.width - 24, s.width > s.height * 1.3 ? s.width * 0.5 : s.width), { align: 'center', color: s.palette.hot, glow: 1, alpha: Math.min(1, this.noteT / 0.4) });
   }

@@ -43,9 +43,31 @@ tilt was spread over frames (turning on four frames in ten for a 0.4 tilt). Only
 W3C orientation spec, not measured). Twitchiness, if any, comes from sensor noise inside the 6 degree dead zone and
 is the first thing a later round would smooth.
 
+**Owner feedback (2026-10-24).** "tilt works". No direction, range or twitchiness complaint, so the sign in `screenRoll`,
+the 24 degree default and the 6 degree dead zone stand. Asked: "can a shake activate pulse?"
+
+**Next.** Round 2 below: shake to pulse. Held back until asked for: a low-pass on the roll (`TILT_SMOOTH`) if it ever
+reads twitchy; a squared curve if the full rate arrives too soon; pitch (tip forward / back) for nothing, by design:
+FIRE stays a button because tipping the phone forward loses the view.
+
+## Round 2 (2026-10-24): shake to pulse
+
+**Question.** Can a shake of the phone fire the PULSE, reliably and without firing by itself while turning?
+
+**Changed.**
+- SHAKE TO PULSE in the gear (default ON while TILT STEER is on). The phone's devicemotion stream gives an
+  acceleration with gravity removed; a reading over `SHAKE_ACCEL` (14 m/s^2) fires one pulse, then nothing for
+  `SHAKE_COOLDOWN_S` (0.8 s), so one shake is one pulse and a long rattle is not several. Pulse stock applies as
+  for the button.
+- The readout gains `A <n>`: the last second's peak acceleration in m/s^2. Walking reads about 2 to 4; a brisk flick
+  should read 15 to 30. If a shake does nothing, the number says whether the threshold or the sensor is the reason.
+- On an iPhone the motion permission is asked right after the orientation one (one prompt covers both on current
+  iOS; the second request is harmless where the first already granted it).
+
+**Expected.** A deliberate flick fires; sharp turns of the phone during tilt steering stay under 14 and do not.
+If turning the phone hard fires pulses, raise `SHAKE_ACCEL`; if flicks need to be violent, lower it. A second
+candidate design, two peaks within 0.4 s, waits for a report that one peak misfires.
+
 **Owner feedback.** (pending)
 
-**Next.** Decided after the report. Candidates, in the order they would be tried: a sign fix per grip if the direction
-is wrong; a low-pass on the roll (`TILT_SMOOTH`) if it is twitchy; a curve (squared, finer near level) if the full
-rate arrives too soon; pitch (tip forward / back) for nothing, by design: FIRE stays a button because tipping the
-phone forward loses the view.
+**Next.** Decided after the report.
