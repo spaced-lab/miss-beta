@@ -39,9 +39,11 @@ export const MG = {
   HP_MULT_FROM_LEVEL: 10,
   // NOTE: owner 2026-10-21 ("a little too difficult, ease up on that difficulty slope just a bit"): 0.3 -> 0.26
   // (level 30: x4 -> x3.6), with the late speed slope and the spawn floor below eased a notch; levels 1-9 untouched.
-  // 2026-10-23: back to 0.30 as the counterweight to the bigger MIRV (SEEKER_MIRV_*): the bot's curve then matches the
-  // 2026-10-21 table again; the speed slope and spawn floor stay eased.
-  HP_MULT_PER_LEVEL: 0.30,
+  // 2026-10-23: back to 0.30 as the counterweight to the bigger MIRV (SEEKER_MIRV_*): the bot's curve then matched the
+  // 2026-10-21 table again. 2026-10-24 (owner: "a little easier, in between the last adjustment and this latest one...
+  // if someone wants harder they can go up a level"): 0.28 (level 30: x3.8; bot NORMAL from level 1 637-733 s, L38-44); the speed
+  // slope and spawn floor stay eased.
+  HP_MULT_PER_LEVEL: 0.28,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,

@@ -97,6 +97,8 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 - 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
   higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24 (round 1 the same day: `TILT_RANGES_DEG` [12, 18, 24, 36]
   with `TILT_RANGE_DEFAULT` 2 replace `TILT_FULL_DEG`); `ui/actionBar.ts` MIN_W 58 -> 64.
+- 2026-10-24 (owner: NORMAL "a little easier, in between the last adjustment and this latest one"): `HP_MULT_PER_LEVEL`
+  0.30 -> 0.28 (bot NORMAL from level 1: 637-733 s, L38-44; 0.30 gave 464-624 s).
 - 2026-10-23 (MIRV, owner: seekers "split and divide ... more as the game progresses"): `SEEKER_MIRV_R` 1.3 -> 2.4,
   `SEEKER_MIRV_LEVELS` 10 -> 5, `SEEKER_MIRV_CAP` 6 -> 9, new `SEEKER_MIRV_FAN_MAX` 2.2, new `SEEKER_MIRV_STAGE2_*`
   (LEVEL 16, N 2, LEVELS 12, CAP 4, R 1.0, SEARCH 1.6, FAN 0.6, SPEED_X 1.15, LIFE 0.9, DAMAGE 1, BLAST_R 0.35);
@@ -346,6 +348,11 @@ porkchop cell to plan that window (`rankCell`, `RankInput.pick`); the tech tree 
 round end to end in the harness (brief, planner, swarm commit, launch cinematic, close approach, debrief): all fine.
 Candidates for the next pass: a sort toggle (score / earliest / cheapest), the device pane on phones, a plan preview
 drawn on the map.
+
+**STATE 2026-10-24 (NORMAL eased):** owner: "a little easier, in between the last adjustment and this latest one... if
+someone wants harder they can go up a level... we are not computers". `HP_MULT_PER_LEVEL` 0.30 -> 0.28, nothing else;
+bot NORMAL from level 1 637-733 s, L38-44 (docs/MINIGAME_BACKLOG.md). If the owner still finds level 20+ hard, this slope is
+the knob again (0.26 was the 2026-10-21 ease), not the seekers.
 
 **STATE 2026-10-23 (MIRV):** owner asked for seekers that "split and divide ... more as the game progresses" (the word MIRV had been lost
 from earlier briefs). `SEEKER_MIRV_R` 1.3 -> 2.4, `SEEKER_MIRV_LEVELS` 10 -> 5, `SEEKER_MIRV_CAP` 6 -> 9, new `SEEKER_MIRV_FAN_MAX` 2.2 and

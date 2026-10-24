@@ -31,6 +31,29 @@ hull damage (`MG.DIFFICULTY` in `src/minigame/config.ts`).
 NORMAL is today's balance and was not changed. EASY gives about 14 minutes from level 1. HARD dies roughly 20 %
 sooner from level 1, and much sooner from a skipped start.
 
+### NORMAL eased a notch (2026-10-24): hit points +28 %/level
+
+Owner: "adjust to make it a little easier, in between the last adjustment and this latest one. If someone wants harder
+they can go up a level, I just want normal to be not as hard; we are not computers." `HP_MULT_PER_LEVEL` 0.30 -> 0.28,
+nothing else (level 30 rocks: x3.8 instead of x4; levels 1-9 unchanged). EASY and HARD scale from NORMAL by their
+multipliers, so they ease by the same notch and were not re-measured. Bot NORMAL, seeds 1..4, 900 s cap:
+
+| Start level | NORMAL at 0.28 |
+|---|---|
+| 1 | 637-733 s, L38-44 |
+| 5 | 363-595 s, L26-40 |
+| 10 | 326-662 s, L29-48 |
+| 15 | 262-489 s, L30-43 |
+| 20 | 176-483 s, L30-48 |
+| 25 | 152-439 s, L33-50 |
+| 30 | 145-370 s, L38-51 |
+| 40 | 119-209 s, L46-52 |
+| 50 | 16-101 s, L50-55 |
+| 60 | 24-117 s, L61-66 |
+
+From level 1 the slope reads 0.26 + first MIRV cut 599-900+ s, 0.30 464-624 s, 0.28 637-733 s: the ease lands where
+the owner asked, and the late starts (40+) stay short, as item 7 below describes.
+
 ### After the MIRV rounds (2026-10-23): a seeker that divides, and the counterweight
 
 Owner: "make the seekers split and divide into multiple warheads, more as the game progresses ... we'll have to retest

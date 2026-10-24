@@ -35,6 +35,14 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: PERIMETER NORMAL eased a notch (rock hit points +28 %/level)
+
+- Owner: "adjust to make it a little easier, in between the last adjustment and this latest one. If someone wants
+  harder they can go up a level, I just want normal to be not as hard; we are not computers." `HP_MULT_PER_LEVEL`
+  0.30 -> 0.28, halfway between the 2026-10-21 ease (0.26) and the MIRV counterweight (0.30): level 30 rocks carry
+  x3.8 hit points instead of x4. Levels 1-9 are unchanged. Bot NORMAL from level 1 (seeds 1..4): 637-733 s, L38-44
+  (0.30: 464-624 s, 0.26 with the first MIRV cut: 599-900+ s). Table in docs/MINIGAME_BACKLOG.md.
+
 ### 2026-10-23: PERIMETER seekers split and divide (MIRV), balance re-measured
 
 - Owner: "make the seekers split and divide into multiple warheads, more as the game progresses". The MIRV split
