@@ -357,6 +357,10 @@ round end to end in the harness (brief, planner, swarm commit, launch cinematic,
 Candidates for the next pass: a sort toggle (score / earliest / cheapest), the device pane on phones, a plan preview
 drawn on the map.
 
+**STATE 2026-10-24 (map solids):** zoomed in, the map's bodies are `solid.ts` rocks (`solidCache` in system.ts). The
+owner's 2026-10-24 graphics list is done through the launch redo and the map; everything is on Pages for testing.
+Open: the owner will tune `PLAY_OUT` after trying it; tilt round 2 (shake to pulse) still awaits the phone report.
+
 **STATE 2026-10-24 (PLAY IT OUT, second pass):** longer schedule, brief holds (`BRIEF_S`), FINAL stage (`FINAL_S`,
 `FINAL_DAYS`); the owner said they will adjust the knobs after testing. Next on the graphics line: the map's threat
 and fragments as 3-D tumbling solids at close zoom.

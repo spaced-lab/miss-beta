@@ -35,6 +35,12 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: the map's threat and fragments as tumbling solids at close zoom
+
+- Owner's "no more static 2D", applied to the system map: past zoom `MAP_GLOBE_ZOOM` the threat, its remnant and
+  every fragment grow from their outlines into the same seeded 3-D rocks the cinematics use (`cinematics/solid.ts`),
+  tumbling in real time, lit, with glowing silhouettes; one mesh per body id per run, cleared each round.
+
 ### 2026-10-24: PLAY IT OUT, second pass: longer, briefs readable, a final-approach crawl
 
 - Owner: "make it a little longer and show event briefs long enough to read them, and make enough for some suspense

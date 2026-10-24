@@ -94,6 +94,7 @@ import { familyOf } from '../../planner/families';
 import { modelById } from '../../lore/models/catalog';
 import { drawModelWire } from '../../lore/models/viewer';
 import { drawGlobe, globeKindFor } from '../globe';
+import { drawChunk, makeBody, makeChunkPoly, restingChunk, type Chunk } from '../cinematics/solid';
 import { pickTip } from '../../game/tips';
 import type { SimEventRecord } from '../../sim/eventLog';
 
@@ -171,6 +172,8 @@ export class SystemScreen implements Screen {
   private warpDown = new WarpDown();
   /** The close approach passed while its cinematic plays: finish the round when the scene ends. */
   private pendingFinish = false;
+  /** Solid bodies for the map at close zoom (cinematics/solid.ts), one per body id, seeded by the run. */
+  private readonly solidCache = new Map<string, Chunk>();
   /** PLAY IT OUT (F, game/playOut.ts): the schedule, the seconds left on the result hold (-1 until the end scene), and
    *  the seconds left holding the clock on an event brief so it can be read. */
   private playOut: { plan: PlayOutPlan; hold: number; read: number } | null = null;
@@ -512,6 +515,7 @@ export class SystemScreen implements Screen {
     this.orbitCache.clear();
     this.threatOrbitCache = null;
     this.craftCache.clear();
+    this.solidCache.clear();
     this.zoom = 1;
     this.panX = 0;
     this.panY = 0;
@@ -2005,7 +2009,24 @@ export class SystemScreen implements Screen {
       const [tx, ty] = this.threat3(st.r.x, st.r.y, st.r.z);
       this.hit(tx - 12, ty - 12, 24, 24, b.role === 'FRAGMENT' ? 'D4' : 'T5', b.role === 'FRAGMENT' ? `${b.id}: FRAGMENTS` : `${th.name}: WHAT IT IS MADE OF`);
       const n = th.shape.length;
-      const size = b.role === 'THREAT' ? 6 : b.role === 'REMNANT' ? 4.5 : Math.max(1.5, Math.min(3.5, b.D / 30));
+      const size0 = b.role === 'THREAT' ? 6 : b.role === 'REMNANT' ? 4.5 : Math.max(1.5, Math.min(3.5, b.D / 30));
+      // Zoomed in (wheel), a body grows from its outline into a tumbling solid (owner 2026-10-24: no static 2-D).
+      const size = Math.min(KNOBS.MAP_GLOBE_MAX_PX * 0.75, size0 * Math.max(1, Math.pow(this.zoom / KNOBS.MAP_GLOBE_ZOOM, 0.9)));
+      if (size >= 9) {
+        let ch = this.solidCache.get(b.id);
+        if (!ch) {
+          const rng = new Rng(hashSeed(`${w.runSeed}#${b.id}`));
+          ch = restingChunk(b.role === 'FRAGMENT' ? makeChunkPoly(rng) : makeBody(rng), 1, rng, b.role === 'FRAGMENT' ? 'fragment' : 'threat');
+          ch.wx *= 2;
+          ch.wy *= 2;
+          this.solidCache.set(b.id, ch);
+        }
+        const role = b.role === 'FRAGMENT' ? 'fragment' : 'threat';
+        const col = b.harmless ? p.dim : s.spectrum ? s.role(role) : p.hot;
+        drawChunk(s, { ...ch, size }, performance.now() / 1000, tx, ty, 1, col, null, 1, 0.5);
+        if (b.role !== 'FRAGMENT') drawText(s, b.role === 'THREAT' ? th.name : `${th.name} ${b.id}`, tx + size + 6, ty - 14, 10, { color: col, glow: 0.5 });
+        continue;
+      }
       buf.length = 0;
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + w.t * 1e-7;
