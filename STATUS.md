@@ -95,7 +95,8 @@ START_GRACE_S 3 (a skipped start used PRESSURE_START and a full moon).
 IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} on the SCI-FI visitor's lead.
 
 - 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
-  higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24; `ui/actionBar.ts` MIN_W 58 -> 64.
+  higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24 (round 1 the same day: `TILT_RANGES_DEG` [12, 18, 24, 36]
+  with `TILT_RANGE_DEFAULT` 2 replace `TILT_FULL_DEG`); `ui/actionBar.ts` MIN_W 58 -> 64.
 
 ## Decisions
 
@@ -330,6 +331,11 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
   re-planning against fragment bodies (Tab in the planner) after the breakup. Autonomy (M6) will automate the sweep.
 
 ## Resume here (for a fresh session after a context clear)
+
+**STATE 2026-10-23 (tilt rounds):** motion controls are tuned in rounds the owner tests on a phone (`docs/TILT_EXPERIMENTS.md`,
+one commit per round, main pushed so Pages carries it). Round 1: analog turn in the sim (`Input.turn`), TILT RANGE
+12/18/24/36 (`TILT_RANGES_DEG`, `TILT_RANGE_DEFAULT` 2; `TILT_FULL_DEG` gone), TILT AUTO LEVEL, the HUD readout. On
+resume: read the owner's report, write it under the round's **Owner feedback**, then build round 2 from the **Next** list.
 
 **STATE 2026-10-23 (phones, gear):** IDEAS 40 done: the GEAR menu on every screen (title, SYSTEM in every phase and
 overlay, OPTIONS with every option as a button, HELP, CODEX, LEADERBOARD, LEARN incl. quiz and FIND, PERIMETER), TILT

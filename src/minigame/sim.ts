@@ -35,6 +35,8 @@ import { generateAsteroidShape, generateContinents, generateCraters, type Contin
 export interface Input {
   left: boolean;
   right: boolean;
+  /** Analog turn, -1 (full rate left) to 1 (full rate right), added to the keys; absent or 0 from a keyboard. */
+  turn?: number;
   fire: boolean;
   /** Edge-triggered by the caller: true only on the frame the key went down. */
   pulse: boolean;
@@ -1408,6 +1410,9 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
   // Player: left is counter-clockwise (angle increases), right is clockwise.
   if (input.left) st.launcherAngle = wrapAngle(st.launcherAngle + MG.LAUNCHER_SPEED * dt);
   if (input.right) st.launcherAngle = wrapAngle(st.launcherAngle - MG.LAUNCHER_SPEED * dt);
+  // NOTE: the analog turn (tilt) is a third statement, not folded into the two above, so a keyboard game steps
+  // bit for bit as before (replays and the planar fixtures depend on it).
+  if (input.turn) st.launcherAngle = wrapAngle(st.launcherAngle - clamp(input.turn, -1, 1) * MG.LAUNCHER_SPEED * dt);
 
   // Heat.
   st.heat = Math.max(0, st.heat - MG.HEAT_COOL * dt);

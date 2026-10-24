@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { menuLayout, type BarItem } from '../src/ui/actionBar';
 import { GearMenu, gearPoints, onGearTab, type GearSpec } from '../src/ui/gearMenu';
-import { screenRoll, tiltAmount, tiltPwm } from '../src/minigame/tilt';
+import { screenRoll, tiltAmount, tiltReadout } from '../src/minigame/tilt';
+import { createState, NO_INPUT, start, step } from '../src/minigame/sim';
 import { MG } from '../src/minigame/config';
 import type { Input } from '../src/ui/input';
 
@@ -98,25 +99,48 @@ describe('tilt steer', () => {
     expect(screenRoll(0, 20, 180)).toBe(-20);
   });
 
-  it('turns nothing inside the dead zone, then rises to a full turn', () => {
-    const mid = (MG.TILT_DEAD_DEG + MG.TILT_FULL_DEG) / 2;
-    expect(tiltAmount(MG.TILT_DEAD_DEG - 1, 0, false)).toBe(0);
-    expect(tiltAmount(mid, 0, false)).toBeCloseTo(0.5, 9);
-    expect(tiltAmount(-90, 0, false)).toBe(-1);
-    expect(tiltAmount(mid, 0, true)).toBeCloseTo(-0.5, 9);
-    expect(tiltAmount(mid + 10, 10, false)).toBeCloseTo(0.5, 9);
+  it('turns nothing inside the dead zone, then rises to a full turn at the chosen range', () => {
+    const full = 24;
+    const mid = (MG.TILT_DEAD_DEG + full) / 2;
+    expect(tiltAmount(MG.TILT_DEAD_DEG - 1, 0, false, full)).toBe(0);
+    expect(tiltAmount(mid, 0, false, full)).toBeCloseTo(0.5, 9);
+    expect(tiltAmount(-90, 0, false, full)).toBe(-1);
+    expect(tiltAmount(mid, 0, true, full)).toBeCloseTo(-0.5, 9);
+    expect(tiltAmount(mid + 10, 10, false, full)).toBeCloseTo(0.5, 9);
+    // A shorter range reaches the full turn sooner: 12 degrees is a full turn at 12, half at 24.
+    expect(tiltAmount(12, 0, false, 12)).toBe(1);
+    expect(tiltAmount(12, 0, false, 24)).toBeCloseTo((12 - MG.TILT_DEAD_DEG) / (24 - MG.TILT_DEAD_DEG), 9);
+    for (const r of MG.TILT_RANGES_DEG) expect(r).toBeGreaterThan(MG.TILT_DEAD_DEG);
+    expect(MG.TILT_RANGES_DEG[MG.TILT_RANGE_DEFAULT]).toBeDefined();
   });
 
-  it('spreads a part turn over frames', () => {
-    let acc = 0;
-    let on = 0;
-    for (let i = 0; i < 100; i++) {
-      const r = tiltPwm(acc, 0.4);
-      acc = r.acc;
-      if (r.on) on++;
+  it('the readout quotes the roll, the turn and how the phone is held', () => {
+    expect(tiltReadout(14.2, 0, 0.42, 24, 90)).toBe('TILT +14  R 0.42  /24  SIDE');
+    expect(tiltReadout(-3, 5, -0.5, 18, 0)).toBe('TILT -8  L 0.50  /18  UP');
+    expect(tiltReadout(2, 0, 0, 24, 0)).toBe('TILT +2  - 0.00  /24  UP');
+  });
+});
+
+describe('analog turn in the sim (Input.turn)', () => {
+  it('a half turn moves the launcher half as far as a held key, and a keyboard-only step is unchanged', () => {
+    const a = createState(7);
+    const b = createState(7);
+    const c = createState(7);
+    start(a); start(b); start(c);
+    const a0 = a.launcherAngle;
+    for (let i = 0; i < 10; i++) {
+      step(a, { ...NO_INPUT, right: true }, MG.DT);
+      step(b, { ...NO_INPUT, turn: 0.5 }, MG.DT);
+      step(c, { ...NO_INPUT, right: true, turn: 0 }, MG.DT);
     }
-    expect(on).toBe(40);
-    expect(tiltPwm(0.7, 0)).toEqual({ on: false, acc: 0 });
-    expect(tiltPwm(0, -1).on).toBe(true);
+    expect(a0 - a.launcherAngle).toBeCloseTo(10 * MG.LAUNCHER_SPEED * MG.DT, 9);
+    expect(a0 - b.launcherAngle).toBeCloseTo(5 * MG.LAUNCHER_SPEED * MG.DT, 9);
+    expect(c.launcherAngle).toBe(a.launcherAngle);
+    // A negative turn goes left, and the amount is clamped to a full rate.
+    const d = createState(7);
+    start(d);
+    const d0 = d.launcherAngle;
+    step(d, { ...NO_INPUT, turn: -3 }, MG.DT);
+    expect(d.launcherAngle - d0).toBeCloseTo(MG.LAUNCHER_SPEED * MG.DT, 9);
   });
 });

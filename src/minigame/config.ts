@@ -396,10 +396,12 @@ export const MG = {
    *  the moon follow START_PRESSURE_FRAC and START_MOON_FRAC below. Such runs are flagged and never ranked. */
   // NOTE: owner 2026-10-23 ("start at higher minigame level"): 5, 15, 25, 50 and 60 added to the original 1-40 steps.
   START_LEVELS: [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] as readonly number[],
-  /** TILT STEER (tilt.ts, the gear menu): no turn inside TILT_DEAD_DEG of level, a full turn from TILT_FULL_DEG,
-   *  linear between (a part turn is spread over frames). Degrees of roll about the screen's vertical axis. */
+  /** TILT STEER (tilt.ts, the gear menu): no turn inside TILT_DEAD_DEG of level, a full-rate turn from the range the
+   *  player picks in TILT_RANGES_DEG (TILT RANGE in the gear; TILT_RANGE_DEFAULT indexes it), a proportionally slower
+   *  turn between. Degrees of roll about the screen's vertical axis. Rounds of phone tests: docs/TILT_EXPERIMENTS.md. */
   TILT_DEAD_DEG: 6,
-  TILT_FULL_DEG: 24,
+  TILT_RANGES_DEG: [12, 18, 24, 36] as readonly number[],
+  TILT_RANGE_DEFAULT: 2,
   START_SEEKERS: 1,
   START_SWARMS: 1,
   START_SENTRIES_SHORT: 1,

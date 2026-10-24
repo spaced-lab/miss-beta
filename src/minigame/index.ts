@@ -31,7 +31,7 @@ import { isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSetting
 import { loadMinigameSettings, saveMinigameSettings } from './prefs';
 import { renderMinigame } from './render';
 import { drawPad, padHeld, padLayout, type PadId } from './touchPad';
-import { loadTiltPrefs, saveTiltPrefs, tiltAmount, tiltPwm, TiltSensor } from './tilt';
+import { loadTiltPrefs, saveTiltPrefs, tiltAmount, tiltFullDeg, tiltReadout, TiltSensor } from './tilt';
 import { onGearTab, type GearItem, type GearSpec } from '../ui/gearMenu';
 import { drawTextFit } from '../render/vectorFont';
 import { onBackTab } from '../ui/touchBack';
@@ -89,10 +89,11 @@ export class MinigameScreen implements Screen {
   private readonly cheats = new CheatRegistry<MinigameState>(MINIGAME_CHEATS);
   private readonly sfx = new SfxPlayer();
   private readonly labState = createLab();
-  /** TILT STEER (tilt.ts): the sensor, the saved choice, the part-turn accumulator, a status line and its timer. */
+  /** TILT STEER (tilt.ts): the sensor, the saved choice, this frame's turn amount (for the readout) and the timer
+   *  behind the "no readings" note. */
   private readonly tilt = new TiltSensor();
   private tiltPrefs = loadTiltPrefs();
-  private tiltAcc = 0;
+  private tiltAmt = 0;
   private tiltOnAt = 0;
   private note = '';
   private noteT = 0;
@@ -135,6 +136,12 @@ export class MinigameScreen implements Screen {
     this.best = loadNumber(bestKey(this.settings.difficulty), 0);
     this.rec = isRanked(this.st) ? new Recorder() : null;
     this.player = null;
+    this.autoLevel();
+  }
+
+  /** TILT AUTO LEVEL: the phone's angle as a game starts or resumes counts as level. */
+  private autoLevel(): void {
+    if (this.tiltPrefs.on && this.tiltPrefs.autoLevel) this.tilt.calibrate();
   }
 
   /** Leave a finished WATCH BEST replay for the ready panel, which still offers any saved game. */
@@ -274,8 +281,11 @@ export class MinigameScreen implements Screen {
       },
     });
     if (this.tiltPrefs.on && !noSensor) {
+      const setTilt = (p: Partial<typeof this.tiltPrefs>): void => { this.tiltPrefs = { ...this.tiltPrefs, ...p }; saveTiltPrefs(this.tiltPrefs); };
       items.push({ label: 'TILT: LEVEL IS HERE', code: '', act: () => { this.tilt.calibrate(); this.say('TILT LEVELLED', 2); } });
-      items.push({ label: `TILT: ${this.tiltPrefs.invert ? 'REVERSED' : 'NORMAL'}`, code: '', stay: true, act: () => { this.tiltPrefs = { ...this.tiltPrefs, invert: !this.tiltPrefs.invert }; saveTiltPrefs(this.tiltPrefs); } });
+      items.push({ label: `TILT RANGE: ${tiltFullDeg(this.tiltPrefs)} DEG`, code: '', stay: true, act: () => setTilt({ range: (this.tiltPrefs.range + 1) % MG.TILT_RANGES_DEG.length }) });
+      items.push({ label: `TILT: ${this.tiltPrefs.invert ? 'REVERSED' : 'NORMAL'}`, code: '', stay: true, act: () => setTilt({ invert: !this.tiltPrefs.invert }) });
+      items.push({ label: `TILT AUTO LEVEL: ${this.tiltPrefs.autoLevel ? 'ON' : 'OFF'}`, code: '', stay: true, act: () => setTilt({ autoLevel: !this.tiltPrefs.autoLevel }) });
     }
     items.push({ label: `SOUND: ${this.sfx.enabled ? 'ON' : 'OFF'}`, code: '', stay: true, act: () => { this.sfx.enabled = !this.sfx.enabled; saveJson(SOUND_KEY, this.sfx.enabled); } });
     items.push({ label: `SOUND KIT: ${this.sfx.kit.name}`, code: '', stay: true, act: () => { this.sfx.cycleKit(); saveJson(KIT_KEY, this.sfx.kitIndex); } });
@@ -415,7 +425,7 @@ export class MinigameScreen implements Screen {
     }
     if (touchStart && (st.status === 'ready' || st.status === 'over')) {
       if (st.status === 'ready' && !this.saved) this.begin(st.seed);
-      else if (st.status === 'ready' && this.saved) { this.st = this.saved; this.saved = null; this.rec = null; }
+      else if (st.status === 'ready' && this.saved) { this.st = this.saved; this.saved = null; this.rec = null; this.autoLevel(); }
       else this.begin(this.newSeed());
       return;
     }
@@ -427,6 +437,7 @@ export class MinigameScreen implements Screen {
         this.saved = null;
         this.rec = null; // a resumed game has no recording from its seed
         this.sinceSave = 0;
+        this.autoLevel();
         flash(this.st, 'RESUMED', 1.5);
         k.clearTyped();
         return;
@@ -467,19 +478,14 @@ export class MinigameScreen implements Screen {
     const tRight = pad ? this.padNow.has('right') : tp.some((t) => t.x > (2 * W) / 3);
     const tFire = pad ? this.padNow.has('fire') : tp.some((t) => t.x >= W / 3 && t.x <= (2 * W) / 3);
     const tPulse = pad ? padEdge('pulse') : multi;
-    // TILT STEER (tilt.ts): the phone's roll turns the launchers, a part turn spread over frames.
-    let tiltL = false;
-    let tiltR = false;
-    if (this.tiltPrefs.on && this.tilt.roll !== null && st.status === 'playing') {
-      const amt = tiltAmount(this.tilt.roll, this.tilt.neutral, this.tiltPrefs.invert);
-      const pw = tiltPwm(this.tiltAcc, amt);
-      this.tiltAcc = pw.acc;
-      tiltL = pw.on && amt < 0;
-      tiltR = pw.on && amt > 0;
-    }
+    // TILT STEER (tilt.ts): the phone's roll turns the launchers at a rate proportional to the tilt.
+    this.tiltAmt = this.tiltPrefs.on && this.tilt.roll !== null ? tiltAmount(this.tilt.roll, this.tilt.neutral, this.tiltPrefs.invert, tiltFullDeg(this.tiltPrefs)) : 0;
+    // NOTE: the replay stream holds key bits only, so a game the tilt has turned cannot be replayed from its seed.
+    if (this.tiltAmt !== 0 && st.status === 'playing') this.rec = null;
     const input: Input = {
-      left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft || tiltL,
-      right: k.anyHeld('ArrowRight', 'KeyD') || tRight || tiltR,
+      left: k.anyHeld('ArrowLeft', 'KeyA') || tLeft,
+      right: k.anyHeld('ArrowRight', 'KeyD') || tRight,
+      turn: this.tiltAmt,
       fire: k.held('Space') || tFire,
       pulse: k.anyPressed('Enter', 'ShiftLeft', 'ShiftRight') || tPulse,
       seeker: k.pressed('Comma') || (pad && padEdge('seeker')),
@@ -490,7 +496,7 @@ export class MinigameScreen implements Screen {
     let steps = 0;
     let edges = input;
     while (this.acc >= MG.DT && steps < MG.MAX_STEPS_PER_FRAME) {
-      if (this.player && st.status === 'playing') edges = this.player.next() ?? { ...edges, left: false, right: false, fire: false };
+      if (this.player && st.status === 'playing') edges = this.player.next() ?? { ...edges, left: false, right: false, turn: 0, fire: false };
       else if (this.rec && st.status === 'playing') this.rec.push(edges);
       step(st, edges, MG.DT);
       edges = { ...input, pulse: false, seeker: false, swarm: false }; // an edge is consumed by the first step
@@ -602,7 +608,8 @@ export class MinigameScreen implements Screen {
     }
     else if (this.keys.touchUsed) drawPad(this.s, padLayout(this.s.width, this.s.height), this.padNow, this.st.status === 'playing' && !this.player && !this.demo);
     const s = this.s;
-    if (this.tiltPrefs.on && this.st.status === 'playing' && !this.demo) drawTextFit(s, this.tilt.roll === null ? 'TILT: NO READING' : 'TILT STEER', s.width / 2, s.height - 14, 8, 120, { align: 'center', color: s.palette.dim, glow: 0 });
+    // The tilt readout: what the sensor says and what the game makes of it, so a tester can quote it (docs/TILT_EXPERIMENTS.md).
+    if (this.tiltPrefs.on && this.st.status === 'playing' && !this.demo) drawTextFit(s, this.tilt.roll === null ? 'TILT: NO READING' : tiltReadout(this.tilt.roll, this.tilt.neutral, this.tiltAmt, tiltFullDeg(this.tiltPrefs), this.tilt.angle), s.width / 2, s.height - 14, 8, Math.min(260, s.width * 0.4), { align: 'center', color: s.palette.dim, glow: 0 });
     // The note sits under the planet, clear of the HUD columns and the pad.
     if (this.noteT > 0) drawTextFit(s, this.note, s.width / 2, Math.round(s.height * (s.width > s.height * 1.3 ? 0.8 : 0.66)), 10, Math.min(s.width - 24, s.width > s.height * 1.3 ? s.width * 0.5 : s.width), { align: 'center', color: s.palette.hot, glow: 1, alpha: Math.min(1, this.noteT / 0.4) });
   }

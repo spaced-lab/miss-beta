@@ -2,14 +2,16 @@
 //       read through the browser's deviceorientation event.
 // WHY:  Owner 2026-10-23: "see if you can do anything for minigame to work with gyroscope". A phone has the sensor
 //       and the web exposes it (DeviceOrientationEvent); turning by tilt frees the left thumb, so only FIRE and the
-//       weapons stay on the screen.
+//       weapons stay on the screen. Tuned by rounds of owner tests on a real phone (docs/TILT_EXPERIMENTS.md).
 // HOW:  Pure part: `screenRoll(beta, gamma, angle)` turns the device's tilt angles into a roll about the screen's
 //       own vertical axis for the way the screen is held (0, 90, 180 or 270 degrees), positive = right side down;
-//       `tiltAmount(roll, neutral, invert)` is a signed 0..1 turn from the knobs TILT_DEAD_DEG (no turn inside it)
-//       to TILT_FULL_DEG (full turn); `tiltPwm(acc, amount)` spreads a part turn over frames (0.4 = turning on
-//       four frames in ten), since the sim's turn input is on or off. DOM part: `TiltSensor` listens, keeps the last
-//       roll, and asks for permission where the browser wants it (iOS Safari: `requestPermission()` must run inside
-//       a touch handler, so arming it makes the next tap ask). Prefs (on, invert) persist under one guarded key.
+//       `tiltAmount(roll, neutral, invert, fullDeg)` is a signed 0..1 turn from the knob TILT_DEAD_DEG (no turn
+//       inside it) to `fullDeg` (a full-rate turn; the player picks it from TILT_RANGES_DEG). The sim takes the
+//       amount as an analog turn (`Input.turn`), so a part tilt is a slower turn, not a stuttering one.
+//       `tiltReadout` formats the numbers the HUD shows while tilt is on, so a tester can quote them. DOM part:
+//       `TiltSensor` listens, keeps the last roll, and asks for permission where the browser wants it (iOS Safari:
+//       `requestPermission()` must run inside a touch handler, so arming it makes the next tap ask). Prefs (on,
+//       invert, range, autoLevel) persist under one guarded key.
 // LORE: G1 (how to play)
 
 import { loadJson, saveJson } from '../game/persistence';
@@ -30,35 +32,56 @@ export function screenRoll(beta: number, gamma: number, angle: number): number {
 
 /**
  * Signed turn amount -1..1 from a roll (degrees) relative to `neutral`: 0 inside TILT_DEAD_DEG, rising linearly to
- * 1 at TILT_FULL_DEG. Negative turns left. Example (dead 6, full 24): tiltAmount(15, 0, false) = 0.5;
- * tiltAmount(3, 0, false) = 0; tiltAmount(-40, 0, false) = -1; tiltAmount(15, 0, true) = -0.5.
+ * 1 at `fullDeg`. Negative turns left. Example (dead 6, full 24): tiltAmount(15, 0, false, 24) = 0.5;
+ * tiltAmount(3, 0, false, 24) = 0; tiltAmount(-40, 0, false, 24) = -1; tiltAmount(15, 0, true, 24) = -0.5.
  */
-export function tiltAmount(roll: number, neutral: number, invert: boolean): number {
+export function tiltAmount(roll: number, neutral: number, invert: boolean, fullDeg: number): number {
   const d = (roll - neutral) * (invert ? -1 : 1);
-  const mag = Math.min(1, Math.max(0, (Math.abs(d) - MG.TILT_DEAD_DEG) / (MG.TILT_FULL_DEG - MG.TILT_DEAD_DEG)));
+  const span = Math.max(1e-9, fullDeg - MG.TILT_DEAD_DEG);
+  const mag = Math.min(1, Math.max(0, (Math.abs(d) - MG.TILT_DEAD_DEG) / span));
   return Math.sign(d) * mag;
 }
 
 /**
- * Pulse-width turning: add |amount| to the accumulator and turn this frame when it reaches 1.
- * Example: amount 0.5 from acc 0 turns on every second frame; amount 1 turns on every frame; 0 resets.
+ * The HUD line while tilt is on: the roll from level (degrees, signed), the turn it gives (L / R and the amount),
+ * the range in use and how the screen is held. Example: tiltReadout(14, 0, 0.42, 24, 90) = "TILT +14  R 0.42  /24  SIDE".
  */
-export function tiltPwm(acc: number, amount: number): { on: boolean; acc: number } {
-  const m = Math.abs(amount);
-  if (m === 0) return { on: false, acc: 0 };
-  const next = acc + m;
-  return next >= 1 ? { on: true, acc: next - 1 } : { on: false, acc: next };
+export function tiltReadout(roll: number, neutral: number, amount: number, fullDeg: number, angle: number): string {
+  const d = Math.round(roll - neutral);
+  const dir = amount === 0 ? '-' : amount < 0 ? 'L' : 'R';
+  const held = (((Math.round(angle / 90) * 90) % 360) + 360) % 360 === 0 ? 'UP' : 'SIDE';
+  return `TILT ${d >= 0 ? '+' : ''}${d}  ${dir} ${Math.abs(amount).toFixed(2)}  /${fullDeg}  ${held}`;
 }
 
 export interface TiltPrefs {
   on: boolean;
   invert: boolean;
+  /** Index into MG.TILT_RANGES_DEG: the roll that gives a full-rate turn. */
+  range: number;
+  /** Take the phone's angle at the start of a game as level (else only TILT: LEVEL IS HERE does). */
+  autoLevel: boolean;
 }
 
 const TILT_KEY = 'minigame.tilt';
-export const isTiltPrefs = (v: unknown): v is TiltPrefs => typeof v === 'object' && v !== null && typeof (v as { on?: unknown }).on === 'boolean' && typeof (v as { invert?: unknown }).invert === 'boolean';
-export const loadTiltPrefs = (): TiltPrefs => loadJson(TILT_KEY, isTiltPrefs, { on: false, invert: false });
+const DEFAULT_PREFS: TiltPrefs = { on: false, invert: false, range: MG.TILT_RANGE_DEFAULT, autoLevel: true };
+const isTiltPrefs = (v: unknown): v is TiltPrefs =>
+  typeof v === 'object' && v !== null
+  && typeof (v as { on?: unknown }).on === 'boolean' && typeof (v as { invert?: unknown }).invert === 'boolean'
+  && typeof (v as { range?: unknown }).range === 'number' && Number.isInteger((v as { range: number }).range)
+  && (v as { range: number }).range >= 0 && (v as { range: number }).range < MG.TILT_RANGES_DEG.length
+  && typeof (v as { autoLevel?: unknown }).autoLevel === 'boolean';
+// NOTE: a pref saved by the first round (on, invert only) is upgraded rather than dropped, so a tester's ON survives.
+const isOldPrefs = (v: unknown): v is Pick<TiltPrefs, 'on' | 'invert'> =>
+  typeof v === 'object' && v !== null && typeof (v as { on?: unknown }).on === 'boolean' && typeof (v as { invert?: unknown }).invert === 'boolean';
+export function loadTiltPrefs(): TiltPrefs {
+  const full = loadJson<TiltPrefs | null>(TILT_KEY, (v): v is TiltPrefs | null => v === null || isTiltPrefs(v), null);
+  if (full) return full;
+  const old = loadJson<Pick<TiltPrefs, 'on' | 'invert'> | null>(TILT_KEY, (v): v is Pick<TiltPrefs, 'on' | 'invert'> | null => v === null || isOldPrefs(v), null);
+  return old ? { ...DEFAULT_PREFS, on: old.on, invert: old.invert } : { ...DEFAULT_PREFS };
+}
 export const saveTiltPrefs = (p: TiltPrefs): boolean => saveJson(TILT_KEY, p);
+/** The full-turn roll for a prefs record, degrees. */
+export const tiltFullDeg = (p: TiltPrefs): number => MG.TILT_RANGES_DEG[p.range] ?? MG.TILT_RANGES_DEG[MG.TILT_RANGE_DEFAULT] ?? 24;
 
 type PermissionFn = () => Promise<'granted' | 'denied'>;
 
@@ -68,6 +91,8 @@ export class TiltSensor {
   roll: number | null = null;
   /** The roll that counts as level (CALIBRATE sets it to the current one). */
   neutral = 0;
+  /** The screen's orientation angle at the last reading (0 upright), for the readout. */
+  angle = 0;
   /** 'idle' (not asked), 'waiting' (next tap asks), 'granted', 'denied', 'none' (no sensor in this browser). */
   state: 'idle' | 'waiting' | 'granted' | 'denied' | 'none' = 'idle';
   private listening = false;
@@ -120,6 +145,7 @@ export class TiltSensor {
     window.addEventListener('deviceorientation', (e) => {
       if (e.beta === null || e.gamma === null) return;
       const angle = typeof screen !== 'undefined' && screen.orientation ? screen.orientation.angle : ((window as { orientation?: number }).orientation ?? 0);
+      this.angle = angle;
       this.roll = screenRoll(e.beta, e.gamma, angle);
     });
   }

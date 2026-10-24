@@ -245,4 +245,6 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     the motion prompt after the tap that follows TILT STEER ON; tipping right turns the launchers right both held
     upright and sideways (else TILT: REVERSED, and note which way the phone was held); TILT_DEAD_DEG 6 / TILT_FULL_DEG
     24 feel right (knobs in minigame/config.ts); the screen does not auto-rotate mid-tilt. Owner reports, then tune
-    knobs or fix the sign in `screenRoll`. Status: WAITING ON OWNER.
+    knobs or fix the sign in `screenRoll`. Status: IN ROUNDS. Owner 2026-10-23: "work on perimeter and the motion
+    controls ... incremental changes ... I will figure out what works what does not". Each round is one commit and a
+    section in `docs/TILT_EXPERIMENTS.md` (the change, the owner's report, the next tweak); round 1 pushed 2026-10-23.

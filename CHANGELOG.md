@@ -2,6 +2,15 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-23: TILT STEER round 1 (PERIMETER motion controls)
+
+- Motion controls are now tuned in rounds the owner tests on a real phone, logged in `docs/TILT_EXPERIMENTS.md`
+  (change, owner feedback, next tweak; one commit per round). Round 1: the sim takes an analog turn (`Input.turn`)
+  so a part tilt is a slower turn instead of a frame-pulsed one; TILT RANGE 12 / 18 / 24 / 36 degrees in the gear
+  (`TILT_RANGES_DEG`); TILT AUTO LEVEL takes the phone's angle at the start of a game as level; a readout on the
+  bottom line (`TILT +14  R 0.42  /24  SIDE`) so a report can carry numbers. Tilt-steered games are not recorded for
+  WATCH BEST (the replay holds key bits only).
+
 ### 2026-10-23: backlog
 
 - IDEAS 41: TILT STEER on a real phone, waiting on the owner (test on the Pages site after the push; https only).
