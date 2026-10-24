@@ -11,6 +11,10 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   0.42 scale, quiet). Counterweight from the probes (docs/MINIGAME_BACKLOG.md): sub-warheads burst for 1 in 0.35 and
   `HP_MULT_PER_LEVEL` goes back to 0.30, which puts the bot's NORMAL curve back on the 2026-10-21 table. The ready
   panel's help line names the division; saves carry the stage.
+- Fix (CI): seekers in flight are capped at `MAX_SEEKERS` 200 (a split makes only the pieces that fit, never fewer
+  than one). Uncapped, four-bus volleys dividing twice put 969 darts in the air at level 30, more than a phone can
+  draw, and the level-30 EASY-against-HARD check timed out on the CI runner (its timeout is now 150 s; about 20 s
+  on a laptop).
 
 ### 2026-10-23: TILT STEER round 1 (PERIMETER motion controls)
 

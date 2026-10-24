@@ -476,6 +476,26 @@ describe('seeker missiles', () => {
     expect(seekerSpeed(2)).toBeGreaterThan(seekerSpeed(1));
     for (const r of [a, b]) expect(r.hp).toBeLessThan(1e9);
   });
+  it('splits fill up to MAX_SEEKERS and no further, and a full field still leaves the bus one warhead', () => {
+    const st = createState(107);
+    start(st);
+    st.level = 30;
+    lane(st);
+    const a = rock(st, 0, 4, 0, 0, 0.3, 0);
+    a.hp = a.maxHp = 1e9;
+    // Fill the field with idle seekers parked far away (a target that never comes).
+    for (let i = 0; i < MG.MAX_SEEKERS - 1; i++) st.seekers.push({ x: -5, y: -5, vx: 0, vy: 0, life: 100, targetId: -1, trail: [], trailTick: 0 });
+    st.seekerStock = 1;
+    step(st, { ...NO_INPUT, seeker: true }, MG.DT);
+    let split = false;
+    for (let i = 0; i < 2 / MG.DT && !split; i++) {
+      step(st, NO_INPUT, MG.DT);
+      split = st.seekers.some((k) => k.stage === 1);
+    }
+    expect(split).toBe(true);
+    expect(st.seekers.length).toBeLessThanOrEqual(MG.MAX_SEEKERS);
+    expect(st.seekers.filter((k) => k.stage === 1).length).toBeGreaterThanOrEqual(1);
+  });
   it('fizzles at the end of its life when there is nothing to chase', () => {
     const st = createState(104);
     start(st);

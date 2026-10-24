@@ -85,7 +85,8 @@ describe('difficulty multipliers', () => {
     expect(e.hp).toBeLessThan(nm.hp);
     expect(nm.hp).toBeLessThan(h.hp);
   });
-  it('the bot does better on EASY than on HARD from level 30 (seeds 1, 2, 120 s)', { timeout: 60000 }, () => {
+  // NOTE: about 20 s on a laptop; the CI runner is roughly three times slower and timed out at 60 s on 2026-10-23.
+  it('the bot does better on EASY than on HARD from level 30 (seeds 1, 2, 120 s)', { timeout: 150000 }, () => {
     // The full table (seeds 1..4, every start level) is in config.ts next to MG.DIFFICULTY and in docs/MINIGAME_BACKLOG.md.
     const score = (d: Difficulty): number => {
       let total = 0;

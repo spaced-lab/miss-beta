@@ -56,7 +56,9 @@ The full table with those knobs (seeds 1..4, 900 s cap; the 2026-10-21 table is 
 | 50 | 145-227 s, L58-63   | 51-96 s, L52-55   | 16-108 s, L50-56  |
 | 60 | 17-35 s, L61-62     | 22-68 s, L61-64   | 7-25 s, L60-61    |
 
-Level-1 rows against the 2026-10-18 table: EASY 821-900+ -> 816-900+, NORMAL 480-584 -> 464-624, HARD 367-472 ->
+Then a cap of `MAX_SEEKERS` 200 (uncapped, 969 were in flight at level 30 on EASY): NORMAL from 1: 410-635 s, L25-38;
+from 10: 440-664 s, L35-49; from 30: 138-283 s, L38-46 (the late start loses some sub-warheads to the cap; the 2026-10-18
+row was 167-358 s). Level-1 rows against the 2026-10-18 table: EASY 821-900+ -> 816-900+, NORMAL 480-584 -> 464-624, HARD 367-472 ->
 344-460. The late starts (50, 60) are short on every difficulty: a skip lands in a field whose rocks carry the level's
 hit points before the kit's seekers have been earned back, which is item 7 below, unchanged by this. Note for the next
 re-measure: three probes in parallel take about 38 minutes on this machine and overrun vitest's 900 s timeout (the

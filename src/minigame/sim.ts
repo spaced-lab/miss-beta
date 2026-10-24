@@ -837,10 +837,11 @@ export const seekerSpeed = (stage: number): number => MG.SEEKER_SPEED * (stage >
  * Split seeker `s` (closing on `target`) into `n` pieces of MIRV `stage` (1: warheads off the bus, 2: sub-warheads off
  * a warhead): fanned `fan` apart around its heading (the whole fan no wider than SEEKER_MIRV_FAN_MAX), the first on
  * `target`, the rest on the nearest other rocks within `search` of it (sharing targets round-robin when there are
- * fewer rocks than pieces).
+ * fewer rocks than pieces). Never more pieces than MAX_SEEKERS leaves room for, and never fewer than one.
  */
 function splitMirv(st: MinigameState, s: Seeker, target: Asteroid, stage: 1 | 2): void {
-  const n = stage === 1 ? mirvWarheads(st.level) : mirvSubWarheads(st.level);
+  // NOTE: the bus (or warhead) has already left st.seekers, so its own slot is part of the room.
+  const n = Math.max(1, Math.min(stage === 1 ? mirvWarheads(st.level) : mirvSubWarheads(st.level), MG.MAX_SEEKERS - st.seekers.length));
   const search = stage === 1 ? MG.SEEKER_MIRV_SEARCH : MG.SEEKER_MIRV_STAGE2_SEARCH;
   const fan = Math.min(stage === 1 ? MG.SEEKER_MIRV_FAN : MG.SEEKER_MIRV_STAGE2_FAN, n > 1 ? MG.SEEKER_MIRV_FAN_MAX / (n - 1) : 1);
   const life = stage === 1 ? MG.SEEKER_MIRV_LIFE : MG.SEEKER_MIRV_STAGE2_LIFE;

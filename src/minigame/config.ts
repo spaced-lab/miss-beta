@@ -298,6 +298,10 @@ export const MG = {
   SEEKER_MIRV_STAGE2_LIFE: 0.9,
   SEEKER_MIRV_STAGE2_DAMAGE: 1,
   SEEKER_MIRV_STAGE2_BLAST_R: 0.35,
+  /** Seekers of every stage in flight at once; a split makes only as many pieces as fit (never fewer than one).
+   *  Measured 2026-10-23 without a cap: 969 at level 30 on EASY (four-bus volleys x 9 warheads x 3 sub-warheads), too
+   *  many darts and trails for a phone to draw and the reason a CI run of tests/minigameModes.test.ts timed out. */
+  MAX_SEEKERS: 200,
 
   /** Swarm of sentinels (`>`): earned every SWARM_KILLS kills, stock capped at SWARM_MAX. Releases
    *  SWARM_COUNT_MIN..MAX drones from the player's launcher fanned over SWARM_FAN rad; each hunts the nearest
