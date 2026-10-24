@@ -97,6 +97,8 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 - 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
   higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24 (round 1 the same day: `TILT_RANGES_DEG` [12, 18, 24, 36]
   with `TILT_RANGE_DEFAULT` 2 replace `TILT_FULL_DEG`); `ui/actionBar.ts` MIN_W 58 -> 64.
+- 2026-10-24 (3-D scenes): new `CINE_SPRAY_MAX_PX` 2, `CINE_SPRAY` {IMPACT 420, BREAKUP 900, ABLATION 220}, `CINE_CHUNKS_MAX` 64,
+  `CINE_HOT_EJECTA_FRAC` 0.35, `CINE_CAMERA_FIT` 0.42.
 - 2026-10-24 (globes): new `MAP_GLOBE_ZOOM` 2.5, `MAP_GLOBE_MIN_PX` 12, `MAP_GLOBE_MAX_PX` 80; PERIMETER `PLANET_SPIN_S` 150.
 - 2026-10-24 (PLAY IT OUT): new `PLAY_OUT` {BUILD_S 3, FLIGHT_S 20, LAUNCH_SCENE_S 1, HIT_SCENE_S 2, COAST_S 20,
   END_SCENE_S 3, RESULT_HOLD_S 2, MIN_SPAN_S 2}; key action PLAY_OUT (F).
@@ -351,6 +353,10 @@ porkchop cell to plan that window (`rankCell`, `RankInput.pick`); the tech tree 
 round end to end in the harness (brief, planner, swarm commit, launch cinematic, close approach, debrief): all fine.
 Candidates for the next pass: a sort toggle (score / earliest / cheapest), the device pane on phones, a plan preview
 drawn on the map.
+
+**STATE 2026-10-24 (3-D scenes):** `render/cinematics/solid.ts` gives the impact, breakup, burst, PI, push and
+close-approach scenes solid tumbling bodies and pieces with momentum, a pull-back camera, fine false-colour spray.
+Next in the owner's graphics list: redo the launch animations (`cinematics/launch.ts`, `pixel.ts` sprites).
 
 **STATE 2026-10-24 (globes):** `render/globe.ts` draws every close planet view: HOME with the real coastlines (PLANET VIEW,
 close-approach scene, PERIMETER's planet, the map past zoom 2.5), GIANT / INNER banded, OUTER cratered (seeded per

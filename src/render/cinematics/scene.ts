@@ -15,6 +15,7 @@ import type { SimEventRecord } from '../../sim/eventLog';
 import { hashSeed, Rng } from '../../sim/rng';
 import type { ThreatTypeId } from '../../sim/threat';
 import type { Role } from '../palettes';
+import { cratered, fracture, makeBody, restingChunk, type Chunk } from './solid';
 
 export type CineKind = 'LAUNCH' | 'IMPACT' | 'FRAGMENTATION' | 'NUKE' | 'PI' | 'CLOSE_APPROACH' | 'PUSH';
 export const CINE_KINDS: readonly CineKind[] = ['LAUNCH', 'IMPACT', 'FRAGMENTATION', 'NUKE', 'PI', 'CLOSE_APPROACH', 'PUSH'];
@@ -116,6 +117,9 @@ export interface Scene {
   approach: { homeR: number; ringR: number; d: number; impact: boolean; angle: number; sHit: number } | null;
   /** Other bodies passing in the same frame (a fragment cloud): their offsets from the main path, px. */
   crowd: { d: number; lag: number; hit: boolean }[];
+  /** 3-D bodies (solid.ts): the body before the hit, the remnant after (null: gone), the pieces; `camera` backs away
+   *  as the cloud grows. Null for a launch. */
+  solid: { body: Chunk | null; remnant: Chunk | null; chunks: Chunk[]; camera: boolean } | null;
 }
 
 /** Screen radius of a body from its diameter: 10 m -> 60 px, 100 m -> 90, 1 km -> 120, 10 km -> 150. */
@@ -205,20 +209,6 @@ function irregular(rng: Rng, r: number): number[] {
   return pts;
 }
 
-/** Shards of a body of radius R: sizes fall as (1/(i+1))^0.6 from the largest remnant. */
-function makeShards(rng: Rng, out: Shard[], R: number, count: number, largestFrac: number, lo: number, hi: number, spin: number, t0: number, role: Role, width = 1): void {
-  for (let i = 0; i < count; i++) {
-    const size = Math.max(3, R * largestFrac * Math.pow(1 / (i + 1), 0.6));
-    const a = rng.float(0, Math.PI * 2);
-    const rr = R * 0.7 * Math.sqrt(rng.next());
-    const x = Math.cos(a) * rr;
-    const y = Math.sin(a) * rr;
-    const dir = Math.atan2(y, x) + rng.float(-0.5, 0.5);
-    const v = rng.float(lo, hi);
-    out.push({ pts: irregular(rng, size), x, y, vx: Math.cos(dir) * v, vy: Math.sin(dir) * v, rot0: rng.float(0, Math.PI * 2), spin: rng.float(-spin, spin), t0, role, width });
-  }
-}
-
 function sceneSeed(e: SimEventRecord): number {
   const id = 'missionId' in e ? e.missionId : 'bodyId' in e ? e.bodyId ?? 'THREAT' : '';
   return hashSeed(`${e.kind}#${e.t}#${id}`);
@@ -252,7 +242,16 @@ function base(kind: CineKind, e: SimEventRecord, ctx: CineContext): Scene {
     push: null,
     approach: null,
     crowd: [],
+    solid: null,
   };
+}
+
+/**
+ * The remnant of a hit from the left: the body cratered to `depth` of its radius and scaled by `frac`, recoiling
+ * at `vx` px/s and spun up by `kick` rad/s (an off-centre hit). Example: frac 1, depth 0, vx 0, kick 0 is the body.
+ */
+function remnantOf(body: Chunk, frac: number, depth: number, vx: number, kick: number, t0: number, hot: number): Chunk {
+  return { ...body, poly: cratered(body.poly, frac, -1, 0, depth), ax: body.ax + body.wx * t0, ay: body.ay + body.wy * t0, az: body.az + body.wz * t0, vx, vy: 0, vz: 0, wz: body.wz + kick, t0, hot };
 }
 
 /** Which events get a scene, and which later event in the same frame joins it (IMPACT + FRAGMENTATION). */
@@ -308,6 +307,10 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
   const sc = base(e.kind as CineKind, e, ctx);
   const rng = new Rng(sc.seed);
   const R = sc.bodyR;
+  // Every scene but a launch has the body as a solid (drawn in 3-D, tumbling slowly); the cases below decide what
+  // becomes of it. NOTE: the body's mesh is drawn from the rng first, so the seeded draw order of each case holds.
+  if (e.kind !== 'LAUNCH') sc.solid = { body: restingChunk(makeBody(rng), R, rng), remnant: null, chunks: [], camera: true };
+  const body = sc.solid?.body ?? null;
   switch (e.kind) {
     case 'LAUNCH': {
       const tier = Math.max(1, Math.min(3, e.tier));
@@ -337,11 +340,19 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
       sc.titleRole = 'craft';
       sc.streak = { from: STREAK_FROM, to: [-R, 0], tArrive: sc.hitAt, passThrough: false, role: 'craft', tail: 90 + 50 * Math.min(2, e.U / 20000) };
       sc.rings.push({ x: -R, y: 0, t0: sc.hitAt, dur: 0.35, r0: 2, r1: R * 0.8, role: 'craft' });
-      const count = ctx.betaHidden ? 60 : Math.round(40 + 80 * Math.min(3, Math.max(0, e.beta - 1)));
-      burst(rng, sc.particles, -R, 0, count, 80, 260, 0.6, 1.8, sc.hitAt, 'threat', 3, Math.PI, 0.9);
-      burst(rng, sc.particles, -R, 0, 30, 15, 60, 1.0, 2.4, sc.hitAt, 'fragment', 2, Math.PI, 1.2);
+      const excess = ctx.betaHidden ? 1 : Math.min(3, Math.max(0, e.beta - 1));
+      const count = Math.round(KNOBS.CINE_SPRAY.IMPACT * (0.5 + 0.5 * excess));
+      // Ejecta: a cone back toward the impactor (that momentum is beta), fine and hot, plus slow dust that lingers.
+      burst(rng, sc.particles, -R, 0, count, 80, 300, 0.6, 1.8, sc.hitAt, 'threat', 1.4, Math.PI, 0.9);
+      burst(rng, sc.particles, -R, 0, Math.round(count * 0.4), 15, 70, 1.0, 2.4, sc.hitAt, 'fragment', 1, Math.PI, 1.2);
       sc.bodyAfter = notch(sc.body, Math.PI, 0.5, 0.22);
       sc.bodyDrift = { vx: 6, vy: 0 };
+      if (sc.solid && body) {
+        // The body recoils along the impactor's line (faster for a bigger beta) and picks up spin from the glancing
+        // part of the hit; a handful of rock-sized pieces leave the crater in the ejecta cone.
+        sc.solid.remnant = remnantOf(body, 1, 0.22, 6 + 6 * excess, 0.35, sc.hitAt, 0.5);
+        sc.solid.chunks = fracture(rng, R, 6 + Math.round(6 * excess), 0.14, 50, 150, 3, sc.hitAt, 'fragment', 0.6, Math.PI, 0.8).map((c) => ({ ...c, x: c.x * 0.3 - R * 0.8, y: c.y * 0.3 }));
+      }
       sc.title = `${e.missionId} IMPACT  U ${kms(e.U)}`;
       sc.subtitle = ctx.betaHidden ? `BETA ?  (ASSESSMENT PENDING)` : `BETA ${e.beta.toFixed(2)}   dV ${(e.dvTotal * 1000).toFixed(2)} MM/S${e.qRatio !== undefined ? `   Q/Q* ${e.qRatio.toFixed(2)}` : ''}`;
       break;
@@ -364,8 +375,9 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
       const verb = ctx.typeId;
       switch (verb) {
         case 'RUBBLE':
-          makeShards(rng, sc.shards, R, Math.min(e.count, 48), largestFrac, 12, 45, 1, hit, 'fragment');
-          burst(rng, sc.particles, 0, 0, 140, 10, 45, 1.5, 3.0, hit, 'fragment', 1);
+          // A rubble pile comes apart gently into many pieces of every size and a long-lived dust cloud.
+          if (sc.solid) sc.solid.chunks = fracture(rng, R, Math.min(Math.max(e.count, 24), KNOBS.CINE_CHUNKS_MAX), largestFrac, 12, 48, 1.2, hit, 'fragment', 0.25);
+          burst(rng, sc.particles, 0, 0, KNOBS.CINE_SPRAY.BREAKUP, 10, 50, 1.5, 3.2, hit, 'fragment', 1.6);
           break;
         case 'STONY': {
           for (let i = 0; i < 6; i++) {
@@ -373,21 +385,28 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
             const r = R * rng.float(0.8, 1.05);
             sc.cracks.push({ pts: [-R, 0, Math.cos(a) * r * 0.4 - R * 0.3, Math.sin(a) * r * 0.4, Math.cos(a) * r, Math.sin(a) * r], t0: hit, dur: 0.3 });
           }
-          makeShards(rng, sc.shards, R, Math.min(e.count, 14), largestFrac, 30, 90, 2, hit + 0.3, 'fragment');
-          burst(rng, sc.particles, -R * 0.5, 0, 50, 40, 120, 0.4, 1.0, hit, 'threat', 2);
+          // Cracks race across the face for 0.3 s, then the body goes in a few big pieces and a spray of small ones.
+          if (sc.solid) sc.solid.chunks = fracture(rng, R, Math.min(Math.max(e.count, 10), 28), largestFrac, 30, 95, 2.2, hit + 0.3, 'fragment', 0.4);
+          burst(rng, sc.particles, -R * 0.5, 0, Math.round(KNOBS.CINE_SPRAY.BREAKUP * 0.6), 40, 140, 0.4, 1.2, hit, 'threat', 1.4);
+          burst(rng, sc.particles, 0, 0, Math.round(KNOBS.CINE_SPRAY.BREAKUP * 0.5), 20, 80, 0.8, 2.0, hit + 0.3, 'fragment', 1);
           break;
         }
         case 'IRON':
           for (let i = 0; i < 3; i++) sc.rings.push({ x: 0, y: 0, t0: hit + i * 0.12, dur: 0.8, r0: R, r1: R * 2.6, role: 'threat', dash: [4, 4] });
-          makeShards(rng, sc.shards, R, Math.min(e.count, 6), Math.min(0.3, largestFrac), 90, 160, 4, hit, 'fragment', 2);
-          burst(rng, sc.particles, -R, 0, 60, 80, 220, 0.2, 0.6, hit, 'danger', 2, Math.PI, 1.0);
+          // Iron rings and sheds: the core survives, dented and recoiling fast; the shed pieces are hot and quick.
+          if (sc.solid && body) {
+            sc.solid.remnant = remnantOf(body, 0.85, 0.3, 10, 0.5, hit, 0.6);
+            sc.solid.chunks = fracture(rng, R, Math.min(Math.max(e.count, 6), 12), Math.min(0.3, largestFrac), 90, 170, 4, hit, 'fragment', 0.7);
+          }
+          burst(rng, sc.particles, -R, 0, Math.round(KNOBS.CINE_SPRAY.BREAKUP * 0.5), 80, 240, 0.2, 0.7, hit, 'danger', 1.4, Math.PI, 1.0);
           sc.bodyAfter = notch(sc.body.map((v) => v * 0.85), Math.PI, 0.6, 0.25);
           sc.bodyDrift = { vx: 10, vy: 0 };
           break;
         case 'ICY':
-          burst(rng, sc.particles, 0, 0, 220, 90, 220, 0.5, 1.4, hit, 'fragment', 1);
-          burst(rng, sc.particles, 0, 0, 60, 20, 60, 1.5, 2.5, hit, 'text', 1);
-          makeShards(rng, sc.shards, R, Math.min(e.count, 8), largestFrac * 0.6, 20, 60, 1.5, hit, 'fragment');
+          // A comet puffs into dust: a huge fine spray, slow, and a few icy pieces.
+          burst(rng, sc.particles, 0, 0, Math.round(KNOBS.CINE_SPRAY.BREAKUP * 1.5), 90, 240, 0.5, 1.6, hit, 'fragment', 1);
+          burst(rng, sc.particles, 0, 0, Math.round(KNOBS.CINE_SPRAY.BREAKUP * 0.4), 20, 70, 1.5, 2.8, hit, 'text', 1);
+          if (sc.solid) sc.solid.chunks = fracture(rng, R, Math.min(Math.max(e.count, 6), 14), largestFrac * 0.6, 20, 65, 1.5, hit, 'fragment', 0.3);
           break;
       }
       const VERB: Record<ThreatTypeId, string> = { RUBBLE: 'CRUMBLES', STONY: 'CRACKS', IRON: 'RINGS AND SHEDS', ICY: 'PUFFS INTO DUST' };
@@ -415,15 +434,19 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
         sc.rings.push({ x: -R - off, y: 0, t0: t0 + 0.05, dur: 0.6, r0: 2, r1: R * 1.3, role: 'nuclear', dash: [2, 3] });
         burst(rng, sc.particles, -R - off, 0, 50, 100, 300, 0.2, 0.5, t0, 'nuclear', 2);
         // Ablation: the facing hemisphere boils off away from the burst.
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < KNOBS.CINE_SPRAY.ABLATION; i++) {
           const a = Math.PI + rng.float(-1.1, 1.1);
           const v = rng.float(40, 120);
-          sc.particles.push({ x: Math.cos(a) * R, y: Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.3, ay: 0, t0: t0 + 0.05, life: rng.float(0.6, 1.5), size: 2, role: 'threat' });
+          sc.particles.push({ x: Math.cos(a) * R, y: Math.sin(a) * R, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.3, ay: 0, t0: t0 + 0.05, life: rng.float(0.6, 1.5), size: 1, role: 'threat' });
         }
       }
       // A standoff burst ablates the near face but leaves the body whole; a contact burst gouges it.
       sc.bodyAfter = standoff ? sc.body.map((v) => v * 0.97) : notch(sc.body, Math.PI, 0.55, 0.3);
       sc.bodyDrift = { vx: 8, vy: 0 };
+      if (sc.solid && body) {
+        sc.solid.remnant = remnantOf(body, standoff ? 0.97 : 1, standoff ? 0.04 : 0.3, 8 + 4 * pulses, 0.25, sc.hitAt, 0.8);
+        if (!standoff) sc.solid.chunks = fracture(rng, R, 10, 0.12, 60, 160, 3, sc.hitAt, 'fragment', 0.7, Math.PI, 0.9).map((c) => ({ ...c, x: c.x * 0.3 - R * 0.8, y: c.y * 0.3 }));
+      }
       sc.title = `${e.missionId} ${e.mode} BURST  ${e.yieldMt} MT${pulses > 1 ? ` X ${pulses}` : ''}`;
       sc.subtitle = `dV ${(e.dv * 1000).toFixed(2)} MM/S   Q/Q* ${e.qRatio.toFixed(2)}   ${e.qRatio >= 1 ? 'DISRUPTED' : 'INTACT'}`;
       break;
@@ -435,8 +458,8 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
       sc.streak = { from: STREAK_FROM, to: [-R, 0], tArrive: sc.hitAt, passThrough: !e.ok, role: 'craft', tail: 120 };
       if (e.ok) {
         sc.rings.push({ x: 0, y: 0, t0: sc.hitAt, dur: 0.4, r0: R * 0.4, r1: R * 1.8, role: 'fragment' });
-        makeShards(rng, sc.shards, R, 40, 0.12, 80, 200, 5, sc.hitAt, 'fragment');
-        burst(rng, sc.particles, 0, 0, 160, 60, 180, 0.6, 1.6, sc.hitAt, 'fragment', 1);
+        if (sc.solid) sc.solid.chunks = fracture(rng, R, Math.min(48, KNOBS.CINE_CHUNKS_MAX), 0.12, 80, 220, 5, sc.hitAt, 'fragment', 0.5);
+        burst(rng, sc.particles, 0, 0, KNOBS.CINE_SPRAY.BREAKUP, 60, 200, 0.6, 1.8, sc.hitAt, 'fragment', 1);
         sc.title = `${e.missionId} PI ARRAY ON ${e.targetId}`;
         sc.subtitle = `${e.D.toFixed(0)} M SHREDDED   AIRBURSTS   ${e.damageMt.toFixed(2)} MT OF DAMAGE`;
       } else {
@@ -464,13 +487,19 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
         sc.hitAt = 1.2;
         sc.streak = { from: STREAK_FROM, to: [-R, 0], tArrive: sc.hitAt, passThrough: false, role: 'threat', tail: 70 };
         sc.rings.push({ x: -R, y: 0, t0: sc.hitAt, dur: 0.5, r0: 4, r1: R * 1.2, role: 'threat' });
-        burst(rng, sc.particles, -R, 0, 90, 60, 200, 0.5, 1.6, sc.hitAt, 'fragment', 3, Math.PI, 0.9);
+        burst(rng, sc.particles, -R, 0, Math.round(KNOBS.CINE_SPRAY.IMPACT * 0.7), 60, 220, 0.5, 1.6, sc.hitAt, 'fragment', 1.4, Math.PI, 0.9);
         sc.bodyAfter = notch(sc.body, Math.PI, 0.5, 0.18);
         sc.bodyDrift = { vx: 8, vy: 0 };
+        if (sc.solid && body) {
+          sc.solid.remnant = remnantOf(body, 1, 0.18, 8, 0.3, sc.hitAt, 0.4);
+          sc.solid.chunks = fracture(rng, R, 6, 0.12, 50, 140, 3, sc.hitAt, 'fragment', 0.5, Math.PI, 0.8).map((c) => ({ ...c, x: c.x * 0.3 - R * 0.8, y: c.y * 0.3 }));
+        }
       } else {
         sc.hitAt = method === 'NANOFORGE' ? 2.2 : method === 'THRUSTER_SWARM' ? 1.6 : 0.8;
         sc.bodyAfter = sc.body;
         sc.bodyDrift = { vx: 5, vy: 0 };
+        if (sc.solid && body) sc.solid.remnant = remnantOf(body, 1, 0, 5, 0, sc.hitAt, 0);
+        if (sc.solid) sc.solid.camera = false;
       }
       break;
     }
@@ -490,8 +519,12 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
         const [hx, hy] = approachPos(sc.approach, sc.hitAt);
         sc.rings.push({ x: hx, y: hy, t0: sc.hitAt, dur: 0.6, r0: 4, r1: homeR * 1.2, role: 'danger' });
         sc.rings.push({ x: hx, y: hy, t0: sc.hitAt + 0.1, dur: 0.9, r0: 2, r1: homeR * 2.0, role: 'danger', dash: [3, 3] });
-        burst(rng, sc.particles, hx, hy, 120, 60, 220, 0.5, 1.5, sc.hitAt, 'danger', 2);
-        makeShards(rng, sc.shards, sc.bodyR, 10, 0.5, 40, 120, 4, sc.hitAt, 'threat');
+        burst(rng, sc.particles, hx, hy, KNOBS.CINE_SPRAY.IMPACT, 60, 240, 0.5, 1.6, sc.hitAt, 'danger', 1.4);
+        if (sc.solid) {
+          // The body shatters on the planet: the pieces start where it struck, thrown back up and out.
+          sc.solid.chunks = fracture(rng, sc.bodyR, 14, 0.5, 40, 130, 4, sc.hitAt, 'threat', 0.8, Math.atan2(-hy, -hx), 1.1).map((c) => ({ ...c, x: c.x + hx, y: c.y + hy }));
+          sc.solid.camera = false;
+        }
         sc.title = `${e.bodyId ?? ctx.name} IMPACT`;
         sc.subtitle = `${ctx.energyMt < 10 ? ctx.energyMt.toFixed(1) : ctx.energyMt.toFixed(0)} MT   D ${(e.dMin / 1000).toFixed(0)} KM INSIDE B-CRIT ${(e.bCrit / 1000).toFixed(0)} KM`;
       } else {

@@ -35,6 +35,25 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: impact, breakup, burst, PI and close-approach scenes in 3-D, with physics and fine spray
+
+- Owner: "improve graphics for impacts ... really make more fragments, show details, back away and show blasts if
+  they are large explosions ... show break up of asteroid ... asteroid should react with physics and be convincing
+  ... more 3D and detailed chunks and rotations, no more static 2D ... colors for false color analysis ... spray
+  should be tiny pixels or rendered outline chunks or 3d representations, not big blocks". New
+  `render/cinematics/solid.ts`: the body is a seeded polyhedron (an icosahedron subdivided twice, radial noise, a
+  squash and four craters) that tumbles slowly; a hit craters it, recoils it along the impactor's line (faster for a
+  bigger beta) and spins it; a breakup hands out up to `CINE_CHUNKS_MAX` solid pieces with sizes falling from the
+  largest remnant, radial velocities (small pieces faster, ejecta in a cone back toward the impactor), each
+  tumbling on its own; the scene scales down as the cloud grows (`CINE_CAMERA_FIT`) so a big blast stays in frame.
+  Faces are lit by a fixed light, silhouettes glow, fresh pieces burn in false colour and cool. Spray counts went up
+  (`CINE_SPRAY`) and every spray pixel is capped at `CINE_SPRAY_MAX_PX` (2 px); spray burns in false colour for
+  `CINE_HOT_EJECTA_FRAC` of its life. Rubble crumbles into many pieces and dust, stony cracks then goes in big
+  pieces, iron keeps a dented recoiling core and sheds hot shards, a comet puffs into a huge fine cloud, PI shreds,
+  a standoff burst ablates and recoils, a contact burst gouges, the close-approach body tumbles along its path and
+  shatters on the planet. The flat shards remain only for a launch's stage drops. Pure and seeded
+  (`tests/solid.test.ts`); the frame-cost bench still passes its ceiling.
+
 ### 2026-10-24: globes: HOME with the real coastlines, the other worlds with their own surfaces
 
 - Owner: "earth should have proper continents on it and be realistic in views that are close enough to see it ...

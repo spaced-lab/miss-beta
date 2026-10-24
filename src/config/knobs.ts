@@ -472,6 +472,16 @@ export const KNOBS = {
   PLAY_OUT: { BUILD_S: 3, FLIGHT_S: 20, LAUNCH_SCENE_S: 1, HIT_SCENE_S: 2, COAST_S: 20, END_SCENE_S: 3, RESULT_HOLD_S: 2, MIN_SPAN_S: 2 },
   /** Impact, breakup and trail debris pixel size relative to the old chunky size (1 = old). */
   CINE_DEBRIS_PX_SCALE: 0.6,
+  /** Spray is never a block (owner 2026-10-24): the largest debris pixel in an impact or breakup scene, px. */
+  CINE_SPRAY_MAX_PX: 2,
+  /** Spray counts per scene kind: an impact's ejecta cone (scaled by beta), a breakup's cloud, a burst's ablation. */
+  CINE_SPRAY: { IMPACT: 420, BREAKUP: 900, ABLATION: 220 },
+  /** Most solid pieces a breakup draws (solid.ts; each is a 20-face wireframe, so this bounds the frame cost). */
+  CINE_CHUNKS_MAX: 64,
+  /** A fresh impact or breakup particle burns in false colour for this fraction of its life. */
+  CINE_HOT_EJECTA_FRAC: 0.35,
+  /** The pull-back camera keeps the debris cloud inside this fraction of the short side of the screen. */
+  CINE_CAMERA_FIT: 0.42,
   /** A debris pixel is drawn in false colour for this long after it is born (hot ejecta), s. */
   CINE_HOT_EJECTA_S: 0.14,
 } as const;

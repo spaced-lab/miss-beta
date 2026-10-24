@@ -51,11 +51,15 @@ describe('cinematic scenes (GAME_PLAN 29)', () => {
     const stony = buildScene(EVENTS.FRAGMENTATION!, null, ctx('STONY'))!;
     const iron = buildScene(EVENTS.FRAGMENTATION!, null, ctx('IRON'))!;
     const icy = buildScene(EVENTS.FRAGMENTATION!, null, ctx('ICY'))!;
-    expect(rubble.shards.length).toBeGreaterThan(stony.shards.length);
+    // Pieces are solids now (solid.ts): a rubble pile makes the most, iron keeps its core as the remnant.
+    expect(rubble.solid!.chunks.length).toBeGreaterThan(stony.solid!.chunks.length);
     expect(stony.cracks.length).toBeGreaterThan(0);
     expect(iron.rings.filter((r) => r.dash).length).toBe(3);
     expect(iron.bodyAfter).not.toBeNull();
+    expect(iron.solid!.remnant).not.toBeNull();
     expect(rubble.bodyAfter).toBeNull();
+    expect(rubble.solid!.remnant).toBeNull();
+    expect(rubble.solid!.body).not.toBeNull();
     expect(icy.particles.length).toBeGreaterThan(rubble.particles.length);
     expect(rubble.title).toContain('CRUMBLES');
     expect(icy.title).toContain('PUFFS');

@@ -16,6 +16,7 @@ import { KNOBS } from '../../config/knobs';
 import { drawLaunchStage, drawLaunchVehicle, launchCell } from './launch';
 import { approachPos, type Scene } from './scene';
 import { falseColor, fireColor, hash01 } from './pixel';
+import { drawChunk, extent, pullBack, type Chunk } from './solid';
 import type { Role } from '../palettes';
 
 /** Debris roles cycle like the minigame's hardness colours, so a breakup is not one flat colour under NEON. */
@@ -81,13 +82,17 @@ function wireBody(s: Surface, pts: readonly number[], ox: number, oy: number, k:
 export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: string, reduceMotion: boolean): void {
   const p = s.palette;
   s.clear();
-  const k = Math.max(0.5, Math.min(1.4, Math.min(s.width / 1000, s.height / 700)));
+  const k0 = Math.max(0.5, Math.min(1.4, Math.min(s.width / 1000, s.height / 700)));
+  const t = reduceMotion ? sc.duration : elapsed;
+  const hit = t >= sc.hitAt;
+  // The pull-back camera: as the pieces of a big blast spread, the whole scene scales down so the cloud stays in
+  // frame (solid.ts pullBack). Nothing jumps: the extent grows linearly, so the scale eases on its own.
+  const cam = sc.solid?.camera && !reduceMotion ? pullBack(extent(sc.solid.chunks, t) * k0, Math.min(s.width, s.height) * KNOBS.CINE_CAMERA_FIT) : 1;
+  const k = k0 * cam;
   const origin: [number, number] = sc.kind === 'LAUNCH' ? [s.width * 0.3, s.height * 0.8] : sc.kind === 'CLOSE_APPROACH' ? [s.width * 0.42, s.height * 0.5] : [s.width * 0.5 + 40 * k, s.height * 0.5 - 10];
   const [ox, oy] = origin;
   const X = (x: number): number => ox + x * k;
   const Y = (y: number): number => oy + y * k;
-  const t = reduceMotion ? sc.duration : elapsed;
-  const hit = t >= sc.hitAt;
 
   // Static stage.
   if (sc.kind === 'LAUNCH') drawLaunchStage(s, sc, elapsed, ox, oy, k);
@@ -114,8 +119,20 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
     }
   }
 
-  // The body.
-  if (sc.body.length > 0) {
+  // The body: a solid that tumbles (solid.ts), the remnant after the hit, and every piece on its own path. Fresh
+  // pieces burn in false colour and cool to the fragment colour. A scene without a solid draws the flat wireframe.
+  const so = sc.solid;
+  const hotOf = (c: Chunk): string | null => (KNOBS.CINE_FALSE_COLOUR && c.hot > 0 && t - c.t0 < c.hot ? falseColor(s, 1 - (t - c.t0) / c.hot) : null);
+  if (so && !reduceMotion) {
+    if (sc.kind === 'CLOSE_APPROACH' && sc.approach) {
+      if (!(sc.approach.impact && hit) && so.body) {
+        const [bx, by] = approachPos(sc.approach, t);
+        drawChunk(s, { ...so.body, x: bx, y: by, wy: so.body.wy + 1.1 }, t, ox, oy, k, s.role('threat'), null);
+      }
+    } else if (!hit && so.body) drawChunk(s, so.body, t, ox, oy, k, s.role('threat'), null);
+    else if (hit && so.remnant) drawChunk(s, so.remnant, t, ox, oy, k, s.role('threat'), hotOf(so.remnant));
+    for (const c of so.chunks) if (t >= c.t0) drawChunk(s, c, t, ox, oy, k, s.role(c.role), hotOf(c));
+  } else if (sc.body.length > 0) {
     let bx = 0;
     let by = 0;
     if (sc.kind === 'CLOSE_APPROACH' && sc.approach) {
@@ -200,16 +217,18 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
       // colours under NEON; a fresh particle is hot ejecta in false colour; a one-pixel tail marks its motion.
       const hi = hash01(i, sc.seed);
       const role = (q.role === 'threat' || q.role === 'fragment') && sc.kind !== 'LAUNCH' ? (DEBRIS_ROLES[Math.floor(hi * DEBRIS_ROLES.length)] ?? q.role) : q.role;
-      const hot = KNOBS.CINE_FALSE_COLOUR && dt < KNOBS.CINE_HOT_EJECTA_S;
-      const col = hot ? falseColor(s, 1 - dt / KNOBS.CINE_HOT_EJECTA_S) : s.role(role);
+      // Launch exhaust cools in CINE_HOT_EJECTA_S; impact and breakup spray burns for a fraction of its life.
+      const hotFor = sc.kind === 'LAUNCH' ? KNOBS.CINE_HOT_EJECTA_S : q.life * KNOBS.CINE_HOT_EJECTA_FRAC;
+      const hot = KNOBS.CINE_FALSE_COLOUR && dt < hotFor;
+      const col = hot ? falseColor(s, 1 - dt / hotFor) : s.role(role);
       const px = Math.round(X(q.x + q.vx * dt));
       const sy = q.y + q.vy * dt + 0.5 * q.ay * dt * dt;
       // Launch exhaust shed near the pad must not sink through the ground.
       if (sc.kind === 'LAUNCH' && sy > 0) continue;
       const py = Math.round(Y(sy));
       const size0 = Math.max(1, q.size * k * (1.2 + 1.8 * hi) * KNOBS.CINE_DEBRIS_PX_SCALE);
-      // The launch trail stays on the launch art's fine grid: at most two cells.
-      const size = sc.kind === 'LAUNCH' ? Math.min(size0, 2 * launchCell(k)) : size0;
+      // The launch trail stays on the launch art's fine grid: at most two cells; spray elsewhere is never a block.
+      const size = sc.kind === 'LAUNCH' ? Math.min(size0, 2 * launchCell(k)) : Math.min(size0, KNOBS.CINE_SPRAY_MAX_PX);
       s.dot(px, py, size, col, a);
       const tdt = Math.max(0, dt - 0.03);
       const qx = Math.round(X(q.x + q.vx * tdt));
