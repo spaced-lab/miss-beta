@@ -336,6 +336,8 @@ overlay, OPTIONS with every option as a button, HELP, CODEX, LEADERBOARD, LEARN 
 STEER (`minigame/tilt.ts`, knobs TILT_DEAD_DEG 6 / TILT_FULL_DEG 24), PERIMETER NEW GAME / START LEVEL / DIFFICULTY
 from the gear, OPTIONS scrolls on a short window, corner tabs kept clear by `cornerInset()` (ui/touchBack.ts). Tilt was
 driven with synthetic deviceorientation events only: the owner's phone is the check for the real sensor and its sign.
+Restart point: commits 14828ad..HEAD are on main, NOT pushed (owner pushes when asked). Next: the owner tests tilt
+on the Pages site after the push (IDEAS 41) and reports direction / feel; tune TILT_* knobs or `screenRoll` from that.
 
 **STATE 2026-10-21 (later, phones):** IDEAS 38 done (SYSTEM screen on a phone: `ui/actionBar.ts` bar + MORE menu, compact
 HUD, planner / PROGRAMS / TECH / lore / debrief compact layouts); IDEAS 39 mostly done (LEARN upright with a side pane

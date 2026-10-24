@@ -2,6 +2,10 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-23: backlog
+
+- IDEAS 41: TILT STEER on a real phone, waiting on the owner (test on the Pages site after the push; https only).
+
 ### 2026-10-23: the tutorial, cinematics and AUTOPLAY by touch
 
 - Played the tutorial, AUTOPLAY and a normal round on a phone held both ways with taps only. On a touch screen the

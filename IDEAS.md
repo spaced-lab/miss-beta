@@ -237,4 +237,12 @@ L (days). Recommendations: DO (worth it now), LATER (worth it, not yet), SKIP (n
     being able to be done by a gear icon as well and menus. test render all screens to be on small screen." Status:
     DONE 2026-10-23 (ui/gearMenu.ts, minigame/tilt.ts, start levels to 60, phone renders of every screen checked at
     780 x 360 and 390 x 740). Left: the real motion sensor on a phone (only synthetic events were tested here), and
-    PERIMETER in a small desktop window without touch still draws its keyboard panel, which crowds under 700 px.
+    PERIMETER in a small desktop window without touch still draws its keyboard panel, which crowds under 700 px (fixed
+    later the same day: compact panels). The sensor check is item 41.
+
+41. **TILT STEER on a real phone (S).** Owner 2026-10-23: "i can test on my phone later put in backlog". Needs the
+    push first: phones only report tilt over https, so test on the Pages site, not a LAN address. Check: iPhone shows
+    the motion prompt after the tap that follows TILT STEER ON; tipping right turns the launchers right both held
+    upright and sideways (else TILT: REVERSED, and note which way the phone was held); TILT_DEAD_DEG 6 / TILT_FULL_DEG
+    24 feel right (knobs in minigame/config.ts); the screen does not auto-rotate mid-tilt. Owner reports, then tune
+    knobs or fix the sign in `screenRoll`. Status: WAITING ON OWNER.
