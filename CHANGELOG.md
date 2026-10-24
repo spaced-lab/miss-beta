@@ -35,6 +35,19 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: the launch scene redone: a 3-D vehicle, a dolly, vector pad, fine smoke, stages that tumble
+
+- Owner: "redo launch animations" in the same spirit (more 3-D, detail, no huge pixels). New `cinematics/vehicle.ts`:
+  the launcher is a lathe wireframe (nose cone, fairing, body, interstage bands, engine bell; fins on tiers 1-2, two
+  strap-on boosters on tier 3) built on solid.ts, lit by the fixed light, rolling about its axis as it pitches along
+  the arc; the plumes start at its bells after the rotation. Spent stages are the tube between two bands, dropping
+  as solids under gravity (`Chunk.g`) and tumbling, with a spark puff. The camera starts `CINE_LAUNCH_DOLLY` closer on
+  the pad and dollies out over the first 1.5 s; the vehicle is `CINE_VEHICLE_SCALE` longer than the old sprite. The
+  pad, deck, flame trench, ridge line and lattice tower are vector strokes that scale with the camera, the ground
+  follows the limb's curve, and the pixel cell is capped at `CINE_LAUNCH_CELL_MAX_PX` (2 px) so the plume and smoke
+  get denser under the dolly, never blockier. Pad smoke is `CINE_PAD_SMOKE` one- to two-pixel grains, the ones by
+  the plume in false colour. The pixel sprites stay for the SUPER-DUPER-DEMO salvo.
+
 ### 2026-10-24: impact, breakup, burst, PI and close-approach scenes in 3-D, with physics and fine spray
 
 - Owner: "improve graphics for impacts ... really make more fragments, show details, back away and show blasts if

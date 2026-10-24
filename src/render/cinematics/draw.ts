@@ -87,7 +87,10 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
   const hit = t >= sc.hitAt;
   // The pull-back camera: as the pieces of a big blast spread, the whole scene scales down so the cloud stays in
   // frame (solid.ts pullBack). Nothing jumps: the extent grows linearly, so the scale eases on its own.
-  const cam = sc.solid?.camera && !reduceMotion ? pullBack(extent(sc.solid.chunks, t) * k0, Math.min(s.width, s.height) * KNOBS.CINE_CAMERA_FIT) : 1;
+  // A launch starts close on the pad and dollies out as the vehicle climbs (CINE_LAUNCH_DOLLY).
+  const dollyF = Math.max(0, Math.min(1, (t - 0.25) / 1.3));
+  const dolly = sc.kind === 'LAUNCH' && !reduceMotion ? 1 + KNOBS.CINE_LAUNCH_DOLLY * (1 - dollyF * dollyF * (3 - 2 * dollyF)) : 1;
+  const cam = sc.solid?.camera && !reduceMotion ? pullBack(extent(sc.solid.chunks, t) * k0, Math.min(s.width, s.height) * KNOBS.CINE_CAMERA_FIT) : dolly;
   const k = k0 * cam;
   const origin: [number, number] = sc.kind === 'LAUNCH' ? [s.width * 0.3, s.height * 0.8] : sc.kind === 'CLOSE_APPROACH' ? [s.width * 0.42, s.height * 0.5] : [s.width * 0.5 + 40 * k, s.height * 0.5 - 10];
   const [ox, oy] = origin;

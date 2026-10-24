@@ -9,6 +9,8 @@ function outward(p: { v: Float64Array; f: number[][] }): boolean {
     const cx = p.v[c * 3] ?? 0, cy = p.v[c * 3 + 1] ?? 0, cz = p.v[c * 3 + 2] ?? 0;
     const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    // A lathe's apex rings make zero-area triangles; they have no side to face.
+    if (Math.hypot(nx, ny, nz) < 1e-12) continue;
     if (nx * (ax + bx + cx) + ny * (ay + by + cy) + nz * (az + bz + cz) <= 0) return false;
   }
   return true;
@@ -86,5 +88,37 @@ describe('solid bodies', () => {
     expect(p.faces.length).toBeLessThan(320);
     expect(p.silhouette.length / 4).toBeGreaterThanOrEqual(6);
     for (const f of p.faces) expect(f.lit).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('lathe meshes and vehicles', () => {
+  it('a revolved profile faces outward and a two-sided fin always shows a front', async () => {
+    const { lathe, flat, projectChunk } = await import('../src/render/cinematics/solid');
+    const cone = lathe([[0, -1], [1, 0], [0, 1]], 6);
+    expect(cone.v.length / 3).toBe(18);
+    expect(cone.f.length).toBe(24);
+    expect(outward(cone)).toBe(true);
+    const fin = flat([[0, 0, 0], [0, 1, 0], [1, 1, 0]]);
+    const c = { poly: fin, size: 10, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ax: 0.3, ay: 0.2, az: 0.1, wx: 0, wy: 0, wz: 0, t0: 0, role: 'craft' as const, hot: 0 };
+    const p = projectChunk(c, 0, 0, 0, 1);
+    expect(p.faces.length).toBe(1);
+    expect(p.silhouette.length / 4).toBe(3);
+  });
+  it('a falling stage follows a parabola', async () => {
+    const { chunkAt } = await import('../src/render/cinematics/solid');
+    const c = { poly: { v: new Float64Array(0), f: [] }, size: 1, x: 0, y: 0, z: 0, vx: 10, vy: -20, vz: 0, ax: 0, ay: 0, az: 0, wx: 0, wy: 0, wz: 0, t0: 1, role: 'craft' as const, hot: 0, g: 40 };
+    const q = chunkAt(c, 3);
+    expect(q.x).toBe(20);
+    expect(q.y).toBeCloseTo(-40 + 0.5 * 40 * 4);
+  });
+  it('vehicles have nozzles per tier and their bells point down the heading', async () => {
+    const { vehicle, localToScreen } = await import('../src/render/cinematics/vehicle');
+    expect(vehicle(1).nozzles.length).toBe(1);
+    expect(vehicle(3).nozzles.length).toBe(3);
+    expect(vehicle(2).bands.length).toBe(1);
+    expect(vehicle(3).poly.f.length).toBeGreaterThan(vehicle(1).poly.f.length);
+    const [x, y] = localToScreen(0, 1, 0, 50, 0.7, Math.PI / 2);
+    expect(x).toBeCloseTo(-50);
+    expect(Math.abs(y)).toBeLessThan(1e-9);
   });
 });

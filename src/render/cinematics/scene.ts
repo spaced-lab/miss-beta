@@ -328,10 +328,9 @@ export function buildScene(e: SimEventRecord, companion: SimEventRecord | null, 
       for (const u of sc.launch.stages) {
         const t0 = Math.pow(u, 1 / 1.5) * sc.duration * 0.92;
         const [x, y, tx, ty] = launchArc(u, tier);
-        burst(rng, sc.particles, x, y, 14, 30, 80, 0.3, 0.6, t0, 'craft', 2);
-        sc.shards.push({ pts: [-7, 0, 7, 0], x, y, vx: tx * 25, vy: ty * 25 + 10, rot0: Math.atan2(ty, tx), spin: rng.float(-3, 3), t0, role: 'craft', width: 1 });
-        const last = sc.shards[sc.shards.length - 1];
-        if (last) sc.particles.push({ x, y, vx: tx * 25, vy: ty * 25, ay: 90, t0, life: 1.4, size: 2, role: 'craft' });
+        // The separation puff; the spent stage itself is a solid drawn by launch.ts (vehicle.ts spentStage).
+        burst(rng, sc.particles, x, y, 18, 30, 80, 0.3, 0.6, t0, 'craft', 1.4);
+        sc.particles.push({ x, y, vx: tx * 25, vy: ty * 25, ay: 90, t0, life: 1.4, size: 1.4, role: 'craft' });
       }
       break;
     }

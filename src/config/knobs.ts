@@ -457,6 +457,15 @@ export const KNOBS = {
   /** The ramp under NEON, hottest first: white, ice, cyan, magenta, violet, deep violet (a thermal-camera look).
    *  Mono palettes step hot -> ink -> alt -> dim instead (falseRamp in render/cinematics/pixel.ts). */
   CINE_FALSE_RAMP: ['#FFFFFF', '#C8FFFF', '#00E5FF', '#FF3DF0', '#A43CFF', '#5A1FA8'] as readonly string[],
+  /** The launch pixel cell never grows past this under the dolly (owner 2026-10-24: no huge pixels); the plume and
+   *  smoke get denser instead. */
+  CINE_LAUNCH_CELL_MAX_PX: 2,
+  /** The launch camera starts this much closer on the pad and dollies out over the first 1.5 s (0 = fixed). */
+  CINE_LAUNCH_DOLLY: 1.3,
+  /** The 3-D launch vehicle's length relative to the old sprite's. */
+  CINE_VEHICLE_SCALE: 1.25,
+  /** Pad smoke grains at liftoff (owner 2026-10-24: tiny pixels, never blocks). */
+  CINE_PAD_SMOKE: 460,
   /** Ember sparks: tiny false-colour pixels shed from each nozzle, count per nozzle and lifetime, s. */
   CINE_EMBERS: 40,
   CINE_EMBER_LIFE_S: 0.55,

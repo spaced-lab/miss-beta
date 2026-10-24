@@ -45,6 +45,8 @@ export interface Chunk {
   role: Role;
   /** Seconds the piece glows in false colour after t0 (fresh, hot). */
   hot: number;
+  /** Downward acceleration, px/s^2 (a spent stage falling back; 0 in free space). */
+  g?: number;
 }
 
 const PHI = (1 + Math.sqrt(5)) / 2;
@@ -191,7 +193,59 @@ export function rotate3(x: number, y: number, z: number, ax: number, ay: number,
 /** Position and orientation at scene time t. Example: a chunk with vx 10 is 10 px further along after one second. */
 export function chunkAt(c: Chunk, t: number): { x: number; y: number; z: number; ax: number; ay: number; az: number } {
   const dt = Math.max(0, t - c.t0);
-  return { x: c.x + c.vx * dt, y: c.y + c.vy * dt, z: c.z + c.vz * dt, ax: c.ax + c.wx * dt, ay: c.ay + c.wy * dt, az: c.az + c.wz * dt };
+  return { x: c.x + c.vx * dt, y: c.y + c.vy * dt + 0.5 * (c.g ?? 0) * dt * dt, z: c.z + c.vz * dt, ax: c.ax + c.wx * dt, ay: c.ay + c.wy * dt, az: c.az + c.wz * dt };
+}
+
+/**
+ * A surface of revolution about the y axis: `profile` is (radius, y) from the top down, `segs` around. Open ends
+ * are capped by the profile itself (give it a zero radius at an end for a point). Faces wind outward.
+ * Example: profile [[0, -1], [1, 0], [0, 1]] with 4 segments is a double cone of 8 faces.
+ */
+export function lathe(profile: readonly (readonly [number, number])[], segs: number): Poly3 {
+  const verts: number[] = [];
+  const f: number[][] = [];
+  const n = profile.length;
+  for (let i = 0; i < n; i++) {
+    const [r, y] = profile[i] as [number, number];
+    for (let j = 0; j < segs; j++) {
+      const a = (j / segs) * Math.PI * 2;
+      verts.push(Math.cos(a) * r, y, Math.sin(a) * r);
+    }
+  }
+  const at = (i: number, j: number): number => i * segs + (j % segs);
+  for (let i = 0; i + 1 < n; i++) {
+    for (let j = 0; j < segs; j++) {
+      const a = at(i, j);
+      const b = at(i, j + 1);
+      const c = at(i + 1, j + 1);
+      const d = at(i + 1, j);
+      // Two triangles per quad, wound so the normal points away from the axis (y down the profile).
+      f.push([a, d, b], [b, d, c]);
+    }
+  }
+  return { v: new Float64Array(verts), f };
+}
+
+/** A flat, two-sided polygon (a fin): both windings, so one face always faces the viewer and every edge is silhouette. */
+export function flat(pts: readonly (readonly [number, number, number])[]): Poly3 {
+  const verts: number[] = [];
+  for (const [x, y, z] of pts) verts.push(x, y, z);
+  const idx = pts.map((_, i) => i);
+  const rev = [...idx].reverse();
+  return { v: new Float64Array(verts), f: [idx, rev] };
+}
+
+/** Merge meshes into one (indices offset). */
+export function merge(parts: readonly Poly3[]): Poly3 {
+  const verts: number[] = [];
+  const f: number[][] = [];
+  let off = 0;
+  for (const p of parts) {
+    for (const x of p.v) verts.push(x);
+    for (const face of p.f) f.push(face.map((i) => i + off));
+    off += p.v.length / 3;
+  }
+  return { v: new Float64Array(verts), f };
 }
 
 /** A still chunk at the origin: the main body before anything happens, with a slow tumble. */
@@ -273,8 +327,10 @@ export function projectChunk(c: Chunk, t: number, ox: number, oy: number, k: num
   const edgeFront = new Map<number, number>();
   const frontFace: boolean[] = [];
   for (let fi = 0; fi < c.poly.f.length; fi++) {
-    const face = c.poly.f[fi] as [number, number, number];
-    const [a, b, d] = face;
+    const face = c.poly.f[fi] as number[];
+    const a = face[0] ?? 0;
+    const b = face[1] ?? 0;
+    const d = face[2] ?? 0;
     const ux = (px[b] ?? 0) - (px[a] ?? 0);
     const uy = (py[b] ?? 0) - (py[a] ?? 0);
     const uz = (pz[b] ?? 0) - (pz[a] ?? 0);
@@ -290,8 +346,12 @@ export function projectChunk(c: Chunk, t: number, ox: number, oy: number, k: num
     if (!front) continue;
     const nl = Math.hypot(nx, ny, nz) || 1;
     const lit = Math.max(0, (-nx * LX - ny * LY - nz * LZ) / nl);
-    faces.push({ pts: [ox + (px[a] ?? 0) * k, oy + (py[a] ?? 0) * k, ox + (px[b] ?? 0) * k, oy + (py[b] ?? 0) * k, ox + (px[d] ?? 0) * k, oy + (py[d] ?? 0) * k], lit });
-    for (const [i, j] of [[a, b], [b, d], [d, a]] as [number, number][]) {
+    const pts: number[] = [];
+    for (const vi of face) pts.push(ox + (px[vi] ?? 0) * k, oy + (py[vi] ?? 0) * k);
+    faces.push({ pts, lit });
+    for (let e = 0; e < face.length; e++) {
+      const i = face[e] ?? 0;
+      const j = face[(e + 1) % face.length] ?? 0;
       const key = i < j ? i * 4096 + j : j * 4096 + i;
       edgeFront.set(key, (edgeFront.get(key) ?? 0) + 1);
     }
@@ -310,7 +370,7 @@ export function projectChunk(c: Chunk, t: number, ox: number, oy: number, k: num
  * Draw a chunk: front faces as thin lines whose alpha follows the light, the silhouette bright with glow. A piece
  * under 3 px on screen is one dot. `hotColor` (false colour) replaces the role colour while the piece is hot.
  */
-export function drawChunk(s: Surface, c: Chunk, t: number, ox: number, oy: number, k: number, color: string, hotColor: string | null, alpha = 1): void {
+export function drawChunk(s: Surface, c: Chunk, t: number, ox: number, oy: number, k: number, color: string, hotColor: string | null, alpha = 1, faceAlpha = 1): void {
   const q = chunkAt(c, t);
   const r = c.size * k;
   if (r < 3) {
@@ -320,7 +380,7 @@ export function drawChunk(s: Surface, c: Chunk, t: number, ox: number, oy: numbe
   const { faces, silhouette } = projectChunk(c, t, ox, oy, k);
   const col = hotColor ?? color;
   const fine = r >= 9;
-  if (fine) for (const f of faces) s.stroke(f.pts, { closed: true, color: col, glow: 0, width: 1, alpha: alpha * (0.12 + 0.5 * f.lit) });
+  if (fine) for (const f of faces) s.stroke(f.pts, { closed: true, color: col, glow: 0, width: 1, alpha: alpha * faceAlpha * (0.12 + 0.5 * f.lit) });
   if (silhouette.length >= 4) {
     for (let i = 0; i + 3 < silhouette.length; i += 4) s.stroke([silhouette[i] ?? 0, silhouette[i + 1] ?? 0, silhouette[i + 2] ?? 0, silhouette[i + 3] ?? 0], { color: col, glow: fine ? 1.1 : 0.5, width: fine ? 1.4 : 1, alpha });
   }
