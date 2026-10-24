@@ -1,40 +1,32 @@
-// WHAT: PLANET VIEW overlay (GAME_PLAN 13.3): HOME's disc with continents, the b_crit ring, the approach
+// WHAT: PLANET VIEW overlay (GAME_PLAN 13.3): HOME as a turning globe with the real coastlines, the b_crit ring, the approach
 //       corridor and every body's closest-approach offset (the fragment cloud's cross-section).
 // WHY:  The system view cannot show a miss of two planet radii; this view is where "miss by 1.3 R" and a
 //       fragment shotgun become pictures.
 // HOW:  Plane centred on HOME. Each resolved body is placed at its closest-approach offset vector
 //       (r_body(t_ca) - r_home(t_ca)), drawn to scale against the disc and the focusing ring; the primary's
 //       approach direction (its relative velocity at t_ca) is the corridor line. Continents reuse the
-//       seeded generator with the run seed so the planet looks the same every round of a run.
+//       globe is render/globe.ts (Natural Earth coastlines, orthographic, the pole tipped toward the viewer).
 // LORE: O12 (close approach), D4 (fragmentation), T2 (size ladder)
 
-import { generateContinents, type Continent } from '../../minigame/planet';
 import { cornerInset } from '../../ui/touchBack';
 import { propagate } from '../../physics/kepler';
 import { is3D, lift, stateAt, vsub } from '../../sim/orbit3';
 import type { RoundResult } from '../../sim/resolver';
-import { hashSeed, Rng } from '../../sim/rng';
 import { planetById, type World } from '../../sim/world';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
-import { wireSphere } from '../wire';
+import { drawGlobe } from '../globe';
 import { drawText, drawTextFit } from '../vectorFont';
 
 export class PlanetOverlay {
   /** Px reserved along the bottom edge (the owner's action bar), set by the owner each frame. */
   bottomInset = 36;
-  private continents: Continent[] = [];
-  private seed = '';
   constructor(private readonly s: Surface) {}
 
   render(world: World, res: RoundResult | null, mc: { pMiss: number; n: number } | null): void {
     const s = this.s;
     const p = s.palette;
     const home = planetById(world, 'HOME');
-    if (this.seed !== world.runSeed) {
-      this.seed = world.runSeed;
-      this.continents = generateContinents(new Rng(hashSeed(`${world.runSeed}#home`)), 1);
-    }
     s.ctx.fillStyle = withAlpha(p.bg, 0.9);
     s.ctx.fillRect(0, 0, s.width, s.height);
     const cx = s.width / 2;
@@ -48,15 +40,9 @@ export class PlanetOverlay {
     const X = (x: number): number => cx + x * k;
     const Y = (y: number): number => cy - y * k;
 
-    // Disc, a slowly rotating wireframe sphere (24.3), and the continents.
-    s.circle(cx, cy, R, { glow: 1.4, width: p.lineWidth + 0.25 });
-    wireSphere(s, cx, cy, R, (world.t / 86400) * 0.15, 4, 6, s.spectrum ? s.role('planet') : p.dim);
-    const buf: number[] = [];
-    for (const c of this.continents) {
-      buf.length = 0;
-      for (let i = 0; i < c.length; i += 2) buf.push(cx + (c[i] as number) * R, cy - (c[i + 1] as number) * R);
-      s.stroke(buf, { closed: true, glow: 0.5, alpha: 0.85, width: 1 });
-    }
+    // The globe (24.3): the real coastlines on a sphere that turns slowly in real time, the pole tipped a little
+    // toward the viewer. Rotation runs on the wall clock so a scrubbed or warped sim clock cannot spin it.
+    drawGlobe(s, 'EARTH', cx, cy, R, (performance.now() / 1000) * 0.12, 0.35, { color: s.spectrum ? s.role('planet') : p.ink, limb: s.spectrum ? s.role('planet') : p.ink, glow: 0.8, alpha: 0.85 });
     // Radius rings for scale.
     for (let r = 2; r <= extent; r += 2) s.circle(cx, cy, r * R, { color: p.dim, glow: 0, width: 1, alpha: 0.5, dash: [3, 7] });
 

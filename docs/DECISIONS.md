@@ -36,7 +36,7 @@ do not rewrite history.
 | `src/planner/workerClient.ts`, `src/worker/planner.worker.ts` | boot time / runtime CPU | Porkchop grids, Monte Carlo, flyby and sail searches, the detection gauge and the attract round run in a worker; plain JSON in and out, typed arrays transferred; inline fallback when Workers are absent. |
 | `src/lore/labs/gauge.ts`, STATUS.md Decisions "Gauge" | runtime CPU | The detection gauge's first reading (about 2 s of night tables) runs in the planner worker, never on the UI thread; the tables stay cached in the worker. |
 | `src/lore/store.ts`, `src/lore/index.ts` | network / memory | Lore is fetched per topic and level on demand (zero fetches at boot, asserted by a test) into a 2 MB LRU. |
-| `src/lore/labs/index.ts`, `src/render/views/center.ts` (`panels()`) | bundle size | Labs and the real-data panels (realdata.json, coastline.json) are dynamic imports, out of the boot chunk. |
+| `src/lore/labs/index.ts`, `src/render/views/center.ts` (`panels()`), `src/render/globe.ts` | bundle size | Labs and the real-data panels (realdata.json, coastline.json) are dynamic imports, out of the boot chunk; the globe loads coastline.json the same way and draws its graticule until the chunk lands. |
 | STATUS.md, cinematics line; `bench/cinematics.bench.ts` | runtime CPU | Launch cinematic cost (about 2.6k dots, 0.9 ms/frame in Chrome, 0.19 ms JS) recorded before raising pixel density. |
 | `src/minigame/index.ts` + sim.ts `serialize` | quality trade-off | PERIMETER autosaves to sessionStorage so a dev reload resumes; validated on read (persistence.ts). |
 | `docs/WARNINGS.md` | security | Every convenience that trades safety (dev screenshot sink, public cheats, voice generator download). |

@@ -93,6 +93,7 @@ import { planPlayOut, playOutRate, playOutStage, type PlayOutPlan } from '../../
 import { familyOf } from '../../planner/families';
 import { modelById } from '../../lore/models/catalog';
 import { drawModelWire } from '../../lore/models/viewer';
+import { drawGlobe, globeKindFor } from '../globe';
 import { pickTip } from '../../game/tips';
 import type { SimEventRecord } from '../../sim/eventLog';
 
@@ -1443,12 +1444,20 @@ export class SystemScreen implements Screen {
       this.polyline(pts, { closed: true, color: s.spectrum ? s.role('orbit') : p.dim, glow: 0, width: 1, alpha: s.spectrum ? 0.55 : 1 });
       const st = planetState(w, pl);
       const [px, py] = this.project(st.r.x, st.r.y);
-      const pr = pl.id === 'GIANT' ? 7 : pl.id === 'HOME' ? 5 : 4;
-      s.circle(px, py, pr, { glow: pl.id === 'HOME' ? 1.6 : 1, color: pl.id === 'HOME' ? (s.spectrum ? s.role('planet') : p.hot) : s.spectrum ? s.role('orbit') : p.ink });
-      for (let i = 0; i < pl.detailLines; i++) {
-        const yy = py - pr * 0.5 + (i / Math.max(1, pl.detailLines - 1)) * pr * (pl.detailLines > 1 ? 1 : 0);
-        const half = Math.sqrt(Math.max(0, pr * pr - (yy - py) * (yy - py))) * 0.8;
-        s.stroke([px - half, yy, px + half, yy], { glow: 0.5, width: 1 });
+      // Zoomed in (wheel), a planet grows from its dot into a globe with its surface: HOME's real coastlines, the
+      // giant's belts, craters on the small worlds (render/globe.ts). Not to scale: a true disc is under a pixel.
+      const pr0 = pl.id === 'GIANT' ? 7 : pl.id === 'HOME' ? 5 : 4;
+      const pr = Math.min(KNOBS.MAP_GLOBE_MAX_PX, pr0 * Math.max(1, Math.pow(this.zoom / KNOBS.MAP_GLOBE_ZOOM, 0.9)));
+      const planetCol = pl.id === 'HOME' ? (s.spectrum ? s.role('planet') : p.hot) : s.spectrum ? s.role('orbit') : p.ink;
+      if (pr >= KNOBS.MAP_GLOBE_MIN_PX) {
+        drawGlobe(s, globeKindFor(pl.id), px, py, pr, (performance.now() / 1000) * 0.1, 0.3, { color: planetCol, glow: 0.8, alpha: 0.85, graticule: pr >= 30 }, hashSeed(`${w.runSeed}#${pl.id}`));
+      } else {
+        s.circle(px, py, pr, { glow: pl.id === 'HOME' ? 1.6 : 1, color: planetCol });
+        for (let i = 0; i < pl.detailLines; i++) {
+          const yy = py - pr * 0.5 + (i / Math.max(1, pl.detailLines - 1)) * pr * (pl.detailLines > 1 ? 1 : 0);
+          const half = Math.sqrt(Math.max(0, pr * pr - (yy - py) * (yy - py))) * 0.8;
+          s.stroke([px - half, yy, px + half, yy], { glow: 0.5, width: 1 });
+        }
       }
       drawText(s, pl.name, px + pr + 5, py - 5, 10, { color: p.dim, glow: 0 });
       this.hit(px - 10, py - 10, 20 + pl.name.length * 9, 20, pl.id === 'HOME' ? 'O12' : pl.id === 'GIANT' ? 'O11' : 'O7', pl.id === 'HOME' ? 'HOME: CLOSE APPROACH' : `${pl.name}: ${pl.id === 'GIANT' ? 'GRAVITY ASSISTS' : 'ORBITAL ELEMENTS'}`);

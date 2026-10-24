@@ -35,6 +35,17 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: globes: HOME with the real coastlines, the other worlds with their own surfaces
+
+- Owner: "earth should have proper continents on it and be realistic in views that are close enough to see it ...
+  all planets if there are views of them close by". New `render/globe.ts`: an orthographic globe, the pole tipped
+  toward the viewer, front runs bright and back runs faint; HOME draws the Natural Earth coastlines already in
+  `config/coastline.json` (a dynamic import, so the boot chunk is unchanged), the giant and INNER get seeded wavy
+  belts and a great spot, OUTER craters and ridges, all pure and tested (`tests/globe.test.ts`). It replaces the
+  wire sphere and the seeded blob in the PLANET VIEW (V), the close-approach scene, PERIMETER's planet (turning
+  once per `PLANET_SPIN_S` of play; the seeded continents stay in the state for saves) and the system map, where a
+  planet grows from its dot into a globe past zoom `MAP_GLOBE_ZOOM` (wheel), up to `MAP_GLOBE_MAX_PX`.
+
 ### 2026-10-24: PLAY IT OUT (F): the rest of the round in about 40 s
 
 - Owner: after a plan is committed "a quick action key ... accelerates up so the sequence from launch to impact takes

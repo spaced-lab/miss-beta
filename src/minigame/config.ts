@@ -11,6 +11,8 @@
 export const MG = {
   /** World geometry, in planet radii. */
   PLANET_R: 1,
+  /** Seconds of play per turn of the planet globe (render only) [knob]. */
+  PLANET_SPIN_S: 150,
   FIELD_R: 5.6,
   VIEW_R: 6.2,
 

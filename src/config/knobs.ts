@@ -460,6 +460,11 @@ export const KNOBS = {
   /** Ember sparks: tiny false-colour pixels shed from each nozzle, count per nozzle and lifetime, s. */
   CINE_EMBERS: 40,
   CINE_EMBER_LIFE_S: 0.55,
+  /** The system map's planets grow from dots into globes (render/globe.ts) past zoom MAP_GLOBE_ZOOM, from
+   *  MAP_GLOBE_MIN_PX up to MAP_GLOBE_MAX_PX radius; the wheel zooms 0.2x to 40x [knob]. */
+  MAP_GLOBE_ZOOM: 2.5,
+  MAP_GLOBE_MIN_PX: 12,
+  MAP_GLOBE_MAX_PX: 80,
   /** PLAY IT OUT (F, game/playOut.ts; owner 2026-10-24): the rest of the round in fixed real seconds. BUILD_S from now
    *  to the first launch, FLIGHT_S from launch to the last arrival (the launch scene cut to LAUNCH_SCENE_S and each hit
    *  scene to HIT_SCENE_S inside it), COAST_S to the close approach (the end scene at END_SCENE_S, then RESULT_HOLD_S

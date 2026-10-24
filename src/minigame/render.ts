@@ -11,6 +11,7 @@
 
 import type { StrokeStyle, Surface } from '../render/canvas';
 import { withAlpha } from '../render/palettes';
+import { drawGlobe } from '../render/globe';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../render/vectorFont';
 import { MG } from './config';
 import { arrayOn, displayTier, pulseKillsNeeded, swarmCountRange, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
@@ -187,13 +188,9 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     s.dot(X(q.x), Y(q.y), PX.particle, color, a);
   }
 
-  // Planet and continents.
-  s.circle(cx, cy, MG.PLANET_R * k, { glow: 1.4, width: p.lineWidth + 0.25 });
-  for (const c of st.continents) {
-    scratch.length = 0;
-    for (let i = 0; i < c.length; i += 2) scratch.push(X(c[i] as number), Y(c[i + 1] as number));
-    s.stroke(scratch, { closed: true, glow: 0.6, alpha: 0.85, width: PX.continentW });
-  }
+  // The planet: a globe with the real coastlines, turning once every MG.PLANET_SPIN_S of play (render/globe.ts;
+  // owner 2026-10-24). The seeded continents in the state stay for saves and the lore; the globe is the picture.
+  drawGlobe(s, 'EARTH', cx, cy, MG.PLANET_R * k, (st.t / MG.PLANET_SPIN_S) * Math.PI * 2, 0.3, { color: p.ink, glow: 0.6, alpha: 0.85, width: PX.continentW, graticule: false });
 
   // Moon: faint orbit ring, disc, craters fixed to its face (tidally locked), cracks as it wears.
   if (moonActive(st.level)) {

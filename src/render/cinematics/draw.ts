@@ -11,7 +11,7 @@ import type { Surface } from '../canvas';
 import { withAlpha } from '../palettes';
 import { drawText, drawTextFit, getTextScale, measureText } from '../vectorFont';
 import { cornerInset } from '../../ui/touchBack';
-import { wireSphere } from '../wire';
+import { drawGlobe } from '../globe';
 import { KNOBS } from '../../config/knobs';
 import { drawLaunchStage, drawLaunchVehicle, launchCell } from './launch';
 import { approachPos, type Scene } from './scene';
@@ -93,7 +93,7 @@ export function renderScene(s: Surface, sc: Scene, elapsed: number, countdown: s
   if (sc.kind === 'LAUNCH') drawLaunchStage(s, sc, elapsed, ox, oy, k);
   if (sc.kind === 'CLOSE_APPROACH' && sc.approach) {
     const a = sc.approach;
-    wireSphere(s, ox, oy, a.homeR * k, elapsed * 0.25, 5, 8, s.role('planet'));
+    drawGlobe(s, 'EARTH', ox, oy, a.homeR * k, elapsed * 0.25 + 1.2, 0.35, { color: s.role('planet'), glow: 0.8, alpha: 0.85 });
     s.circle(ox, oy, a.ringR * k, { color: s.role('danger'), dash: [3, 4], glow: 0.4, alpha: 0.7 });
     drawText(s, 'B-CRIT', ox + a.ringR * k * 0.72, oy - a.ringR * k - 14, 9, { color: p.dim, glow: 0 });
     const [ax, ay] = approachPos(a, -10);

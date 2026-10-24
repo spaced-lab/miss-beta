@@ -50,6 +50,7 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 | `V` | Planet view: HOME, the focusing ring, every body at closest approach |
 | `E` | Order an evacuation (cost 2 budget) |
 | `Space`, `[`, `]` | Pause, warp down, warp up |
+| wheel, drag | Zoom and pan the map; past about 2.5x a planet grows into a globe (HOME with the real coastlines) |
 | `F` | Play it out: build, launch, hit and close approach in about 40 s, then the result |
 | `R` | Resolve now |
 | `S`, `Z`, wheel, drag | Scale toggle, reset camera, zoom, pan |
