@@ -229,6 +229,7 @@ export class SystemScreen implements Screen {
     this.tech.openLore = toCenter;
     this.programs.openLore = toCenter;
     this.planner.openLore = toCenter;
+    this.planner.openTech = () => { setWarp(this.world, 0); this.tech.show(); };
     for (const o of [this.planner, this.programs, this.tech, this.sky]) o.still = () => this.settings.reduceMotion;
     this.cine = new Cinematics(s, () => this.settings.reduceMotion);
     this.demoCut = new DemoCutaways(sfx, () => this.settings.reduceMotion);
@@ -2067,7 +2068,7 @@ export class SystemScreen implements Screen {
     const more: BarItem = { label: 'MORE', code: 'MORE' };
     if (this.console.isOpen) return [{ label: 'CLOSE CONSOLE', code: 'Escape', key: 'ESC' }];
     if (this.lore.isOpen) return [up, down, { label: 'LEVEL', code: 'Tab', key: 'TAB' }, { label: 'LEARN MORE', code: 'KeyL', key: keyName('LEARN') }, close];
-    if (this.planner.isOpen) return [up, down, { label: 'COMMIT', code: 'Enter', key: 'ENTER', hot: true }, { label: 'TARGET', code: 'Tab', key: 'TAB', off: this.planner.targetCount < 2 }, ...(compact ? [] : [{ label: 'RULES', code: 'KeyR', key: 'R' }]), close];
+    if (this.planner.isOpen) return [...(compact ? [] : [{ label: '< METHOD', code: 'ArrowLeft', key: '<' }]), { label: 'METHOD >', code: 'ArrowRight', key: '>' }, up, down, { label: 'COMMIT', code: 'Enter', key: 'ENTER', hot: true }, { label: 'TARGET', code: 'Tab', key: 'TAB', off: this.planner.targetCount < 2 }, ...(compact ? [] : [{ label: 'RULES', code: 'KeyR', key: 'R' }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }]), close];
     if (this.programs.isOpen) return [up, down, { label: 'FUND -', code: 'ArrowLeft' }, { label: 'FUND +', code: 'ArrowRight' }, { label: 'FULL / NONE', code: 'Enter', key: 'ENTER' }, { label: 'STUDIES', code: 'Tab', key: 'TAB' }, { label: 'LEARN', code: 'KeyL', key: keyName('LEARN') }, close];
     if (this.tech.isOpen) return [{ label: '< TRACK', code: 'ArrowLeft' }, { label: 'TRACK >', code: 'ArrowRight' }, up, down, { label: 'UNLOCK', code: 'Enter', key: 'ENTER', hot: true }, { label: 'LEARN', code: 'KeyL', key: keyName('LEARN') }, close];
     if (this.sky.isOpen) return [{ label: 'CLOSE SKY VIEW', code: 'Escape', key: 'ESC' }];

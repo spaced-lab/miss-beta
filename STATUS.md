@@ -338,6 +338,12 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 
 ## Resume here (for a fresh session after a context clear)
 
+**STATE 2026-10-24 (planner pane):** owner asked for an obvious way to see and pick plan families and a left pane with the
+device. Done: `planner/families.ts` (tabs, locks, reasons), four planner models in `lore/models/catalog.ts`
+(SWARM_BUS, SPLIT_BUS, FLYBY_ARC, PI_ARRAY), `drawModelWire` in the viewer, the overlay's pane / tab row / per-tab list,
+`rankCandidates` no longer cut to six. Next (owner: "work through a bunch of features ... play until you have something
+to review"): play a round end to end in the harness and fix what reads wrong.
+
 **STATE 2026-10-23 (MIRV):** owner asked for seekers that "split and divide ... more as the game progresses" (the word MIRV had been lost
 from earlier briefs). `SEEKER_MIRV_R` 1.3 -> 2.4, `SEEKER_MIRV_LEVELS` 10 -> 5, `SEEKER_MIRV_CAP` 6 -> 9, new `SEEKER_MIRV_FAN_MAX` 2.2 and
 the second stage `SEEKER_MIRV_STAGE2_*` (level 16, 2-4 sub-warheads, 1 damage in 0.35, x1.15 speed, 0.9 s); `HP_MULT_PER_LEVEL`

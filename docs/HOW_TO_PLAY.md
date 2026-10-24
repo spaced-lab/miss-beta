@@ -24,7 +24,12 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 
 1. **Threat brief** (top of the screen): name, type, size, energy in megatons, class, closing speed, who found it
    and how much lead time you have. The margin says how far inside the focusing ring it will pass (negative = hit).
-2. **Plan**: press `P`. The planner computes every launch window and lists the best plans with their numbers.
+2. **Plan**: press `P`. The planner computes every launch window and lists the best plans with their numbers. The
+   method tabs on the left (`<` / `>`, or a click) show each kind of plan: KINETIC, SWARM, SPLIT BUS, FLYBY, SAIL,
+   NUKE, SLOW PUSH and PI, with how many plans each has for this target; a locked tab names the research that opens
+   it (`T` jumps to the tech tree), and an empty one says why (launch cadence, no propulsion stage, too fast for a
+   fuze, body too big). The pane under the tabs turns a wireframe of the selected craft with the method's tag and
+   equation.
    Pick one with Up/Down, commit with Enter. Commit several if one is not enough; the margin shown is the total.
 3. **Run the clock**: `]` and `[` change warp (1 day/s up to 1 year/s), Space pauses. Craft fly their arcs,
    impacts land, the log at the bottom left prints what happened. Pause and press `P` again any time to add

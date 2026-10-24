@@ -8,7 +8,7 @@
 //       IMAGE REQUESTS for sharper wireframes are listed in docs/ASSET_REQUESTS.md.
 // LORE: D3 (DART), F5 (Rubin), F6 (radar), F4 (NEO Surveyor), D7 (sails), D6 (tractor), D8 (rockets), D5 (HAMMER)
 
-import { box, cylinder, dish, move, panel, recolor, ring, rotX, rotY, rotZ, sphere, strut, type Part, type V3 } from './mesh';
+import { box, cylinder, dish, move, panel, recolor, ring, rotX, rotY, rotZ, scale, sphere, strut, type Part, type V3 } from './mesh';
 
 export interface Model {
   id: string;
@@ -423,7 +423,113 @@ const ATLAS: Model = {
   },
 };
 
-export const MODELS: readonly Model[] = [DART, RUBIN, GOLDSTONE, NEO_SURVEYOR, SOLAR_SAIL, TRACTOR, LAUNCHER, HAMMER, RUBBLE, NANOFORGE, THRUSTER_SWARM_MODEL, SHEPHERD_MODEL, COMET, ATLAS];
+/** A small impactor for the swarm and split-bus pictures: a DART-like bus with short arrays, at 1/3 scale of DART. */
+const smallImpactor = (role: 'craft' | 'fragment' = 'craft'): Part[] => flat([box(0.8, 0.9, 0.9, role)], move(panel(2.4, 0.8, 3, 'program'), [1.6, 0, 0]), move(panel(2.4, 0.8, 3, 'program'), [-1.6, 0, 0]), move(cylinder(0.08, 0.12, 0, 0.25, 6, 'sail'), [0, 0.45, -0.15]));
+
+/** SWARM (planner pane): three impactors launched on staggered windows, flying in loose formation and drifting apart. */
+const SWARM_BUS: Model = {
+  id: 'SWARM_BUS',
+  title: 'SWARM  (THREE IMPACTORS, STAGGERED WINDOWS)',
+  topics: [],
+  facts: [
+    'EACH IMPACTOR IS ITS OWN LAUNCH AND ITS OWN PUSH; THE PUSHES ADD.',
+    'A LATER ONE CAN BE RE-AIMED AT WHAT THE FIRST LEFT BEHIND.',
+  ],
+  source: 'GENERIC DART-CLASS BUSES (NASA / JHU-APL PUBLIC FACT SHEET). SIZES [APPROX].',
+  scaleBar: 5,
+  build: (t) => {
+    const d = 2.5 + 1.5 * Math.sin(t * 0.5);
+    return flat(move(smallImpactor(), [0, 0, -d]), move(smallImpactor(), [-d * 1.3, 0, d * 0.6]), move(smallImpactor(), [d * 1.3, 0, d * 0.6]));
+  },
+};
+
+/** SPLIT BUS (planner pane): a carrier that releases three impactors near the target; they fan out and come back each cycle. */
+const SPLIT_BUS: Model = {
+  id: 'SPLIT_BUS',
+  title: 'SPLIT BUS  (ONE CARRIER, THREE IMPACTORS)',
+  topics: [],
+  facts: [
+    'ONE LAUNCH CARRIES THE LOT; THE RELEASE NEAR THE TARGET GIVES EACH ITS OWN AIM.',
+    'WITH SPLIT BUS X8 (S3) THE CARRIER HOLDS EIGHT.',
+  ],
+  source: 'GENERIC. SKETCH OF A CARRIER WITH THREE DART-CLASS IMPACTORS.',
+  scaleBar: 5,
+  build: (t) => {
+    // Release over 3 s of each 10 s cycle: the three ride out radially, hold, and the cycle restarts.
+    const ph = t % 10;
+    const out = Math.min(1, ph / 3) * 5;
+    const carrier = flat(cylinder(1.4, 1.4, -2, 2, 8, 'craft'), move(panel(5, 1.2, 4, 'program'), [3.6, 0, 0]), move(panel(5, 1.2, 4, 'program'), [-3.6, 0, 0]));
+    const kids = [0, 1, 2].map((i) => {
+      const a = (i / 3) * Math.PI * 2 + Math.PI / 2;
+      return move(smallImpactor(), [Math.cos(a) * (1.8 + out), 2.6 + out * 0.4, Math.sin(a) * (1.8 + out)]);
+    });
+    return flat(carrier, ...kids);
+  },
+};
+
+/** FLYBY (planner pane): an impactor swinging past a planet; the bent path is drawn as a chain of struts. */
+const FLYBY_ARC: Model = {
+  id: 'FLYBY_ARC',
+  title: 'GRAVITY ASSIST  (THE PATH BENDS AROUND A PLANET)',
+  topics: [],
+  facts: [
+    'THE PLANET\'S GRAVITY TURNS THE CRAFT; THE SUN SEES ITS SPEED CHANGE, THE PLANET DOES NOT.',
+    'THE TURN ANGLE DEPENDS ON HOW CLOSE AND HOW FAST THE PASS IS.',
+  ],
+  source: 'TEXTBOOK PATCHED-CONIC FLYBY. NOT TO SCALE.',
+  scaleBar: 20,
+  build: (t) => {
+    const R = 10;
+    const planet = sphere(R, 6, 12, 'planet');
+    // A hyperbola-like path: points along a bent curve in the x-z plane, periapsis at 1.6 R.
+    const pts: V3[] = [];
+    for (let i = 0; i <= 24; i++) {
+      const u = -1 + (2 * i) / 24;
+      const x = 40 * u;
+      const z = 1.6 * R + 22 * u * u;
+      pts.push([x, 0, z]);
+    }
+    const path: Part[] = [];
+    for (let i = 0; i + 1 < pts.length; i++) path.push(strut(pts[i] as V3, pts[i + 1] as V3, 'orbit', true));
+    // The craft rides the path: u from -1 to 1 over 6 s.
+    const u = -1 + ((t % 6) / 6) * 2;
+    const cx = 40 * u;
+    const cz = 1.6 * R + 22 * u * u;
+    const craft = move(scale(smallImpactor(), 4), [cx, 0, cz]);
+    return flat(rotY(planet, t * 0.15), path, craft);
+  },
+};
+
+/** PI (planner pane): a bus pushing a grid of penetrator rods ahead of it. */
+const PI_ARRAY: Model = {
+  id: 'PI_ARRAY',
+  title: 'PI PENETRATOR ARRAY  (RODS AHEAD OF THE BUS)',
+  topics: [],
+  facts: [
+    'MANY RODS, SPREAD WIDE, CUT THE BODY INTO PIECES THAT BURN UP OR AIRBURST HIGH.',
+    'WORKS LATE, WHEN A PUSH CAN NO LONGER MOVE THE MISS DISTANCE ENOUGH.',
+  ],
+  source: 'LUBIN ET AL., PI (PULVERIZE IT), UCSB (2021 ONWARD). SHAPE IS A SKETCH.',
+  scaleBar: 5,
+  build: (t) => {
+    const bus = flat([box(2, 2, 2, 'craft')], move(panel(5, 1.5, 4, 'program'), [3.5, 0, 0]), move(panel(5, 1.5, 4, 'program'), [-3.5, 0, 0]));
+    const spread = 1 + 0.6 * (0.5 + 0.5 * Math.sin(t * 0.7));
+    const rods: Part[] = [];
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      const x = (i - 1.5) * 1.1 * spread;
+      const z = (j - 1.5) * 1.1 * spread;
+      rods.push(strut([x * 0.4, 1, z * 0.4], [x, 7, z], 'nuclear', false));
+    }
+    return flat(bus, rods);
+  },
+};
+
+export const MODELS: readonly Model[] = [DART, RUBIN, GOLDSTONE, NEO_SURVEYOR, SOLAR_SAIL, TRACTOR, LAUNCHER, HAMMER, RUBBLE, NANOFORGE, THRUSTER_SWARM_MODEL, SHEPHERD_MODEL, COMET, ATLAS, SWARM_BUS, SPLIT_BUS, FLYBY_ARC, PI_ARRAY];
+
+/** A model by id, or null. Example: modelById('DART')?.scaleBar = 5. */
+export function modelById(id: string): Model | null {
+  return MODELS.find((m) => m.id === id) ?? null;
+}
 
 /** The model for a topic, or null. */
 export function modelForTopic(id: string): Model | null {

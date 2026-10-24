@@ -2,6 +2,22 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-24: the planner's method tabs and device pane
+
+- Owner: "it is not obvious what the selection is or how to select different packages ... a left pane that shows the
+  impactor or device ... if unlocked all I should be seeing more options". The planner has a left pane
+  (`planner/families.ts`, GAME_PLAN 13.4's archetype tabs at last): METHOD tabs ALL / KINETIC / SWARM / SPLIT BUS /
+  FLYBY / SAIL / NUKE / SLOW PUSH / PI with the plan count per tab, LOCKED tabs naming the tech node to research
+  (T jumps to the tree), and for an unlocked tab with nothing the reason (hidden by the launch cadence, no onboard
+  stage for a rendezvous, no window lifts the warhead, body too big for PI, no flyby or sail window). Under the tabs a
+  turning wireframe of the selected craft (DART, a swarm, a split carrier, a gravity-assist pass, the sail, HAMMER,
+  the tractor, a PI array; four new catalog models) with the method's name, tag and equation, its unlock state, a
+  blurb and the model's facts, and [?] to the lore. `<` `>` or a click change tabs; the bar has METHOD buttons; on a
+  phone the tabs are a short row under the status line.
+- The grid ranking returns every plan it resolved instead of the top six: swarm and split-bus bundles always scored
+  under the single impactors and were cut before the overlay saw them, so those tabs were empty even when unlocked.
+  Tutorial, HELP and HOW_TO_PLAY name the tabs.
+
 ### 2026-10-24: TILT STEER round 2, shake to pulse
 
 - Owner on round 1: "tilt works", then "can a shake activate pulse?". SHAKE TO PULSE in PERIMETER's gear (on while

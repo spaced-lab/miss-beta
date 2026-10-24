@@ -350,5 +350,8 @@ export function rankCandidates(g: PorkchopGrid, ctx: CandidateContext): Candidat
     c.score = sc.score;
   }
   top.sort((a, b) => b.score - a.score);
-  return top.slice(0, KNOBS.PLANNER_SHOW_TOP);
+  // NOTE: everything resolved is returned (about PLANNER_RESOLVE_TOP singles plus the split and swarm bundles); the
+  // overlay cuts to PLANNER_SHOW_TOP per method tab. A cut here used to drop every SWARM and SPLIT behind the
+  // singles, so those tabs were always empty (owner 2026-10-24).
+  return top;
 }

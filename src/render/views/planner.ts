@@ -1,12 +1,17 @@
-// WHAT: PLANNER overlay (GAME_PLAN 13.4): porkchop dot-matrix, ranked plans (KINETIC and SWARM), target
-//       selection among live bodies after a breakup, Monte Carlo for the selected plan, COMMIT.
+// WHAT: PLANNER overlay (GAME_PLAN 13.4): method tabs and a device pane on the left (planner/families.ts), the
+//       porkchop dot-matrix in the middle, the ranked plans on the right, target selection among live bodies after
+//       a breakup, Monte Carlo for the selected plan, COMMIT.
 // WHY:  Design pillar 3: show the numbers. Each plan prints the planner's work as a terminal readout, so
 //       the player can learn why a plan is ranked where it is, including whether it would shatter the body.
 // HOW:  Opening the overlay posts a porkchop job for the current target; when the grid arrives the
 //       candidates are ranked (planner/candidates.ts) with a resolve callback that includes the missions
 //       already committed, so verdicts are totals. Tab cycles the target over bodies alive at the current
 //       time. Selecting a plan posts a Monte Carlo job (debounced) whose P(MISS) joins the readout. Enter
-//       commits all of the plan's missions through the callback; the overlay stays open for more.
+//       commits all of the plan's missions through the callback; the overlay stays open for more. The tabs
+//       (Left / Right, or a click) filter the full ranked list by family; a locked family's tab says which research
+//       unlocks it, and the pane turns a wireframe of the craft with the method's tag, equation and a blurb
+//       (owner 2026-10-24: "a left pane that shows the impactor or device ... obvious how to select different
+//       types of options").
 // LORE: G3 (the planner), O10 (A to B), D2 (early beats big), D4 (fragmentation)
 
 import { Materialize } from '../wire';
@@ -32,6 +37,10 @@ import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import type { AutoCand } from '../../game/autoplay';
 import { drawText, drawTextFit, measureText, wrapText } from '../vectorFont';
+import { FAMILIES, familyCounts, familyMethod, familyOf, filterFamily, lockHint, type Family } from '../../planner/families';
+import { modelById } from '../../lore/models/catalog';
+import { drawModelWire } from '../../lore/models/viewer';
+import { warheadMass, yieldsForTier } from '../../physics/nuclear';
 
 export interface PlannerSession {
   world: World;
@@ -76,11 +85,24 @@ export class PlannerOverlay {
   private learnHits: { x: number; y: number; topic: string }[] = [];
   /** Set by the owner screen: open the Learning Center on a topic. */
   openLore: ((id: string) => void) | null = null;
+  /** Set by the owner screen: close the planner and open the tech tree (T on a locked method). */
+  openTech: (() => void) | null = null;
   private planX = 0;
   private open = false;
   private session: PlannerSession | null = null;
   private grid: PorkchopGrid | null = null;
+  /** The plans shown: the current tab's slice of `all`. */
   private cands: Candidate[] = [];
+  /** Every ranked plan for the target after the launch cadence, best first (the tabs filter it). */
+  private all: Candidate[] = [];
+  /** The grid's plans as ranked, before the flyby / sail extras join. */
+  private gridCands: Candidate[] = [];
+  /** Method tab: 0 = ALL, else FAMILIES[tab - 1]. */
+  private tab = 0;
+  /** Click targets of the tabs from the last frame. */
+  private tabHits: { x0: number; y0: number; x1: number; y1: number; tab: number }[] = [];
+  /** Clock for the device pane's turning wireframe. */
+  private devT = 0;
   private sel = 0;
   private status = '';
   private jobToken = 0;
@@ -145,7 +167,27 @@ export class PlannerOverlay {
     const t = session.world.t;
     this.targets = session.result.bodies.filter((b) => bodyAlive(b, t) && !b.harmless);
     this.targetIdx = 0;
+    this.tab = 0;
     this.requestGrid();
+  }
+
+  /** The tab's family, or null on ALL. */
+  private family(): Family | null {
+    return this.tab === 0 ? null : (FAMILIES[this.tab - 1] ?? null);
+  }
+
+  /** The family the pane shows: the tab's, or on ALL the selected plan's. */
+  private paneFamily(): Family {
+    const sel = this.cands[this.sel];
+    return this.family() ?? (sel ? familyOf(sel.archetype) : (FAMILIES[0] as Family));
+  }
+
+  private setTab(tab: number): void {
+    const n = FAMILIES.length + 1;
+    this.tab = ((tab % n) + n) % n;
+    this.sel = 0;
+    this.first = 0;
+    this.applyTab();
   }
 
   private requestGrid(): void {
@@ -155,6 +197,8 @@ export class PlannerOverlay {
     this.ranked = false;
     this.why = null;
     this.cands = [];
+    this.all = [];
+    this.gridCands = [];
     this.extra = [];
     this.flybyRes = null;
     this.sailRes = null;
@@ -249,14 +293,15 @@ export class PlannerOverlay {
         const nf = flyby ? flyby.cells.length : 0;
         const ns = sail ? sail.cells.length : 0;
         this.extraStatus = `${flyby ? `FLYBY ${nf} CELLS` : 'FLYBY ...'}   ${sail ? `SAIL ${ns} ARCS` : sailTier >= 1 ? 'SAIL ...' : ''}`;
-        this.merge();
+        this.rebuild();
       })
       .catch(() => undefined);
   }
 
   /** Merge grid candidates and extra plans into one list sorted by score, ids renumbered. */
-  /** Plans hidden by the launch cadence on the last ranking (for the status line). */
+  /** Plans hidden by the launch cadence on the last ranking (for the status line), and per family (for the tabs). */
   private cadenceHidden = 0;
+  private cadenceHiddenBy = new Map<string, number>();
   /** Drop plans whose launches, with the committed ones, would exceed launchCap inside any 365-day window. */
   private cadence<T extends { missions: { launchTime: number; archetype: string }[] }>(cands: T[]): T[] {
     const cap = this.session?.launchCap ?? Infinity;
@@ -266,13 +311,55 @@ export class PlannerOverlay {
       return c.missions.every((m) => all.filter((o) => Math.abs(o.launchTime - m.launchTime) < YEAR / 2).length <= cap);
     });
     this.cadenceHidden = cands.length - ok.length;
+    this.cadenceHiddenBy = new Map();
+    for (const c of cands) if (!ok.includes(c)) this.cadenceHiddenBy.set(familyOf((c as unknown as Candidate).archetype).id, (this.cadenceHiddenBy.get(familyOf((c as unknown as Candidate).archetype).id) ?? 0) + 1);
     return ok;
   }
 
-  private merge(): void {
-    const all = this.cadence([...this.cands.filter((c) => c.archetype !== 'KINETIC_FLYBY' && c.archetype !== 'SAIL_KINETIC'), ...this.extra]);
+  /** Why an unlocked family has no plan for this target, in the pane's words; null when it has plans or is locked. */
+  private familyNote(fam: Family): string | null {
+    const s = this.session;
+    const g = this.grid;
+    if (!s || !g || !this.ranked) return null;
+    if (!fam.unlocked(s)) return null;
+    if ((familyCounts(this.all).get(fam.id) ?? 0) > 0) return null;
+    const hidden = this.cadenceHiddenBy.get(fam.id) ?? 0;
+    if (hidden > 0) return `${hidden} PLAN${hidden === 1 ? '' : 'S'} HIDDEN BY THE LAUNCH CADENCE (${s.launchCap ?? 2} PER YEAR): FUND HEAVY LAUNCH CADENCE (G).`;
+    let maxPay = 0;
+    for (let i = 0; i < g.payload.length; i++) maxPay = Math.max(maxPay, g.payload[i] ?? 0);
+    switch (fam.id) {
+      case 'PUSH':
+        return s.dsmBudget <= 0 ? 'NEEDS AN ONBOARD STAGE TO RENDEZVOUS: RESEARCH P1 CHEMICAL KICK (T).' : `NO WINDOW SLOW ENOUGH FOR THE ONBOARD DV (${(s.dsmBudget / 1000).toFixed(0)} KM/S): RESEARCH P2 / P3 (T).`;
+      case 'NUKE': {
+        const mass = warheadMass(yieldsForTier(s.warheadTier)[yieldsForTier(s.warheadTier).length - 1] ?? 0.1);
+        return maxPay < mass ? `NO WINDOW LIFTS THE ${mass.toFixed(0)} KG WARHEAD: A BIGGER LAUNCHER (L2 / L3) WOULD.` : 'EVERY APPROACH IS TOO FAST FOR THE STANDOFF FUZE AT THIS TIER; W2 ADDS A SUBSURFACE BURST.';
+      }
+      case 'PI':
+        return (this.target?.D ?? 0) > KNOBS.PI_MAX_D ? `THE BODY IS TOO BIG FOR PI (${KNOBS.PI_MAX_D} M AT MOST).` : 'NO LATE WINDOW FOR THE ARRAY.';
+      case 'FLYBY':
+        return this.flybyRes ? 'NO PLANET LINES UP FOR A FLYBY INSIDE THE LEAD TIME.' : 'FLYBY SEARCH RUNNING ...';
+      case 'SAIL':
+        return this.sailRes ? 'NO SAIL ARC BUILDS ENOUGH SPEED IN THE LEAD TIME; SAILS WANT YEARS.' : 'SAIL SEARCH RUNNING ...';
+      case 'SWARM':
+      case 'SPLIT':
+        return 'NO BUNDLE FROM THE BEST CELLS FITS THIS LAUNCHER AND LEAD.';
+      default:
+        return 'NO LAUNCH WINDOW FOR THIS LAUNCHER AND LEAD.';
+    }
+  }
+
+  private rebuild(): void {
+    const all = this.cadence([...this.gridCands, ...this.extra]);
     all.sort((a, b) => b.score - a.score);
-    const shown = all.slice(0, KNOBS.PLANNER_SHOW_TOP);
+    this.all = all;
+    this.applyTab();
+  }
+
+  /** The shown list: the tab's family (or everything), top PLANNER_SHOW_TOP, ids renumbered. */
+  private applyTab(): void {
+    const fam = this.family();
+    const list = fam ? filterFamily(this.all, fam) : this.all;
+    const shown = list.slice(0, KNOBS.PLANNER_SHOW_TOP);
     shown.forEach((c, i) => c.missions.forEach((m, j) => (m.id = `${c.archetype === 'SWARM' ? 'SWARM' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype === 'NUKE_STANDOFF' || c.archetype === 'NUKE_DISRUPT' ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : c.archetype === 'SPLIT' ? 'CARRIER' : c.archetype === 'PI' ? 'PI' : 'IMPACTOR'}-${i + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`)));
     this.cands = shown;
     this.sel = Math.min(this.sel, Math.max(0, shown.length - 1));
@@ -308,13 +395,12 @@ export class PlannerOverlay {
       .rank(inp, g)
       .then((cands) => {
         if (token !== this.jobToken || ticket !== this.gridTicket) return;
-        this.cands = this.cadence(cands);
+        this.gridCands = cands;
         this.ranked = true;
         this.sel = 0;
+        this.rebuild();
         this.status = g.feasible === 0 ? `NO FEASIBLE LAUNCH WINDOW TO ${target.id} FOR THIS LAUNCHER` : `TARGET ${target.id} (${target.D.toFixed(0)} M)   ${g.feasible} FEASIBLE CELLS  ${g.nL}X${g.nA}  STEP ${(g.step / 86400).toFixed(0)} D`;
         if (this.cadenceHidden > 0) this.status += `   ${this.cadenceHidden} PLAN${this.cadenceHidden === 1 ? '' : 'S'} HIDDEN: ${this.session?.launchCap ?? 2} LAUNCHES PER YEAR (G: HEAVY LAUNCH CADENCE)`;
-        if (this.extra.length > 0) this.merge();
-        else this.scheduleMc();
       })
       .catch((e: unknown) => {
         this.status = `PLANNER ERROR: ${e instanceof Error ? e.message.toUpperCase() : 'UNKNOWN'}`;
@@ -348,6 +434,12 @@ export class PlannerOverlay {
       this.hide();
       return;
     }
+    // T: straight to the tech tree (a locked tab names the node to research).
+    if (k.pressed('KeyT') && this.openTech) {
+      this.hide();
+      this.openTech();
+      return;
+    }
     if (k.pressed('KeyR') && this.session) {
       const names = Object.keys(RULE_PRESETS);
       const i = names.indexOf(this.session.rulesPreset);
@@ -359,11 +451,19 @@ export class PlannerOverlay {
       this.requestGrid();
     }
     const n = Math.max(1, this.cands.length);
+    // Method tabs: Left / Right (the bar's METHOD buttons), or a click on a tab.
+    if (k.pressed('ArrowLeft')) this.setTab(this.tab - 1);
+    if (k.pressed('ArrowRight')) this.setTab(this.tab + 1);
     const click = k.takeClick();
     let clickCommit = false;
     const learn = click ? this.learnHits.find((h) => Math.abs(click.x - h.x) <= 14 && Math.abs(click.y - h.y) <= 9) : undefined;
     if (learn && this.openLore) {
       this.openLore(learn.topic);
+      return;
+    }
+    const tabHit = click ? this.tabHits.find((h) => click.x >= h.x0 && click.x < h.x1 && click.y >= h.y0 && click.y < h.y1) : undefined;
+    if (tabHit) {
+      this.setTab(tabHit.tab);
       return;
     }
     if (click) {
@@ -418,17 +518,44 @@ export class PlannerOverlay {
     // Materialize (24.2): the frame draws itself in when the overlay opens.
     this.mat.tick(1 / 60);
     this.mat.frame(s, 3, 3, W - 6, H - 6, 0.8, this.still());
-    const top = m + (compact ? 36 : 40);
+    // Compact: a row of short method tabs under the status line; desktop: a pane of tabs and the device on the left.
+    const tabRowH = compact ? 16 : 0;
+    const top = m + (compact ? 36 : 40) + tabRowH;
     const bottom = H - this.bottomInset - (compact ? 4 : 20);
+    const paneW = compact ? 0 : Math.min(230, Math.max(190, W * 0.17));
     // Sideways on a phone the plot takes 38 % of the width; upright it takes the top third and the plans the rest.
-    const leftW = stack ? W - m : compact ? W * 0.38 : Math.min(W * 0.46, 600);
+    // On the desktop the pane, the plot and the plans share the width about 17 / 33 / 50.
+    const plotX = compact ? m : m + paneW + m;
+    const leftW = stack ? W - m : compact ? W * 0.38 : plotX + Math.min(W * 0.33, 520);
     const hx = m + (this.keys.touchUsed && compact ? 34 : 0);
+    this.devT += 1 / 60;
+    this.tabHits = [];
+    this.learnHits = [];
+    const counts = familyCounts(this.all);
+    const tiers = this.session;
+    const ui0 = uiColors(p, s.spectrum);
+    if (compact) {
+      // ALL KIN SWM SPL FLY SAL NUK PSH PI, the selected one bright, locked ones dim.
+      let tx = hx;
+      const ty = m + (compact ? 27 : 32);
+      const names = ['ALL', ...FAMILIES.map((f) => f.short)];
+      names.forEach((name, i) => {
+        const f = i === 0 ? null : FAMILIES[i - 1];
+        const locked = f ? !f.unlocked(tiers) : false;
+        const sel = i === this.tab;
+        const label = sel ? `[${name}]` : name;
+        const wdt = measureText(label, 8) + 10;
+        drawText(s, label, tx, ty, 8, { color: sel ? ui0.sel : locked ? p.dim : ui0.text, glow: sel ? 1 : 0 });
+        this.tabHits.push({ x0: tx - 4, y0: ty - 6, x1: tx + wdt, y1: ty + 12, tab: i });
+        tx += wdt;
+      });
+    }
     drawTextFit(s, `PLANNER  L${this.session.launcherTier} I${this.session.impactorTier} A${this.session.autonomyTier}${this.session.autonomyTier === 1 ? ' ' + this.session.rulesPreset : ''}  BUDGET ${this.session.budget.toFixed(1)}  COMMITTED ${this.session.missions.length}  TARGETS ${this.targets.length}${this.targets.length > 1 && !compact ? '  <TAB> NEXT TARGET' : ''}`, hx, m, compact ? 11 : 14, W - hx - m - (compact ? 36 : 0), { color: uiColors(p, s.spectrum).title, glow: 1.2 });
     drawTextFit(s, this.status, hx, m + (compact ? 15 : 20), compact ? 8 : 11, W - hx - m, { color: p.dim, glow: 0 });
 
-    const px0 = m;
+    const px0 = plotX;
     const py0 = top + 10;
-    const pw = leftW - m;
+    const pw = leftW - plotX;
     // NOTE: the space under the plot is reserved from what it holds (ticks, axis label, flyby rows) so the
     // flyby list never runs into the footer hint (owner screenshot 2026-10-18).
     const flyRows = this.flybyRes ? Object.keys(this.flybyRes.windows).length + 1 : this.extraStatus ? 1 : 0;
@@ -498,6 +625,63 @@ export class PlannerOverlay {
       drawText(s, this.extraStatus, px0, py0 + ph + 32, 10, { color: p.dim, glow: 0 });
     }
 
+    // The method pane (desktop): tabs with counts or LOCKED, the turning craft, and the method's facts.
+    if (!compact) {
+      const px = m;
+      let py = top;
+      drawText(s, 'METHOD   < >', px, py, 10, { color: ui0.title, glow: 1 });
+      py += 17;
+      const rows: { label: string; right: string; tab: number; locked: boolean }[] = [{ label: 'ALL', right: `${this.all.length}`, tab: 0, locked: false }];
+      FAMILIES.forEach((f, i) => {
+        const locked = !f.unlocked(tiers);
+        const n = counts.get(f.id) ?? 0;
+        rows.push({ label: f.label, right: locked ? 'LOCKED' : this.ranked ? `${n}` : '..', tab: i + 1, locked });
+      });
+      for (const r of rows) {
+        const sel = r.tab === this.tab;
+        const col = sel ? ui0.sel : r.locked ? p.dim : ui0.text;
+        drawText(s, `${sel ? '>' : ' '} ${r.label}`, px, py, 10, { color: col, glow: sel ? 1.2 : 0.2 });
+        drawText(s, r.right, px + paneW - 4, py, 9, { align: 'right', color: r.locked ? p.dim : col, glow: 0 });
+        if (sel) s.stroke([px - 6, py - 3, px - 6, py + 12], { color: p.hot, glow: 1, width: 2 });
+        this.tabHits.push({ x0: px - 8, y0: py - 3, x1: px + paneW, y1: py + 13, tab: r.tab });
+        py += 14;
+      }
+      py += 6;
+      const fam = this.paneFamily();
+      const model = modelById(fam.model);
+      const devH = Math.max(90, Math.min(paneW * 0.78, (bottom - py) * 0.42));
+      s.stroke([px, py, px + paneW, py, px + paneW, py + devH, px, py + devH], { closed: true, color: p.dim, glow: 0, alpha: 0.6 });
+      if (model) {
+        const k = drawModelWire(s, model, { x: px + 6, y: py + 6, w: paneW - 12, h: devH - 12 }, this.devT, 0.5);
+        const sbW = Math.min(paneW * 0.5, model.scaleBar * k);
+        s.stroke([px + 8, py + devH - 8, px + 8 + sbW, py + devH - 8], { color: p.ink, glow: 0.3 });
+        drawText(s, `${model.scaleBar} M`, px + 12 + sbW, py + devH - 12, 7, { color: p.dim, glow: 0 });
+      }
+      py += devH + 8;
+      const method = familyMethod(fam);
+      const locked = !fam.unlocked(tiers);
+      drawTextFit(s, method.name, px, py, 10, paneW - 22, { color: p.hot, glow: 1 });
+      drawText(s, '[?]', px + paneW - 18, py, 8, { color: ui0.sub, glow: 0.6 });
+      this.learnHits.push({ x: px + paneW - 8, y: py + 5, topic: fam.topic });
+      py += 14;
+      const line = (text: string, size: number, color: string, glow = 0.2): void => {
+        for (const l of wrapText(text, paneW - 4, size)) {
+          if (py > bottom - size) return;
+          drawText(s, l, px, py, size, { color, glow });
+          py += size + 3;
+        }
+        py += 3;
+      };
+      line(`${method.tag}   ${method.equation}`, 8, ui0.sub, 0.3);
+      const n = counts.get(fam.id) ?? 0;
+      if (locked) line(`LOCKED. ${lockHint(fam) ?? ''}`, 8, p.hot, 0.8);
+      else if (!this.ranked) line('UNLOCKED. RANKING ...', 8, p.dim, 0);
+      else if (n > 0) line(`UNLOCKED. ${n} PLAN${n === 1 ? '' : 'S'} FOR THIS TARGET.`, 8, p.dim, 0);
+      else line(`UNLOCKED, NO PLAN HERE: ${this.familyNote(fam) ?? ''}`, 8, ui0.sub, 0.4);
+      line(fam.blurb, 8, ui0.text, 0.3);
+      if (model) for (const f of model.facts) line(f, 7, p.dim, 0);
+    }
+
     const lx = stack ? m : leftW + m;
     this.planX = lx - 12;
     let ly = stack ? py0 + ph + 26 : top;
@@ -511,9 +695,22 @@ export class PlannerOverlay {
     if (this.sel >= this.first + fit) this.first = this.sel - fit + 1;
     if (this.first > 0) drawText(s, `^ ${this.first} MORE`, W - m, ly - 12, 8, { align: 'right', color: p.dim, glow: 0 });
     const range = KNOBS.BETA_RANGE[th.type.id] ?? ([2, 4] as const);
-    if (this.cands.length === 0 && g && !this.why) drawText(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, { color: p.hot });
+    const tabFam = this.family();
+    if (this.cands.length === 0 && g && !this.why && !tabFam) drawTextFit(s, 'NO VIABLE PLAN. WAIT FOR BUDGET, CHANGE TARGET, OR ACCEPT THE HIT.', lx, ly, 12, W - m - lx, { color: p.hot });
+    // A family tab with nothing in it says why: locked (and what unlocks it) or no plan for this target.
+    if (this.cands.length === 0 && tabFam && this.ranked) {
+      const locked = !tabFam.unlocked(this.session);
+      const lines = locked ? [`${tabFam.label} IS LOCKED.`, lockHint(tabFam) ?? '', tabFam.blurb] : [`NO ${tabFam.label} PLAN FOR THIS TARGET.`, this.familyNote(tabFam) ?? '', tabFam.blurb];
+      let yy = ly;
+      lines.forEach((text, i) => {
+        for (const l of wrapText(text, W - m - lx, i === 0 ? 13 : 10)) {
+          drawText(s, l, lx, yy, i === 0 ? 13 : 10, { color: i === 0 ? ui0.title : i === 1 ? p.hot : ui0.text, glow: i === 0 ? 1 : 0.3 });
+          yy += i === 0 ? 18 : 14;
+        }
+        yy += 6;
+      });
+    }
     this.planYs = [];
-    this.learnHits = [];
     const budget = this.session.budget;
     this.cands.forEach((c, idx) => {
       if (idx < this.first || idx >= this.first + fit) return;

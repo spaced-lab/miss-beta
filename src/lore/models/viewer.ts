@@ -10,14 +10,12 @@ import type { Box } from '../labs/lab';
 import type { Model } from './catalog';
 import { extent, project } from './mesh';
 
-export function drawModel(s: Surface, m: Model, box: Box, t: number): void {
-  const p = s.palette;
-  drawTextFit(s, m.title, box.x, box.y, 10, box.w, { color: p.hot, glow: 1 });
-  const plotH = Math.min(box.w * 0.85, box.h - 150);
+/** Only the turning wireframe, fitted into `box` (no text); returns pixels per metre for a scale bar. */
+export function drawModelWire(s: Surface, m: Model, box: Box, t: number, spin = 0.35): number {
   const parts = m.build(t);
   const ext = extent(parts);
-  const k = (Math.min(box.w, plotH) * 0.42) / ext;
-  const view = { yaw: t * 0.35, pitch: 0.35, cx: box.x + box.w / 2, cy: box.y + 22 + plotH / 2, k, focal: ext * 4 };
+  const k = (Math.min(box.w, box.h) * 0.42) / ext;
+  const view = { yaw: t * spin, pitch: 0.35, cx: box.x + box.w / 2, cy: box.y + box.h / 2, k, focal: ext * 4 };
   for (const part of parts) {
     const pts = project(part, view);
     const color = s.role(part.role);
@@ -25,6 +23,14 @@ export function drawModel(s: Surface, m: Model, box: Box, t: number): void {
       s.stroke([pts[i] ?? 0, pts[i + 1] ?? 0, pts[i + 2] ?? 0, pts[i + 3] ?? 0], { color, glow: part.fine ? 0.2 : 0.7, width: part.fine ? 0.8 : 1.2, alpha: part.fine ? 0.55 : 1 });
     }
   }
+  return k;
+}
+
+export function drawModel(s: Surface, m: Model, box: Box, t: number): void {
+  const p = s.palette;
+  drawTextFit(s, m.title, box.x, box.y, 10, box.w, { color: p.hot, glow: 1 });
+  const plotH = Math.min(box.w * 0.85, box.h - 150);
+  const k = drawModelWire(s, m, { x: box.x, y: box.y + 22, w: box.w, h: plotH }, t);
   // Scale bar under the model.
   const sbY = box.y + 22 + plotH + 6;
   const sbW = m.scaleBar * k;
