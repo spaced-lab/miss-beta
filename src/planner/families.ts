@@ -86,6 +86,9 @@ export function familyCounts(cands: readonly Candidate[]): Map<FamilyId, number>
   return m;
 }
 
+/** The family a tech node opens in the planner, or null (N1 -> FLYBY; N2 opens nothing new). */
+export const familyForTech = (techId: string): Family | null => FAMILIES.find((f) => f.tech === techId) ?? null;
+
 /** "RESEARCH N1 SINGLE FLYBY (2 RP) IN THE TECH TREE (T)", or null when the family needs no research. */
 export function lockHint(f: Family): string | null {
   if (!f.tech) return null;

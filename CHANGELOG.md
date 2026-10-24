@@ -2,6 +2,16 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-24: the planner's ALL tab leads with one plan per method; pick your own window on the porkchop
+
+- ALL shows the best plan of each unlocked method first (then the rest by score; `PLANNER_SHOW_TOP` 6 -> 10, the
+  list scrolls), so with everything researched the first six lines are KINETIC, SPLIT BUS, FLYBY, SAIL, SLOW PUSH
+  and NUKE rather than six near-identical singles. The pane adds THIS PLAN: mass, launcher, C3, U and cost of the
+  selected plan. The tech tree's selected-node line says which planner tab a node opens (N1: FLYBY, SL1: SAIL, ...).
+- Hover a porkchop cell for its window (launch, hit, C3, U, payload) with a crosshair; click it and the worker
+  ranks that one window (`rankCell`, `RankInput.pick`) as KINETIC (YOUR WINDOW) at the head of the list, resolved
+  and scored like the rest, ready to commit. An infeasible cell says why.
+
 ### 2026-10-24: the planner's method tabs and device pane
 
 - Owner: "it is not obvious what the selection is or how to select different packages ... a left pane that shows the

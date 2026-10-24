@@ -29,7 +29,8 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
    NUKE, SLOW PUSH and PI, with how many plans each has for this target; a locked tab names the research that opens
    it (`T` jumps to the tech tree), and an empty one says why (launch cadence, no propulsion stage, too fast for a
    fuze, body too big). The pane under the tabs turns a wireframe of the selected craft with the method's tag and
-   equation.
+   equation. ALL leads with the best plan of each method. Hover a cell of the porkchop to read its window and click
+   it to plan your own launch: it joins the list as KINETIC (YOUR WINDOW), scored like the others.
    Pick one with Up/Down, commit with Enter. Commit several if one is not enough; the margin shown is the total.
 3. **Run the clock**: `]` and `[` change warp (1 day/s up to 1 year/s), Space pauses. Craft fly their arcs,
    impacts land, the log at the bottom left prints what happened. Pause and press `P` again any time to add

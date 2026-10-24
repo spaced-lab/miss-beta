@@ -12,7 +12,7 @@ import type { Mission } from '../sim/mission';
 import { stateAt } from '../sim/orbit3';
 import { elementsAt, resolveRound, type Body } from '../sim/resolver';
 import { planetById, type World } from '../sim/world';
-import { rankCandidates, rankMissions, rankNukes, rankPI, rankSlowPush, type Candidate, type CandidateContext } from './candidates';
+import { rankCandidates, rankCell, rankMissions, rankNukes, rankPI, rankSlowPush, type Candidate, type CandidateContext } from './candidates';
 import type { FlybyResult } from './flybySearch';
 import { missionFromFlyby, missionFromSail } from './legs';
 import type { PorkchopGrid } from './porkchop';
@@ -36,6 +36,8 @@ export interface RankInput {
   pi: boolean;
   dsmBudget: number;
   budget: number;
+  /** Rank only this porkchop cell (the player's own window, rankCell) instead of the grid. */
+  pick?: { iL: number; iA: number };
 }
 
 /** The candidate context for one target; null without a threat. */
@@ -77,6 +79,10 @@ export function contextFor(inp: RankInput): CandidateContext | null {
 export function rankGrid(g: PorkchopGrid, inp: RankInput): Candidate[] {
   const ctx = contextFor(inp);
   if (!ctx) return [];
+  if (inp.pick) {
+    const c = rankCell(g, ctx, inp.pick.iL, inp.pick.iA);
+    return c ? [c] : [];
+  }
   const iron = (inp.world.threat?.type.id ?? '') === 'IRON';
   return [...rankCandidates(g, ctx), ...rankNukes(g, ctx, inp.warheadTier), ...rankSlowPush(g, ctx, inp.slowPushTier, inp.sailTier, inp.dsmBudget, iron), ...rankPI(g, ctx, inp.pi)];
 }

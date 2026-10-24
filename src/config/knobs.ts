@@ -233,7 +233,9 @@ export const KNOBS = {
   W_NUKE: 0.1,
   /** How many estimate-ranked candidates get a full deterministic resolve before the final ranking. */
   PLANNER_RESOLVE_TOP: 12,
-  PLANNER_SHOW_TOP: 6,
+  // NOTE: 2026-10-24: 6 -> 10 with the method tabs; the ALL tab leads with the best plan of each family, so six
+  // slots would have left no room for a second plan of any kind. The list scrolls.
+  PLANNER_SHOW_TOP: 10,
 
   /** 29: event cinematics, seconds per scene by event kind; any key skips. */
   CINEMATIC_SECONDS: { LAUNCH: 2.5, IMPACT: 3, FRAGMENTATION: 4, NUKE: 3.5, PI: 3, CLOSE_APPROACH: 4, PUSH: 4 } as Readonly<Record<string, number>>,

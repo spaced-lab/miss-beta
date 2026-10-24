@@ -70,6 +70,27 @@ export interface Candidate {
   /** Predicted Q/Q* of the first hit. */
   qRatio: number;
   cost: number;
+  /** The player's own launch window, picked on the porkchop (rankCell), rather than a ranked one. */
+  picked?: boolean;
+}
+
+/**
+ * One kinetic plan from a chosen porkchop cell, resolved and scored like the ranked ones (the player's own window).
+ * Null when the cell has no feasible launch. Example: a cell with payload > 0 gives a KINETIC candidate whose
+ * mission launches at cellTimes(g, iL, iA).tL.
+ */
+export function rankCell(g: PorkchopGrid, ctx: CandidateContext, iL: number, iA: number): Candidate | null {
+  const m = missionFromCell(g, iL, iA, ctx, 'PICK');
+  if (!m) return null;
+  const range = KNOBS.BETA_RANGE[ctx.threatType] ?? ([2, 4] as const);
+  const betaMid = (range[0] + range[1]) / 2;
+  const dvAlong = estimateDvAlong(m, ctx, betaMid);
+  const missEst = Math.abs(missFromImpulse(dvAlong, ctx.tImpact - m.arrivalTime)) / ctx.rHome;
+  m.autonomyTier = ctx.autonomyTier ?? 0;
+  m.dvBudget = ctx.dvBudget ?? 0;
+  const v = ctx.resolve([m]);
+  const sc = scoreOf(v, m.cost, ctx);
+  return { archetype: 'KINETIC', missions: [m], iL, iA, missEstRadii: missEst, verdict: v, pMiss: sc.pMiss, score: sc.score, betaRange: range, qRatio: qRatioFor(m, ctx), cost: m.cost, picked: true };
 }
 
 /** Score pre-built missions (flyby and sail plans) with the same verdict and score as grid candidates. */

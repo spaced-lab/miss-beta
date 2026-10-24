@@ -13,6 +13,7 @@ import type { Input } from '../../ui/input';
 import type { Surface } from '../canvas';
 import { uiColors, withAlpha } from '../palettes';
 import { drawText, drawTextFit } from '../vectorFont';
+import { familyForTech } from '../../planner/families';
 
 export class TechOverlay {
   /** Overlay frame transition and the reduce-motion switch (set by the owner screen). */
@@ -144,7 +145,9 @@ export class TechOverlay {
     });
     const sel = nodes[this.row];
     const base = s.height - this.bottomInset;
-    if (sel?.note) drawTextFit(s, sel.note.toUpperCase(), m, base - 30, 8, W - 2 * m, { color: p.ink, glow: 0.3 });
+    const opens = sel ? familyForTech(sel.id) : null;
+    if (opens) drawTextFit(s, `OPENS THE ${opens.label} TAB IN THE PLANNER (P)${sel?.note ? '. ' + sel.note.toUpperCase() : ''}`, m, base - 30, 8, W - 2 * m, { color: p.ink, glow: 0.3 });
+    else if (sel?.note) drawTextFit(s, sel.note.toUpperCase(), m, base - 30, 8, W - 2 * m, { color: p.ink, glow: 0.3 });
     if (this.note) drawTextFit(s, this.note, m, base - 16, 9, W - 2 * m, { color: p.hot, glow: 0.8 });
   }
 
@@ -199,7 +202,8 @@ export class TechOverlay {
     });
     const sel = this.nodesOf(TRACKS[this.track] as string)[this.row];
     const base = s.height - this.bottomInset;
-    if (sel) drawTextFit(s, `${sel.name}${sel.note ? ': ' + sel.note.toUpperCase() : ''}`, m, base - 32, 11, s.width - 2 * m, { color: p.ink, glow: 0.3 });
+    const opens = sel ? familyForTech(sel.id) : null;
+    if (sel) drawTextFit(s, `${sel.name}${opens ? `: OPENS THE ${opens.label} TAB IN THE PLANNER (P)` : ''}${sel.note ? (opens ? '. ' : ': ') + sel.note.toUpperCase() : ''}`, m, base - 32, 11, s.width - 2 * m, { color: p.ink, glow: 0.3 });
     if (this.note) drawText(s, this.note, m, base - 14, 11, { color: p.hot, glow: 0.8 });
   }
 }

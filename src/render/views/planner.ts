@@ -103,6 +103,11 @@ export class PlannerOverlay {
   private tabHits: { x0: number; y0: number; x1: number; y1: number; tab: number }[] = [];
   /** Clock for the device pane's turning wireframe. */
   private devT = 0;
+  /** The plot's frame from the last render (hover and click on the porkchop pick a launch window). */
+  private plotBox: { x: number; y: number; w: number; h: number } | null = null;
+  /** The cell under the mouse, for the readout and the crosshair. */
+  private hoverCell: { iL: number; iA: number } | null = null;
+  private pickStatus = '';
   private sel = 0;
   private status = '';
   private jobToken = 0;
@@ -348,6 +353,45 @@ export class PlannerOverlay {
     }
   }
 
+  /** The grid cell under a screen point inside the plot, or null. */
+  private cellAt(x: number, y: number): { iL: number; iA: number } | null {
+    const g = this.grid;
+    const b = this.plotBox;
+    if (!g || !b || g.nL === 0 || g.nA === 0) return null;
+    if (x < b.x || x >= b.x + b.w || y < b.y || y >= b.y + b.h) return null;
+    const iL = Math.floor(((x - b.x) / b.w) * g.nL);
+    const iA = Math.floor(((b.y + b.h - y) / b.h) * g.nA);
+    return { iL: Math.max(0, Math.min(g.nL - 1, iL)), iA: Math.max(0, Math.min(g.nA - 1, iA)) };
+  }
+
+  /** Rank the chosen cell alone and put it at the head of the list as YOUR WINDOW (dropping an earlier pick). */
+  private pickCell(iL: number, iA: number): void {
+    const g = this.grid;
+    const inp = this.rankInput();
+    if (!g || !inp || !this.ranked) return;
+    const i = iL * g.nA + iA;
+    if (!((g.payload[i] ?? 0) > 0)) {
+      this.pickStatus = 'NO LAUNCH IN THAT CELL: TOO MUCH ENERGY FOR THIS LAUNCHER, OR NO TRANSFER.';
+      return;
+    }
+    const token = this.jobToken;
+    this.pickStatus = 'RANKING YOUR WINDOW ...';
+    this.client
+      .rank({ ...inp, pick: { iL, iA } }, g)
+      .then((cands) => {
+        if (token !== this.jobToken) return;
+        const c = cands[0];
+        this.pickStatus = c ? '' : 'NO PLAN FROM THAT CELL.';
+        if (!c) return;
+        this.gridCands = [c, ...this.gridCands.filter((x) => !x.picked)];
+        this.tab = 0;
+        this.sel = 0;
+        this.first = 0;
+        this.rebuild();
+      })
+      .catch(() => (this.pickStatus = 'PLANNER ERROR'));
+  }
+
   private rebuild(): void {
     const all = this.cadence([...this.gridCands, ...this.extra]);
     all.sort((a, b) => b.score - a.score);
@@ -358,7 +402,23 @@ export class PlannerOverlay {
   /** The shown list: the tab's family (or everything), top PLANNER_SHOW_TOP, ids renumbered. */
   private applyTab(): void {
     const fam = this.family();
-    const list = fam ? filterFamily(this.all, fam) : this.all;
+    // ALL leads with the best plan of each family (in score order), then the rest by score, so the variety shows
+    // at once instead of six near-identical singles.
+    let list: Candidate[];
+    const pick = this.all.find((c) => c.picked);
+    if (fam) list = filterFamily(this.all, fam);
+    else {
+      const heads: Candidate[] = [];
+      const seen = new Set<string>();
+      for (const c of this.all) {
+        const id = familyOf(c.archetype).id;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        heads.push(c);
+      }
+      list = [...heads, ...this.all.filter((c) => !heads.includes(c))];
+    }
+    if (pick && list.includes(pick)) list = [pick, ...list.filter((c) => c !== pick)];
     const shown = list.slice(0, KNOBS.PLANNER_SHOW_TOP);
     shown.forEach((c, i) => c.missions.forEach((m, j) => (m.id = `${c.archetype === 'SWARM' ? 'SWARM' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype === 'NUKE_STANDOFF' || c.archetype === 'NUKE_DISRUPT' ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : c.archetype === 'SPLIT' ? 'CARRIER' : c.archetype === 'PI' ? 'PI' : 'IMPACTOR'}-${i + 1}${c.missions.length > 1 ? String.fromCharCode(65 + j) : ''}`)));
     this.cands = shown;
@@ -466,6 +526,12 @@ export class PlannerOverlay {
       this.setTab(tabHit.tab);
       return;
     }
+    // A click on the porkchop: the player's own launch window becomes a plan (rankCell in the worker).
+    const cell = click ? this.cellAt(click.x, click.y) : null;
+    if (cell) {
+      this.pickCell(cell.iL, cell.iA);
+      return;
+    }
     if (click) {
       const hit = this.planYs.find((r) => click.y >= r.y0 && click.y < (r.y1 ?? r.y0 + 90) && click.x > this.planX);
       // A drag on the list scrolls it (phones); the wheel too.
@@ -498,6 +564,7 @@ export class PlannerOverlay {
 
   private label(c: Candidate): string {
     const first = c.missions[0];
+    if (c.picked) return 'KINETIC (YOUR WINDOW)';
     return c.archetype === 'PI' ? 'PI PENETRATOR ARRAY' : c.archetype === 'SPLIT' ? `SPLIT BUS X${first?.split?.count}` : c.archetype === 'SWARM' ? `SWARM X${c.missions.length}` : c.archetype === 'KINETIC_FLYBY' ? 'KINETIC-FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL-KINETIC' : c.archetype === 'NUKE_STANDOFF' ? `NUKE STANDOFF ${first?.warhead?.yieldMt} MT` : c.archetype === 'NUKE_DISRUPT' ? `NUKE SUBSURFACE ${first?.warhead?.yieldMt} MT` : c.archetype === 'SLOW_PUSH' ? `SLOW PUSH ${first?.push?.method}` : 'KINETIC';
   }
 
@@ -562,8 +629,9 @@ export class PlannerOverlay {
     const under = 32 + flyRows * 12;
     const ph = stack ? Math.max(70, Math.min(H * 0.26, W * 0.5)) : Math.max(80, bottom - py0 - under);
     s.stroke([px0, py0, px0 + pw, py0, px0 + pw, py0 + ph, px0, py0 + ph], { closed: true, color: p.dim, glow: 0 });
+    this.plotBox = { x: px0, y: py0, w: pw, h: ph };
     drawText(s, 'LAUNCH (YEARS FROM NOW)', px0 + pw / 2, py0 + ph + 17, 10, { align: 'center', color: p.dim, glow: 0 });
-    drawText(s, 'ARRIVAL', px0, py0 - 14, 10, { color: p.dim, glow: 0 });
+    if (!this.hoverCell) drawText(s, 'ARRIVAL', px0, py0 - 14, 10, { color: p.dim, glow: 0 });
     const g = this.grid;
     if (g && g.nL > 0 && g.nA > 0) {
       let c3max = 0;
@@ -600,6 +668,23 @@ export class PlannerOverlay {
           if (j === 0) drawText(s, `${idx + 1}`, x + 8, y - 12, 10, { color: selected ? p.hot : p.ink, glow: 0.5 });
         });
       });
+      // Hover: the cell under the mouse, its numbers in the status line, a crosshair on the plot (click picks it).
+      const mouse = this.keys.mouse;
+      this.hoverCell = mouse && !this.keys.touchUsed ? this.cellAt(mouse.x, mouse.y) : null;
+      const hc = this.hoverCell;
+      if (hc) {
+        const hx = px0 + (hc.iL + 0.5) * cw;
+        const hy = py0 + ph - (hc.iA + 0.5) * ch;
+        s.stroke([hx - 7, hy, hx + 7, hy], { color: p.hot, glow: 0.6 });
+        s.stroke([hx, hy - 7, hx, hy + 7], { color: p.hot, glow: 0.6 });
+        const i = hc.iL * g.nA + hc.iA;
+        const pay = g.payload[i] ?? 0;
+        const tL = g.tL0 + hc.iL * g.step;
+        const tA = g.tA0 + hc.iA * g.step;
+        const text = pay > 0 ? `LAUNCH ${formatCountdown(th.tImpact - tL)}  HIT ${formatCountdown(th.tImpact - tA)}  C3 ${(g.c3[i] ?? 0).toFixed(0)}  U ${((g.U[i] ?? 0) / 1000).toFixed(1)}  ${pay.toFixed(0)} KG  CLICK = PLAN` : `LAUNCH ${formatCountdown(th.tImpact - tL)}  HIT ${formatCountdown(th.tImpact - tA)}  NO LAUNCH (C3 ${Number.isFinite(g.c3[i] ?? NaN) ? (g.c3[i] ?? 0).toFixed(0) : '-'})`;
+        drawTextFit(s, text, px0, py0 - 14, 9, pw, { color: p.hot, glow: 0.6 });
+      } else if (this.pickStatus) drawTextFit(s, this.pickStatus, px0, py0 - 14, 9, pw, { color: p.hot, glow: 0.6 });
+      else if (!compact) drawTextFit(s, 'HOVER A CELL FOR ITS WINDOW; CLICK TO PLAN YOUR OWN', px0 + pw, py0 - 14, 8, pw * 0.6, { align: 'right', color: p.dim, glow: 0 });
       for (const mi of this.session.missions) {
         if ((mi.targetId ?? 'THREAT') !== (this.target?.id ?? 'THREAT')) continue;
         const iL = (mi.launchTime - g.tL0) / g.step;
@@ -673,6 +758,9 @@ export class PlannerOverlay {
         py += 3;
       };
       line(`${method.tag}   ${method.equation}`, 8, ui0.sub, 0.3);
+      const selC = this.cands[this.sel];
+      const selM = selC?.missions[0];
+      if (selC && selM && familyOf(selC.archetype).id === fam.id) line(`THIS PLAN: ${selM.impactorKg.toFixed(0)} KG ON L${selM.launcherTier}${selC.missions.length > 1 ? ` X${selC.missions.length}` : ''}, C3 ${selM.c3.toFixed(1)}, U ${(selM.U / 1000).toFixed(1)} KM/S, COST ${selC.cost}.`, 8, ui0.text, 0.3);
       const n = counts.get(fam.id) ?? 0;
       if (locked) line(`LOCKED. ${lockHint(fam) ?? ''}`, 8, p.hot, 0.8);
       else if (!this.ranked) line('UNLOCKED. RANKING ...', 8, p.dim, 0);

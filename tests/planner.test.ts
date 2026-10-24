@@ -7,7 +7,7 @@ import { scoreRound } from '../src/game/scoring';
 import { AU, DAY, MU_SUN, R_HOME, YEAR } from '../src/physics/constants';
 import { launcherTier } from '../src/physics/estimates';
 import { propagate } from '../src/physics/kepler';
-import { missionFromCell, rankCandidates, type CandidateContext } from '../src/planner/candidates';
+import { missionFromCell, rankCandidates, rankCell, type CandidateContext } from '../src/planner/candidates';
 import { cellTimes, computePorkchop, type PorkchopGrid } from '../src/planner/porkchop';
 import { formatEvent } from '../src/sim/eventLog';
 import type { Mission } from '../src/sim/mission';
@@ -124,6 +124,28 @@ describe('resolver v1 and the Round-1 balance target', () => {
     expect(wins).toBeGreaterThanOrEqual(4);
     // SWARM bundles (2-3 staggered launches) are offered on at least some seeds.
     expect(swarms).toBeGreaterThan(0);
+  });
+
+  it('rankCell builds one resolved kinetic plan from a chosen window, and none from an infeasible cell', () => {
+    const w = balanceWorld('PICK');
+    const g = gridFor(w);
+    const ctx = ctxFor(w, g);
+    let feasible: { iL: number; iA: number } | null = null;
+    let infeasible: { iL: number; iA: number } | null = null;
+    for (let iL = 0; iL < g.nL && !(feasible && infeasible); iL++) for (let iA = 0; iA < g.nA; iA++) {
+      const pay = g.payload[iL * g.nA + iA] ?? 0;
+      if (pay > 0 && !feasible) feasible = { iL, iA };
+      if (!(pay > 0) && !infeasible) infeasible = { iL, iA };
+    }
+    if (!feasible || !infeasible) throw new Error('grid lacks a feasible or an infeasible cell');
+    const c = rankCell(g, ctx, feasible.iL, feasible.iA);
+    expect(c).not.toBeNull();
+    expect(c?.picked).toBe(true);
+    expect(c?.archetype).toBe('KINETIC');
+    expect(c?.missions[0]?.launchTime).toBe(cellTimes(g, feasible.iL, feasible.iA).tL);
+    expect(c?.verdict).not.toBeNull();
+    expect(Number.isFinite(c?.score ?? NaN)).toBe(true);
+    expect(rankCell(g, ctx, infeasible.iL, infeasible.iA)).toBeNull();
   });
 
   it('is deterministic (byte-equal logs) and beta is per mission, order independent', () => {
