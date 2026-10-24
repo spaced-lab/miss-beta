@@ -51,10 +51,12 @@ export interface SavedReplay {
   rle: number[];
   /** Absent in replays saved before difficulty levels: NORMAL. */
   difficulty?: Difficulty;
+  /** The LEVEL TURN switch the game ran with; absent in older replays: on. */
+  levelTurn?: boolean;
 }
 
 export const isSavedReplay = (v: unknown): v is SavedReplay => {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
-  return typeof o.seed === 'number' && typeof o.score === 'number' && (o.collision === 'auto' || o.collision === 'naive' || o.collision === 'grid') && Array.isArray(o.rle) && o.rle.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= 0) && (o.difficulty === undefined || (MG.DIFFICULTY_ORDER as readonly unknown[]).includes(o.difficulty));
+  return typeof o.seed === 'number' && typeof o.score === 'number' && (o.collision === 'auto' || o.collision === 'naive' || o.collision === 'grid') && Array.isArray(o.rle) && o.rle.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= 0) && (o.difficulty === undefined || (MG.DIFFICULTY_ORDER as readonly unknown[]).includes(o.difficulty)) && (o.levelTurn === undefined || typeof o.levelTurn === 'boolean');
 };

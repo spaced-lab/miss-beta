@@ -31,6 +31,26 @@ hull damage (`MG.DIFFICULTY` in `src/minigame/config.ts`).
 NORMAL is today's balance and was not changed. EASY gives about 14 minutes from level 1. HARD dies roughly 20 %
 sooner from level 1, and much sooner from a skipped start.
 
+### The laser pass (2026-10-24, later): power by level, the sentinel split, LEVEL TURN; hit points back to +30 %/level
+
+Owner: lasers "more power as levels go up", a beam that crosses a sentinel "splits the beam to spray from that point on",
+LEVEL TURN from level 25 (5 s of automatic pulses, then a full turn of double-rate shots, heat-free, switchable), and
+"this should make game easier so adjust slightly". The bot pauses for the laser every 3 s, so it gets the power and the
+sprays; LEVEL TURN fires for it too. Bot NORMAL from level 1, seeds 1..4, 900 s cap (seconds survived / level):
+
+| `HP_MULT_PER_LEVEL` | lasers | seeds 1..4 |
+|---|---|---|
+| 0.28 | old | 652 716 637 733 s, L39 43 38 44 |
+| 0.28 | new | 643 577 627 900+ s, L38 34 37 53+ (seed 4 alive at the cap: the 600 s guard in tests/minigame.test.ts failed on it, no hull lost after level 10) |
+| 0.30 | new | 714 730 850 456 s, L42 43 50 27 |
+| 0.32 | new | 694 605 656 849 s, L41 36 39 50 |
+
+Chosen 0.30: the median (722 s) sits a touch above the old 684 s, so the game reads slightly easier for a player who
+uses the beam, and no seed is immortal. From level 25 the new lasers at 0.28 gave 180-485 s against 152-439 s before.
+The probe is chaotic per seed (seed 4 goes from immortal to the shortest run between 0.28 and 0.30), so this is the
+smallest step that closes the cap, not a smooth optimum. LEVEL TURN's pulses do not charge the seeker counter: the
+first build let them, and a level-up then filled two seekers at once.
+
 ### NORMAL eased a notch (2026-10-24): hit points +28 %/level
 
 Owner: "adjust to make it a little easier, in between the last adjustment and this latest one. If someone wants harder

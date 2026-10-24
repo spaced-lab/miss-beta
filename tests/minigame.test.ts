@@ -12,7 +12,7 @@ import type { Surface } from '../src/render/canvas';
 import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
-  chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserFanOffsets, laserRange, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, pulseKillsNeeded, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmKillsNeeded, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  chaosLevel, damageMax, densestSector, deployTurret, deserialize, fromSaved, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserBreak, laserDamage, laserFanOffsets, laserRange, laserStage, levelTurnOn, MAX_TIER, maxAsteroids, moonAlive, pressureMax, pulseKillsNeeded, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmKillsNeeded, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
   mirvSubWarheads,
   mirvWarheads,
   seekerSpeed,
@@ -880,6 +880,7 @@ describe('weapons that scale with level', () => {
       st.t = (level - 1) * MG.LEVEL_SECONDS + 1;
       step(st, NO_INPUT, MG.DT);
       expect(st.streamCount).toBe(5);
+      st.turrets.length = 0; // a level-up gift sentry in a fan's path would split that beam (tested below)
       st.sinceShot = MG.LASER_BREAK_2 + 0.01; // the break needed stays the stage-2 one
       st.fireCooldown = 0;
       st.events.length = 0;
@@ -1307,6 +1308,212 @@ describe('ready panel keys (screen)', () => {
     } finally {
       delete g.sessionStorage;
     }
+  });
+});
+
+describe('laser power, the sentinel split and LEVEL TURN (owner 2026-10-24)', () => {
+  /** A clean field at `level`: god, no heat, no spawns, no sentries, one launcher, five streams. */
+  function arena(level: number, levelTurn = true): MinigameState {
+    const st = createState(321, 'auto', 'normal', levelTurn);
+    start(st);
+    st.cheats.god = true;
+    st.cheats.launchers = 1;
+    st.cheats.streams = 5;
+    st.spawnTimer = 1e9;
+    st.t = (level - 1) * MG.LEVEL_SECONDS + 1;
+    step(st, NO_INPUT, MG.DT);
+    st.turrets.length = 0;
+    st.asteroids.length = 0;
+    st.beams.length = 0;
+    st.events.length = 0;
+    return st;
+  }
+  it('the beam gains one damage per LASER_POWER_LEVELS levels past LASER_POWER_FROM_LEVEL, capped', () => {
+    expect(laserDamage(1, 1)).toBe(1 + MG.LASER_DAMAGE_BONUS);
+    expect(laserDamage(5, MG.LASER_POWER_FROM_LEVEL)).toBe(3 + MG.LASER_DAMAGE_BONUS);
+    expect(laserDamage(5, MG.LASER_POWER_FROM_LEVEL + MG.LASER_POWER_LEVELS)).toBe(3 + MG.LASER_DAMAGE_BONUS + 1);
+    expect(laserDamage(5, 16)).toBe(6);
+    expect(laserDamage(5, 200)).toBe(3 + MG.LASER_DAMAGE_BONUS + MG.LASER_POWER_CAP);
+    for (let l = 1; l < 80; l++) expect(laserDamage(5, l + 1)).toBeGreaterThanOrEqual(laserDamage(5, l));
+    // A level-20 beam one-shots a rock a level-1 beam only dents.
+    const hit = (level: number): number => {
+      const st = arena(level);
+      const a = rock(st, 0, 3, 0, 0, 0.3, 2);
+      a.hp = a.maxHp = 100;
+      st.sinceShot = 99;
+      step(st, FIRE, MG.DT);
+      return 100 - a.hp;
+    };
+    expect(hit(1)).toBe(laserDamage(5, 1));
+    expect(hit(20)).toBe(laserDamage(5, 20));
+    expect(hit(20)).toBeGreaterThan(hit(1));
+  });
+  it('a beam that crosses a sentry stops there and sprays LASER_SPLIT_N beams on from it, hitting rocks off the axis', () => {
+    const st = arena(2);
+    // One sentry straight up the launcher's axis on the ring, a rock far behind it on the axis, two more off the
+    // axis inside the spray's fan but outside the single beam's width, and one well outside the fan.
+    deployTurret(st, false, 'orbiter');
+    const tr = st.turrets[0];
+    expect(tr).toBeDefined();
+    if (!tr) return;
+    tr.angle = st.launcherAngle;
+    tr.radius = MG.TURRET_ORBIT_R;
+    const p = turretPosition(tr);
+    const ahead = rock(st, p.x, p.y + 2.5, 0, 0, 0.2, 0);
+    const half = MG.LASER_SPLIT_FAN / 2;
+    const leftR = 1.5;
+    const left = rock(st, p.x + Math.cos(Math.PI / 2 + half) * leftR, p.y + Math.sin(Math.PI / 2 + half) * leftR, 0, 0, 0.2, 0);
+    const right = rock(st, p.x + Math.cos(Math.PI / 2 - half) * leftR, p.y + Math.sin(Math.PI / 2 - half) * leftR, 0, 0, 0.2, 0);
+    const outside = rock(st, p.x + 2.5, p.y + 0.5, 0, 0, 0.2, 0);
+    for (const a of [ahead, left, right, outside]) a.hp = a.maxHp = 1000;
+    st.sinceShot = 99;
+    st.events.length = 0;
+    step(st, FIRE, MG.DT);
+    expect(st.beams.length).toBe(1 + MG.LASER_SPLIT_N);
+    const main = st.beams.find((b) => b.tier === -1);
+    const spray = st.beams.filter((b) => b.tier === -2);
+    expect(main?.len).toBeCloseTo(MG.TURRET_ORBIT_R - 1.28, 6);
+    expect(spray.length).toBe(MG.LASER_SPLIT_N);
+    for (const b of spray) {
+      expect(b.x).toBeCloseTo(p.x, 9);
+      expect(b.y).toBeCloseTo(p.y, 9);
+      expect(b.len).toBe(MG.LASER_SPLIT_RANGE);
+    }
+    const dmg = laserDamage(5, st.level) * MG.LASER_SPLIT_DAMAGE_MULT;
+    expect(1000 - ahead.hp).toBe(dmg);
+    expect(1000 - left.hp).toBe(dmg);
+    expect(1000 - right.hp).toBe(dmg);
+    expect(outside.hp).toBe(1000);
+    expect(st.events.filter((e) => e.type === 'split')).toEqual([{ type: 'split', beams: MG.LASER_SPLIT_N }]);
+    // The spray credits the seeker counter like the beam itself (three hits).
+    expect(st.seekerProgress).toBe(3);
+    // A sentry beside the beam, outside LASER_SPLIT_HIT_R, does not split it.
+    const st2 = arena(2);
+    deployTurret(st2, false, 'orbiter');
+    const t2 = st2.turrets[0];
+    if (!t2) return;
+    t2.angle = st2.launcherAngle + (MG.LASER_SPLIT_HIT_R * 1.5) / MG.TURRET_ORBIT_R;
+    t2.radius = MG.TURRET_ORBIT_R;
+    st2.sinceShot = 99;
+    step(st2, FIRE, MG.DT);
+    expect(st2.beams.length).toBe(1);
+    expect(st2.beams[0]?.tier).toBe(-1);
+  });
+  it('a spray beam does not split again at a second sentry', () => {
+    const st = arena(2);
+    deployTurret(st, false, 'orbiter');
+    deployTurret(st, false, 'orbiter');
+    const [a, b] = st.turrets;
+    if (!a || !b) return;
+    a.angle = st.launcherAngle;
+    a.radius = MG.TURRET_ORBIT_R;
+    b.angle = st.launcherAngle;
+    b.radius = MG.TURRET_ORBIT_R + 1;
+    st.sinceShot = 99;
+    step(st, FIRE, MG.DT);
+    expect(st.beams.length).toBe(1 + MG.LASER_SPLIT_N);
+  });
+  it('from LASER_AUTO_LEVEL a level-up fires LASER_AUTO_S of heat-free pulses with the trigger idle, then one full turn of double-rate shots', () => {
+    expect(levelTurnOn(MG.LASER_AUTO_LEVEL)).toBe(true);
+    expect(levelTurnOn(MG.LASER_AUTO_LEVEL - 1)).toBe(false);
+    const st = arena(MG.LASER_AUTO_LEVEL - 1);
+    st.cheats.launchers = 2;
+    const wall = rock(st, 0, 3, 0, 0, 0.5, 0);
+    wall.hp = wall.maxHp = 1e9;
+    st.t = (MG.LASER_AUTO_LEVEL - 1) * MG.LEVEL_SECONDS - MG.DT / 2;
+    step(st, NO_INPUT, MG.DT);
+    expect(st.level).toBe(MG.LASER_AUTO_LEVEL);
+    // The phase starts and takes its first step in the level-up tick.
+    expect(st.autoLaserT).toBeCloseTo(MG.LASER_AUTO_S - MG.DT, 6);
+    expect(st.events.filter((e) => e.type === 'levelturn')).toEqual([{ type: 'levelturn', phase: 'auto' }]);
+    const stage = laserStage(st.streamCount, st.level);
+    expect(stage).toBe(4);
+    let pulses = st.events.filter((e) => e.type === 'mesh').length;
+    let beamsSeen = st.beams.length;
+    st.events.length = 0;
+    const angle0 = st.launcherAngle;
+    let steps = 1;
+    let turnEvents = 0;
+    while (st.autoLaserT > 0 && steps < 2000) {
+      step(st, NO_INPUT, MG.DT);
+      steps++;
+      pulses += st.events.filter((e) => e.type === 'mesh').length;
+      turnEvents += st.events.filter((e) => e.type === 'levelturn' && e.phase === 'turn').length;
+      beamsSeen = Math.max(beamsSeen, st.beams.length);
+      st.events.length = 0;
+    }
+    // One pulse per laser break, the first at once: 1 + floor(5 / 0.6) = 9, each of 2 launchers x 5 beams.
+    expect(Math.abs(steps - Math.round(MG.LASER_AUTO_S / MG.DT))).toBeLessThanOrEqual(1);
+    expect(pulses).toBe(1 + Math.floor(MG.LASER_AUTO_S / laserBreak(stage)));
+    expect(beamsSeen).toBe(2 * 5);
+    expect(st.heat).toBe(0);
+    // The pulses hit rocks but never charge the seeker counter.
+    expect(st.seekerProgress).toBe(0);
+    // The turn began in the tick the pulses ended: a full circle in LASER_TURN_S with heat-free shots at double
+    // rate; the trigger is ignored meanwhile (held FIRE adds no heat and no extra shots).
+    expect(turnEvents).toBe(1);
+    expect(st.turnT).toBeGreaterThan(0);
+    expect(st.turnT).toBeLessThanOrEqual(MG.LASER_TURN_S);
+    const shots0 = st.shots - 1; // the turn's first shot went in that same tick
+    let shotEvents = 0;
+    let maxTurn = 0;
+    let turnSteps = 1;
+    while (st.turnT > 0 && turnSteps < 2000) {
+      step(st, FIRE, MG.DT);
+      turnSteps++;
+      shotEvents += st.events.filter((e) => e.type === 'shot').length;
+      st.events.length = 0;
+      maxTurn = Math.max(maxTurn, Math.abs(wrapAngle(st.launcherAngle - angle0)));
+    }
+    expect(Math.abs(turnSteps - Math.round(MG.LASER_TURN_S / MG.DT))).toBeLessThanOrEqual(1);
+    expect(maxTurn).toBeGreaterThan(Math.PI / 2);
+    const back = Math.abs(wrapAngle(st.launcherAngle - angle0));
+    expect(Math.min(back, Math.PI * 2 - back)).toBeLessThan(1e-6);
+    const expectShots = Math.ceil(MG.LASER_TURN_S / (MG.FIRE_COOLDOWN / MG.LASER_TURN_RATE_MULT));
+    expect(st.shots - shots0).toBeGreaterThanOrEqual(expectShots - 1);
+    expect(st.shots - shots0).toBeLessThanOrEqual(expectShots + 1);
+    expect(shotEvents).toBe(st.shots - shots0 - 1);
+    expect(st.heat).toBe(0);
+    expect(st.bullets.length).toBeGreaterThan(0);
+    expect(st.turnT).toBe(0);
+    // Afterwards the trigger works again and heats as usual.
+    st.fireCooldown = 0;
+    step(st, FIRE, MG.DT);
+    expect(st.heat).toBeGreaterThan(0);
+  });
+  it('nothing happens below LASER_AUTO_LEVEL, and nothing with the switch off', () => {
+    const below = arena(MG.LASER_AUTO_LEVEL - 2);
+    below.t = (MG.LASER_AUTO_LEVEL - 2) * MG.LEVEL_SECONDS - MG.DT / 2;
+    step(below, NO_INPUT, MG.DT);
+    expect(below.level).toBe(MG.LASER_AUTO_LEVEL - 1);
+    expect(below.autoLaserT).toBe(0);
+    const off = arena(MG.LASER_AUTO_LEVEL - 1, false);
+    off.t = (MG.LASER_AUTO_LEVEL - 1) * MG.LEVEL_SECONDS - MG.DT / 2;
+    step(off, NO_INPUT, MG.DT);
+    expect(off.level).toBe(MG.LASER_AUTO_LEVEL);
+    expect(off.autoLaserT).toBe(0);
+    for (let i = 0; i < 120; i++) step(off, NO_INPUT, MG.DT);
+    expect(off.beams.length).toBe(0);
+    expect(off.events.some((e) => e.type === 'levelturn' || e.type === 'mesh')).toBe(false);
+  });
+  it('the clocks and the switch survive a save round-trip; an older save loads idle with the switch on', () => {
+    const st = arena(MG.LASER_AUTO_LEVEL, false);
+    st.autoLaserT = 2.5;
+    st.autoLaserCd = 0.4;
+    st.turnT = 0.3;
+    st.turnCd = 0.02;
+    const back = fromSaved(JSON.parse(JSON.stringify(toSaved(st))));
+    expect([back.autoLaserT, back.autoLaserCd, back.turnT, back.turnCd, back.levelTurn]).toEqual([2.5, 0.4, 0.3, 0.02, false]);
+    const old = JSON.parse(JSON.stringify(toSaved(st)));
+    delete old.autoLaserT;
+    delete old.autoLaserCd;
+    delete old.turnT;
+    delete old.turnCd;
+    delete old.levelTurn;
+    expect(isSavedGame(old)).toBe(true);
+    const o = fromSaved(old);
+    expect([o.autoLaserT, o.autoLaserCd, o.turnT, o.turnCd, o.levelTurn]).toEqual([0, 0, 0, 0, true]);
+    expect(isSavedGame({ ...old, levelTurn: 'yes' })).toBe(false);
   });
 });
 

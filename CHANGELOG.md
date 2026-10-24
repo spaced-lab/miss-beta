@@ -2,6 +2,29 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-24: PERIMETER lasers: power by level, the sentinel split, cycling colours, LEVEL TURN; friendly units recoloured
+
+- Owner: "make seekers different colors than swarm, sentinels different color than asteroids": sentries and drones now
+  wear azure / mint / yellow (ice white for tier-3 drones) and seekers coral, hues the rocks (green, amber, cyan,
+  magenta, violet, warm white) never use (`render.ts NEON`).
+- "Give lasers more power as levels go up": the player's beam gains one damage per 4 levels from level 8, capped at +8
+  (`sim.laserDamage`, `LASER_POWER_*`). "More distraction and cycling colors": the beam's hue runs round the wheel,
+  faster with level, each beam of a fan offset so a mesh is a rainbow; the halo widens with power and sparks run along
+  the beam as it fades (`LASER_HUE_RATE_*`, `LASER_SPARKS`). The LASER / MESH READY label cycles with it.
+- "If laser hits a sentinel it splits the beam to spray from that point on": a player's beam that passes within 0.22
+  radii of a sentry stops there and five beams spray on from the sentry over 1.3 rad, 4.2 radii long, at full damage
+  (`LASER_SPLIT_*`, a `split` event with its own cue). A spray never splits again. Aiming through a sentry is the skill.
+- LEVEL TURN ("auto laser pulse that lasts for 5 seconds starting at level 25 and each level higher ... then rapid 360
+  spin in 1 second of normal shots at double speed, no heat"): from level 25 every level-up fires 5 s of automatic
+  pulses, one per laser break (0.6 s from stage 2), heat-free and off the seeker counter, then the launchers make one
+  full turn in 1 s firing at double rate without heat while the trigger is ignored (`sim.stepLevelTurn`,
+  `LASER_AUTO_*`, `LASER_TURN_*`; HUD shows AUTO LASER with the countdown, then LEVEL TURN). The switch LEVEL TURN
+  AUTO / OFF is key `-` on the start and game-over panels, the gear menu and OPTIONS > PERIMETER
+  (`MinigameSettings.levelTurn`; the running game follows the switch; saves and replays carry it).
+- Counterweight ("this should make game easier so adjust slightly"): `HP_MULT_PER_LEVEL` 0.28 -> 0.30. Bot NORMAL from
+  level 1 (seeds 1..4, 900 s cap): old lasers 637-733 s; new lasers at 0.28 577-900+ s with one seed immortal, at 0.30
+  456-850 s (median 722, every seed dies). Table in docs/MINIGAME_BACKLOG.md.
+
 ### 2026-10-24: the planner's ALL tab leads with one plan per method; pick your own window on the porkchop
 
 - ALL shows the best plan of each unlocked method first (then the rest by score; `PLANNER_SHOW_TOP` 6 -> 10, the

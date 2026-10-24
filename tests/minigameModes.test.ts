@@ -180,9 +180,10 @@ describe('settings guard', () => {
   it('accepts every difficulty and start level the panel offers', () => {
     for (const difficulty of MG.DIFFICULTY_ORDER) for (const startLevel of MG.START_LEVELS) expect(isMinigameSettings({ difficulty, startLevel })).toBe(true);
     expect(isMinigameSettings(DEFAULT_SETTINGS)).toBe(true);
+    expect(isMinigameSettings({ difficulty: 'normal', startLevel: 1, levelTurn: false })).toBe(true);
   });
   it('rejects anything else', () => {
-    for (const bad of [null, undefined, 'normal', 3, [], {}, { difficulty: 'normal' }, { startLevel: 1 }, { difficulty: 'NORMAL', startLevel: 1 }, { difficulty: 'normal', startLevel: 17 }, { difficulty: 'normal', startLevel: '10' }, { difficulty: 'normal', startLevel: Number.NaN }]) {
+    for (const bad of [null, undefined, 'normal', 3, [], {}, { difficulty: 'normal' }, { startLevel: 1 }, { difficulty: 'NORMAL', startLevel: 1 }, { difficulty: 'normal', startLevel: 17 }, { difficulty: 'normal', startLevel: '10' }, { difficulty: 'normal', startLevel: Number.NaN }, { difficulty: 'normal', startLevel: 1, levelTurn: 'yes' }]) {
       expect(isMinigameSettings(bad), JSON.stringify(bad)).toBe(false);
     }
   });
@@ -197,6 +198,8 @@ describe('settings guard', () => {
     expect(isSavedReplay(r)).toBe(true);
     expect(isSavedReplay({ ...r, difficulty: 'easy' })).toBe(true);
     expect(isSavedReplay({ ...r, difficulty: 'nope' })).toBe(false);
+    expect(isSavedReplay({ ...r, levelTurn: false })).toBe(true);
+    expect(isSavedReplay({ ...r, levelTurn: 1 })).toBe(false);
   });
 });
 
@@ -266,15 +269,19 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
       expect(screen.options).toEqual(DEFAULT_SETTINGS);
       tap(keys, screen, 'Digit9'); // normal -> hard
       tap(keys, screen, 'Digit0'); // 1 -> 5
-      expect(screen.options).toEqual({ difficulty: 'hard', startLevel: 5 });
-      expect(JSON.parse(local.getItem(`missb.${SETTINGS_KEY}`) ?? 'null')).toEqual({ difficulty: 'hard', startLevel: 5 });
+      expect(screen.options).toEqual({ difficulty: 'hard', startLevel: 5, levelTurn: true });
+      expect(JSON.parse(local.getItem(`missb.${SETTINGS_KEY}`) ?? 'null')).toEqual({ difficulty: 'hard', startLevel: 5, levelTurn: true });
+      tap(keys, screen, 'Minus'); // LEVEL TURN auto -> off
+      expect(screen.options).toEqual({ difficulty: 'hard', startLevel: 5, levelTurn: false });
+      expect(JSON.parse(local.getItem(`missb.${SETTINGS_KEY}`) ?? 'null')).toEqual({ difficulty: 'hard', startLevel: 5, levelTurn: false });
       tap(keys, screen, 'Space');
       expect(screen.state.status).toBe('playing');
       expect(screen.state.difficulty).toBe('hard');
       expect(screen.state.level).toBe(5);
+      expect(screen.state.levelTurn).toBe(false);
       // A new screen reads the stored options back through the guard; a corrupt value falls back to the default.
       const again = new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} });
-      expect(again.options).toEqual({ difficulty: 'hard', startLevel: 5 });
+      expect(again.options).toEqual({ difficulty: 'hard', startLevel: 5, levelTurn: false });
       local.setItem(`missb.${SETTINGS_KEY}`, JSON.stringify({ difficulty: 'hard', startLevel: 99 }));
       expect(new MinigameScreen({} as Surface, keys as unknown as Keys, { go() {} }).options).toEqual(DEFAULT_SETTINGS);
       expect(bestKey('normal')).toBe('minigame.best');
@@ -303,8 +310,9 @@ describe('ready panel options and the SUPER DEMO (screen)', () => {
       // OPTIONS > PERIMETER writes the same key; the screen reads it again when it is entered.
       saveMinigameSettings({ difficulty: 'easy', startLevel: 20 });
       screen.enter();
-      expect(screen.options).toEqual({ difficulty: 'easy', startLevel: 20 });
-      expect(loadMinigameSettings()).toEqual({ difficulty: 'easy', startLevel: 20 });
+      // A record from before the LEVEL TURN switch reads back with the switch on.
+      expect(screen.options).toEqual({ difficulty: 'easy', startLevel: 20, levelTurn: true });
+      expect(loadMinigameSettings()).toEqual({ difficulty: 'easy', startLevel: 20, levelTurn: true });
     } finally {
       delete g.localStorage;
       delete g.sessionStorage;

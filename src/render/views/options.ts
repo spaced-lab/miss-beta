@@ -7,7 +7,8 @@
 import type { Router, Screen } from '../../game/screen';
 import type { GearItem, GearSpec } from '../../ui/gearMenu';
 import { topicForOption } from '../../game/loreLinks';
-import { loadMinigameSettings, saveMinigameSettings, stepDifficulty, stepStartLevel, type MinigameSettings } from '../../minigame/prefs';
+import { MG } from '../../minigame/config';
+import { levelTurnOf, loadMinigameSettings, saveMinigameSettings, stepDifficulty, stepStartLevel, type MinigameSettings } from '../../minigame/prefs';
 import { applySettings, AUTO_SPEED_LEVELS, INTERSTELLAR_RATES, COLOR_MODES, DEMO_LENGTH_LEVELS, cycle, GLOW_MODES, LEARNING_LEVELS, saveSettings, SOUND_STYLES, TEXT_SIZES, UNITS, VOICES, type Settings } from '../../game/settings';
 import { voiceText, type VoiceId } from '../../audio/voice';
 import type { Input } from '../../ui/input';
@@ -64,6 +65,7 @@ export class OptionsScreen implements Screen {
       { group: 'AUTOPLAY', label: 'DEMO LENGTH', value: () => ({ SHORT: 'SHORT (35 S)', MEDIUM: 'MEDIUM (70 S)', LONG: 'LONG (2:15)' })[st.demoLength ?? 'MEDIUM'], change: (d) => (st.demoLength = cycle(DEMO_LENGTH_LEVELS, st.demoLength ?? 'MEDIUM', d)), note: 'SUPER-DUPER-DEMO: HOW LONG THE FASTER-AND-FASTER GAMES RUN BEFORE THE FINALE (TIMED BY THE CLOCK).' },
       { group: 'PERIMETER', label: 'DIFFICULTY', value: () => this.mg.difficulty.toUpperCase(), change: (d) => this.setMg({ ...this.mg, difficulty: stepDifficulty(this.mg.difficulty, d) }), note: 'THE ARCADE MODE (PERIMETER). EASY, NORMAL OR HARD: RATE, TOUGHNESS AND SPEED OF THE ROCKS AND HULL DAMAGE. ALSO KEY 9 ON ITS START PANEL. EACH HAS ITS OWN BEST SCORE.' },
       { group: 'PERIMETER', label: 'START LEVEL', value: () => `${this.mg.startLevel}${this.mg.startLevel > 1 ? ' (NOT RANKED)' : ''}`, change: (d) => this.setMg({ ...this.mg, startLevel: stepStartLevel(this.mg.startLevel, d) }), note: 'SKIP AHEAD: START PERIMETER AT LEVEL 1 TO 60 WITH THE KIT A RUN USUALLY HAS BY THEN. ALSO KEY 0 ON ITS START PANEL, OR ITS GEAR MENU. A LATER START IS NOT RANKED.' },
+      { group: 'PERIMETER', label: 'LEVEL TURN', value: () => (levelTurnOf(this.mg) ? 'AUTO' : 'OFF'), change: () => this.setMg({ ...this.mg, levelTurn: !levelTurnOf(this.mg) }), note: `FROM LEVEL ${MG.LASER_AUTO_LEVEL} EVERY LEVEL-UP FIRES ${MG.LASER_AUTO_S} SECONDS OF AUTOMATIC LASER PULSES, THEN ONE FULL TURN OF THE LAUNCHERS AT DOUBLE RATE, WITHOUT HEAT. ALSO KEY - ON ITS START PANEL, OR ITS GEAR MENU.` },
     ];
   }
   /** PERIMETER's own saved options (minigame/prefs.ts): read on entry, saved on every change. */

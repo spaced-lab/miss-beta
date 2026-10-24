@@ -1,4 +1,4 @@
-// WHAT: PERIMETER run options: difficulty level and start level, their saved settings and the start-level kit.
+// WHAT: PERIMETER run options: difficulty level, start level and the LEVEL TURN switch, their saved settings and the start-level kit.
 // WHY:  The owner asked for difficulty levels and "skip to round 10, 20, 30 or 40" from the menu. Both are pure
 //       state setup, so they live here with tests (tests/minigameModes.test.ts) and index.ts only wires keys to them.
 // HOW:  Difficulty is a key into MG.DIFFICULTY; sim.ts reads its multipliers at spawn and on impact. A start level N
@@ -11,8 +11,8 @@ import type { CollisionStrategy } from './collision';
 import { MG, type Difficulty } from './config';
 import { createState, deployTurret, flash, launcherCount, pressureMax, seekerMax, start, streamCount, swarmMax, turretMax, type MinigameState } from './sim';
 
-export { DEFAULT_SETTINGS, isMinigameSettings, nextDifficulty, nextStartLevel, type MinigameSettings } from './prefs';
-import type { MinigameSettings } from './prefs';
+export { DEFAULT_SETTINGS, isMinigameSettings, levelTurnOf, nextDifficulty, nextStartLevel, type MinigameSettings } from './prefs';
+import { levelTurnOf, type MinigameSettings } from './prefs';
 
 /**
  * Moon health at the start of `level` as a fraction of MOON_HP: MG.START_MOON_FRAC, linear between its levels, full at
@@ -59,7 +59,7 @@ export function setupStart(st: MinigameState, level: number): void {
 
 /** A new game, started, at a difficulty and start level. Draw order: createState's draws, then setupStart's sentries. */
 export function newGame(seed: number, collision: CollisionStrategy, settings: Readonly<MinigameSettings>): MinigameState {
-  const st = createState(seed, collision, settings.difficulty);
+  const st = createState(seed, collision, settings.difficulty, levelTurnOf(settings));
   start(st);
   setupStart(st, settings.startLevel);
   return st;

@@ -16,8 +16,12 @@
 //       Heat: each trigger pull adds heat; at 1.0 fire locks until it cools below HEAT_UNLOCK.
 //       Laser: from 3 streams the first pull after a break fires a beam down the centre stream (sim.fireLaser);
 //       from LASER_MESH_LEVEL every launcher fans 3 (then 5) beams so they cross into a mesh (laserStage,
-//       laserFanOffsets). Earned weapons scale with level too (seekerMax, seekerVolley, swarmMax, turretMax,
-//       the *HitsNeeded easings, laserRange), so late levels stay winnable.
+//       laserFanOffsets). The beam's damage grows with level (laserDamage); a beam that crosses a sentry stops
+//       there and sprays LASER_SPLIT_N beams on from it (fireLaser). From LASER_AUTO_LEVEL every level-up starts
+//       LEVEL TURN (stepLevelTurn): LASER_AUTO_S s of automatic heat-free pulses, then one full turn of the
+//       launchers in LASER_TURN_S firing at double rate; MinigameState.levelTurn switches it off. Earned weapons
+//       scale with level too (seekerMax, seekerVolley, swarmMax, turretMax, the *HitsNeeded easings, laserRange),
+//       so late levels stay winnable.
 //       The step emits SimEvents (shots, hits, breaks, ...) that the host turns into sound; the sim never
 //       imports audio. Sentries (Turret) come in four archetypes (SentryKind) with their own motion,
 //       targeting and fire schedule, all in stepTurret; the kind is drawn from the Rng at deploy.
@@ -166,7 +170,7 @@ export interface Flash {
 }
 
 /** A fading laser beam for the renderer: from (x, y) along `angle` for `len` radii. `tier` picks the colour:
- *  -1 the player's beam, 0..2 a sentry's tier, 5 the beam array. */
+ *  -1 the player's beam, -2 a spray beam split off a sentry, 0..2 a sentry's tier, 5 the beam array. */
 export interface Beam {
   angle: number;
   t: number;
@@ -200,6 +204,10 @@ export type SimEvent =
   | { type: 'burnout' }
   /** The sentries' beam array fired `beams` beams at one rock (v3.4). */
   | { type: 'array'; beams: number }
+  /** A player's beam crossed a sentry and sprayed `beams` beams on from it. */
+  | { type: 'split'; beams: number }
+  /** LEVEL TURN began its automatic pulses (`auto`) or its full turn (`turn`). */
+  | { type: 'levelturn'; phase: 'auto' | 'turn' }
   | { type: 'over' };
 
 export type Status = 'ready' | 'playing' | 'over';
@@ -264,6 +272,14 @@ export interface MinigameState {
   events: SimEvent[];
   /** Seconds since the player's last trigger pull; arms the laser. */
   sinceShot: number;
+  /** LEVEL TURN (from LASER_AUTO_LEVEL): seconds left of automatic laser pulses, and until the next one. */
+  autoLaserT: number;
+  autoLaserCd: number;
+  /** LEVEL TURN: seconds left of the full turn with heat-free double-rate shots, and until the next shot. */
+  turnT: number;
+  turnCd: number;
+  /** The LEVEL TURN switch (MinigameSettings.levelTurn): false and level-ups past LASER_AUTO_LEVEL start nothing. */
+  levelTurn: boolean;
   shake: number;
   secAccum: number;
   cheats: Cheats;
@@ -362,10 +378,22 @@ export function laserFanOffsets(stage: number): number[] {
 /** Laser reach in radii: LASER_RANGE + LASER_RANGE_STEP per LASER_RANGE_STEP_LEVELS levels, capped (7.2 at 1-5, 7.7 at 6, 8.2 at 11, 8.6 from 16). */
 export const laserRange = (level: number): number => Math.min(MG.LASER_RANGE_CAP, MG.LASER_RANGE + MG.LASER_RANGE_STEP * Math.floor(past(level, 1) / MG.LASER_RANGE_STEP_LEVELS));
 
+/** The pause the laser needs at a stage: LASER_BREAK_2 from stage 2 (every launcher beams), LASER_BREAK_1 before. */
+export const laserBreak = (stage: number): number => (stage >= 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1);
+/**
+ * Damage of the player's beam: strengthLevel + LASER_DAMAGE_BONUS + floor(past(level, LASER_POWER_FROM_LEVEL) /
+ * LASER_POWER_LEVELS), the growth capped at LASER_POWER_CAP. Example: 5 streams at level 16 give 3 + 1 + 2 = 6; at
+ * level 60 the cap holds it at 3 + 1 + 8 = 12.
+ */
+export const laserDamage = (streams: number, level: number): number =>
+  strengthLevel(streams) + MG.LASER_DAMAGE_BONUS + Math.min(MG.LASER_POWER_CAP, Math.floor(past(level, MG.LASER_POWER_FROM_LEVEL) / MG.LASER_POWER_LEVELS));
+/** LEVEL TURN fires on a level-up to `level` when the switch is on, from LASER_AUTO_LEVEL. Example: levelTurnOn(25) is true, levelTurnOn(24) false. */
+export const levelTurnOn = (level: number): boolean => level >= MG.LASER_AUTO_LEVEL;
+
 export function laserArmed(st: MinigameState): boolean {
   const stage = laserStage(st.streamCount, st.level);
   if (stage === 0) return false;
-  return st.sinceShot >= (stage >= 2 ? MG.LASER_BREAK_2 : MG.LASER_BREAK_1);
+  return st.sinceShot >= laserBreak(stage);
 }
 
 // --- earned-weapon scaling (all monotone in level, all capped or floored by a knob) ---------------------------
@@ -422,7 +450,7 @@ const signedAngle = (t: number): number => {
 
 // --- construction ----------------------------------------------------------------------------------------
 
-export function createState(seed: number, collision: CollisionStrategy = 'auto', difficulty: Difficulty = MG.DIFFICULTY_DEFAULT): MinigameState {
+export function createState(seed: number, collision: CollisionStrategy = 'auto', difficulty: Difficulty = MG.DIFFICULTY_DEFAULT, levelTurn = true): MinigameState {
   const rng = new Rng(seed);
   return {
     seed,
@@ -468,6 +496,11 @@ export function createState(seed: number, collision: CollisionStrategy = 'auto',
     arrayCd: 0,
     events: [],
     sinceShot: 99,
+    autoLaserT: 0,
+    autoLaserCd: 0,
+    turnT: 0,
+    turnCd: 0,
+    levelTurn,
     shake: 0,
     secAccum: 0,
     cheats: { god: false, timeScale: 1, assisted: false, noHeat: false },
@@ -1078,7 +1111,7 @@ function stepDrones(st: MinigameState, dt: number, moonOn: boolean, moon: { x: n
  * impulse; rocks it kills break up as usual. `tier` is only the renderer's colour. Shared by the player's laser,
  * the sentry lasers and the beam array (v3.4).
  */
-function beamHit(st: MinigameState, x0: number, y0: number, angle: number, len: number, damage: number, tier: number): void {
+function beamHit(st: MinigameState, x0: number, y0: number, angle: number, len: number, damage: number, tier: number, credit = tier < 0): void {
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
   const dead: number[] = [];
@@ -1094,8 +1127,9 @@ function beamHit(st: MinigameState, x0: number, y0: number, angle: number, len: 
     const k = (MG.BULLET_IMPULSE * MG.LASER_IMPULSE_MULT * damage) / rockMass(a);
     a.vx += ca * k;
     a.vy += sa * k;
-    // Only the player's own beam charges the seeker counter: sentry and array beams are already the reward.
-    if (tier === -1) creditHit(st);
+    // Only the player's own beam (and its spray off a sentry) charges the seeker counter: sentry and array beams, and
+    // the automatic pulses of LEVEL TURN, are already the reward (that loop made the armed bot untouchable).
+    if (credit) creditHit(st);
     spawnParticles(st, a.x - ca * a.r, a.y - sa * a.r, 5, 2, a.tier);
     emit(st, { type: 'hit', tier: a.tier });
     if (a.hp <= 0) dead.push(j);
@@ -1105,11 +1139,48 @@ function beamHit(st: MinigameState, x0: number, y0: number, angle: number, len: 
   st.beams.push({ angle, t: MG.BEAM_FADE, x: x0, y: y0, len, tier });
 }
 
-/** The player's beam along `angle` from the muzzle to laserRange(level). */
-function fireLaser(st: MinigameState, angle: number): void {
-  const damage = strengthLevel(st.streamCount) + MG.LASER_DAMAGE_BONUS;
+/**
+ * The player's beam along `angle` from the muzzle to laserRange(level), at laserDamage. If it passes within
+ * LASER_SPLIT_HIT_R of a sentry (the nearest one along the beam), it stops at the sentry and LASER_SPLIT_N beams spray
+ * on from there, fanned LASER_SPLIT_FAN wide about the beam's direction, each LASER_SPLIT_RANGE long at
+ * LASER_SPLIT_DAMAGE_MULT x the damage (tier -2 for the renderer). A spray never splits again. The split beams credit
+ * the seeker counter like the beam itself when `credit` is set: they are the player's shot; LEVEL TURN's automatic
+ * pulses pass false.
+ */
+function fireLaser(st: MinigameState, angle: number, credit = true): void {
+  const damage = laserDamage(st.streamCount, st.level);
   const muzzle = MG.PLANET_R * 1.28;
-  beamHit(st, Math.cos(angle) * muzzle, Math.sin(angle) * muzzle, angle, laserRange(st.level) - muzzle, damage, -1);
+  const x0 = Math.cos(angle) * muzzle;
+  const y0 = Math.sin(angle) * muzzle;
+  const len = laserRange(st.level) - muzzle;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  let split: Turret | null = null;
+  let splitAlong = Infinity;
+  for (const tr of st.turrets) {
+    const p = turretPosition(tr);
+    const rx = p.x - x0;
+    const ry = p.y - y0;
+    const along = rx * ca + ry * sa;
+    if (along <= 0 || along > len || along >= splitAlong) continue;
+    if (Math.abs(-rx * sa + ry * ca) > MG.LASER_SPLIT_HIT_R) continue;
+    split = tr;
+    splitAlong = along;
+  }
+  if (!split) {
+    beamHit(st, x0, y0, angle, len, damage, -1, credit);
+    return;
+  }
+  beamHit(st, x0, y0, angle, splitAlong, damage, -1, credit);
+  const p = turretPosition(split);
+  const n = Math.max(1, MG.LASER_SPLIT_N);
+  const sprayDamage = Math.max(1, Math.round(damage * MG.LASER_SPLIT_DAMAGE_MULT));
+  for (let k = 0; k < n; k++) {
+    const off = n === 1 ? 0 : (k / (n - 1) - 0.5) * MG.LASER_SPLIT_FAN;
+    beamHit(st, p.x, p.y, angle + off, MG.LASER_SPLIT_RANGE, sprayDamage, -2, credit);
+  }
+  spawnParticles(st, p.x, p.y, 8, 3, split.tier);
+  emit(st, { type: 'split', beams: n });
 }
 
 /** True when a beam from (x0, y0) along `angle` for `len` would pass through the planet's disc: the planet blocks it. */
@@ -1155,28 +1226,84 @@ function fire(st: MinigameState): void {
   st.shots += 1;
   const stage = laserStage(st.streamCount, st.level);
   const laser = laserArmed(st);
-  const laserLaunchers = laser ? (stage >= 2 ? st.launcherCount : 1) : 0;
-  const fan = laserFanOffsets(stage);
+  const laserLaunchers = laser ? beamingLaunchers(st, stage) : 0;
   st.sinceShot = 0;
+  fireBeams(st, laserLaunchers, stage);
+  fireShots(st, laserLaunchers);
+  if (laser && !st.cheats.noHeat) st.heat += MG.LASER_HEAT;
+  emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
+}
+
+/** Launchers that beam at a stage: the player's alone at stage 1, all of them from stage 2. */
+const beamingLaunchers = (st: MinigameState, stage: number): number => (stage >= 2 ? st.launcherCount : 1);
+
+/** The first `launchers` launchers each fire laserFanOffsets(stage) beams; one LASER or MESH event for the lot.
+ *  `credit` false (LEVEL TURN's pulses) keeps the hits off the seeker counter. */
+function fireBeams(st: MinigameState, launchers: number, stage: number, credit = true): void {
+  if (launchers <= 0) return;
+  const fan = laserFanOffsets(stage);
+  for (let i = 0; i < launchers; i++) {
+    const base = launcherAngleAt(st, i);
+    for (const off of fan) fireLaser(st, base + off, credit);
+    if (stage < 3) emit(st, { type: 'laser' });
+  }
+  if (stage >= 3) emit(st, { type: 'mesh', beams: launchers * fan.length });
+}
+
+/** Every launcher's streams as projectiles; the first `beamed` launchers skip their centre stream (the beam took it). */
+function fireShots(st: MinigameState, beamed: number): void {
   const centre = (st.streamCount - 1) / 2;
+  const muzzle = MG.PLANET_R * 1.28;
   for (let i = 0; i < st.launcherCount; i++) {
     const base = launcherAngleAt(st, i);
-    const muzzle = MG.PLANET_R * 1.28;
-    const beamHere = i < laserLaunchers;
-    if (beamHere) {
-      for (const off of fan) fireLaser(st, base + off);
-      if (stage < 3) emit(st, { type: 'laser' });
-    }
     for (let j = 0; j < st.streamCount; j++) {
       // The laser replaces the centre stream's projectile on that pull (only exact centres: odd counts).
-      if (beamHere && j === centre) continue;
+      if (i < beamed && j === centre) continue;
       const a = base + (j - centre) * MG.STREAM_SPREAD;
       pushBullet(st, Math.cos(base) * muzzle, Math.sin(base) * muzzle, a, streamDamage(st.streamCount, j), false);
     }
   }
-  if (laser && stage >= 3) emit(st, { type: 'mesh', beams: laserLaunchers * fan.length });
-  if (laser && !st.cheats.noHeat) st.heat += MG.LASER_HEAT;
-  emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
+}
+
+/**
+ * LEVEL TURN, one step. While autoLaserT runs, a heat-free pulse of every beaming launcher fires each laserBreak
+ * (the level's minimum pause), whatever the trigger does; when it ends the turn begins: the launchers rotate one full
+ * circle over LASER_TURN_S while firing heat-free normal shots every FIRE_COOLDOWN / LASER_TURN_RATE_MULT. Returns
+ * true while the turn runs (the trigger is ignored then: the turn is already firing). The pulses do not charge the
+ * seeker counter (the player's own beams do). Example: at level 25 with 8
+ * launchers and 5 streams, 5 s of pulses 0.6 s apart = 9 pulses of 40 beams, then 1 s of 17 shots x 8 launchers.
+ */
+function stepLevelTurn(st: MinigameState, dt: number): boolean {
+  if (st.autoLaserT > 0) {
+    st.autoLaserT -= dt;
+    st.autoLaserCd -= dt;
+    const stage = laserStage(st.streamCount, st.level);
+    if (st.autoLaserCd <= 0 && stage > 0) {
+      fireBeams(st, beamingLaunchers(st, stage), stage, false);
+      st.autoLaserCd = laserBreak(stage);
+    }
+    if (st.autoLaserT <= 0) {
+      st.autoLaserT = 0;
+      st.turnT = MG.LASER_TURN_S;
+      st.turnCd = 0;
+      flash(st, 'LEVEL TURN', 1);
+      emit(st, { type: 'levelturn', phase: 'turn' });
+    }
+  }
+  if (st.turnT <= 0) return false;
+  const slice = Math.min(dt, st.turnT);
+  st.turnT -= dt;
+  st.turnCd -= dt;
+  st.launcherAngle = wrapAngle(st.launcherAngle + (Math.PI * 2 * slice) / MG.LASER_TURN_S);
+  if (st.turnCd <= 0) {
+    st.shots += 1;
+    st.sinceShot = 0;
+    fireShots(st, 0);
+    emit(st, { type: 'shot', strength: strengthLevel(st.streamCount) });
+    st.turnCd = MG.FIRE_COOLDOWN / MG.LASER_TURN_RATE_MULT;
+  }
+  if (st.turnT <= 0) st.turnT = 0;
+  return true;
 }
 
 /**
@@ -1411,6 +1538,14 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     if (lvl === MG.LASER_MESH_LEVEL) flash(st, 'LASER MESH: PAUSE, THEN FIRE', 2);
     if (lvl === MG.LASER_MESH2_LEVEL) flash(st, 'LASER MESH X5', 2);
     if (MG.SEEKER_VOLLEY_LEVELS.includes(lvl)) flash(st, `SEEKER VOLLEY X${seekerVolley(lvl)}`, 2);
+    if (st.levelTurn && levelTurnOn(lvl) && laserStage(st.streamCount, lvl) > 0) {
+      // LEVEL TURN (stepLevelTurn): LASER_AUTO_S of automatic pulses, then the full turn.
+      st.autoLaserT = MG.LASER_AUTO_S;
+      st.autoLaserCd = 0;
+      st.turnT = 0;
+      flash(st, 'AUTO LASER', 1.6);
+      emit(st, { type: 'levelturn', phase: 'auto' });
+    }
     // A random SUPER sentry now and then: a breather as the field gets busy.
     if (lvl > MG.TURRET_LEVEL && st.rng.chance(MG.TURRET_GIFT_PROB)) deployTurret(st, true);
   }
@@ -1445,7 +1580,8 @@ export function step(st: MinigameState, input: Readonly<Input>, dt: number): voi
     emit(st, { type: 'cooled' });
   }
   st.fireCooldown -= dt;
-  if (input.fire && st.fireCooldown <= 0 && !st.overheated) {
+  const turning = stepLevelTurn(st, dt);
+  if (input.fire && !turning && st.fireCooldown <= 0 && !st.overheated) {
     fire(st);
     st.fireCooldown = MG.FIRE_COOLDOWN;
     if (!st.cheats.noHeat) st.heat += MG.HEAT_PER_SHOT;
@@ -1677,6 +1813,12 @@ export interface SavedGame {
   /** Optional so saves from before difficulty levels still load (as NORMAL from level 1). */
   difficulty?: Difficulty;
   startLevel?: number;
+  /** LEVEL TURN clocks and switch; absent in saves from before it (nothing running, switch on). */
+  autoLaserT?: number;
+  autoLaserCd?: number;
+  turnT?: number;
+  turnCd?: number;
+  levelTurn?: boolean;
 }
 
 type Pred = (v: unknown) => boolean;
@@ -1713,6 +1855,7 @@ const SAVED = shaped({
   flashes: arrOf(FLASH), beams: arrOf(BEAM), arrayCd: opt(num),
   sinceShot: num, shake: num, secAccum: num, cheats: CHEATS, collision: oneOf('auto', 'naive', 'grid'),
   difficulty: opt(oneOf(...MG.DIFFICULTY_ORDER)), startLevel: opt(num),
+  autoLaserT: opt(num), autoLaserCd: opt(num), turnT: opt(num), turnCd: opt(num), levelTurn: opt(bool),
 });
 
 /** Type guard for anything read back from storage (persistence.ts convention). */
@@ -1769,6 +1912,11 @@ export function toSaved(st: MinigameState): SavedGame {
     collision: st.collision,
     difficulty: st.difficulty,
     startLevel: st.startLevel,
+    autoLaserT: st.autoLaserT,
+    autoLaserCd: st.autoLaserCd,
+    turnT: st.turnT,
+    turnCd: st.turnCd,
+    levelTurn: st.levelTurn,
   };
 }
 
@@ -1824,6 +1972,11 @@ export function fromSaved(s: SavedGame): MinigameState {
     collision: s.collision,
     difficulty: s.difficulty ?? 'normal',
     startLevel: s.startLevel ?? 1,
+    autoLaserT: s.autoLaserT ?? 0,
+    autoLaserCd: s.autoLaserCd ?? 0,
+    turnT: s.turnT ?? 0,
+    turnCd: s.turnCd ?? 0,
+    levelTurn: s.levelTurn ?? true,
     stats: { collisionChecksLastStep: 0 },
   };
 }

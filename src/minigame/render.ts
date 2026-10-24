@@ -14,7 +14,7 @@ import { withAlpha } from '../render/palettes';
 import { drawGlobe } from '../render/globe';
 import { drawText, drawTextFit, getTextScale, measureText, wrapText } from '../render/vectorFont';
 import { MG } from './config';
-import { arrayOn, displayTier, pulseKillsNeeded, swarmCountRange, laserArmed, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
+import { arrayOn, displayTier, pulseKillsNeeded, swarmCountRange, laserArmed, laserDamage, laserRange, laserStage, launcherAngleAt, moonActive, moonAlive, moonPosition, seekerHitsNeeded, seekerMax, spectrumStage, streamDamage, strengthLevel, swarmKillsNeeded, swarmMax, turretHitsNeeded, turretPosition, type MinigameState, type SentryKind } from './sim';
 
 export interface RenderOpts {
   debug: boolean;
@@ -29,7 +29,7 @@ export interface RenderOpts {
   /** SUPER DEMO running: its speed, and seconds to the next demo game after a game over (else null). */
   demo?: { speed: number; restartIn: number | null } | null;
   /** Difficulty and start level chosen on the ready panel. */
-  options?: { difficulty: string; startLevel: number };
+  options?: { difficulty: string; startLevel: number; levelTurn?: boolean };
   /** Main OPTIONS > REDUCE MOTION: no screen shake. */
   reduceMotion?: boolean;
   /** The on-screen touch pad is shown (touchPad.ts): the top of its highest button, CSS px. The left column starts
@@ -44,9 +44,16 @@ const NEON = {
   bullet: ['#B6FFB6', '#00F0FF', '#FF2BD6'],
   core: '#FF3B3B',
   moon: '#7DF9FF',
-  turret: ['#CCFF00', '#00F0FF', '#FF2BD6'],
-  /** Drone tiers 0..3 (v3.4): lime, cyan, magenta, white-hot. */
-  drone: ['#CCFF00', '#00F0FF', '#FF2BD6', '#FFF6D5'],
+  // NOTE: owner 2026-10-24: "make seekers different colors than swarm, sentinels different color than asteroids". The
+  // rocks own green / amber / cyan / magenta / violet / warm white, so every friendly unit now sits on hues the rocks
+  // never use: sentries and drones on an azure / mint / yellow ladder (ice white for tier-3 drones), seekers coral.
+  /** Sentry tiers 0..2: azure, mint, yellow (SUPER cycles hue). */
+  turret: ['#4D8DFF', '#30FFB4', '#FFE34D'],
+  /** Drone tiers 0..3 (v3.4): azure, mint, yellow, ice white. */
+  drone: ['#7FB2FF', '#30FFB4', '#FFE34D', '#DDEEFF'],
+  /** Seeker bus, and its MIRV warheads lighter. */
+  seeker: '#FF7F50',
+  seekerHot: '#FFC8A0',
   /** The beam array (tier 5 beams). */
   array: '#FFF6D5',
   heat: '#FF6A00',
@@ -269,7 +276,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
 
   // Seekers: a small dart along the velocity with a short fading exhaust trail.
   for (const sk of st.seekers) {
-    const sc = stage >= 2 ? NEON.bullet[2] : p.hot;
+    const sc = stage >= 2 ? NEON.seeker : p.hot;
     if (sk.trail.length >= 4) {
       scratch.length = 0;
       for (let i = 0; i < sk.trail.length; i += 2) scratch.push(X(sk.trail[i] as number), Y(sk.trail[i + 1] as number));
@@ -286,7 +293,7 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     pt(dx, dy, -3 * z, -2 * z, facing);
     pt(dx, dy, -1.5 * z, 0, facing);
     pt(dx, dy, -3 * z, 2 * z, facing);
-    s.stroke(scratch, { closed: true, color: sk.warhead ? p.hot : sc, width: PX.sentryW, glow: 1.4 });
+    s.stroke(scratch, { closed: true, color: sk.warhead ? (stage >= 2 ? NEON.seekerHot : p.hot) : sc, width: PX.sentryW, glow: 1.4 });
     s.dot(dx - Math.cos(facing) * 4, dy - Math.sin(facing) * 4, 1, p.hot, 0.6 + 0.4 * Math.abs(Math.sin(st.t * 60)));
   }
 
@@ -323,7 +330,13 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
   }
 
   // Laser beams: a bright core line and a wider faint one, fading; a MESH pull leaves every fan on screen at once.
-  // Colour by source (v3.4): the player's beam, a sentry's tier colour (SUPER cycles), white-hot for the beam array.
+  // Colour by source (v3.4): a sentry's tier colour (SUPER cycles), white-hot for the beam array. The player's beam
+  // (owner 2026-10-24: "more distraction and cycling colors") runs round the hue wheel at LASER_HUE_RATE_0 +
+  // LASER_HUE_RATE_PER_LEVEL x level degrees per second, each beam offset by its angle so a fan is a rainbow, a spray
+  // off a sentry half a turn away; its halo widens with the beam's power and LASER_SPARKS sparks run along it as it fades.
+  const hueRate = MG.LASER_HUE_RATE_0 + MG.LASER_HUE_RATE_PER_LEVEL * st.level;
+  const beamHue = (offset: number): string => `hsl(${Math.floor((((st.t * hueRate + offset) % 360) + 360) % 360)}, 100%, 65%)`;
+  const power = laserDamage(st.streamCount, st.level);
   for (const b of st.beams) {
     const a = b.t / MG.BEAM_FADE;
     const x0 = X(b.x);
@@ -331,9 +344,19 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     const x1 = X(b.x + b.len * Math.cos(b.angle));
     const y1 = Y(b.y + b.len * Math.sin(b.angle));
     const array = b.tier === 5;
-    const lc = stage < 2 ? p.hot : array ? NEON.array : b.tier >= 0 ? (NEON.turret[b.tier] ?? p.hot) : NEON.bullet[2];
-    s.stroke([x0, y0, x1, y1], { color: lc, width: array ? 9 : 6, alpha: a * 0.25, glow: 0 });
-    s.stroke([x0, y0, x1, y1], { color: array ? NEON.array : b.tier >= 0 && stage >= 2 ? lc : p.hot, width: array ? 2.2 : 1.5, alpha: a, glow: array ? 3 : 2 });
+    const mine = b.tier < 0;
+    const spray = b.tier === -2;
+    const hueOff = (b.angle * 180) / Math.PI / 3 + (spray ? 180 : 0);
+    const lc = stage < 2 ? p.hot : array ? NEON.array : b.tier >= 0 ? (NEON.turret[b.tier] ?? p.hot) : beamHue(hueOff);
+    const halo = array ? 9 : mine ? 6 + Math.min(8, power) * 0.5 : 6;
+    s.stroke([x0, y0, x1, y1], { color: lc, width: halo, alpha: a * 0.25, glow: 0 });
+    s.stroke([x0, y0, x1, y1], { color: array ? NEON.array : stage >= 2 ? lc : p.hot, width: array ? 2.2 : spray ? 1.2 : 1.5, alpha: a, glow: array ? 3 : 2 });
+    if (mine && stage >= 2) {
+      for (let q = 0; q < MG.LASER_SPARKS; q++) {
+        const f = (((q + 0.5) / MG.LASER_SPARKS + (1 - a) * 0.6) % 1 + 1) % 1;
+        s.dot(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, 1.4, beamHue(hueOff + 90 + q * 40), a);
+      }
+    }
   }
 
   // Shockwave.
@@ -428,17 +451,21 @@ function drawHud(s: Surface, st: MinigameState, opts: RenderOpts, stage: number)
   if (lstage > 0) {
     const armed = laserArmed(st);
     const name = lstage >= 3 ? 'MESH' : 'LASER';
-    // Fitted to the room right of the HEAT label: the narrow sideways column put MESH READY over it.
-    drawTextFit(s, armed ? `${name} READY` : name, bx + bw, by - fs - 6, 11, bw - measureText(st.overheated ? 'HEAT  OVERHEAT' : 'HEAT', fs) * getTextScale() - 8, { align: 'right', color: armed ? (stage >= 2 ? NEON.bullet[2] : p.hot) : p.dim, glow: armed ? 1.5 : 0 });
+    // LEVEL TURN shows its phase here; otherwise the arming state. Fitted to the room right of the HEAT label: the
+    // narrow sideways column put MESH READY over it.
+    const label = st.autoLaserT > 0 ? `AUTO LASER ${st.autoLaserT.toFixed(1)}` : st.turnT > 0 ? 'LEVEL TURN' : armed ? `${name} READY` : name;
+    const lit = armed || st.autoLaserT > 0 || st.turnT > 0;
+    const hue = `hsl(${Math.floor((st.t * (MG.LASER_HUE_RATE_0 + MG.LASER_HUE_RATE_PER_LEVEL * st.level)) % 360)}, 100%, 65%)`;
+    drawTextFit(s, label, bx + bw, by - fs - 6, 11, bw - measureText(st.overheated ? 'HEAT  OVERHEAT' : 'HEAT', fs) * getTextScale() - 8, { align: 'right', color: lit ? (stage >= 2 ? hue : p.hot) : p.dim, glow: lit ? 1.5 : 0 });
   }
 
   // Earned weapons: stock diamonds plus a charge bar, one row each.
   by += bh + rowGap;
   stockRow(s, bx, by, bw, bh, fs, 'PULSE', st.pulses, MG.PULSE_MAX, st.pulseCharge, p.hot);
   by += bh + rowGap;
-  stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, seekerMax(st.level), st.seekerProgress / seekerHitsNeeded(st.level), stage >= 2 ? NEON.bullet[2] : p.hot);
+  stockRow(s, bx, by, bw, bh, fs, 'SEEKER  <', st.seekerStock, seekerMax(st.level), st.seekerProgress / seekerHitsNeeded(st.level), stage >= 2 ? NEON.seeker : p.hot);
   by += bh + rowGap;
-  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, swarmMax(st.level), st.swarmProgress / swarmKillsNeeded(st.level), stage >= 3 ? NEON.turret[0] : p.hot);
+  stockRow(s, bx, by, bw, bh, fs, 'SWARM  >', st.swarmStock, swarmMax(st.level), st.swarmProgress / swarmKillsNeeded(st.level), stage >= 3 ? NEON.drone[0] : p.hot);
 
   // Turret progress (only once turrets can be earned).
   if (st.level >= MG.TURRET_LEVEL) {
@@ -525,9 +552,9 @@ export const PANEL_HITS: { x: number; y: number; w: number; h: number; code: str
 function optionButtons(s: Surface, x: number, y: number, w: number, o: NonNullable<RenderOpts['options']>): void {
   const p = s.palette;
   const gap = 8;
-  const bw = (w - 2 * gap) / 3;
+  const bw = (w - 3 * gap) / 4;
   const bh = 34;
-  const items: [string, string][] = [[`${o.difficulty.toUpperCase()}`, 'Digit9'], [`START ${o.startLevel}`, 'Digit0'], ['SOUND LAB', 'KeyL']];
+  const items: [string, string][] = [[`${o.difficulty.toUpperCase()}`, 'Digit9'], [`START ${o.startLevel}`, 'Digit0'], [`TURN ${o.levelTurn === false ? 'OFF' : 'AUTO'}`, 'Minus'], ['SOUND LAB', 'KeyL']];
   items.forEach(([label, code], i) => {
     const bx = x + i * (bw + gap);
     s.stroke([bx, y, bx + bw, y, bx + bw, y + bh, bx, y + bh], { closed: true, color: p.dim, glow: 0.2, alpha: 0.9 });
@@ -569,7 +596,7 @@ function drawReadyTouch(s: Surface, opts: RenderOpts): void {
   if (o) {
     // Owner 2026-10-21 (IDEAS 39): the options as buttons, not a note pointing at OPTIONS.
     ly += short ? 4 : 8;
-    drawTextFit(s, `DIFFICULTY   START LEVEL${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, x + 16, ly, ks * 0.8, inner, { color: p.dim, glow: 0 });
+    drawTextFit(s, `DIFFICULTY   START LEVEL${o.startLevel > 1 ? ' (NOT RANKED)' : ''}   LEVEL TURN`, x + 16, ly, ks * 0.8, inner, { color: p.dim, glow: 0 });
     // NOTE: below the label's drawn height (it grows with OPTIONS > TEXT SIZE), not a fixed 12 px.
     optionButtons(s, x + 16, ly + Math.max(12, ks * 0.8 * getTextScale() + 5), inner, o);
     ly += short ? 54 : 62;
@@ -601,7 +628,8 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const notes = [
     'LEVELS RAISE STREAMS, LAUNCHERS AND ROCK HARDNESS. HARDER ROCKS CHANGE COLOUR AS THEY WEAKEN. SHOTS NUDGE ROCKS.',
     `A MOON ARRIVES AT LEVEL ${MG.MOON_LEVEL}. SENTRIES ARE EARNED FROM LEVEL ${MG.TURRET_LEVEL} AND FIRE LASERS FROM LEVEL ${MG.SENTRY_LASER_LEVEL}; FROM LEVEL ${MG.SENTRY_ARRAY_LEVEL} THREE OR MORE FIRE A BEAM ARRAY.`,
-    `FROM 3 STREAMS THE FIRST SHOT AFTER A BREAK IS A LASER PULSE; FROM LEVEL ${MG.LASER_MESH_LEVEL} IT FANS INTO A MESH.`,
+    `FROM 3 STREAMS THE FIRST SHOT AFTER A BREAK IS A LASER PULSE; FROM LEVEL ${MG.LASER_MESH_LEVEL} IT FANS INTO A MESH. THE BEAM GAINS POWER WITH LEVEL, AND ONE THAT CROSSES A SENTRY SPRAYS ${MG.LASER_SPLIT_N} BEAMS ON FROM IT.`,
+    `LEVEL TURN (KEY -): FROM LEVEL ${MG.LASER_AUTO_LEVEL} EVERY LEVEL-UP FIRES ${MG.LASER_AUTO_S} S OF AUTOMATIC LASER PULSES, THEN ONE FULL TURN AT DOUBLE RATE, WITHOUT HEAT.`,
   ];
   const ks = 12;
   const keyW = Math.max(...rows.map(([k]) => measureText(k, ks))) * getTextScale() + 24;
@@ -613,7 +641,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
   const o = opts.options;
   // GAME SETUP box (owner 2026-10-18: the skip-to-level menu was hard to find): three framed rows, keys in the left
   // column, every choice spelled out with the current one in brackets.
-  const setupH = o ? 3 * lh(12) + 50 : 0;
+  const setupH = o ? 4 * lh(12) + 50 : 0;
   const h = 128 + rowsH + 8 + noteLines.length * lh(11) + 110 + setupH;
   const { x, y } = drawPanel(s, pw, h);
   const cx = s.width / 2;
@@ -645,6 +673,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     const setup: [string, string, string][] = [
       ['9', 'DIFFICULTY', pick(MG.DIFFICULTY_ORDER, o.difficulty)],
       ['0', 'START LEVEL', `${pick(MG.START_LEVELS, o.startLevel)}${o.startLevel > 1 ? '   NOT RANKED' : ''}`],
+      ['-', 'LEVEL TURN', pick(['auto', 'off'], o.levelTurn === false ? 'off' : 'auto')],
       ['8', 'SUPER DEMO', 'WATCH IT PLAY ITSELF'],
     ];
     let sy = bt + 8 + lh(12) + 4;

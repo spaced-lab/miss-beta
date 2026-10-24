@@ -27,7 +27,7 @@ import type { Input as Keys } from '../ui/input';
 import { botInput } from './bot';
 import { MINIGAME_CHEATS } from './cheats';
 import { MG, type Difficulty } from './config';
-import { isRanked, newGame, nextDifficulty, nextStartLevel, type MinigameSettings } from './modes';
+import { isRanked, levelTurnOf, newGame, nextDifficulty, nextStartLevel, type MinigameSettings } from './modes';
 import { loadMinigameSettings, saveMinigameSettings } from './prefs';
 import { renderMinigame } from './render';
 import { drawPad, padHeld, padLayout, type PadId } from './touchPad';
@@ -241,6 +241,8 @@ export class MinigameScreen implements Screen {
   private applyOptions(next: MinigameSettings): void {
     this.settings = next;
     saveMinigameSettings(next);
+    // The LEVEL TURN switch applies to the running game too (the others set up the next one).
+    if (!this.player) this.st.levelTurn = levelTurnOf(next);
     if (this.st.status === 'ready' && !this.demo && !this.player) {
       this.best = loadNumber(bestKey(next.difficulty), 0);
       this.st = createState(this.st.seed, this.st.collision, next.difficulty);
@@ -268,6 +270,7 @@ export class MinigameScreen implements Screen {
     items.push({ label: `NEW GAME: LEVEL ${o.startLevel} ${o.difficulty.toUpperCase()}`, code: '', hot: !this.saved, act: () => this.resetGame() });
     items.push({ label: `START LEVEL: ${o.startLevel}${o.startLevel > 1 ? ' (NOT RANKED)' : ''}`, code: '', stay: true, act: () => this.applyOptions({ ...o, startLevel: nextStartLevel(o.startLevel) }) });
     items.push({ label: `DIFFICULTY: ${o.difficulty.toUpperCase()}`, code: '', stay: true, act: () => this.applyOptions({ ...o, difficulty: nextDifficulty(o.difficulty) }) });
+    items.push({ label: `LEVEL TURN: ${levelTurnOf(o) ? 'AUTO' : 'OFF'}`, code: '', stay: true, act: () => this.applyOptions({ ...o, levelTurn: !levelTurnOf(o) }) });
     const noSensor = this.tilt.state === 'none';
     items.push({
       label: noSensor ? 'TILT STEER: NO SENSOR' : `TILT STEER: ${this.tiltPrefs.on ? 'ON' : 'OFF'}`,
@@ -380,7 +383,7 @@ export class MinigameScreen implements Screen {
       k.clearTyped();
       return;
     }
-    if ((st.status === 'ready' || (st.status === 'over' && !this.player)) && k.anyPressed('Digit9', 'Digit0')) {
+    if ((st.status === 'ready' || (st.status === 'over' && !this.player)) && k.anyPressed('Digit9', 'Digit0', 'Minus')) {
       // NOTE: options apply to the next new game; a saved game keeps the options it was started with. On the
       // game-over panel they set up the retry (owner 2026-10-18: the level skip was hard to find).
       // The game-over panel keeps comparing the finished game with its own difficulty's best (applyOptions redoes
@@ -388,6 +391,7 @@ export class MinigameScreen implements Screen {
       let next = this.settings;
       if (k.pressed('Digit9')) next = { ...next, difficulty: nextDifficulty(next.difficulty) };
       if (k.pressed('Digit0')) next = { ...next, startLevel: nextStartLevel(next.startLevel) };
+      if (k.pressed('Minus')) next = { ...next, levelTurn: !levelTurnOf(next) };
       this.applyOptions(next);
       return;
     }
@@ -395,7 +399,7 @@ export class MinigameScreen implements Screen {
       // WATCH BEST: the saved best game, fed back step by step from its seed.
       const r = loadJson(REPLAY_KEY, isSavedReplay, null);
       if (r) {
-        this.st = createState(r.seed, r.collision, r.difficulty ?? 'normal');
+        this.st = createState(r.seed, r.collision, r.difficulty ?? 'normal', r.levelTurn ?? true);
         start(this.st);
         this.player = new Player(r.rle);
         this.rec = null;
@@ -529,7 +533,7 @@ export class MinigameScreen implements Screen {
 
     if (st.status === 'over' && this.rec && isRanked(st)) {
       const prev = loadJson(REPLAY_KEY, isSavedReplay, null);
-      if (!prev || st.score > prev.score) saveJson(REPLAY_KEY, { seed: st.seed, collision: st.collision, score: st.score, rle: this.rec.rle, difficulty: st.difficulty } satisfies SavedReplay);
+      if (!prev || st.score > prev.score) saveJson(REPLAY_KEY, { seed: st.seed, collision: st.collision, score: st.score, rle: this.rec.rle, difficulty: st.difficulty, levelTurn: st.levelTurn } satisfies SavedReplay);
       this.rec = null;
     }
     if (st.status === 'over' && !this.player && isRanked(st) && st.score > this.best) {

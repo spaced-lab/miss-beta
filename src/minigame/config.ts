@@ -44,8 +44,12 @@ export const MG = {
   // 2026-10-23: back to 0.30 as the counterweight to the bigger MIRV (SEEKER_MIRV_*): the bot's curve then matched the
   // 2026-10-21 table again. 2026-10-24 (owner: "a little easier, in between the last adjustment and this latest one...
   // if someone wants harder they can go up a level"): 0.28 (level 30: x3.8; bot NORMAL from level 1 637-733 s, L38-44); the speed
-  // slope and spawn floor stay eased.
-  HP_MULT_PER_LEVEL: 0.28,
+  // slope and spawn floor stay eased. 2026-10-24 (later, the laser pass: power by level, the sentinel split, LEVEL TURN;
+  // owner: "this should make game easier so adjust slightly"): 0.30 again. Bot NORMAL from level 1, 900 s cap, seeds
+  // 1..4: old lasers at 0.28 637-733 s; new lasers at 0.28 577-900+ s (seed 4 alive at the cap, level 53), at 0.30
+  // 456-850 s (median 722, every seed dies), at 0.32 605-849 s (median 675). 0.30 keeps the median a touch longer than
+  // before and no seed immortal; the probe is chaotic per seed, so this is the smallest step that closes the cap.
+  HP_MULT_PER_LEVEL: 0.30,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -227,6 +231,39 @@ export const MG = {
   LASER_MESH2_LEVEL: 20,
   LASER_FAN_SPREAD: 0.32,
   BEAM_FADE: 0.18,
+  /** Laser power (owner 2026-10-24: "give lasers more power as levels go up ... a definite advantage"): the player's
+   *  beam does strengthLevel + LASER_DAMAGE_BONUS + one per LASER_POWER_LEVELS levels past LASER_POWER_FROM_LEVEL,
+   *  the growth capped at LASER_POWER_CAP (sim.laserDamage: 4 at level 8, 5 at 12, 6 at 16, 8 at 24, 12 from level 40).
+   *  Only the pause-then-fire beam gets this; sentry beams keep their own ladder. */
+  LASER_POWER_FROM_LEVEL: 8,
+  LASER_POWER_LEVELS: 4,
+  LASER_POWER_CAP: 8,
+  /** Sentinel split (same note: "if laser hits a sentinel it splits the beam to spray from that point on and hit more
+   *  targets"): a player's beam that passes within LASER_SPLIT_HIT_R radii of a sentry stops at the sentry and
+   *  LASER_SPLIT_N beams spray on from it, fanned over LASER_SPLIT_FAN rad, each LASER_SPLIT_RANGE radii long at
+   *  LASER_SPLIT_DAMAGE_MULT x the beam's damage. One split per beam: a spray does not split again. A sentry is drawn
+   *  7-9 px, about 0.12 radii, so the hit radius is generous on purpose: aiming through a sentry is the skill. */
+  LASER_SPLIT_HIT_R: 0.22,
+  LASER_SPLIT_N: 5,
+  LASER_SPLIT_FAN: 1.3,
+  LASER_SPLIT_RANGE: 4.2,
+  LASER_SPLIT_DAMAGE_MULT: 1,
+  /** Beam colour cycling (render only): the player's beam hue turns LASER_HUE_RATE_0 + LASER_HUE_RATE_PER_LEVEL x level
+   *  degrees per second; a spray sits half a turn away on the wheel. Sparks along the beam: LASER_SPARKS per beam. */
+  LASER_HUE_RATE_0: 90,
+  LASER_HUE_RATE_PER_LEVEL: 6,
+  LASER_SPARKS: 6,
+  /** LEVEL TURN (owner 2026-10-24: "auto laser pulse that lasts for 5 seconds starting at level 25 and each level
+   *  higher ... once 5 seconds are up ... rapid 360 spin in 1 second of normal shots but double speed ... no heat ...
+   *  a switch on the settings panel"): from LASER_AUTO_LEVEL every level-up starts LASER_AUTO_S seconds of automatic
+   *  laser pulses, one per laser break (LASER_BREAK_2 from stage 2, LASER_BREAK_1 before: the pulse rate is whatever
+   *  the level's minimum pause is), heat-free and independent of the trigger, then LASER_TURN_S seconds in which the
+   *  launchers make one full turn firing normal shots at LASER_TURN_RATE_MULT x the rate, also heat-free (the trigger
+   *  is ignored for that second). The switch is MinigameSettings.levelTurn (gear menu, OPTIONS, key - on the panel). */
+  LASER_AUTO_LEVEL: 25,
+  LASER_AUTO_S: 5,
+  LASER_TURN_S: 1,
+  LASER_TURN_RATE_MULT: 2,
 
   /** Pulses: a shockwave that clears the field. Earned every PULSE_KILLS kills, stock capped. The kills needed grow
    *  PULSE_KILLS_PER_LEVEL per level past PULSE_KILLS_FROM_LEVEL (sim.pulseKillsNeeded): kill rates climb with the

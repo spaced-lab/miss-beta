@@ -230,10 +230,18 @@ of sentinels. Levels raise streams, launchers and rock hardness; the moon arrive
 earned from level 6. Keys 1 to 5: debug, glow, collision, sound, sound kit. Cheat codes are listed in
 `src/minigame/cheats.ts`; they flag the run ASSISTED.
 
+**Lasers.** From 3 streams, pause for a moment and the next shot is a beam (from level 12 a mesh of beams). The beam
+gains one point of damage every 4 levels from level 8, and a beam that crosses one of your sentries stops there and
+sprays five beams on from it, so aiming through a sentry hits more. Your beams cycle through the spectrum; the
+sentries, drones and seekers wear colours the rocks never do (azure, mint, yellow; seekers coral). **LEVEL TURN**
+(from level 25, every level-up): 5 seconds of automatic laser pulses at the level's minimum pause, then one full turn
+of the launchers in a second firing at double rate, none of it heating. Key `-` on the start or game-over panel, the
+gear menu or OPTIONS > PERIMETER switches it AUTO / OFF.
+
 **GAME SETUP** (the box on the start panel): `9` steps the difficulty EASY / NORMAL / HARD (each keeps its own best
 score), `0` skips ahead to start level 1, 10, 20, 30 or 40 with the kit a run usually has by then (a later start is
-not ranked), `8` starts the SUPER DEMO. The same `9` and `0` work on the game-over panel and set up the retry; the
-main OPTIONS screen has both settings under PERIMETER.
+not ranked), `-` switches LEVEL TURN, `8` starts the SUPER DEMO. The same `9`, `0` and `-` work on the game-over
+panel and set up the retry; the main OPTIONS screen has all three settings under PERIMETER.
 
 **SOUND LAB** (`L` on the ready or game-over panel): every sound in the game has three or four synthesized
 voices plus OFF, and you choose by ear. Up/Down picks a row (shot, hit, breakup, hull impact, laser, mesh,

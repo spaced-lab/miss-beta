@@ -691,6 +691,18 @@ export class SfxPlayer {
           for (let i = 0; i < Math.min(6, e.beams); i++) this.synth.softPulse(41 + i * 7, 0.45, 0.12, 0.03, i * 0.035);
           this.synth.rumble(40, 0.5, 0.3, 80);
           break;
+        case 'split':
+          // A beam sprayed off a sentry: a quick low fan of soft pulses, one per spray beam, rate-limited like a tick.
+          if (now - this.lastTick > 0.05) {
+            this.lastTick = now;
+            for (let i = 0; i < Math.min(5, e.beams); i++) this.synth.softPulse(55 + i * 9, 0.18, 0.08, 0.02, i * 0.02);
+          }
+          break;
+        case 'levelturn':
+          // LEVEL TURN: the pulses open on a low rising sweep; the turn itself is a short rumble.
+          if (e.phase === 'auto') this.synth.sweep({ wave: 'sawtooth', freq: 40, freqEnd: 95, cutoff: 500, cutoffEnd: 900, q: 4, dur: 0.9, gain: 0.22 });
+          else this.synth.rumble(44, 0.8, 0.35, 85);
+          break;
       }
     }
   }
