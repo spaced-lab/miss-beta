@@ -2,6 +2,16 @@
 
 All notable changes. Format: date, milestone tag when one applies, one line per feature.
 
+### 2026-10-23: PERIMETER seekers split and divide (MIRV), balance re-measured
+
+- Owner: "make the seekers split and divide into multiple warheads, more as the game progresses". The MIRV split
+  (built 2026-10-21, hard to see) now happens 2.4 from the rock instead of 1.3, warheads grow one per 5 levels from 3
+  to 9 (`SEEKER_MIRV_LEVELS` 10 -> 5, `SEEKER_MIRV_CAP` 6 -> 9, the fan capped at `SEEKER_MIRV_FAN_MAX` 2.2 rad), and
+  from level 16 each warhead divides again into 2-4 smaller, faster sub-warheads (`SEEKER_MIRV_STAGE2_*`, drawn at
+  0.42 scale, quiet). Counterweight from the probes (docs/MINIGAME_BACKLOG.md): sub-warheads burst for 1 in 0.35 and
+  `HP_MULT_PER_LEVEL` goes back to 0.30, which puts the bot's NORMAL curve back on the 2026-10-21 table. The ready
+  panel's help line names the division; saves carry the stage.
+
 ### 2026-10-23: TILT STEER round 1 (PERIMETER motion controls)
 
 - Motion controls are now tuned in rounds the owner tests on a real phone, logged in `docs/TILT_EXPERIMENTS.md`

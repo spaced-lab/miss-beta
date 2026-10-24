@@ -97,6 +97,11 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 - 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
   higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24 (round 1 the same day: `TILT_RANGES_DEG` [12, 18, 24, 36]
   with `TILT_RANGE_DEFAULT` 2 replace `TILT_FULL_DEG`); `ui/actionBar.ts` MIN_W 58 -> 64.
+- 2026-10-23 (MIRV, owner: seekers "split and divide ... more as the game progresses"): `SEEKER_MIRV_R` 1.3 -> 2.4,
+  `SEEKER_MIRV_LEVELS` 10 -> 5, `SEEKER_MIRV_CAP` 6 -> 9, new `SEEKER_MIRV_FAN_MAX` 2.2, new `SEEKER_MIRV_STAGE2_*`
+  (LEVEL 16, N 2, LEVELS 12, CAP 4, R 1.0, SEARCH 1.6, FAN 0.6, SPEED_X 1.15, LIFE 0.9, DAMAGE 1, BLAST_R 0.35);
+  `HP_MULT_PER_LEVEL` 0.26 -> 0.30 as the measured counterweight (bot NORMAL from level 1: 464-624 s against the
+  2026-10-21 table's 480-584 s; without it 599-900+ s with one seed never dying).
 
 ## Decisions
 
@@ -331,6 +336,11 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
   re-planning against fragment bodies (Tab in the planner) after the breakup. Autonomy (M6) will automate the sweep.
 
 ## Resume here (for a fresh session after a context clear)
+
+**STATE 2026-10-23 (MIRV):** owner asked for seekers that "split and divide ... more as the game progresses" (the word MIRV had been lost
+from earlier briefs). `SEEKER_MIRV_R` 1.3 -> 2.4, `SEEKER_MIRV_LEVELS` 10 -> 5, `SEEKER_MIRV_CAP` 6 -> 9, new `SEEKER_MIRV_FAN_MAX` 2.2 and
+the second stage `SEEKER_MIRV_STAGE2_*` (level 16, 2-4 sub-warheads, 1 damage in 0.35, x1.15 speed, 0.9 s); `HP_MULT_PER_LEVEL`
+0.26 -> 0.30 as the counterweight (table in docs/MINIGAME_BACKLOG.md). Owner playtests both; "slightly easier" is the standing taste.
 
 **STATE 2026-10-23 (tilt rounds):** motion controls are tuned in rounds the owner tests on a phone (`docs/TILT_EXPERIMENTS.md`,
 one commit per round, main pushed so Pages carries it). Round 1: analog turn in the sim (`Input.turn`), TILT RANGE

@@ -39,7 +39,9 @@ export const MG = {
   HP_MULT_FROM_LEVEL: 10,
   // NOTE: owner 2026-10-21 ("a little too difficult, ease up on that difficulty slope just a bit"): 0.3 -> 0.26
   // (level 30: x4 -> x3.6), with the late speed slope and the spawn floor below eased a notch; levels 1-9 untouched.
-  HP_MULT_PER_LEVEL: 0.26,
+  // 2026-10-23: back to 0.30 as the counterweight to the bigger MIRV (SEEKER_MIRV_*): the bot's curve then matches the
+  // 2026-10-21 table again; the speed slope and spawn floor stay eased.
+  HP_MULT_PER_LEVEL: 0.30,
   /** Features unlock at these levels. */
   PASSING_LEVEL: 2,
   MOON_LEVEL: 3,
@@ -259,22 +261,43 @@ export const MG = {
   SEEKER_BLAST_IMPULSE: 1.4,
   SEEKER_TRAIL: 6,
   /** MIRV (owner 2026-10-21: seekers "were originally intended to split when they get close into a MIRV and hit, but
-   *  never see that"): a seeker that closes within SEEKER_MIRV_R of its target's surface splits into
-   *  SEEKER_MIRV_N + one per SEEKER_MIRV_LEVELS levels (capped at SEEKER_MIRV_CAP) warheads fanned SEEKER_MIRV_FAN rad
-   *  apart: the first keeps the bus's target, the others take the nearest other rocks within SEEKER_MIRV_SEARCH of
-   *  it. Warheads fly SEEKER_MIRV_SPEED_X faster, turn SEEKER_MIRV_TURN_X sharper, live SEEKER_MIRV_LIFE s and
-   *  burst for SEEKER_MIRV_DAMAGE in SEEKER_MIRV_BLAST_R (the bus's own blast is 4 in 0.9). */
-  SEEKER_MIRV_R: 1.3,
+   *  never see that"; 2026-10-23: "split and divide into multiple warheads, more as the game progresses"): a seeker
+   *  that closes within SEEKER_MIRV_R of its target's surface splits into SEEKER_MIRV_N + one per SEEKER_MIRV_LEVELS
+   *  levels (capped at SEEKER_MIRV_CAP) warheads fanned SEEKER_MIRV_FAN rad apart (the whole fan no wider than
+   *  SEEKER_MIRV_FAN_MAX): the first keeps the bus's target, the others take the nearest other rocks within
+   *  SEEKER_MIRV_SEARCH of it. Warheads fly SEEKER_MIRV_SPEED_X faster, turn SEEKER_MIRV_TURN_X sharper, live
+   *  SEEKER_MIRV_LIFE s and burst for SEEKER_MIRV_DAMAGE in SEEKER_MIRV_BLAST_R (the bus's own blast is 4 in 0.9).
+   *  Second stage, from level SEEKER_MIRV_STAGE2_LEVEL: each warhead within SEEKER_MIRV_STAGE2_R of its target divides
+   *  again into SEEKER_MIRV_STAGE2_N (+1 per SEEKER_MIRV_STAGE2_LEVELS levels past that, cap SEEKER_MIRV_STAGE2_CAP)
+   *  sub-warheads, SEEKER_MIRV_STAGE2_SPEED_X faster again, that live SEEKER_MIRV_STAGE2_LIFE s and burst for
+   *  SEEKER_MIRV_STAGE2_DAMAGE in SEEKER_MIRV_STAGE2_BLAST_R. Warheads per seeker: 3 (L1) 4 (L5) 5 (L10) 6 (L15) ...
+   *  9 (L30+); sub-warheads per warhead: 2 (L16) 3 (L28) 4 (L40+). Balance 2026-10-23 (docs/MINIGAME_BACKLOG.md): with
+   *  sub-warheads at 2 damage from level 12 the bot from level 1 lived 599-900+ s (one seed never died); sub-warheads
+   *  at 1 damage in 0.35, the division from 16 and HP_MULT_PER_LEVEL back at 0.30 give 464-624 s, the curve of the
+   *  2026-10-21 table (480-584 s). Seeker price alone (SEEKER_HITS 50 or 60) did not bite: 367-842 s. */
+  SEEKER_MIRV_R: 2.4,
   SEEKER_MIRV_N: 3,
-  SEEKER_MIRV_LEVELS: 10,
-  SEEKER_MIRV_CAP: 6,
+  SEEKER_MIRV_LEVELS: 5,
+  SEEKER_MIRV_CAP: 9,
   SEEKER_MIRV_FAN: 0.55,
+  SEEKER_MIRV_FAN_MAX: 2.2,
   SEEKER_MIRV_SEARCH: 2.6,
   SEEKER_MIRV_SPEED_X: 1.3,
   SEEKER_MIRV_TURN_X: 2,
   SEEKER_MIRV_LIFE: 1.6,
   SEEKER_MIRV_DAMAGE: 3,
   SEEKER_MIRV_BLAST_R: 0.6,
+  SEEKER_MIRV_STAGE2_LEVEL: 16,
+  SEEKER_MIRV_STAGE2_N: 2,
+  SEEKER_MIRV_STAGE2_LEVELS: 12,
+  SEEKER_MIRV_STAGE2_CAP: 4,
+  SEEKER_MIRV_STAGE2_R: 1.0,
+  SEEKER_MIRV_STAGE2_SEARCH: 1.6,
+  SEEKER_MIRV_STAGE2_FAN: 0.6,
+  SEEKER_MIRV_STAGE2_SPEED_X: 1.15,
+  SEEKER_MIRV_STAGE2_LIFE: 0.9,
+  SEEKER_MIRV_STAGE2_DAMAGE: 1,
+  SEEKER_MIRV_STAGE2_BLAST_R: 0.35,
 
   /** Swarm of sentinels (`>`): earned every SWARM_KILLS kills, stock capped at SWARM_MAX. Releases
    *  SWARM_COUNT_MIN..MAX drones from the player's launcher fanned over SWARM_FAN rad; each hunts the nearest

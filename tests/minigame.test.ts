@@ -13,7 +13,9 @@ import type { Input as Keys } from '../src/ui/input';
 import {
   baseSpawnInterval, baseSpeed, createState, displayTier, launcherCount, levelAt, maxTier, moonPosition, NO_INPUT,
   chaosLevel, damageMax, densestSector, deployTurret, deserialize, hpMult, hullDamage, isSavedGame, laserArmed, laserBeamCount, laserFanOffsets, laserRange, laserStage, MAX_TIER, maxAsteroids, moonAlive, pressureMax, pulseKillsNeeded, rockMass, seekerHitsNeeded, seekerMax, seekerVolley, SENTRY_KINDS, serialize, snapshot, spawnBinary, spawnFloor, spectrumStage, speedCap, start, step, streamCount, streamDamage, strengthLevel, swarmCountRange, swarmKillsNeeded, swarmLife, swarmMax, toSaved, turretHitsNeeded, turretMax, turretPosition, turretTier, type Asteroid, type Input, type MinigameState,
+  mirvSubWarheads,
   mirvWarheads,
+  seekerSpeed,
 } from '../src/minigame/sim';
 import { Rng } from '../src/sim/rng';
 import { wrapAngle } from '../src/util/vec';
@@ -438,6 +440,41 @@ describe('seeker missiles', () => {
     expect(new Set(heads.map((k) => k.targetId))).toEqual(new Set([a.id, b.id, c.id]));
     for (let i = 0; i < 2 / MG.DT && st.seekers.length > 0; i++) step(st, NO_INPUT, MG.DT);
     for (const r of [a, b, c]) expect(r.hp).toBeLessThan(1e9);
+    // Below the second-stage level nothing divides twice.
+    expect(mirvSubWarheads(st.level)).toBe(0);
+    expect(mirvWarheads(1)).toBe(MG.SEEKER_MIRV_N);
+    expect(mirvWarheads(1000)).toBe(MG.SEEKER_MIRV_CAP);
+    expect(mirvWarheads(MG.SEEKER_MIRV_LEVELS)).toBe(MG.SEEKER_MIRV_N + 1);
+  });
+  it('from the second-stage level each warhead divides again near its target, into smaller, faster sub-warheads', () => {
+    const st = createState(106);
+    start(st);
+    st.level = MG.SEEKER_MIRV_STAGE2_LEVEL;
+    expect(mirvSubWarheads(st.level)).toBe(MG.SEEKER_MIRV_STAGE2_N);
+    expect(mirvSubWarheads(st.level + MG.SEEKER_MIRV_STAGE2_LEVELS)).toBe(MG.SEEKER_MIRV_STAGE2_N + 1);
+    expect(mirvSubWarheads(1000)).toBe(MG.SEEKER_MIRV_STAGE2_CAP);
+    lane(st);
+    const a = rock(st, 0, 4, 0, 0, 0.3, 0);
+    const b = rock(st, 1.2, 4.4, 0, 0, 0.3, 1);
+    for (const r of [a, b]) r.hp = r.maxHp = 1e9;
+    st.seekerStock = 1;
+    step(st, { ...NO_INPUT, seeker: true }, MG.DT);
+    let warheads = 0;
+    let subs = 0;
+    for (let i = 0; i < 3 / MG.DT && st.seekers.length > 0; i++) {
+      step(st, NO_INPUT, MG.DT);
+      warheads = Math.max(warheads, st.seekers.filter((k) => k.stage === 1).length);
+      subs = Math.max(subs, st.seekers.filter((k) => k.stage === 2).length);
+      for (const k of st.seekers) {
+        const v = Math.hypot(k.vx, k.vy);
+        if (k.stage === 2) expect(v).toBeCloseTo(seekerSpeed(2), 6);
+        else if (k.stage === 1) expect(v).toBeCloseTo(seekerSpeed(1), 6);
+      }
+    }
+    expect(warheads).toBe(mirvWarheads(st.level));
+    expect(subs).toBeGreaterThanOrEqual(mirvSubWarheads(st.level));
+    expect(seekerSpeed(2)).toBeGreaterThan(seekerSpeed(1));
+    for (const r of [a, b]) expect(r.hp).toBeLessThan(1e9);
   });
   it('fizzles at the end of its life when there is nothing to chase', () => {
     const st = createState(104);

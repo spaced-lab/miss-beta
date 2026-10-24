@@ -283,8 +283,8 @@ export function renderMinigame(s: Surface, st: MinigameState, opts: RenderOpts):
     const dx = X(sk.x);
     const dy = Y(sk.y);
     scratch.length = 0;
-    // A MIRV warhead is a smaller dart than the bus it split from, in the hot colour.
-    const z = sk.warhead ? 0.6 : 1;
+    // A MIRV warhead is a smaller dart than the bus it split from, in the hot colour; a sub-warhead smaller again.
+    const z = (sk.stage ?? (sk.warhead ? 1 : 0)) >= 2 ? 0.42 : sk.warhead ? 0.6 : 1;
     pt(dx, dy, 5 * z, 0, facing);
     pt(dx, dy, -3 * z, -2 * z, facing);
     pt(dx, dy, -1.5 * z, 0, facing);
@@ -598,7 +598,7 @@ function drawReady(s: Surface, st: MinigameState, opts: RenderOpts): void {
     ['<LEFT> <RIGHT>  OR  A / D', 'MOVE THE LAUNCHER'],
     ['<SPACE>', 'FIRE  (WATCH THE HEAT)'],
     ['<SHIFT>', `PULSE  (CLEARS THE FIELD, EARNED PER ${pulseKillsNeeded(1)} KILLS)`],
-    ['<  (COMMA)', `SEEKER MISSILE  (HOMES, SPLITS INTO A MIRV NEAR ITS TARGET, PER ${seekerHitsNeeded(1)} HITS; VOLLEYS FROM LEVEL ${MG.SEEKER_VOLLEY_LEVELS[0] ?? 10})`],
+    ['<  (COMMA)', `SEEKER MISSILE  (HOMES, SPLITS INTO A MIRV NEAR ITS TARGET, DIVIDES AGAIN FROM LEVEL ${MG.SEEKER_MIRV_STAGE2_LEVEL}, PER ${seekerHitsNeeded(1)} HITS; VOLLEYS FROM LEVEL ${MG.SEEKER_VOLLEY_LEVELS[0] ?? 10})`],
     ['>  (PERIOD)', `SWARM OF SENTINELS  (${sw.min}-${sw.max} DRONES, MORE EACH LEVEL, PER ${swarmKillsNeeded(1)} KILLS)`],
   ];
   const notes = [

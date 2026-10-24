@@ -31,6 +31,37 @@ hull damage (`MG.DIFFICULTY` in `src/minigame/config.ts`).
 NORMAL is today's balance and was not changed. EASY gives about 14 minutes from level 1. HARD dies roughly 20 %
 sooner from level 1, and much sooner from a skipped start.
 
+### After the MIRV rounds (2026-10-23): a seeker that divides, and the counterweight
+
+Owner: "make the seekers split and divide into multiple warheads, more as the game progresses ... we'll have to retest
+difficulty". The split moved out to 2.4 from the rock (it was 1.3, inside the blast and easy to miss), warheads grow
+one per 5 levels to 9, and from level `SEEKER_MIRV_STAGE2_LEVEL` each warhead divides again into 2-4 sub-warheads.
+First measurement (sub-warheads 2 damage from level 12, nothing else changed): NORMAL from level 1 ran 599-900+ s,
+L36-53, one seed never dying; the gate's own guard (seed 2 lost no hull in 600 s) failed. Variants probed (NORMAL,
+seeds 1..4): seeker price alone did not bite (`SEEKER_HITS` 50: 367-842 s; 60: 780-820 s, the bot just hoards); sub-warheads
+at 1 damage in 0.35 helped late (554-857 s); that plus `HP_MULT_PER_LEVEL` back at 0.30 gave 554-693 s with the division
+from 12 and 464-624 s with it from 16, which is the 2026-10-21 curve (480-584 s). Chosen: 1 damage, 0.35, level 16, 0.30.
+The full table with those knobs (seeds 1..4, 900 s cap; the 2026-10-21 table is above for the old values):
+
+| Start level | EASY | NORMAL | HARD |
+|---|---|---|---|
+| 1  | 816-900+ s, L49-53+ | 464-624 s, L28-37 | 344-460 s, L21-28 |
+| 5  | 729-900+ s, L47-57+ | 468-754 s, L32-49 | 228-386 s, L18-27 |
+| 10 | 558-819 s, L42-58   | 281-636 s, L26-47 | 130-333 s, L17-29 |
+| 15 | 596-734 s, L50-58   | 327-526 s, L34-45 | 116-166 s, L21-24 |
+| 20 | 431-695 s, L45-60   | 116-384 s, L26-42 | 56-128 s, L23-27  |
+| 25 | 403-498 s, L48-54   | 225-340 s, L38-44 | 31-138 s, L26-33  |
+| 30 | 331-492 s, L49-58   | 232-348 s, L43-50 | 39-111 s, L32-36  |
+| 40 | 251-333 s, L54-59   | 95-298 s, L45-57  | 55-128 s, L43-47  |
+| 50 | 145-227 s, L58-63   | 51-96 s, L52-55   | 16-108 s, L50-56  |
+| 60 | 17-35 s, L61-62     | 22-68 s, L61-64   | 7-25 s, L60-61    |
+
+Level-1 rows against the 2026-10-18 table: EASY 821-900+ -> 816-900+, NORMAL 480-584 -> 464-624, HARD 367-472 ->
+344-460. The late starts (50, 60) are short on every difficulty: a skip lands in a field whose rocks carry the level's
+hit points before the kit's seekers have been earned back, which is item 7 below, unchanged by this. Note for the next
+re-measure: three probes in parallel take about 38 minutes on this machine and overrun vitest's 900 s timeout (the
+tables are still written, the run just reports failed); run them one at a time or raise the timeout.
+
 ### After IDEAS 31 (2026-10-18): a skip is "the same game, later"
 
 How the measurement drove the fix, as a worked example. First the probe (`bench/mgProbe.ts`, `npm run probe --
