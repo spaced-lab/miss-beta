@@ -97,6 +97,8 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 - 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
   higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24 (round 1 the same day: `TILT_RANGES_DEG` [12, 18, 24, 36]
   with `TILT_RANGE_DEFAULT` 2 replace `TILT_FULL_DEG`); `ui/actionBar.ts` MIN_W 58 -> 64.
+- 2026-10-24 (PLAY IT OUT, second pass): `PLAY_OUT` BUILD_S 3 -> 4, FLIGHT_S 20 -> 26, LAUNCH_SCENE_S 1 -> 1.5, HIT_SCENE_S 2 -> 2.5,
+  COAST_S 20 -> 24, END_SCENE_S 3 -> 3.5, RESULT_HOLD_S 2 -> 2.5; new FINAL_S 5, FINAL_DAYS 30, BRIEF_S 4.5.
 - 2026-10-24 (launch redo): new `CINE_LAUNCH_CELL_MAX_PX` 2, `CINE_LAUNCH_DOLLY` 1.3, `CINE_VEHICLE_SCALE` 1.25, `CINE_PAD_SMOKE` 460.
 - 2026-10-24 (3-D scenes): new `CINE_SPRAY_MAX_PX` 2, `CINE_SPRAY` {IMPACT 420, BREAKUP 900, ABLATION 220}, `CINE_CHUNKS_MAX` 64,
   `CINE_HOT_EJECTA_FRAC` 0.35, `CINE_CAMERA_FIT` 0.42.
@@ -354,6 +356,10 @@ porkchop cell to plan that window (`rankCell`, `RankInput.pick`); the tech tree 
 round end to end in the harness (brief, planner, swarm commit, launch cinematic, close approach, debrief): all fine.
 Candidates for the next pass: a sort toggle (score / earliest / cheapest), the device pane on phones, a plan preview
 drawn on the map.
+
+**STATE 2026-10-24 (PLAY IT OUT, second pass):** longer schedule, brief holds (`BRIEF_S`), FINAL stage (`FINAL_S`,
+`FINAL_DAYS`); the owner said they will adjust the knobs after testing. Next on the graphics line: the map's threat
+and fragments as 3-D tumbling solids at close zoom.
 
 **STATE 2026-10-24 (launch redo):** `cinematics/vehicle.ts` (lathe launcher, boosters, fins, spent stages), a dolly in
 `draw.ts`, vector pad in `launch.ts`, pixel cell capped. Graphics list from the owner done through the launch; keep

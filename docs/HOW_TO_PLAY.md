@@ -36,8 +36,9 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
    impacts land, the log at the bottom left prints what happened. Pause and press `P` again any time to add
    missions; budget keeps accruing on the clock.
 4. **Watch or resolve**: `F` (on the map or in the planner) plays the rest of the round out on a fixed schedule:
-   the build in 3 s, launch to the last hit in 20 s with a one-second launch scene and two-second hit scenes, then 20 s
-   to the close approach with the end scene slowed and a two-second hold on the result. Esc stops it. `R` jumps
+   the build in 4 s, launch to the last hit in 26 s with short launch and hit scenes, then 24 s to the close approach
+   whose last 30 days crawl over 5 s, the end scene, and a hold on the result. The clock waits on each event brief
+   so you can read it (Enter moves on). Esc stops it. `R` jumps
    to the close approach. A miss opens the debrief (score, research earned, a replay you can scrub with Left/Right). Space starts the next round, harder. A hit ends the run and records it on the leaderboard.
 
 ## Keys in a run
@@ -51,7 +52,7 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 | `E` | Order an evacuation (cost 2 budget) |
 | `Space`, `[`, `]` | Pause, warp down, warp up |
 | wheel, drag | Zoom and pan the map; past about 2.5x a planet grows into a globe (HOME with the real coastlines) |
-| `F` | Play it out: build, launch, hit and close approach in about 40 s, then the result |
+| `F` | Play it out: build, launch, hit, briefs and close approach in about a minute, then the result |
 | `R` | Resolve now |
 | `S`, `Z`, wheel, drag | Scale toggle, reset camera, zoom, pan |
 | `X` | Export SAVE.md |

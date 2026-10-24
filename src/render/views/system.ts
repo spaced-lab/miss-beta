@@ -171,8 +171,9 @@ export class SystemScreen implements Screen {
   private warpDown = new WarpDown();
   /** The close approach passed while its cinematic plays: finish the round when the scene ends. */
   private pendingFinish = false;
-  /** PLAY IT OUT (F, game/playOut.ts): the schedule, and the seconds left on the result hold (-1 until the end scene). */
-  private playOut: { plan: PlayOutPlan; hold: number } | null = null;
+  /** PLAY IT OUT (F, game/playOut.ts): the schedule, the seconds left on the result hold (-1 until the end scene), and
+   *  the seconds left holding the clock on an event brief so it can be read. */
+  private playOut: { plan: PlayOutPlan; hold: number; read: number } | null = null;
   private plannerWasOpen = false;
   /** GAME_PLAN 30 fiction props for this round: the detour sign's time and place, Planet X, one ticket per round. */
   private detourAt: { t: number; x: number; y: number } | null = null;
@@ -642,18 +643,21 @@ export class SystemScreen implements Screen {
     // for DEMO_VOICE_REPEAT_S instead of VOICE_REPEAT_S.
     if (line) this.sfx?.voice.say(line, false, undefined, this.auto?.demo ? KNOBS.DEMO_VOICE_REPEAT_S : undefined);
     const cas = passed.filter((e): e is Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }> => e.kind === 'CLOSE_APPROACH');
-    // PLAY IT OUT has no time to read: the play-by-play log still lists every event, the briefs wait for the debrief.
-    if (!this.playOut) {
-      for (const e of passed) {
-        if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
-        const n = eventNarrative(e, { threat: th, now: this.run.reveal ? undefined : this.world.t });
-        if (n) this.tele.push(n);
-      }
-      if (cas.length > 1) {
-        const n = cloudNarrative(cas, th);
-        if (n) this.tele.push(n);
+    // Under PLAY IT OUT the clock holds BRIEF_S on each brief so it can be read (owner 2026-10-24).
+    let briefs = 0;
+    for (const e of passed) {
+      if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
+      const n = eventNarrative(e, { threat: th, now: this.run.reveal ? undefined : this.world.t });
+      if (n) {
+        this.tele.push(n);
+        briefs++;
       }
     }
+    if (cas.length > 1) {
+      const n = cloudNarrative(cas, th);
+      if (n) this.tele.push(n);
+    }
+    if (this.playOut && briefs > 0) this.playOut.read = Math.max(this.playOut.read, KNOBS.PLAY_OUT.BRIEF_S);
     const ctx = this.cineContext(passed);
     if (ctx) this.cine.enqueue(passed, ctx);
     if (this.auto?.demo && this.cine.current?.kind === 'LAUNCH') this.cine.dropQueued('LAUNCH');
@@ -1092,7 +1096,7 @@ export class SystemScreen implements Screen {
     setWarp(this.world, 0);
     const K = KNOBS.PLAY_OUT;
     const plan = planPlayOut(this.world.t, this.missions, res.ca.tCa, res.events, K);
-    this.playOut = { plan, hold: -1 };
+    this.playOut = { plan, hold: -1, read: 0 };
     this.cine.quick = { LAUNCH: K.LAUNCH_SCENE_S, IMPACT: K.HIT_SCENE_S, NUKE: K.HIT_SCENE_S, PI: K.HIT_SCENE_S, PUSH: K.HIT_SCENE_S, FRAGMENTATION: K.HIT_SCENE_S, CLOSE_APPROACH: K.END_SCENE_S };
     this.tele.clear();
     this.note(`PLAYING IT OUT: ${Math.round(plan.totalRealS)} S TO THE CLOSE APPROACH.  ESC STOPS`, 4);
@@ -1115,6 +1119,8 @@ export class SystemScreen implements Screen {
       return;
     }
     const k = this.keys;
+    // The brief types itself in on this path too (the normal path's teletype update is below the play-out return).
+    if (this.tele.isOpen) this.tele.update(dtMs);
     if (po.hold >= 0) {
       po.hold -= dtMs / 1000;
       if (po.hold <= 0 || k.pressed('Space') || k.pressed('Enter')) this.finishRound();
@@ -1123,6 +1129,12 @@ export class SystemScreen implements Screen {
     if (k.pressed('Escape') || k.pressed('Space') || k.pressed('KeyF')) {
       this.stopPlayOut();
       return;
+    }
+    // A brief on screen: the clock waits while it types and for BRIEF_S after, so it can be read (Enter moves on).
+    if (po.read > 0 && this.tele.isOpen) {
+      if (this.tele.complete) po.read -= dtMs / 1000;
+      if (k.pressed('Enter')) po.read = 0;
+      if (po.read > 0) return;
     }
     const w = this.world;
     const rate = playOutRate(po.plan, w.t);
@@ -2023,6 +2035,7 @@ export class SystemScreen implements Screen {
     if (!po) return `WARP ${warpLabel(this.world)}`;
     const stage = playOutStage(po.plan, this.world.t);
     if (stage === 'RESULT') return 'PLAYING IT OUT  RESULT';
+    if (po.read > 0 && this.tele.isOpen) return `PLAYING IT OUT  ${stage}  READING`;
     const perDay = playOutRate(po.plan, this.world.t) / DAY;
     return `PLAYING IT OUT  ${stage}  ${perDay >= 100 ? (perDay / 365).toFixed(1) + ' Y/S' : perDay.toFixed(0) + ' D/S'}`;
   }
@@ -2048,6 +2061,14 @@ export class SystemScreen implements Screen {
       const cy = this.compact() ? s.height * 0.3 : s.height * 0.22;
       drawTextFit(s, text, s.width / 2, cy, Math.min(34, s.width / 18), s.width - 40, { align: 'center', color: col, glow: 2 });
       drawText(s, 'DEBRIEF IN A MOMENT  (SPACE NOW)', s.width / 2, cy + 44, 10, { align: 'center', color: ui.dim, glow: 0 });
+      return;
+    }
+    if (stage === 'FINAL' && w.threat) {
+      // The suspense stretch: the countdown in large type, pulsing, with what the brief predicts.
+      const pulse = 0.7 + 0.3 * Math.sin(performance.now() / 180);
+      const cy = this.compact() ? s.height * 0.3 : s.height * 0.22;
+      drawTextFit(s, `FINAL APPROACH  ${formatCountdown(w.threat.tImpact - w.t)}`, s.width / 2, cy, Math.min(26, s.width / 24), s.width - 40, { align: 'center', color: res.outcome === 'HIT' ? p.hot : (s.spectrum ? s.role('planet') : p.ink), glow: 1.2 * pulse, alpha: pulse });
+      drawText(s, res.outcome === 'HIT' ? 'PREDICTED IMPACT' : res.outcome === 'PARTIAL' ? 'PREDICTED PARTIAL' : `PREDICTED MISS  +${res.ca.marginRadii.toFixed(2)} R`, s.width / 2, cy + 36, 10, { align: 'center', color: ui.dim, glow: 0 });
       return;
     }
     if (stage !== 'BUILD') return;
@@ -2238,7 +2259,7 @@ export class SystemScreen implements Screen {
     if (this.phase === 'debrief') return [{ label: this.run.tutorial ? 'ROUND 1' : 'NEXT ROUND', code: 'Space', key: 'SPACE', hot: true }, { label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }, { label: 'PROGRAMS', code: 'KeyG', key: keyName('PROGRAMS') }, more];
     if (this.phase === 'over') return [{ label: 'NEW RUN', code: 'Space', key: 'SPACE', hot: true }, { label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }, { label: this.panelHidden ? 'SHOW PANEL' : 'HIDE PANEL', code: 'KeyH', key: 'H' }, { label: 'PLANET', code: 'KeyV', key: keyName('PLANET') }, { label: 'TITLE', code: 'Escape', key: 'ESC' }];
     const w = this.world;
-    if (this.playOut) return this.playOut.hold >= 0 ? [{ label: 'DEBRIEF', code: 'Space', key: 'SPACE', hot: true }] : [{ label: 'STOP', code: 'Escape', key: 'ESC', hot: true }];
+    if (this.playOut) return this.playOut.hold >= 0 ? [{ label: 'DEBRIEF', code: 'Space', key: 'SPACE', hot: true }] : [...(this.playOut.read > 0 && this.tele.isOpen ? [{ label: 'READ, GO ON', code: 'Enter', key: 'ENTER', hot: true }] : []), { label: 'STOP', code: 'Escape', key: 'ESC' }];
     const paused = w.warp === 0;
     const base: BarItem[] = [
       { label: paused ? 'RUN' : 'PAUSE', code: 'Space', key: 'SPACE', hot: paused },

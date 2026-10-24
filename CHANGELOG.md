@@ -35,6 +35,17 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: PLAY IT OUT, second pass: longer, briefs readable, a final-approach crawl
+
+- Owner: "make it a little longer and show event briefs long enough to read them, and make enough for some suspense
+  before the final scene but the point is not to have to manually speed it up ... something conservative and I can
+  adjust later". `PLAY_OUT` knobs: build 3 -> 4 s, flight 20 -> 26 s, launch scene 1 -> 1.5 s, hit scenes 2 -> 2.5 s,
+  coast 20 -> 24 s, end scene 3 -> 3.5 s, hold 2 -> 2.5 s. Event briefs now post during the play-out and the clock
+  holds `BRIEF_S` (4.5 s) on each once it has typed itself in (Enter moves on; the bar says READ, GO ON; the HUD reads
+  READING). A new FINAL stage: the last `FINAL_DAYS` (30) before the close approach crawl over `FINAL_S` (5 s) under
+  a pulsing FINAL APPROACH countdown with the prediction. A one-launch round runs about 70 s instead of 43; the
+  total the game quotes counts the brief holds.
+
 ### 2026-10-24: the launch scene redone: a 3-D vehicle, a dolly, vector pad, fine smoke, stages that tumble
 
 - Owner: "redo launch animations" in the same spirit (more 3-D, detail, no huge pixels). New `cinematics/vehicle.ts`:

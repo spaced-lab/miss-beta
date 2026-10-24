@@ -476,9 +476,13 @@ export const KNOBS = {
   MAP_GLOBE_MAX_PX: 80,
   /** PLAY IT OUT (F, game/playOut.ts; owner 2026-10-24): the rest of the round in fixed real seconds. BUILD_S from now
    *  to the first launch, FLIGHT_S from launch to the last arrival (the launch scene cut to LAUNCH_SCENE_S and each hit
-   *  scene to HIT_SCENE_S inside it), COAST_S to the close approach (the end scene at END_SCENE_S, then RESULT_HOLD_S
-   *  on the result before the debrief). No span's clock part goes under MIN_SPAN_S [knob]. */
-  PLAY_OUT: { BUILD_S: 3, FLIGHT_S: 20, LAUNCH_SCENE_S: 1, HIT_SCENE_S: 2, COAST_S: 20, END_SCENE_S: 3, RESULT_HOLD_S: 2, MIN_SPAN_S: 2 },
+   *  scene to HIT_SCENE_S inside it), COAST_S to the close approach, whose last FINAL_DAYS crawl over FINAL_S (the
+   *  suspense), then the end scene at END_SCENE_S and RESULT_HOLD_S on the result before the debrief. The clock holds
+   *  BRIEF_S on every event brief so it can be read. No span's clock part goes under MIN_SPAN_S [knob].
+   *  NOTE: owner 2026-10-24 (second pass): "make it a little longer and show event briefs long enough to read them,
+   *  and make enough for some suspense before the final scene ... something conservative and I can adjust later":
+   *  3 / 20 / 1 / 2 / 20 / 3 / 2 and no briefs -> these; a one-launch round runs about 70 s instead of 43. */
+  PLAY_OUT: { BUILD_S: 4, FLIGHT_S: 26, LAUNCH_SCENE_S: 1.5, HIT_SCENE_S: 2.5, COAST_S: 24, FINAL_S: 5, FINAL_DAYS: 30, END_SCENE_S: 3.5, RESULT_HOLD_S: 2.5, BRIEF_S: 4.5, MIN_SPAN_S: 2 },
   /** Impact, breakup and trail debris pixel size relative to the old chunky size (1 = old). */
   CINE_DEBRIS_PX_SCALE: 0.6,
   /** Spray is never a block (owner 2026-10-24): the largest debris pixel in an impact or breakup scene, px. */
