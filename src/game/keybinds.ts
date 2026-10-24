@@ -27,6 +27,7 @@ export const KEY_ACTIONS: readonly KeyAction[] = [
   { id: 'PAUSE', label: 'PAUSE', def: 'Space' },
   { id: 'WARP_UP', label: 'WARP FASTER', def: 'BracketRight' },
   { id: 'WARP_DOWN', label: 'WARP SLOWER', def: 'BracketLeft' },
+  { id: 'PLAY_OUT', label: 'PLAY IT OUT', def: 'KeyF' },
   { id: 'RESOLVE', label: 'RESOLVE NOW', def: 'KeyR' },
   { id: 'SCALE', label: 'SCALE', def: 'KeyS' },
   { id: 'TILT', label: 'TILT', def: 'KeyI' },

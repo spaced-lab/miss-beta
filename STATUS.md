@@ -97,6 +97,8 @@ IDEAS 27 (2026-10-18): new SCIFI_VISITOR_WARNING_MULT {HIVE_2: 1.5, HIVE_3: 2} o
 - 2026-10-23: PERIMETER `START_LEVELS` [1, 10, 20, 30, 40] -> [1, 5, 10, 15, 20, 25, 30, 40, 50, 60] (owner: start at a
   higher level); new `TILT_DEAD_DEG` 6 and `TILT_FULL_DEG` 24 (round 1 the same day: `TILT_RANGES_DEG` [12, 18, 24, 36]
   with `TILT_RANGE_DEFAULT` 2 replace `TILT_FULL_DEG`); `ui/actionBar.ts` MIN_W 58 -> 64.
+- 2026-10-24 (PLAY IT OUT): new `PLAY_OUT` {BUILD_S 3, FLIGHT_S 20, LAUNCH_SCENE_S 1, HIT_SCENE_S 2, COAST_S 20,
+  END_SCENE_S 3, RESULT_HOLD_S 2, MIN_SPAN_S 2}; key action PLAY_OUT (F).
 - 2026-10-24 (owner: NORMAL "a little easier, in between the last adjustment and this latest one"): `HP_MULT_PER_LEVEL`
   0.30 -> 0.28 (bot NORMAL from level 1: 637-733 s, L38-44; 0.30 gave 464-624 s).
 - 2026-10-23 (MIRV, owner: seekers "split and divide ... more as the game progresses"): `SEEKER_MIRV_R` 1.3 -> 2.4,
@@ -348,6 +350,13 @@ porkchop cell to plan that window (`rankCell`, `RankInput.pick`); the tech tree 
 round end to end in the harness (brief, planner, swarm commit, launch cinematic, close approach, debrief): all fine.
 Candidates for the next pass: a sort toggle (score / earliest / cheapest), the device pane on phones, a plan preview
 drawn on the map.
+
+**STATE 2026-10-24 (PLAY IT OUT):** F plays the round out on a fixed schedule (`game/playOut.ts`, knobs `PLAY_OUT`:
+build 3 s, flight 20 s with 1 s launch and 2 s hit scenes, coast 20 s with a 3 s end scene and a 2 s result hold).
+`SystemScreen.tick` is the one clock path (warp or schedule); `Cinematics.quick` speeds scenes to fit. Owner's next
+asks, in order, one commit each: Earth (and any planet seen close) with real continents (config/coastline.json is
+already in the repo), impact / breakup / close-approach scenes in 3-D with physical chunks, fine spray and false
+colour, then the launch scenes.
 
 **STATE 2026-10-24 (NORMAL eased):** owner: "a little easier, in between the last adjustment and this latest one... if
 someone wants harder they can go up a level... we are not computers". `HP_MULT_PER_LEVEL` 0.30 -> 0.28, nothing else;

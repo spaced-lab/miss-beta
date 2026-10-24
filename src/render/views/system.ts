@@ -7,7 +7,8 @@
 //       state), the threat follows its element segments, log lines appear as their time passes, and the
 //       close-approach time ends the round. Events that pass on the clock play a short cinematic (the
 //       clock waits) and a teletype brief (GAME_PLAN 29); when the last craft has arrived the warp drops
-//       to 1 DAY/S once. Keys: Space pause, [ ] warp, P planner (pauses), R resolve now, S scale, Z reset
+//       to 1 DAY/S once; F plays the round out on the PLAY IT OUT schedule (game/playOut.ts). Keys: Space pause,
+//       [ ] warp, P planner (pauses), F play it out, R resolve now, S scale, Z reset
 //       camera, any key skips a cinematic, Esc title.
 // LORE: G1 (how to play), G2 (screens and HUD), O12 (close approach), G5 (scoring)
 
@@ -38,7 +39,7 @@ import type { Mission } from '../../sim/mission';
 import { bodyAlive, elementsAt, resolveRound, type ResolveOpts, type RoundResult } from '../../sim/resolver';
 import { roundRng } from '../../sim/rng';
 import { generateThreat } from '../../sim/roundGen';
-import { advance, createWorld, planetById, planetState, setWarp, warpLabel, type World } from '../../sim/world';
+import { advanceBy, createWorld, planetById, planetState, setWarp, warpLabel, type World } from '../../sim/world';
 import { formatCountdown } from '../../ui/hud';
 import { barHeight, barHit, barLayout, drawBar, drawMenu, menuLayout, type BarBox, type BarItem } from '../../ui/actionBar';
 import { impactProbability, sigmaB, sigmaVWithArc } from '../../physics/uncertainty';
@@ -88,6 +89,10 @@ import type { CineContext } from '../cinematics/scene';
 import { ANOMALY_LINES, anomalyFor, operatorNote, type Anomaly } from '../../game/fiction';
 import { cloudNarrative, debriefNarrative, evacuateNarrative, eventNarrative, lessonFor, roundStartNarrative } from '../../game/narrative';
 import { craftRemaining, WarpDown } from '../../game/warpDown';
+import { planPlayOut, playOutRate, playOutStage, type PlayOutPlan } from '../../game/playOut';
+import { familyOf } from '../../planner/families';
+import { modelById } from '../../lore/models/catalog';
+import { drawModelWire } from '../../lore/models/viewer';
 import { pickTip } from '../../game/tips';
 import type { SimEventRecord } from '../../sim/eventLog';
 
@@ -165,6 +170,9 @@ export class SystemScreen implements Screen {
   private warpDown = new WarpDown();
   /** The close approach passed while its cinematic plays: finish the round when the scene ends. */
   private pendingFinish = false;
+  /** PLAY IT OUT (F, game/playOut.ts): the schedule, and the seconds left on the result hold (-1 until the end scene). */
+  private playOut: { plan: PlayOutPlan; hold: number } | null = null;
+  private plannerWasOpen = false;
   /** GAME_PLAN 30 fiction props for this round: the detour sign's time and place, Planet X, one ticket per round. */
   private detourAt: { t: number; x: number; y: number } | null = null;
   private nibiru = false;
@@ -230,6 +238,7 @@ export class SystemScreen implements Screen {
     this.programs.openLore = toCenter;
     this.planner.openLore = toCenter;
     this.planner.openTech = () => { setWarp(this.world, 0); this.tech.show(); };
+    this.planner.onPlayOut = () => this.startPlayOut();
     for (const o of [this.planner, this.programs, this.tech, this.sky]) o.still = () => this.settings.reduceMotion;
     this.cine = new Cinematics(s, () => this.settings.reduceMotion);
     this.demoCut = new DemoCutaways(sfx, () => this.settings.reduceMotion);
@@ -509,6 +518,8 @@ export class SystemScreen implements Screen {
     this.ghost = { x: hs.r.x, y: hs.r.y };
     this.warpDown = new WarpDown();
     this.cine.clear();
+    this.playOut = null;
+    this.cine.quick = null;
     this.tele.clear();
     this.pendingFinish = false;
     this.approachSounded = false;
@@ -585,7 +596,7 @@ export class SystemScreen implements Screen {
     }
     // Exhaust trails: a puff every 22 ms for the last 1.1 s of real time, placed where the craft was then.
     const w = this.world;
-    const rate = (KNOBS.WARP_LEVELS[w.warp] ?? 0) * (this.auto?.speed ?? 1);
+    const rate = this.clockRate();
     if (rate <= 0) return;
     const home = planetById(w, 'HOME');
     const t = now / 1000;
@@ -630,14 +641,17 @@ export class SystemScreen implements Screen {
     // for DEMO_VOICE_REPEAT_S instead of VOICE_REPEAT_S.
     if (line) this.sfx?.voice.say(line, false, undefined, this.auto?.demo ? KNOBS.DEMO_VOICE_REPEAT_S : undefined);
     const cas = passed.filter((e): e is Extract<SimEventRecord, { kind: 'CLOSE_APPROACH' }> => e.kind === 'CLOSE_APPROACH');
-    for (const e of passed) {
-      if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
-      const n = eventNarrative(e, { threat: th, now: this.run.reveal ? undefined : this.world.t });
-      if (n) this.tele.push(n);
-    }
-    if (cas.length > 1) {
-      const n = cloudNarrative(cas, th);
-      if (n) this.tele.push(n);
+    // PLAY IT OUT has no time to read: the play-by-play log still lists every event, the briefs wait for the debrief.
+    if (!this.playOut) {
+      for (const e of passed) {
+        if (e.kind === 'CLOSE_APPROACH' && cas.length > 1) continue;
+        const n = eventNarrative(e, { threat: th, now: this.run.reveal ? undefined : this.world.t });
+        if (n) this.tele.push(n);
+      }
+      if (cas.length > 1) {
+        const n = cloudNarrative(cas, th);
+        if (n) this.tele.push(n);
+      }
     }
     const ctx = this.cineContext(passed);
     if (ctx) this.cine.enqueue(passed, ctx);
@@ -723,6 +737,8 @@ export class SystemScreen implements Screen {
     }
     this.world.t = res.ca.tCa;
     setWarp(this.world, 0);
+    this.playOut = null;
+    this.cine.quick = null;
     try {
       const cf = this.missions.length > 0 ? resolveRound(this.world, [], this.resolveOpts()) : null;
       this.counterfactual = cf ? { outcome: cf.outcome, margin: cf.ca.marginRadii } : null;
@@ -839,8 +855,21 @@ export class SystemScreen implements Screen {
       this.cine.update(dtMs, k.anyKeyPressed() || k.takeClick() !== null);
       if (!this.cine.isOpen && this.pendingFinish) {
         this.pendingFinish = false;
-        this.finishRound();
+        // PLAY IT OUT: the end scene has played; hold on the result before the debrief.
+        if (this.playOut) this.playOut.hold = KNOBS.PLAY_OUT.RESULT_HOLD_S;
+        else this.finishRound();
       }
+      return;
+    }
+    // A plan was just committed and the planner closed: say how to watch it play out.
+    const plannerWasOpen = this.plannerWasOpen;
+    this.plannerWasOpen = this.planner.isOpen;
+    if (plannerWasOpen && !this.planner.isOpen && this.canPlayOut() && this.missions.length > 0 && this.result && !this.tut) {
+      const total = planPlayOut(w.t, this.missions, this.result.ca.tCa, this.result.events, KNOBS.PLAY_OUT).totalRealS;
+      this.note(`${keyName('PLAY_OUT')} PLAYS IT OUT: LAUNCH, HIT AND CLOSE APPROACH IN ABOUT ${Math.round(total)} S`, 6);
+    }
+    if (this.playOut) {
+      this.updatePlayOut(dtMs);
       return;
     }
     if (this.tele.isOpen) {
@@ -1003,6 +1032,10 @@ export class SystemScreen implements Screen {
       this.planner.show(this.plannerSession());
       return;
     }
+    if (k.pressed('KeyF') && this.canPlayOut()) {
+      this.startPlayOut();
+      return;
+    }
     if (k.pressed('Space')) setWarp(w, w.warp === 0 ? 1 : 0);
     if (k.pressed('Space') && w.warp === 0) this.sfx?.voice.say('PAUSED');
     if (k.pressed('BracketRight')) setWarp(w, w.warp + 1);
@@ -1040,9 +1073,72 @@ export class SystemScreen implements Screen {
         this.tele.push({ header: { text: 'BULLETIN FROM THE OPERATORS', role: 'program' }, lines: [{ text: operatorNote(this.run.seed, slot), role: 'text' }] });
       }
     }
-    const before = w.t;
     // SUPER-DUPER-DEMO runs the clock faster every game; everything else plays at warp.
-    advance(w, (Math.min(dtMs, 100) / 1000) * (this.auto?.speed ?? 1));
+    this.tick(dtMs, (KNOBS.WARP_LEVELS[w.warp] ?? 0) * (Math.min(dtMs, 100) / 1000) * (this.auto?.speed ?? 1));
+  }
+
+  /** PLAY IT OUT: F from the map or the planner. Only on the live round, never under AUTOPLAY or in the MULTIVERSE. */
+  private canPlayOut(): boolean {
+    return this.phase === 'planning' && this.result !== null && !this.auto && !this.mv;
+  }
+
+  private startPlayOut(): void {
+    const res = this.result;
+    if (!this.canPlayOut() || !res) return;
+    if (this.planner.isOpen) this.planner.hide();
+    this.plannerWasOpen = false;
+    this.planetOpen = false;
+    setWarp(this.world, 0);
+    const K = KNOBS.PLAY_OUT;
+    const plan = planPlayOut(this.world.t, this.missions, res.ca.tCa, res.events, K);
+    this.playOut = { plan, hold: -1 };
+    this.cine.quick = { LAUNCH: K.LAUNCH_SCENE_S, IMPACT: K.HIT_SCENE_S, NUKE: K.HIT_SCENE_S, PI: K.HIT_SCENE_S, PUSH: K.HIT_SCENE_S, FRAGMENTATION: K.HIT_SCENE_S, CLOSE_APPROACH: K.END_SCENE_S };
+    this.tele.clear();
+    this.note(`PLAYING IT OUT: ${Math.round(plan.totalRealS)} S TO THE CLOSE APPROACH.  ESC STOPS`, 4);
+  }
+
+  private stopPlayOut(): void {
+    this.playOut = null;
+    this.cine.quick = null;
+    setWarp(this.world, 0);
+    this.note('STOPPED. SPACE RUNS THE CLOCK, F PLAYS IT OUT AGAIN', 4);
+  }
+
+  /** One frame of PLAY IT OUT: the hold on the result, Esc to stop, else the clock at the schedule's rate. */
+  private updatePlayOut(dtMs: number): void {
+    const po = this.playOut;
+    const res = this.result;
+    if (!po || !res) return;
+    if (this.auto) {
+      this.stopPlayOut();
+      return;
+    }
+    const k = this.keys;
+    if (po.hold >= 0) {
+      po.hold -= dtMs / 1000;
+      if (po.hold <= 0 || k.pressed('Space') || k.pressed('Enter')) this.finishRound();
+      return;
+    }
+    if (k.pressed('Escape') || k.pressed('Space') || k.pressed('KeyF')) {
+      this.stopPlayOut();
+      return;
+    }
+    const w = this.world;
+    const rate = playOutRate(po.plan, w.t);
+    this.tick(dtMs, Math.min(rate * (Math.min(dtMs, 100) / 1000), Math.max(0, res.ca.tCa - w.t)));
+  }
+
+  /** Sim seconds per real second right now: the play-out schedule, else the warp (times the demo's pace). */
+  private clockRate(): number {
+    if (this.playOut) return playOutRate(this.playOut.plan, this.world.t);
+    return (KNOBS.WARP_LEVELS[this.world.warp] ?? 0) * (this.auto?.speed ?? 1);
+  }
+
+  /** Advance the clock by `simDt` sim seconds and run everything that hangs on it: events, programs, studies, the end. */
+  private tick(dtMs: number, simDt: number): void {
+    const w = this.world;
+    const before = w.t;
+    advanceBy(w, simDt);
     if (this.result && w.t > before) this.onEventsPassed(this.result.events.filter((e) => e.t > before && e.t <= w.t));
     if (!this.imminentSaid && this.result?.outcome === 'HIT' && w.threat && w.threat.tImpact - w.t < KNOBS.VOICE_IMMINENT_S) {
       this.imminentSaid = true;
@@ -1050,7 +1146,7 @@ export class SystemScreen implements Screen {
     }
     // Auto warp-down (29): the last craft has arrived, so the player sees there is room to act.
     const arrived = this.warpDown.check(this.result?.missionsResolved ?? this.missions, before, w.t);
-    if (arrived.length > 0 && !this.mv) {
+    if (arrived.length > 0 && !this.mv && !this.playOut) {
       if (w.warp > KNOBS.WARP_DOWN_INDEX) setWarp(w, KNOBS.WARP_DOWN_INDEX);
       this.note('NO MORE CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', 6);
     }
@@ -1070,6 +1166,7 @@ export class SystemScreen implements Screen {
     }
     if (this.result && w.t >= this.result.ca.tCa) {
       if (this.cine.isOpen) this.pendingFinish = true;
+      else if (this.playOut) this.playOut.hold = KNOBS.PLAY_OUT.RESULT_HOLD_S;
       else this.finishRound();
     }
   }
@@ -1388,6 +1485,7 @@ export class SystemScreen implements Screen {
       this.drawFictionProps();
     }
     if (!this.planner.isOpen && !this.planetOpen && !this.programs.isOpen && !this.tech.isOpen && !this.sky.isOpen) this.drawHud();
+    if (this.playOut && !this.cine.isOpen) this.drawPlayOut();
     if (this.planetOpen && !this.planner.isOpen) this.planet.render(this.world, this.result, this.mc);
     for (const o of [this.planner, this.programs, this.tech, this.sky, this.planet]) o.bottomInset = this.barH;
     this.programs.render(this.run, budgetAt(this.run.economy, this.world.t), this.world.t, this.gauge, this.experimental());
@@ -1910,6 +2008,61 @@ export class SystemScreen implements Screen {
     }
   }
 
+  /** The HUD's clock word: the warp, or the play-out stage with its pace in days per second. */
+  private warpText(): string {
+    const po = this.playOut;
+    if (!po) return `WARP ${warpLabel(this.world)}`;
+    const stage = playOutStage(po.plan, this.world.t);
+    if (stage === 'RESULT') return 'PLAYING IT OUT  RESULT';
+    const perDay = playOutRate(po.plan, this.world.t) / DAY;
+    return `PLAYING IT OUT  ${stage}  ${perDay >= 100 ? (perDay / 365).toFixed(1) + ' Y/S' : perDay.toFixed(0) + ' D/S'}`;
+  }
+
+  /**
+   * PLAY IT OUT's build card: while the first craft is being built, its wireframe turns under a progress bar
+   * (the one "alternate view" of the quick sequence; after the launch the map itself is the view). At the result
+   * hold the outcome stands in large type over the map.
+   */
+  private drawPlayOut(): void {
+    const po = this.playOut;
+    const res = this.result;
+    if (!po || !res) return;
+    const s = this.s;
+    const p = s.palette;
+    const w = this.world;
+    const ui = uiColors(p, s.spectrum);
+    const stage = playOutStage(po.plan, w.t);
+    if (po.hold >= 0 || stage === 'RESULT') {
+      const miss = res.outcome === 'MISS';
+      const text = res.outcome === 'HIT' ? 'IMPACT' : res.outcome === 'PARTIAL' ? `PARTIAL  ${res.hitEnergyMt.toFixed(1)} MT THROUGH` : `MISS  BY ${res.ca.marginRadii.toFixed(2)} R`;
+      const col = miss ? (s.spectrum ? s.role('planet') : p.ink) : p.hot;
+      const cy = this.compact() ? s.height * 0.3 : s.height * 0.22;
+      drawTextFit(s, text, s.width / 2, cy, Math.min(34, s.width / 18), s.width - 40, { align: 'center', color: col, glow: 2 });
+      drawText(s, 'DEBRIEF IN A MOMENT  (SPACE NOW)', s.width / 2, cy + 44, 10, { align: 'center', color: ui.dim, glow: 0 });
+      return;
+    }
+    if (stage !== 'BUILD') return;
+    const next = [...this.missions].filter((m) => m.launchTime > w.t).sort((a, b) => a.launchTime - b.launchTime)[0];
+    if (!next) return;
+    const model = modelById(next.split ? 'SPLIT_BUS' : next.id.startsWith('SWARM') ? 'SWARM_BUS' : familyOf(next.archetype).model);
+    const compact = this.compact();
+    const bw = Math.min(compact ? 220 : 280, s.width - 32);
+    const bh = compact ? 120 : 160;
+    const bx = (s.width - bw) / 2;
+    const by = compact ? 52 : 110;
+    s.stroke([bx, by, bx + bw, by, bx + bw, by + bh, bx, by + bh], { closed: true, color: p.dim, glow: 0.4 });
+    const ids = this.missions.filter((m) => m.launchTime > w.t).map((m) => m.id);
+    drawTextFit(s, `BUILDING ${ids.length > 2 ? `${ids.length} CRAFT` : ids.join(' + ')}`, bx + bw / 2, by + 8, 11, bw - 16, { align: 'center', color: ui.title, glow: 1 });
+    if (model) drawModelWire(s, model, { x: bx + 10, y: by + 26, w: bw - 20, h: bh - 70 }, performance.now() / 1000, 0.8);
+    const f = Math.max(0, Math.min(1, (w.t - next.committedAt) / Math.max(1, next.launchTime - next.committedAt)));
+    const px = bx + 12;
+    const pw = bw - 24;
+    const py = by + bh - 34;
+    s.stroke([px, py, px + pw, py, px + pw, py + 6, px, py + 6], { closed: true, color: p.dim, glow: 0 });
+    if (f > 0) s.stroke([px, py + 3, px + pw * f, py + 3], { color: p.hot, glow: 1, width: 4 });
+    drawText(s, `LAUNCH IN ${formatCountdown(next.launchTime - w.t)}`, bx + bw / 2, by + bh - 22, 9, { align: 'center', color: ui.text, glow: 0.4 });
+  }
+
   private drawHud(): void {
     const s = this.s;
     const p = s.palette;
@@ -1934,16 +2087,16 @@ export class SystemScreen implements Screen {
     this.hit(hb.x, hb.y, hb.w, hb.h, 'HELP', 'THE MANUAL');
     this.hit(m, m + 44, 240, 20, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
     // The clock / warp / budget column on the left; the centred readouts use the space to its right.
-    const leftW = 2 * m + Math.max(measureText(`WARP ${warpLabel(w)}`, 14), measureText(`BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, 12)) * getTextScale();
+    const leftW = 2 * m + Math.max(measureText(this.warpText(), 14), measureText(`BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, 12)) * getTextScale();
     const rx = (leftW + s.width - m) / 2;
     const rw = s.width - m - leftW;
-    drawText(s, `WARP ${warpLabel(w)}`, m, m + 24, 14, { color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
+    drawText(s, this.warpText(), m, m + 24, 14, { color: w.warp === 0 && !this.playOut ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     drawText(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)}  (+${this.run.economy.perYear}/Y)`, m, m + 48, 12);
     drawText(s, `SCORE ${this.run.score}   RESEARCH ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX (NOT RECORDED)' : ''}${this.run.tutorial ? '   TUTORIAL (NOT RECORDED)' : ''}`, m, m + 68, 12, { color: this.run.sandbox ? p.hot : p.dim, glow: 0 });
     if (this.noteT > 0) drawText(s, this.noteText, s.width / 2, m + 40, 12, { align: 'center', color: p.hot, glow: 1, alpha: Math.min(1, this.noteT) });
     if (th.noWarning) drawText(s, 'NO WARNING: SENSED AT ATMOSPHERIC ENTRY. CIVIL DEFENSE ONLY (<E> EVACUATE).', s.width / 2, m + 58, 12, { align: 'center', color: p.hot, glow: 1.2 });
-    if (this.phase === 'planning' && this.missions.length > 0 && !craftRemaining(res.missionsResolved, w.t)) drawText(s, 'NO CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', m, m + 96, 10, { color: p.dim, glow: 0 });
-    if (this.phase === 'planning' && this.settings.tips !== false && !this.tut && !this.tele.isOpen) {
+    if (this.phase === 'planning' && this.missions.length > 0 && !this.playOut && !craftRemaining(res.missionsResolved, w.t)) drawText(s, 'NO CRAFT IN FLIGHT: PLAN OR LET IT PLAY OUT', m, m + 96, 10, { color: p.dim, glow: 0 });
+    if (this.phase === 'planning' && this.settings.tips !== false && !this.tut && !this.tele.isOpen && !this.playOut) {
       const tip = pickTip({ missions: this.missions.length, inFlight: craftRemaining(res.missionsResolved, w.t), budget: budgetAt(this.run.economy, w.t), leadLeftYears: (th.tImpact - w.t) / YEAR, predictedMiss: res.outcome === 'MISS' }, Math.floor(performance.now() / 1000 / KNOBS.TIP_SECONDS));
       if (tip) drawTextFit(s, `TIP  ${tip.text}`, s.width - m, base - 34, 9, Math.min(620, s.width * 0.5), { align: 'right', color: s.spectrum ? s.role('program') : p.dim, glow: 0.2 });
     }
@@ -1995,7 +2148,7 @@ export class SystemScreen implements Screen {
     this.hit(x0, y, 120, 16, 'G2', 'CLOCK AND WARP');
     // NOTE: the first two lines end left of the GEAR tab in the top-right corner (ui/gearMenu.ts).
     const gx = W - 44;
-    drawText(s, `WARP ${warpLabel(w)}`, gx, y, 12, { align: 'right', color: w.warp === 0 ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
+    drawText(s, this.warpText(), gx, y, 12, { align: 'right', color: w.warp === 0 && !this.playOut ? p.hot : p.ink, glow: w.warp === 0 ? 1.5 : 1 });
     y += 18;
     drawTextFit(s, `BUDGET ${budgetAt(this.run.economy, w.t).toFixed(1)} (+${this.run.economy.perYear}/Y)   SCORE ${this.run.score}   RES ${this.run.research}   MISSIONS ${this.missions.length}${this.run.evacuatedAt !== null ? '   EVACUATED' : ''}${this.run.sandbox ? '   SANDBOX' : ''}${this.run.tutorial ? '   TUTORIAL' : ''}`, x0, y, 8, gx - x0, { color: this.run.sandbox ? p.hot : ui.dim, glow: 0 });
     this.hit(x0, y, W - m - x0, 12, 'G4', 'BUDGET: PROGRAMS AND MISSIONS');
@@ -2068,7 +2221,7 @@ export class SystemScreen implements Screen {
     const more: BarItem = { label: 'MORE', code: 'MORE' };
     if (this.console.isOpen) return [{ label: 'CLOSE CONSOLE', code: 'Escape', key: 'ESC' }];
     if (this.lore.isOpen) return [up, down, { label: 'LEVEL', code: 'Tab', key: 'TAB' }, { label: 'LEARN MORE', code: 'KeyL', key: keyName('LEARN') }, close];
-    if (this.planner.isOpen) return [...(compact ? [] : [{ label: '< METHOD', code: 'ArrowLeft', key: '<' }]), { label: 'METHOD >', code: 'ArrowRight', key: '>' }, up, down, { label: 'COMMIT', code: 'Enter', key: 'ENTER', hot: true }, { label: 'TARGET', code: 'Tab', key: 'TAB', off: this.planner.targetCount < 2 }, ...(compact ? [] : [{ label: 'RULES', code: 'KeyR', key: 'R' }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }]), close];
+    if (this.planner.isOpen) return [...(compact ? [] : [{ label: '< METHOD', code: 'ArrowLeft', key: '<' }]), { label: 'METHOD >', code: 'ArrowRight', key: '>' }, up, down, { label: 'COMMIT', code: 'Enter', key: 'ENTER', hot: true }, { label: 'PLAY IT OUT', code: 'KeyF', key: keyName('PLAY_OUT'), off: this.missions.length === 0 || !this.canPlayOut() }, { label: 'TARGET', code: 'Tab', key: 'TAB', off: this.planner.targetCount < 2 }, ...(compact ? [] : [{ label: 'RULES', code: 'KeyR', key: 'R' }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }]), close];
     if (this.programs.isOpen) return [up, down, { label: 'FUND -', code: 'ArrowLeft' }, { label: 'FUND +', code: 'ArrowRight' }, { label: 'FULL / NONE', code: 'Enter', key: 'ENTER' }, { label: 'STUDIES', code: 'Tab', key: 'TAB' }, { label: 'LEARN', code: 'KeyL', key: keyName('LEARN') }, close];
     if (this.tech.isOpen) return [{ label: '< TRACK', code: 'ArrowLeft' }, { label: 'TRACK >', code: 'ArrowRight' }, up, down, { label: 'UNLOCK', code: 'Enter', key: 'ENTER', hot: true }, { label: 'LEARN', code: 'KeyL', key: keyName('LEARN') }, close];
     if (this.sky.isOpen) return [{ label: 'CLOSE SKY VIEW', code: 'Escape', key: 'ESC' }];
@@ -2076,12 +2229,14 @@ export class SystemScreen implements Screen {
     if (this.phase === 'debrief') return [{ label: this.run.tutorial ? 'ROUND 1' : 'NEXT ROUND', code: 'Space', key: 'SPACE', hot: true }, { label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }, { label: 'TECH', code: 'KeyT', key: keyName('TECH') }, { label: 'PROGRAMS', code: 'KeyG', key: keyName('PROGRAMS') }, more];
     if (this.phase === 'over') return [{ label: 'NEW RUN', code: 'Space', key: 'SPACE', hot: true }, { label: '< EVENT', code: 'ArrowLeft' }, { label: 'EVENT >', code: 'ArrowRight' }, { label: this.panelHidden ? 'SHOW PANEL' : 'HIDE PANEL', code: 'KeyH', key: 'H' }, { label: 'PLANET', code: 'KeyV', key: keyName('PLANET') }, { label: 'TITLE', code: 'Escape', key: 'ESC' }];
     const w = this.world;
+    if (this.playOut) return this.playOut.hold >= 0 ? [{ label: 'DEBRIEF', code: 'Space', key: 'SPACE', hot: true }] : [{ label: 'STOP', code: 'Escape', key: 'ESC', hot: true }];
     const paused = w.warp === 0;
     const base: BarItem[] = [
       { label: paused ? 'RUN' : 'PAUSE', code: 'Space', key: 'SPACE', hot: paused },
       { label: 'WARP -', code: 'BracketLeft', key: keyName('WARP_DOWN'), off: w.warp === 0 },
       { label: 'WARP +', code: 'BracketRight', key: keyName('WARP_UP'), off: w.warp >= KNOBS.WARP_LEVELS.length - 1 },
       { label: 'PLANNER', code: 'KeyP', key: keyName('PLANNER'), hot: this.missions.length === 0 },
+      { label: 'PLAY IT OUT', code: 'KeyF', key: keyName('PLAY_OUT'), hot: this.missions.length > 0 && paused, off: !this.canPlayOut() },
     ];
     if (this.auto && !this.auto.demo) base.unshift({ label: 'TAKE OVER', code: 'KeyA', key: keyName('AUTOPLAY'), hot: true });
     if (compact) return [...base, more];

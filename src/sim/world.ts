@@ -75,6 +75,11 @@ export function advance(w: World, realSeconds: number): void {
   w.t += rate * realSeconds;
 }
 
+/** Advance the clock by `simSeconds` directly (PLAY IT OUT runs the clock on its own schedule, not a warp level). */
+export function advanceBy(w: World, simSeconds: number): void {
+  w.t += simSeconds;
+}
+
 export function setWarp(w: World, index: number): void {
   w.warp = Math.max(0, Math.min(KNOBS.WARP_LEVELS.length - 1, index));
 }

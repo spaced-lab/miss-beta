@@ -39,6 +39,7 @@ import type { AutoCand } from '../../game/autoplay';
 import { drawText, drawTextFit, measureText, wrapText } from '../vectorFont';
 import { FAMILIES, familyCounts, familyMethod, familyOf, filterFamily, lockHint, type Family } from '../../planner/families';
 import { modelById } from '../../lore/models/catalog';
+import { keyName } from '../../game/keybinds';
 import { drawModelWire } from '../../lore/models/viewer';
 import { warheadMass, yieldsForTier } from '../../physics/nuclear';
 
@@ -87,6 +88,8 @@ export class PlannerOverlay {
   openLore: ((id: string) => void) | null = null;
   /** Set by the owner screen: close the planner and open the tech tree (T on a locked method). */
   openTech: (() => void) | null = null;
+  /** F: close and play the round out (system.ts starts the schedule). */
+  onPlayOut: (() => void) | null = null;
   private planX = 0;
   private open = false;
   private session: PlannerSession | null = null;
@@ -494,6 +497,11 @@ export class PlannerOverlay {
       this.hide();
       return;
     }
+    if (k.pressed('KeyF') && this.onPlayOut && this.session && this.session.missions.length > 0) {
+      this.hide();
+      this.onPlayOut();
+      return;
+    }
     // T: straight to the tech tree (a locked tab names the node to research).
     if (k.pressed('KeyT') && this.openTech) {
       this.hide();
@@ -557,7 +565,7 @@ export class PlannerOverlay {
         const rules = RULE_PRESETS[session.rulesPreset] ?? RULE_PRESETS['DEFAULT'] ?? [];
         const ms = c.missions.map((m, j) => ({ ...m, id: c.missions.length > 1 ? `SWARM-${base}${String.fromCharCode(65 + j)}` : `${c.archetype === 'SPLIT' ? 'CARRIER' : c.archetype === 'KINETIC_FLYBY' ? 'FLYBY' : c.archetype === 'SAIL_KINETIC' ? 'SAIL' : c.archetype.startsWith('NUKE') ? 'NUKE' : c.archetype === 'SLOW_PUSH' ? 'PUSH' : 'IMPACTOR'}-${base}`, autonomyTier: session.autonomyTier, dvBudget: Math.max(m.dvBudget ?? 0, session.dsmBudget - (m.dsmUsed ?? 0)), rules }));
         const ok = session.onCommit(ms);
-        this.status = ok ? `${ms.map((m) => m.id).join(' ')} COMMITTED` : 'CANNOT AFFORD THIS PLAN';
+        this.status = ok ? `${ms.map((m) => m.id).join(' ')} COMMITTED.  ${keyName('PLAY_OUT')} PLAYS IT OUT, ESC BACK TO THE MAP` : 'CANNOT AFFORD THIS PLAN';
       }
     }
   }

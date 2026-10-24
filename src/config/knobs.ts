@@ -460,6 +460,11 @@ export const KNOBS = {
   /** Ember sparks: tiny false-colour pixels shed from each nozzle, count per nozzle and lifetime, s. */
   CINE_EMBERS: 40,
   CINE_EMBER_LIFE_S: 0.55,
+  /** PLAY IT OUT (F, game/playOut.ts; owner 2026-10-24): the rest of the round in fixed real seconds. BUILD_S from now
+   *  to the first launch, FLIGHT_S from launch to the last arrival (the launch scene cut to LAUNCH_SCENE_S and each hit
+   *  scene to HIT_SCENE_S inside it), COAST_S to the close approach (the end scene at END_SCENE_S, then RESULT_HOLD_S
+   *  on the result before the debrief). No span's clock part goes under MIN_SPAN_S [knob]. */
+  PLAY_OUT: { BUILD_S: 3, FLIGHT_S: 20, LAUNCH_SCENE_S: 1, HIT_SCENE_S: 2, COAST_S: 20, END_SCENE_S: 3, RESULT_HOLD_S: 2, MIN_SPAN_S: 2 },
   /** Impact, breakup and trail debris pixel size relative to the old chunky size (1 = old). */
   CINE_DEBRIS_PX_SCALE: 0.6,
   /** A debris pixel is drawn in false colour for this long after it is born (hot ejecta), s. */

@@ -35,8 +35,10 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 3. **Run the clock**: `]` and `[` change warp (1 day/s up to 1 year/s), Space pauses. Craft fly their arcs,
    impacts land, the log at the bottom left prints what happened. Pause and press `P` again any time to add
    missions; budget keeps accruing on the clock.
-4. **Resolve**: `R` jumps to the close approach. A miss opens the debrief (score, research earned, a replay you can
-   scrub with Left/Right). Space starts the next round, harder. A hit ends the run and records it on the leaderboard.
+4. **Watch or resolve**: `F` (on the map or in the planner) plays the rest of the round out on a fixed schedule:
+   the build in 3 s, launch to the last hit in 20 s with a one-second launch scene and two-second hit scenes, then 20 s
+   to the close approach with the end scene slowed and a two-second hold on the result. Esc stops it. `R` jumps
+   to the close approach. A miss opens the debrief (score, research earned, a replay you can scrub with Left/Right). Space starts the next round, harder. A hit ends the run and records it on the leaderboard.
 
 ## Keys in a run
 
@@ -48,6 +50,7 @@ BASIC, STRATEGY and ADVANCED sections; Tab switches between them.
 | `V` | Planet view: HOME, the focusing ring, every body at closest approach |
 | `E` | Order an evacuation (cost 2 budget) |
 | `Space`, `[`, `]` | Pause, warp down, warp up |
+| `F` | Play it out: build, launch, hit and close approach in about 40 s, then the result |
 | `R` | Resolve now |
 | `S`, `Z`, wheel, drag | Scale toggle, reset camera, zoom, pan |
 | `X` | Export SAVE.md |

@@ -35,6 +35,18 @@ All notable changes. Format: date, milestone tag when one applies, one line per 
   `SHAKE_COOLDOWN_S` 0.8 s hold so one shake is one pulse. The readout adds `A <n>`, the last second's peak
   acceleration, for tuning the threshold. Older saved tilt prefs are filled in, not dropped. Log: docs/TILT_EXPERIMENTS.md.
 
+### 2026-10-24: PLAY IT OUT (F): the rest of the round in about 40 s
+
+- Owner: after a plan is committed "a quick action key ... accelerates up so the sequence from launch to impact takes
+  20 seconds, 1 second slow down to show launch, 2 second slow down to show impact ... then 20 seconds to see the
+  result ... slow last 3 seconds to show hit or flyby and pause for 2 seconds at result". F on the map or in the
+  planner (and the PLAY IT OUT bar button) runs `game/playOut.ts`: the clock is cut into BUILD (3 s to the first
+  launch, under a card with the craft's wireframe and a build bar), FLIGHT (20 s to the last arrival, the launch
+  scene at 1 s and each hit scene at 2 s inside that budget) and COAST (20 s to the close approach, its scene at 3 s
+  and a 2 s hold on IMPACT / MISS BY n R before the debrief). Scenes play faster to fit (`Cinematics.quick`); the
+  event briefs wait for the debrief; the HUD reads PLAYING IT OUT with the stage and pace; Esc stops. Knobs
+  `PLAY_OUT`. The planner's status line and a note on closing it say the key and the total seconds.
+
 ### 2026-10-24: PERIMETER NORMAL eased a notch (rock hit points +28 %/level)
 
 - Owner: "adjust to make it a little easier, in between the last adjustment and this latest one. If someone wants

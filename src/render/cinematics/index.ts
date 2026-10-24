@@ -22,6 +22,8 @@ export class Cinematics {
   private shownPush = new Set<string>();
   /** Fired once per scene at its hit moment (or at the start for a launch). */
   onHit: ((scene: Scene) => void) | null = null;
+  /** PLAY IT OUT: seconds a scene of each kind gets (others keep their length); the scene plays faster to fit. */
+  quick: Readonly<Record<string, number>> | null = null;
 
   constructor(
     private readonly s: Surface,
@@ -86,9 +88,15 @@ export class Cinematics {
     return this.reduceMotion() ? KNOBS.CINEMATIC_FLASH_S : (this.cur?.duration ?? 0);
   }
 
+  /** Playback speed of the current scene: 1, or its length over the quick length under PLAY IT OUT. */
+  private get speed(): number {
+    const q = this.cur ? this.quick?.[this.cur.kind] : undefined;
+    return this.cur && q && q > 0 ? this.cur.duration / q : 1;
+  }
+
   update(dtMs: number, skip: boolean): void {
     if (!this.cur) return;
-    this.elapsed += dtMs / 1000;
+    this.elapsed += (dtMs / 1000) * this.speed;
     if (this.elapsed >= this.cur.hitAt) this.fire();
     if (skip || this.elapsed >= this.duration) {
       this.fire();
